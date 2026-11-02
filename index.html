@@ -392,12 +392,42 @@
 
 <!-- KIT -->
 <section class="section kit" id="kit">
-  <div class="kit-img reveal tilt"><img src="img/camisa-nexos.jpg" alt="Camisa oficial Nexos azul-marinho"></div>
+  <div class="cat reveal" id="cat" aria-roledescription="carrossel" aria-label="Catálogo da camisa oficial">
+    <div class="cat-stage">
+      <figure class="cat-slide full on" data-i="0"><img src="img/camisa/oficial-frente-costas.jpg" alt="Camisa oficial Nexos, frente e costas" loading="eager" draggable="false"></figure>
+      <figure class="cat-slide full" data-i="1"><img src="img/camisa/oficial-frente.jpg" alt="Frente da camisa com NEXOS Performance e Saúde e o símbolo" loading="lazy" draggable="false"></figure>
+      <figure class="cat-slide full" data-i="2"><img src="img/camisa/oficial-costas.jpg" alt="Costas da camisa com ATLETA e Treine para a vida" loading="lazy" draggable="false"></figure>
+      <figure class="cat-slide det" data-i="3"><img src="img/camisa/detalhe-peito.jpg" alt="Detalhe do peito com a marca NEXOS e o símbolo" loading="lazy" draggable="false"></figure>
+      <figure class="cat-slide det" data-i="4"><img src="img/camisa/detalhe-atleta.jpg" alt="Detalhe da palavra ATLETA nas costas" loading="lazy" draggable="false"></figure>
+      <figure class="cat-slide det" data-i="5"><img src="img/camisa/detalhe-gola.jpg" alt="Detalhe da etiqueta com o símbolo na gola" loading="lazy" draggable="false"></figure>
+      <figure class="cat-slide det" data-i="6"><img src="img/camisa/detalhe-barra.jpg" alt="Detalhe da frase Treine para a vida na barra" loading="lazy" draggable="false"></figure>
+      <span class="cat-cap" id="cat-cap">Frente e costas</span>
+      <span class="cat-num"><b id="cat-n">01</b> / 07</span>
+      <button class="cat-nav prev" id="cat-prev" aria-label="Foto anterior"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button class="cat-nav next" id="cat-next" aria-label="Próxima foto"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <div class="cat-prog"><i id="cat-prog"></i></div>
+    </div>
+    <div class="cat-thumbs" id="cat-thumbs">
+      <button class="on" data-i="0" aria-label="Frente e costas"><img src="img/camisa/oficial-frente-costas.jpg" alt="" loading="lazy"></button>
+      <button class="" data-i="1" aria-label="Frente"><img src="img/camisa/oficial-frente.jpg" alt="" loading="lazy"></button>
+      <button class="" data-i="2" aria-label="Costas"><img src="img/camisa/oficial-costas.jpg" alt="" loading="lazy"></button>
+      <button class="" data-i="3" aria-label="Peito: NEXOS e símbolo"><img src="img/camisa/detalhe-peito.jpg" alt="" loading="lazy"></button>
+      <button class="" data-i="4" aria-label="Costas: ATLETA"><img src="img/camisa/detalhe-atleta.jpg" alt="" loading="lazy"></button>
+      <button class="" data-i="5" aria-label="Etiqueta na gola"><img src="img/camisa/detalhe-gola.jpg" alt="" loading="lazy"></button>
+      <button class="" data-i="6" aria-label="Treine para a vida"><img src="img/camisa/detalhe-barra.jpg" alt="" loading="lazy"></button>
+    </div>
+  </div>
   <div class="kit-txt reveal">
     <p class="tag">07 / Vista a Nexos</p>
     <h2>Quem treina com a gente veste a camisa.</h2>
-    <p>Camisa oficial em dry-fit azul-marinho. Fale com a equipe pra garantir a sua.</p>
-    <a href="#contato" class="btn btn-ghost">Quero a minha →</a>
+    <p>A camisa oficial da Nexos: branca com a marca em azul-marinho, <b>ATLETA</b> nas costas e o nosso lema na barra. Feita pra treinar, correr prova e representar a equipe.</p>
+    <dl class="kit-spec">
+      <div><dt>Modelos</dt><dd>Masculina e baby look</dd></div>
+      <div><dt>Frente</dt><dd>NEXOS Performance e Saúde + símbolo</dd></div>
+      <div><dt>Costas</dt><dd>ATLETA · “Treine para a vida”</dd></div>
+      <div><dt>Detalhe</dt><dd>Etiqueta com o símbolo na gola</dd></div>
+    </dl>
+    <a href="#contato" class="btn">Quero a minha →</a>
   </div>
 </section>
 

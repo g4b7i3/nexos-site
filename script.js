@@ -522,3 +522,40 @@ $('#lightbox').addEventListener('touchend', e => { const d = e.changedTouches[0]
   });
   addEventListener('pageshow', (e) => { if (e.persisted) sp.classList.remove('on', 'saindo'); });
 })();
+
+/* catálogo da camisa: troca sozinho, setas, miniaturas e arrastar com o dedo */
+(function catalogo() {
+  const root = document.getElementById('cat'); if (!root) return;
+  const slides = [...root.querySelectorAll('.cat-slide')], thumbs = [...root.querySelectorAll('.cat-thumbs button')];
+  const cap = document.getElementById('cat-cap'), num = document.getElementById('cat-n'), prog = document.getElementById('cat-prog');
+  const stage = root.querySelector('.cat-stage');
+  const TEMPO = 4000, parado = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let i = 0, t0 = performance.now(), pausa = false, visivel = false, raf;
+  const ir = (n) => {
+    i = (n + slides.length) % slides.length;
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    thumbs.forEach((b, k) => b.classList.toggle('on', k === i));
+    cap.textContent = thumbs[i].getAttribute('aria-label');
+    num.textContent = String(i + 1).padStart(2, '0');
+    thumbs[i].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    t0 = performance.now();
+  };
+  const tick = (now) => {
+    if (!pausa && visivel && !parado) {
+      const p = Math.min(1, (now - t0) / TEMPO); prog.style.width = p * 100 + '%';
+      if (p >= 1) ir(i + 1);
+    } else t0 = now - (parseFloat(prog.style.width) || 0) / 100 * TEMPO;
+    raf = requestAnimationFrame(tick);
+  };
+  document.getElementById('cat-prev').onclick = () => ir(i - 1);
+  document.getElementById('cat-next').onclick = () => ir(i + 1);
+  thumbs.forEach((b, k) => (b.onclick = () => ir(k)));
+  stage.addEventListener('mouseenter', () => (pausa = true));
+  stage.addEventListener('mouseleave', () => (pausa = false));
+  let x0 = null;
+  stage.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; pausa = true; }, { passive: true });
+  stage.addEventListener('touchend', (e) => { if (x0 != null) { const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) ir(i + (dx < 0 ? 1 : -1)); } x0 = null; pausa = false; });
+  root.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') ir(i + 1); if (e.key === 'ArrowLeft') ir(i - 1); });
+  new IntersectionObserver(([en]) => { visivel = en.isIntersecting; }, { threshold: 0.3 }).observe(stage);
+  raf = requestAnimationFrame(tick);
+})();
