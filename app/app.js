@@ -1211,7 +1211,12 @@ async function contarMsgNovas() {
 async function viewConversa(alunoId, box, staff, sessaoId) {
   let ref = null;
   if (sessaoId) { const { data } = await sb.from('nx_sessoes').select('id,treino_titulo,iniciado_em,comentario,esforco').eq('id', sessaoId).maybeSingle(); ref = data; }
-  box.innerHTML = `${staff ? '' : `<p class="eyebrow">Conversa</p><h1 class="h1">Fale com o treinador</h1><p class="small muted" style="margin-top:6px">Dúvidas, ajustes no treino ou como você está se sentindo. A equipe Nexos responde por aqui.</p>`}
+  const equipe = await carregarEquipe();
+  const porId = Object.fromEntries(equipe.map((p) => [p.user_id, p]));
+  const nomesEq = equipe.map((p) => firstName(p.nome));
+  box.innerHTML = `${staff ? '' : `<p class="eyebrow">Conversa</p>
+    <div class="treinador-top">${equipe.length ? `<div class="fotos-eq">${equipe.slice(0, 3).map((p) => fotoHTML(p, 'md')).join('')}</div>` : ''}<div class="grow" style="min-width:0"><h1 class="h2">${equipe.length ? esc(nomesEq.length > 1 ? nomesEq.slice(0, -1).join(', ') + ' e ' + nomesEq[nomesEq.length - 1] : nomesEq[0]) : 'Seu treinador'}</h1><p class="small muted">${equipe.length > 1 ? 'Treinadores da Nexos' : 'Treinador da Nexos'} · <span class="online-dot"></span> respondem por aqui</p></div></div>
+    <p class="small muted" style="margin-top:10px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>`}
     <div class="chat" id="chat"><div class="boot-bar" style="margin:30px auto"><i></i></div></div>
     <form class="composer" id="f-msg">
       <div id="ref-box"></div>
@@ -1232,7 +1237,9 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
       $chat.innerHTML = msgs.length ? msgs.map((m) => {
         const d = new Date(m.criado_em).toDateString(); const sep = d !== ult ? `<div class="day-sep">${quando(m.criado_em) === 'hoje' ? 'Hoje' : quando(m.criado_em) === 'ontem' ? 'Ontem' : fmtData(m.criado_em)}</div>` : ''; ult = d;
         const meu = ladoMeu(m);
-        return `${sep}<div class="bubble ${meu ? 'me' : ''}">${m.nx_sessoes ? `<span class="b-ref">Sobre: ${esc(m.nx_sessoes.treino_titulo || 'treino')} · ${fmtData(m.nx_sessoes.iniciado_em)}</span>` : ''}<p>${esc(m.texto)}</p><span class="b-meta">${fmtHora(m.criado_em)}${meu && m.lida ? ' · lida' : ''}</span></div>`;
+        const autor = porId[m.autor_id];
+        const bolha = `<div class="bubble ${meu ? 'me' : ''}">${autor && (!meu || m.autor_id !== S.user.id) ? `<span class="b-autor">${esc(firstName(autor.nome))}</span>` : ''}${m.nx_sessoes ? `<span class="b-ref">Sobre: ${esc(m.nx_sessoes.treino_titulo || 'treino')} · ${fmtData(m.nx_sessoes.iniciado_em)}</span>` : ''}<p>${esc(m.texto)}</p><span class="b-meta">${fmtHora(m.criado_em)}${meu && m.lida ? ' · lida' : ''}</span></div>`;
+        return sep + (!meu && autor ? `<div class="b-linha">${fotoHTML(autor, 'sm')}${bolha}</div>` : bolha);
       }).join('') : `<div class="empty"><div class="h3">Nenhuma mensagem ainda</div><p class="small">${staff ? 'Mande um recado, um ajuste ou um parabéns.' : 'Mande sua primeira mensagem para o treinador.'}</p></div>`;
       $chat.scrollTop = $chat.scrollHeight;
       if (!staff) window.scrollTo(0, document.body.scrollHeight);
@@ -2770,11 +2777,43 @@ async function staffHoje() {
 }
 
 /* ================= PERFIL (todos) ================= */
+/* ---------- equipe (treinadores) e fotos ---------- */
+async function carregarEquipe(forcar) {
+  if (S.cache.equipe && !forcar) return S.cache.equipe;
+  const { data } = await sb.rpc('nx_equipe', { p_org: S.org.id }).catch(() => ({ data: null }));
+  S.cache.equipe = data || []; return S.cache.equipe;
+}
+const fotoHTML = (p, cls = '') => p && p.foto_url ? `<img class="foto ${cls}" src="${esc(p.foto_url)}" alt="${esc(p.nome || '')}" loading="lazy">` : `<span class="foto ini ${cls}">${esc(initials((p && p.nome) || 'N'))}</span>`;
+function reduzirImagem(file, lado = 512) {
+  return new Promise((res, rej) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => { const s = Math.min(img.width, img.height); const c = document.createElement('canvas'); c.width = c.height = lado; const ctx = c.getContext('2d');
+      ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, lado, lado); URL.revokeObjectURL(url); c.toBlob((b) => (b ? res(b) : rej(new Error('img'))), 'image/jpeg', 0.86); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img')); }; img.src = url;
+  });
+}
+async function trocarFoto() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    try {
+      toast('Enviando foto…'); const blob = await reduzirImagem(f);
+      const caminho = `${S.user.id}/foto-${Date.now()}.jpg`;
+      const { error } = await sb.storage.from('nx-avatares').upload(caminho, blob, { contentType: 'image/jpeg', upsert: true });
+      if (error) throw error;
+      const url = sb.storage.from('nx-avatares').getPublicUrl(caminho).data.publicUrl;
+      const { error: e2 } = await sb.rpc('nx_definir_foto', { p_url: url }); if (e2) throw e2;
+      S.me.foto_url = url; S.cache.equipe = null; toast('Foto atualizada! Os alunos já veem na conversa.'); viewPerfil();
+    } catch (e) { console.error(e); toast('Não foi possível enviar a foto.', true); }
+  };
+  inp.click();
+}
+
 function viewPerfil() {
   const papel = { admin: 'Administrador', treinador: 'Treinador', aluno: 'Aluno' }[S.me.papel];
   $app.innerHTML = `
     <p class="eyebrow">Perfil</p>
-    <div class="row" style="margin-top:12px;gap:16px"><div class="av lg st-none">${esc(initials(S.me.nome))}</div><div class="grow"><div class="h2">${esc(S.me.nome)}</div><div class="small muted ellip">${esc(S.user.email)}</div><span class="tag acc" style="margin-top:6px">${papel} · ${esc(S.org.nome)}</span></div></div>
+    <div class="row" style="margin-top:12px;gap:16px">${S.staff ? `<button class="foto-edit" id="trocar-foto" aria-label="Trocar foto">${fotoHTML(S.me, 'lg')}<i>${I.cam}</i></button>` : `<div class="av lg st-none">${esc(initials(S.me.nome))}</div>`}<div class="grow"><div class="h2">${esc(S.me.nome)}</div><div class="small muted ellip">${esc(S.user.email)}</div><span class="tag acc" style="margin-top:6px">${papel} · ${esc(S.org.nome)}</span></div></div>
     <div class="section"><div class="section-h"><h2 class="h2">Trocar senha</h2></div>
       <form class="card" id="f-senha"><label class="field"><span>Nova senha</span><input class="input" type="password" name="s1" minlength="6" required autocomplete="new-password"></label><label class="field"><span>Repita a nova senha</span><input class="input" type="password" name="s2" minlength="6" required autocomplete="new-password"></label><button class="btn block">Salvar nova senha</button></form></div>
     ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button></div></div>` : ''}
@@ -2789,6 +2828,7 @@ function viewPerfil() {
       <button class="btn danger block" id="sair" style="margin-top:12px">Sair da conta</button>
       <p class="tiny dim center" style="margin-top:18px">Nexos Performance e Saúde · app v1.8 · <a href="../privacidade.html" target="_blank" rel="noopener" class="dim">Política de Privacidade</a></p></div>`;
   document.getElementById('sair').onclick = async () => { await sb.auth.signOut(); location.hash = '#/'; };
+  const tf = document.getElementById('trocar-foto'); if (tf) tf.onclick = trocarFoto;
   secaoNotificacoes(document.getElementById('notif'));
   document.getElementById('tema').onclick = (e) => { const b = e.target.closest('[data-tema]'); if (!b) return; aplicarTema(b.dataset.tema); document.querySelectorAll('#tema button').forEach((x) => x.classList.toggle('on', x === b)); };
   document.getElementById('f-senha').onsubmit = async (e) => {

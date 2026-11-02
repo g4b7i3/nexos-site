@@ -794,3 +794,20 @@ html[data-tema="escuro"]{--prova:#fb923c;--prova-bg:rgba(251,146,60,.1);--prova-
 .ex-chev svg{width:18px;height:18px}
 .ex-fig-g .exfig{width:min(220px,48vw);height:auto;aspect-ratio:4/3;border-radius:14px}
 .tr-card.prox{border-color:rgba(2,132,199,.45)}
+
+/* ===== fotos da equipe ===== */
+.foto{display:inline-grid;place-items:center;border-radius:50%;object-fit:cover;object-position:50% 20%;flex:none;background:var(--s3);color:var(--ink);font-family:var(--f-h);font-weight:800;border:2px solid var(--s1)}
+.foto.sm{width:30px;height:30px;font-size:.66rem}
+.foto.md{width:52px;height:52px;font-size:.9rem}
+.foto.lg{width:72px;height:72px;font-size:1.15rem}
+.foto-edit{position:relative;padding:0;border:0;background:none;cursor:pointer;flex:none}
+.foto-edit i{position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#fff;border:2px solid var(--s1)}
+.foto-edit i svg{width:14px;height:14px}
+.treinador-top{display:flex;align-items:center;gap:14px;margin-top:8px;padding:14px;border-radius:20px;background:var(--s1);border:1px solid var(--line)}
+.fotos-eq{display:flex;flex:none}
+.fotos-eq .foto+.foto{margin-left:-14px}
+.online-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin:0 2px 1px 0;vertical-align:middle}
+.b-linha{display:flex;align-items:flex-end;gap:8px}
+.b-linha .bubble{margin:0}
+.b-autor{display:block;font-size:.72rem;font-weight:800;color:var(--acc);margin-bottom:2px}
+.b-linha{align-self:flex-start;max-width:88%}.b-linha .bubble{max-width:100%}
