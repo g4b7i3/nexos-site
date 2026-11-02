@@ -2788,7 +2788,8 @@ async function staffHoje() {
 /* ---------- equipe (treinadores) e fotos ---------- */
 async function carregarEquipe(forcar) {
   if (S.cache.equipe && !forcar) return S.cache.equipe;
-  const { data } = await sb.rpc('nx_equipe', { p_org: S.org.id }).catch(() => ({ data: null }));
+  let data = null;
+  try { const r = await sb.rpc('nx_equipe', { p_org: S.org.id }); data = r.data; } catch (e) { console.error(e); }
   S.cache.equipe = data || []; return S.cache.equipe;
 }
 const fotoHTML = (p, cls = '') => p && p.foto_url ? `<img class="foto ${cls}" src="${esc(p.foto_url)}" alt="${esc(p.nome || '')}" loading="lazy">` : `<span class="foto ini ${cls}">${esc(initials((p && p.nome) || 'N'))}</span>`;
