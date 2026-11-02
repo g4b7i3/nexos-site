@@ -772,7 +772,7 @@ html[data-tema="escuro"]{--prova:#fb923c;--prova-bg:rgba(251,146,60,.1);--prova-
 .sec-tile b{font-size:.95rem;margin-top:6px}
 .sec-tile small{color:var(--mute);font-size:.78rem;line-height:1.3}
 .st-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(2,132,199,.12);color:var(--acc);flex:none}
-.st-ic svg{width:20px;height:20px}
+.st-ic svg{width:24px;height:24px}
 .sec-tit{display:flex;align-items:center;gap:12px;margin:6px 0 16px}
 .sec-tit .eyebrow{margin:0}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}

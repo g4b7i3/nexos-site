@@ -68,13 +68,14 @@ const I = {
   grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>',
-  run: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.5" r="2"/><path d="M9 21l2.5-5.5L14 17v4M7 12l3-4 4 1 2.5 3.5H19M10 8l-1.5 5 3 2.5"/></svg>',
+  run: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="15" cy="4.2" r="1.9" fill="currentColor" stroke="none"/><path d="M13.7 7.4 11.3 13.2"/><path d="M13.3 8.5 9.7 9.9 7.8 8.2"/><path d="M13.3 8.5 16.1 11.1 18.7 10.3"/><path d="M11.3 13.2 8.3 16.1 5.2 16"/><path d="M11.3 13.2 14.3 15.6 13.3 20.6"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
   today: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.6" fill="currentColor"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   wa: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2.1 1-2.4c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.6 2.1 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.1z"/></svg>',
 };
+const icCorr = () => I.run;
 const imgURL = (p) => (/^https?:/.test(p) ? p : 'ex/' + p);
 function exFig(ex, cls = '') {
   const im = (ex && ex.imagens) || [];
@@ -494,7 +495,7 @@ async function viewCalendarioMes(alunoId, box) {
     openSheet(`<p class="eyebrow">${fmtDiaSem(k)}</p><div class="stack" style="margin-top:12px">
       ${x.pr.map((p) => `<a class="list-item" href="#/eventos/minhas" style="color:inherit"><span style="font-size:1.3rem">🏁</span><div class="grow"><b>${esc(p.titulo)}</b><div class="small muted">${esc(p.distancia || '')} ${p.meta ? '· meta ' + esc(p.meta) : ''}</div></div></a>`).join('')}
       ${x.pl.map((p) => cartaoSessao(p, perfil, x.co.find((c) => c.plano_id === p.id), false)).join('')}
-      ${x.co.filter((c) => !c.plano_id).map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><b>Corrida · ${fmtKm(c.distancia_m, 1)}</b><div class="small muted">${fmtPace(paceDe(c))}</div></div>${I.chev}</a>`).join('')}
+      ${x.co.filter((c) => !c.plano_id).map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><span class="ativ-ic">${icCorr(S.staff ? null : S.me)}</span><div class="grow"><b>Corrida · ${fmtKm(c.distancia_m, 1)}</b><div class="small muted">${fmtPace(paceDe(c))}</div></div>${I.chev}</a>`).join('')}
       ${x.se.map((s) => `<div class="list-item"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(s.treino_titulo || 'Musculação')}</b><div class="small muted">feito às ${fmtHora(s.iniciado_em)}</div></div></div>`).join('')}</div>`, (r) => {
       r.querySelectorAll('[data-ses]').forEach((el) => el.onclick = () => { const p = x.pl.find((q) => q.id === el.dataset.ses); verTreinoPlanilha(p, perfil, x.co.find((c) => c.plano_id === p.id)); });
     });
@@ -555,7 +556,7 @@ async function alunoHoje() {
   const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const cardCorr = (p) => {
     const feito = corrHoje.find((c) => c.plano_id === p.id); const est = estruturaDe(p); const rs = resumoEstrutura(est, perfC);
-    return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${I.run} Corrida</span>${feito ? '<span class="tag ok">✓ feita</span>' : ''}</div>
+    return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span>${feito ? '<span class="tag ok">✓ feita</span>' : ''}</div>
       <div class="h3" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
       <div class="small muted">${[rs.km ? f1(rs.km) + ' km' : '', rs.seg ? fmtDur(rs.seg) : ''].filter(Boolean).join(' · ')}</div>
@@ -579,7 +580,7 @@ async function alunoHoje() {
       ${descanso ? `<div class="card center" style="padding:22px 18px"><div style="font-size:1.8rem">🌿</div><div class="h3" style="margin-top:4px">Dia de descanso</div><p class="small muted">Recuperar também é treino. Hidrate-se e durma bem.</p></div>` : ''}
       ${fC && !corrDoDia.length ? `<div class="card"><div class="row between" style="gap:10px"><div><b>Correu por conta própria?</b><div class="small muted">Registre para entrar na sua evolução.</div></div><button class="btn ghost sm" id="reg-home">${I.plus} Registrar</button></div></div>` : ''}
     </div>
-    ${proxCorr ? `<a class="list-item prox-l" href="#/planilha" style="margin-top:12px;color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><span class="small muted">Próxima corrida · ${dia(proxCorr.data).getTime() - dia(hoje).getTime() === 864e5 ? 'amanhã' : DIAS[dia(proxCorr.data).getDay()] + ' ' + dia(proxCorr.data).getDate()}</span><b class="ellip" style="display:block">${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</b></div>${I.chev}</a>` : ''}
+    ${proxCorr ? `<a class="list-item prox-l" href="#/planilha" style="margin-top:12px;color:inherit"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><span class="small muted">Próxima corrida · ${dia(proxCorr.data).getTime() - dia(hoje).getTime() === 864e5 ? 'amanhã' : DIAS[dia(proxCorr.data).getDay()] + ' ' + dia(proxCorr.data).getDate()}</span><b class="ellip" style="display:block">${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</b></div>${I.chev}</a>` : ''}
     ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex"><div class="pc-n"><b>${Math.max(0, Math.round((dia(provaProx.data) - dia(hoje)) / 864e5))}</b><span>dias</span></div><div class="grow" style="min-width:0"><span class="eyebrow">🏁 Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
     <div style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
     <div class="atalhos">
@@ -631,7 +632,7 @@ function constanciaHTML(datas, titulo = 'Sua constância') {
 async function alunoHistorico(aba) {
   loading();
   const abasH = [['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => k !== 'corrida' || faz('corrida'));
-  const INFO = { treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [I.run, 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
+  const INFO = { treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
   if (!aba || !abasH.some(([k]) => k === aba)) {
     const [ses, cor] = await Promise.all([buscarSessoes(S.user.id, 200), sb.from('nx_corridas').select('data').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 60 * 864e5)).then((r) => r.data || []).catch(() => [])]);
     const datas = [...ses.map((x) => x.iniciado_em), ...cor.map((c) => c.data)];
@@ -2706,7 +2707,7 @@ async function staffHoje() {
   loading();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const [{ data: membros }, sess, corr, anams, avs, cobs, provasEq] = await Promise.all([
-    sb.from('nx_membros').select('user_id,nome,ativo,criado_em').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
+    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
     sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,visto_treinador').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => r.data || []),
@@ -2747,7 +2748,7 @@ async function staffHoje() {
   const nomes = Object.fromEntries((membros || []).map((m) => [m.user_id, m.nome]));
   const recentes = [
     ...sess.filter((s) => s.iniciado_em > seteDias).map((s) => ({ t: s.iniciado_em, novo: !s.visto_treinador, h: `#/aluno/${s.aluno_id}/historico`, n: nomes[s.aluno_id], d: `${esc(s.treino_titulo || 'Treino')}${s.esforco != null ? ` · esforço ${s.esforco}` : ''}`, dor: s.dor, ic: I.lib })),
-    ...corr.filter((c) => c.data > seteDias).map((c) => ({ t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}`, dor: c.dor, ic: I.run })),
+    ...corr.filter((c) => c.data > seteDias).map((c) => ({ t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}`, dor: c.dor, ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)) })),
   ].sort((a, b) => (a.t < b.t ? 1 : -1));
   const treinosSemana = recentes.length;
   const comp = compDe(); const aReceber = cobs.filter((c) => c.competencia === comp).reduce((a, c) => a + +c.valor, 0);
@@ -2921,7 +2922,7 @@ async function staffAluno(alunoId, aba, extra) {
   const fM = faz('musculacao', m), fC = faz('corrida', m);
   const SECOES = [
     ['treinos', 'Treinos', I.lib, 'Musculação do aluno', fM],
-    ['corrida', 'Corrida', I.run, 'Planilha e evolução', fC],
+    ['corrida', 'Corrida', icCorr(m), 'Planilha e evolução', fC],
     ['historico', 'Feedbacks', I.feed, `${sess.length} treino${sess.length === 1 ? '' : 's'} registrados`, true],
     ['cargas', 'Evolução de cargas', I.hist, 'Progressão por exercício', fM],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
