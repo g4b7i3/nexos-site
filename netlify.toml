@@ -1,0 +1,27 @@
+# Site da Nexos + app (pasta /app). Publicado direto do GitHub, sem build.
+[build]
+  publish = "."
+  command = ""
+
+# O service worker e a página do app nunca ficam presos em cache velho
+[[headers]]
+  for = "/app/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/app/"
+
+[[headers]]
+  for = "/app/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/app/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
