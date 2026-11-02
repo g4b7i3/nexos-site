@@ -447,10 +447,13 @@ async function viewPlanilhaAluno(aba) {
   const box = document.getElementById('pl-c');
   if (aba === 'corrida') return viewCorridaPainel(S.user.id, box, false, S.me, ['planilha']);
   if (aba === 'musculacao') {
-    const [treinos, sessoes] = await Promise.all([buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 20)]);
+    const [treinos, sessoes] = await Promise.all([buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 200)]);
     const ativos = treinos.filter((t) => t.ativo); const ultima = sessoes[0];
     const idx = ultima ? ativos.findIndex((t) => t.id === ultima.treino_id) : -1; const prox = ativos.length ? ativos[(idx + 1) % ativos.length] : null;
-    box.innerHTML = ativos.length ? `<div class="stack">${ativos.map((t, i) => `<a class="card tap wcard" href="#/treino/${t.id}" style="display:flex"><div class="wletter">${esc(letraTreino(t, i))}</div><div class="grow">${prox && prox.id === t.id ? '<span class="eyebrow">Próximo da sequência</span>' : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div>${t.foco ? `<div class="small muted">${esc(t.foco)}</div>` : ''}<div class="meta"><span class="tag">${t.nx_treino_itens.length} exercícios</span>${(() => { const u = sessoes.find((s) => s.treino_id === t.id); return u ? `<span class="tag">feito ${quando(u.iniciado_em)}</span>` : ''; })()}</div></div><span class="go">${I.play}</span></a>`).join('')}</div>`
+    box.innerHTML = ativos.length ? `<div class="stack">${ativos.map((t, i) => { const ex = sessoes.filter((s) => s.treino_id === t.id); return `<div class="card tr-card ${prox && prox.id === t.id ? 'prox' : ''}"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
+      <div class="grow">${prox && prox.id === t.id ? '<span class="eyebrow">Próximo da sequência</span>' : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios</div></div></div>
+      <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Você fez ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, a última em ${fmtData(ex[0].iniciado_em)}` : 'Você ainda não fez este treino'}</p>
+      <div class="grid2 tr-acoes"><a class="btn sm" href="#/treino/${t.id}">${I.play} Começar</a><a class="btn ghost sm" href="#/historico/cargas">${I.hist} Evolução</a></div></div>`; }).join('')}</div>`
       : '<div class="empty"><div class="h3">Seu treino de musculação está sendo preparado</div><p class="small">Assim que o treinador liberar, ele aparece aqui.</p></div>';
     return;
   }
@@ -578,10 +581,7 @@ async function alunoHoje() {
     </div>
     ${proxCorr ? `<a class="list-item prox-l" href="#/planilha" style="margin-top:12px;color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><span class="small muted">Próxima corrida · ${dia(proxCorr.data).getTime() - dia(hoje).getTime() === 864e5 ? 'amanhã' : DIAS[dia(proxCorr.data).getDay()] + ' ' + dia(proxCorr.data).getDate()}</span><b class="ellip" style="display:block">${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</b></div>${I.chev}</a>` : ''}
     ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex"><div class="pc-n"><b>${Math.max(0, Math.round((dia(provaProx.data) - dia(hoje)) / 864e5))}</b><span>dias</span></div><div class="grow" style="min-width:0"><span class="eyebrow">🏁 Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
-    <div class="card" style="margin-top:12px">
-      <div class="row between"><span class="small muted">Sua semana</span><span class="tag acc">${semanaCount} ${semanaCount === 1 ? 'treino' : 'treinos'} em 7 dias</span></div>
-      ${semanaHTML(ativSem)}
-    </div>
+    <div style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
     <div class="atalhos">
       <a href="#/planilha"><span>${I.cal}</span>Planilha completa</a>
       <a href="#/planilha/calendario"><span>${I.today}</span>Calendário</a>
@@ -614,12 +614,34 @@ function sessaoCard(s, nome) {
     </div></div>`;
 }
 
+function freqSemanaHTML(datas, titulo = 'Frequência da semana') {
+  const hoje = isoDia(new Date()); const seg = inicioSemana(); const set = new Set(datas.map((d) => isoDia(d)));
+  const circ = Array.from({ length: 7 }, (_, i) => { const d = new Date(seg); d.setDate(seg.getDate() + i); const k = isoDia(d); return `<div class="fq-d ${set.has(k) ? 'ok' : ''} ${k === hoje ? 'hoje' : ''} ${k > hoje ? 'fut' : ''}"><i>${set.has(k) ? I.check : ''}</i><span>${'STQQSSD'[i]}</span></div>`; }).join('');
+  const n = [...set].filter((k) => k >= isoDia(seg) && k <= hoje).length;
+  return `<div class="card ov-card"><div class="row between"><b>${titulo}</b><span class="tag acc">${n} ${n === 1 ? 'dia' : 'dias'} treinados</span></div><div class="fq">${circ}</div></div>`;
+}
+function constanciaHTML(datas, titulo = 'Sua constância') {
+  const ord = datas.map((d) => isoDia(d)).sort(); const ult = ord[ord.length - 1];
+  const dias = ult ? Math.round((dia(isoDia(new Date())) - dia(ult)) / 864e5) : null;
+  const media = datas.filter((d) => diasDesde(d) < 28).length / 4;
+  const st = dias == null ? ['Comece hoje', 'acc'] : dias > 21 ? ['Hora de voltar', 'err'] : dias > 7 ? ['Bora retomar', 'warn'] : ['Em dia', 'ok'];
+  return `<div class="card ov-card"><div class="row between"><b>${titulo}</b><span class="tag ${st[1]}">${st[0]}</span></div>
+    <div class="ov-num"><div><span>Último treino</span><b>${dias == null ? '–' : dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`}</b></div><div><span>Média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x por semana</b></div></div></div>`;
+}
 async function alunoHistorico(aba) {
   loading();
   const abasH = [['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => k !== 'corrida' || faz('corrida'));
-  aba = abasH.some(([k]) => k === aba) ? aba : abasH[0][0];
-  const head = `<p class="eyebrow">Evolução</p><h1 class="h1">Sua evolução</h1>${tabsHTML(aba, abasH)}`;
-  const bindTabs = () => { $app.querySelector('.tabs').onclick = (e) => { const b = e.target.closest('[data-aba]'); if (b) location.hash = '#/historico/' + b.dataset.aba; }; };
+  const INFO = { treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [I.run, 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
+  if (!aba || !abasH.some(([k]) => k === aba)) {
+    const [ses, cor] = await Promise.all([buscarSessoes(S.user.id, 200), sb.from('nx_corridas').select('data').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 60 * 864e5)).then((r) => r.data || []).catch(() => [])]);
+    const datas = [...ses.map((x) => x.iniciado_em), ...cor.map((c) => c.data)];
+    $app.innerHTML = `<p class="eyebrow">Evolução</p><h1 class="h1">Sua evolução</h1>
+      <div class="stack" style="margin-top:16px">${freqSemanaHTML(datas)}${constanciaHTML(datas)}
+      <div class="sec-grid">${abasH.map(([k]) => `<a class="sec-tile" href="#/historico/${k}"><span class="st-ic">${INFO[k][0]}</span><b>${INFO[k][1]}</b><small>${INFO[k][2]}</small></a>`).join('')}</div></div>`;
+    return;
+  }
+  const head = `<a class="back" href="#/historico">${I.back} Evolução</a><div class="sec-tit"><span class="st-ic">${INFO[aba][0]}</span><div><p class="eyebrow">Sua evolução</p><h1 class="h2">${INFO[aba][1]}</h1></div></div>`;
+  const bindTabs = () => {};
   if (aba === 'cargas') {
     const grupos = agruparCargas(await buscarRegistros(S.user.id));
     $app.innerHTML = head + `<div id="cargas">${cargasHTML(grupos, false)}</div>`; bindTabs(); bindCargas(document.getElementById('cargas'), grupos); return;

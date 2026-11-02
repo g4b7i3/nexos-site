@@ -793,3 +793,4 @@ html[data-tema="escuro"]{--prova:#fb923c;--prova-bg:rgba(251,146,60,.1);--prova-
 .ex-chev.up{transform:rotate(-90deg)}
 .ex-chev svg{width:18px;height:18px}
 .ex-fig-g .exfig{width:min(220px,48vw);height:auto;aspect-ratio:4/3;border-radius:14px}
+.tr-card.prox{border-color:rgba(2,132,199,.45)}
