@@ -523,39 +523,49 @@ $('#lightbox').addEventListener('touchend', e => { const d = e.changedTouches[0]
   addEventListener('pageshow', (e) => { if (e.persisted) sp.classList.remove('on', 'saindo'); });
 })();
 
-/* catálogo da camisa: troca sozinho, setas, miniaturas e arrastar com o dedo */
+/* catálogo da camisa: cores, troca sozinho, setas, miniaturas e arrastar com o dedo */
 (function catalogo() {
   const root = document.getElementById('cat'); if (!root) return;
   const slides = [...root.querySelectorAll('.cat-slide')], thumbs = [...root.querySelectorAll('.cat-thumbs button')];
+  const cores = [...root.querySelectorAll('.cat-cores button')];
   const cap = document.getElementById('cat-cap'), num = document.getElementById('cat-n'), prog = document.getElementById('cat-prog');
-  const stage = root.querySelector('.cat-stage');
+  const stage = root.querySelector('.cat-stage'), total = root.querySelector('.cat-num');
   const TEMPO = 4000, parado = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let i = 0, t0 = performance.now(), pausa = false, visivel = false, raf;
+  let cor = 'marinho', lista = [], pos = 0, t0 = performance.now(), pausa = false, visivel = false;
+  const montar = (c) => {
+    cor = c; lista = slides.map((s, k) => k).filter((k) => slides[k].dataset.cor === c);
+    cores.forEach((b) => b.classList.toggle('on', b.dataset.cor === c));
+    thumbs.forEach((b) => (b.hidden = b.dataset.cor !== c));
+    total.innerHTML = `<b id="cat-n"></b> / ${String(lista.length).padStart(2, '0')}`;
+    ir(0);
+  };
   const ir = (n) => {
-    i = (n + slides.length) % slides.length;
+    pos = (n + lista.length) % lista.length; const i = lista[pos];
     slides.forEach((s, k) => s.classList.toggle('on', k === i));
     thumbs.forEach((b, k) => b.classList.toggle('on', k === i));
     cap.textContent = thumbs[i].getAttribute('aria-label');
-    num.textContent = String(i + 1).padStart(2, '0');
-    thumbs[i].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-    t0 = performance.now();
+    document.getElementById('cat-n').textContent = String(pos + 1).padStart(2, '0');
+    const box = thumbs[i].parentElement; box.scrollTo({ left: thumbs[i].offsetLeft - box.clientWidth / 2 + thumbs[i].clientWidth / 2, behavior: 'smooth' });
+    t0 = performance.now(); prog.style.width = '0%';
   };
   const tick = (now) => {
     if (!pausa && visivel && !parado) {
       const p = Math.min(1, (now - t0) / TEMPO); prog.style.width = p * 100 + '%';
-      if (p >= 1) ir(i + 1);
+      if (p >= 1) ir(pos + 1);
     } else t0 = now - (parseFloat(prog.style.width) || 0) / 100 * TEMPO;
-    raf = requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   };
-  document.getElementById('cat-prev').onclick = () => ir(i - 1);
-  document.getElementById('cat-next').onclick = () => ir(i + 1);
-  thumbs.forEach((b, k) => (b.onclick = () => ir(k)));
+  document.getElementById('cat-prev').onclick = () => ir(pos - 1);
+  document.getElementById('cat-next').onclick = () => ir(pos + 1);
+  thumbs.forEach((b, k) => (b.onclick = () => ir(lista.indexOf(k))));
+  cores.forEach((b) => (b.onclick = () => montar(b.dataset.cor)));
   stage.addEventListener('mouseenter', () => (pausa = true));
   stage.addEventListener('mouseleave', () => (pausa = false));
   let x0 = null;
   stage.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; pausa = true; }, { passive: true });
-  stage.addEventListener('touchend', (e) => { if (x0 != null) { const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) ir(i + (dx < 0 ? 1 : -1)); } x0 = null; pausa = false; });
-  root.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') ir(i + 1); if (e.key === 'ArrowLeft') ir(i - 1); });
+  stage.addEventListener('touchend', (e) => { if (x0 != null) { const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) ir(pos + (dx < 0 ? 1 : -1)); } x0 = null; pausa = false; });
+  root.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') ir(pos + 1); if (e.key === 'ArrowLeft') ir(pos - 1); });
   new IntersectionObserver(([en]) => { visivel = en.isIntersecting; }, { threshold: 0.3 }).observe(stage);
-  raf = requestAnimationFrame(tick);
+  montar('marinho');
+  requestAnimationFrame(tick);
 })();

@@ -565,7 +565,7 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 /* ===== catálogo da camisa ===== */
 .kit{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
 .cat{min-width:0}
-.cat-stage{position:relative;aspect-ratio:1/1;border-radius:28px;overflow:hidden;border:1px solid var(--line);background:#c6c6c8;box-shadow:0 30px 80px rgba(0,0,0,.45);touch-action:pan-y;user-select:none}
+.cat-stage{position:relative;aspect-ratio:1/1;border-radius:28px;overflow:hidden;border:1px solid var(--line);background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.45);touch-action:pan-y;user-select:none}
 :root[data-theme="light"] .cat-stage{box-shadow:0 30px 70px rgba(11,35,82,.18)}
 .cat-slide{position:absolute;inset:0;margin:0;opacity:0;transform:scale(1.04);transition:opacity .7s ease,transform 1.2s ease}
 .cat-slide.on{opacity:1;transform:none}
@@ -594,3 +594,11 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .kit-spec dd{margin:0;color:var(--ink)}
 @media (max-width:760px){.kit{grid-template-columns:1fr}.cat-stage{border-radius:22px}.cat-thumbs button{width:58px;height:58px}}
 @media (prefers-reduced-motion:reduce){.cat-slide,.cat-slide.det.on img{transition:none;animation:none}}
+
+.cat-cores{display:flex;gap:8px;margin-bottom:12px}
+.cat-cores button{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--mute);font-weight:700;font-size:.86rem;cursor:pointer;transition:.2s}
+.cat-cores button i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(128,140,170,.6)}
+.cat-cores button.on{color:var(--ink);border-color:var(--acc);background:rgba(var(--acc-rgb),.1)}
+.cat-thumbs button{background:#fff}
+.cat-thumbs button[hidden]{display:none}
+.cat-slide img{object-fit:contain!important}
