@@ -736,8 +736,8 @@ async function viewExecucao(treinoId, preview) {
   const itens = (t.nx_treino_itens || []).sort((a, b) => a.ordem - b.ordem);
   const prevs = await ultimasCargas(t.aluno_id, [...new Set(itens.map((i) => i.exercicio_id))]);
   const key = 'nx-exec-' + t.id;
-  const st = preview ? { feitos: [], cargas: {} } : store.get(key, { feitos: [], ini: null, cargas: {} });
-  st.cargas = st.cargas || {};
+  const st = preview ? { feitos: [], cargas: {}, ser: {} } : store.get(key, { feitos: [], ini: null, cargas: {}, ser: {} });
+  st.cargas = st.cargas || {}; st.ser = st.ser || {};
   if (!preview && !st.ini) { st.ini = new Date().toISOString(); store.set(key, st); }
   const feitos = new Set(st.feitos);
   const sug = {};
@@ -775,12 +775,12 @@ async function viewExecucao(treinoId, preview) {
           <div class="grow" data-toggle-info>
             ${exFig(ex, 'ex-fig')}
             <div class="ex-name">${esc(ex.nome || 'Exercício')}</div>
-            <div class="ex-pres">
+            ${Array.isArray(it.series_det) && it.series_det.length ? `<div class="ser-ex">${it.series_det.map((d, k) => { const ok = (st.ser[it.id] || []).includes(k); return `<button type="button" class="se-l ${ok ? 'ok' : ''}" data-ser="${it.id}" data-k="${k}" data-desc="${d.desc || ''}"><b class="mono">${k + 1}ª</b><span class="se-t">${[d.reps ? `<b>${esc(d.reps)}</b> reps` : '', d.carga ? `<b>${esc(d.carga)}</b>` : ''].filter(Boolean).join(' · ')}</span><span class="dim">${d.desc ? d.desc + 's' : ''}</span><i>${I.check}</i></button>`; }).join('')}<p class="tiny dim" style="margin-top:4px">Toque na série quando terminar: o descanso começa sozinho.</p></div>` : `<div class="ex-pres">
               ${it.series ? `<span class="pill"><b>${it.series}</b> séries</span>` : ''}
               ${it.repeticoes ? `<span class="pill"><b>${esc(it.repeticoes)}</b> reps</span>` : ''}
               ${it.carga ? `<span class="pill">prescrita <b>${esc(it.carga)}</b></span>` : ''}
               ${it.descanso_seg ? `<span class="pill">descanso <b>${it.descanso_seg}s</b></span>` : ''}
-            </div>
+            </div>`}
             ${it.observacao ? `<p class="small" style="margin-top:8px;color:var(--warn)">${esc(it.observacao)}</p>` : ''}
             ${cargaHTML(it)}
             <div class="ex-more">${exDetalhe(ex)}</div>
@@ -805,6 +805,20 @@ async function viewExecucao(treinoId, preview) {
     const card = e.target.closest('[data-item]');
     const restB = e.target.closest('[data-rest]');
     if (restB) { e.stopPropagation(); startRest(+restB.dataset.rest); return; }
+    const serB = e.target.closest('[data-ser]');
+    if (serB) {
+      e.stopPropagation(); if (preview) return toast('Pré-visualização: o aluno marca as séries.');
+      const id = serB.dataset.ser, k = +serB.dataset.k; const l = new Set(st.ser[id] || []);
+      const marcando = !l.has(k); marcando ? l.add(k) : l.delete(k); st.ser[id] = [...l];
+      const it = itens.find((x) => x.id === id); const tot = it.series_det.length;
+      if (l.size === tot) feitos.add(id); else feitos.delete(id);
+      st.feitos = [...feitos]; store.set(key, st);
+      try { navigator.vibrate && navigator.vibrate(15); } catch {}
+      const y = window.scrollY; render(); window.scrollTo(0, y);
+      if (marcando && l.size < tot && +serB.dataset.desc) startRest(+serB.dataset.desc);
+      if (feitos.size === itens.length && itens.length) toast('Tudo feito! Finalize e conte como foi.');
+      return;
+    }
     if (e.target.closest('a') || e.target.closest('input') || e.target.closest('.load-in')) return;
     const sb_ = e.target.closest('[data-sug]');
     if (sb_) {
@@ -3164,17 +3178,20 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
       <div class="section"><div class="section-h"><h2 class="h2">Exercícios (${t.itens.length})</h2>${t.itens.length ? `<button class="link-btn small" id="exp-todos">${t.itens.every((x) => x._aberto) ? 'Recolher todos' : 'Expandir todos'}</button>` : slashes}</div>
         <div class="ex-lista" id="itens">${t.itens.map((it, i) => {
           const ex = exMap[it.exercicio_id] || { nome: '(exercício removido)' };
-          const resumo = [it.series && it.repeticoes ? `${it.series} × ${it.repeticoes}` : it.series ? `${it.series} séries` : '', it.carga, it.descanso_seg ? `${it.descanso_seg}s` : ''].filter(Boolean).map(esc).join(' · ');
+          const det = Array.isArray(it.series_det) && it.series_det.length ? it.series_det : null;
+          const resumo = det ? esc(resumoDet(det)) : [it.series && it.repeticoes ? `${it.series} × ${it.repeticoes}` : it.series ? `${it.series} séries` : '', it.carga, it.descanso_seg ? `${it.descanso_seg}s` : ''].filter(Boolean).map(esc).join(' · ');
           if (!it._aberto) return `<div class="ex-li" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span>${exFig(ex, 'thumb')}<span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${resumo || 'toque para definir séries e carga'}</small></span><span class="ex-chev">${I.chev}</span></button></div>`;
           return `<div class="ex-li aberto card" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span><span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${esc(ex.grupo || '')}</small></span><span class="ex-chev up">${I.chev}</span></button>
             <div class="item-row" style="margin-top:10px"><div class="ex-fig-g">${exFig(ex, '')}</div>
             <div class="row" style="gap:6px;align-items:flex-start"><div class="reorder"><button type="button" data-mv="-1" aria-label="Subir">${I.up}</button><button type="button" data-mv="1" aria-label="Descer">${I.down}</button></div><button type="button" class="icon-btn" data-rm aria-label="Remover" style="width:36px;height:36px">${I.x}</button></div></div>
-            <div class="grid4" style="margin-top:12px">
+            ${det ? `<div class="ser-det"><div class="sd-h"><span></span><span class="tiny dim">Reps</span><span class="tiny dim">Carga</span><span class="tiny dim">Desc. (s)</span><span></span></div>${det.map((d, k) => `<div class="sd-l" data-k="${k}"><b class="mono">${k + 1}ª</b><input class="input c" data-d="reps" value="${esc(d.reps ?? '')}" placeholder="12"><input class="input c" data-d="carga" value="${esc(d.carga ?? '')}" placeholder="20 kg"><input class="input c" inputmode="numeric" data-d="desc" value="${esc(d.desc ?? '')}" placeholder="60"><button type="button" class="sd-x" data-sdrm="${k}" aria-label="Remover série">${I.x}</button></div>`).join('')}
+              <div class="sd-acoes"><button type="button" class="link-btn small" data-sdadd>${I.plus} Adicionar série</button><button type="button" class="link-btn small" data-sdoff style="color:var(--mute)">Voltar para séries iguais</button></div></div>`
+            : `<div class="grid4" style="margin-top:12px">
               <label><span class="tiny dim">Séries</span><input class="input c" inputmode="numeric" data-f="series" value="${esc(it.series ?? '')}" placeholder="3"></label>
               <label><span class="tiny dim">Reps</span><input class="input c" data-f="repeticoes" value="${esc(it.repeticoes ?? '')}" placeholder="12"></label>
               <label><span class="tiny dim">Carga</span><input class="input c" data-f="carga" value="${esc(it.carga ?? '')}" placeholder="20 kg"></label>
               <label><span class="tiny dim">Desc. (s)</span><input class="input c" inputmode="numeric" data-f="descanso_seg" value="${esc(it.descanso_seg ?? '')}" placeholder="60"></label>
-            </div>
+            </div><button type="button" class="link-btn small sd-on" data-sdon>Séries com carga ou reps diferentes (pirâmide, aquecimento)</button>`}
             <input class="input" data-f="observacao" value="${esc(it.observacao ?? '')}" placeholder="Observação (opcional): ex. cadência 3-1-1" style="margin-top:8px"></div>`;
         }).join('') || '<div class="empty"><div class="h3">Nenhum exercício</div><p class="small">Adicione da sua biblioteca.</p></div>'}</div>
         <button class="btn ghost block" id="add-ex" style="margin-top:12px">${I.plus} Adicionar exercício</button>
@@ -3189,6 +3206,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
     document.querySelectorAll('[data-i]').forEach((card) => {
       const it = t.itens[+card.dataset.i];
       card.querySelectorAll('[data-f]').forEach((inp) => { it[inp.dataset.f] = inp.value; });
+      card.querySelectorAll('.sd-l').forEach((l) => { const d = it.series_det && it.series_det[+l.dataset.k]; if (d) l.querySelectorAll('[data-d]').forEach((inp) => { d[inp.dataset.d] = inp.value; }); });
     });
   };
   draw();
@@ -3200,6 +3218,10 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
     }
     if (card && e.target.closest('[data-rm]')) { syncCampos(); t.itens.splice(+card.dataset.i, 1); draw(); return; }
     if (card && e.target.closest('[data-tg]')) { syncCampos(); const it = t.itens[+card.dataset.i]; it._aberto = !it._aberto; draw(); const el = document.querySelector(`[data-i="${card.dataset.i}"]`); if (el && it._aberto) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+    if (card && e.target.closest('[data-sdon]')) { syncCampos(); const it = t.itens[+card.dataset.i]; const n = Math.max(1, numInt(it.series) || 3); it.series_det = Array.from({ length: n }, () => ({ reps: it.repeticoes || '', carga: it.carga || '', desc: it.descanso_seg || '' })); draw(); return; }
+    if (card && e.target.closest('[data-sdadd]')) { syncCampos(); const it = t.itens[+card.dataset.i]; const ult = it.series_det[it.series_det.length - 1] || {}; it.series_det.push({ ...ult }); draw(); return; }
+    if (card && e.target.closest('[data-sdrm]')) { syncCampos(); const it = t.itens[+card.dataset.i]; it.series_det.splice(+e.target.closest('[data-sdrm]').dataset.sdrm, 1); if (!it.series_det.length) it.series_det = null; draw(); return; }
+    if (card && e.target.closest('[data-sdoff]')) { syncCampos(); const it = t.itens[+card.dataset.i]; const d0 = it.series_det[0] || {}; it.series = it.series_det.length; it.repeticoes = d0.reps || ''; it.carga = d0.carga || ''; it.descanso_seg = d0.desc || ''; it.series_det = null; draw(); return; }
     if (e.target.closest('#exp-todos')) { syncCampos(); const abrir = !t.itens.every((x) => x._aberto); t.itens.forEach((x) => (x._aberto = abrir)); draw(); return; }
     if (e.target.closest('#add-ex')) {
       syncCampos();
@@ -3251,7 +3273,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
         const num = (v) => { const n = parseInt(String(v).replace(/\D/g, ''), 10); return Number.isFinite(n) ? n : null; };
         if (t.itens.length) {
           const { error } = await sb.from('nx_treino_itens').insert(t.itens.map((it, i) => ({
-            treino_id: id, exercicio_id: it.exercicio_id, ordem: i, series: num(it.series),
+            treino_id: id, exercicio_id: it.exercicio_id, ordem: i, series: Array.isArray(it.series_det) && it.series_det.length ? it.series_det.length : num(it.series), series_det: detLimpo(it),
             repeticoes: String(it.repeticoes || '').trim() || null, carga: String(it.carga || '').trim() || null,
             descanso_seg: num(it.descanso_seg), observacao: String(it.observacao || '').trim() || null,
           })));
@@ -3272,7 +3294,9 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
 
 /* ---------- modelos de treino e envio para vários alunos ---------- */
 const numInt = (v) => { const n = parseInt(String(v ?? '').replace(/\D/g, ''), 10); return Number.isFinite(n) ? n : null; };
-const itensLimpos = (itens) => itens.map((it) => ({ exercicio_id: it.exercicio_id, series: numInt(it.series), repeticoes: String(it.repeticoes || '').trim() || null, carga: String(it.carga || '').trim() || null, descanso_seg: numInt(it.descanso_seg), observacao: String(it.observacao || '').trim() || null }));
+const detLimpo = (it) => Array.isArray(it.series_det) && it.series_det.length ? it.series_det.map((d) => ({ reps: String(d.reps || '').trim() || null, carga: String(d.carga || '').trim() || null, desc: numInt(d.desc) })) : null;
+const resumoDet = (det) => { const r = det.map((d) => d.reps).filter(Boolean); const c = det.map((d) => d.carga).filter(Boolean); return [`${det.length} séries`, r.length ? r.join('/') + ' reps' : '', c.length ? (c[0] === c[c.length - 1] ? c[0] : `${c[0]} → ${c[c.length - 1]}`) : ''].filter(Boolean).join(' · '); };
+const itensLimpos = (itens) => itens.map((it) => ({ series_det: detLimpo(it), exercicio_id: it.exercicio_id, series: Array.isArray(it.series_det) && it.series_det.length ? it.series_det.length : numInt(it.series), repeticoes: String(it.repeticoes || '').trim() || null, carga: String(it.carga || '').trim() || null, descanso_seg: numInt(it.descanso_seg), observacao: String(it.observacao || '').trim() || null }));
 async function buscarModelosTreino() {
   const { data } = await sb.from('nx_modelos_treino').select('*').eq('org_id', S.org.id).order('nome');
   return data || [];
