@@ -42,7 +42,8 @@ function gerarSenha() {
   const r = (s) => s[Math.floor(Math.random() * s.length)];
   return 'nx' + r(a) + r(a) + r(a) + r(d) + r(d) + r(d) + r(d);
 }
-const loginURL = () => location.origin + location.pathname.replace(/[^/]*$/, '');
+const AREA = window.NX_AREA === 'treinador' ? 'treinador' : 'aluno';
+const loginURL = () => { try { return new URL('.', document.baseURI).href; } catch { return location.origin + location.pathname.replace(/[^/]*$/, ''); } };
 
 const I = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
@@ -165,6 +166,8 @@ async function router() {
   closeSheet(); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT);
   if (!S.user) return viewLogin();
   if (!S.me) return viewSemAcesso();
+  if (AREA === 'aluno' && S.staff) return viewOutraArea('treinador');
+  if (AREA === 'treinador' && !S.staff) return viewOutraArea('aluno');
   const parts = (location.hash.replace(/^#\/?/, '') || '').split('/').filter(Boolean);
   const [a, b, c, d] = parts;
   try {
@@ -242,7 +245,7 @@ function viewLogin() {
     <div class="login-hero">
       <img class="sym" src="${LOGO.s()}" alt="">
       <img class="wm" src="${LOGO.w()}" alt="Nexos Performance e Saúde">
-      <div class="row" style="gap:12px">${slashes}<span class="eyebrow">Área do aluno</span></div>
+      <div class="row" style="gap:12px">${slashes}<span class="eyebrow">${AREA === 'treinador' ? 'Área do treinador' : 'Área do aluno'}</span></div>
     </div>
     <form id="f-login" class="card" autocomplete="on">
       <label class="field"><span>E-mail</span><input class="input" type="email" name="email" required autocomplete="username" inputmode="email" placeholder="seuemail@exemplo.com"></label>
@@ -252,14 +255,15 @@ function viewLogin() {
     </form>
     <div class="login-foot small muted">
       <button class="link-btn" id="esqueci">Esqueci minha senha</button>
-      <p style="margin-top:18px"><a href="../" class="muted">← Voltar ao site da Nexos</a> · <a href="../privacidade.html" class="muted" target="_blank" rel="noopener">Privacidade</a></p>
+      <p style="margin-top:14px">${AREA === 'treinador' ? '<a href="/app/" class="muted">Sou aluno → Área do aluno</a>' : '<a href="/treinador/" class="muted">Sou treinador → Área do treinador</a>'}</p>
+      <p style="margin-top:10px"><a href="../" class="muted">← Voltar ao site da Nexos</a> · <a href="../privacidade.html" class="muted" target="_blank" rel="noopener">Privacidade</a></p>
     </div>
   </section>`;
   const f = document.getElementById('f-login');
   document.getElementById('ver-senha').onclick = () => { const i = f.senha; i.type = i.type === 'password' ? 'text' : 'password'; };
   document.getElementById('esqueci').onclick = () => openSheet(`
     <div class="h2">Esqueceu a senha?</div>
-    <p class="muted" style="margin:10px 0 18px">Fale com seu treinador da Nexos. Ele gera uma senha nova pra você na hora, pelo próprio app.</p>
+    <p class="muted" style="margin:10px 0 18px">${AREA === 'treinador' ? 'Fale com o administrador da Nexos para gerar uma senha nova.' : 'Fale com seu treinador da Nexos. Ele gera uma senha nova pra você na hora, pelo próprio app.'}</p>
     <button class="btn block" data-close>Entendi</button>`);
   f.onsubmit = async (e) => {
     e.preventDefault();
@@ -271,6 +275,16 @@ function viewLogin() {
     try { await carregarPerfil(); } catch {}
     location.hash = '#/'; router();
   };
+}
+function viewOutraArea(destino) {
+  $dock.hidden = true; layout('bare');
+  const t = destino === 'treinador';
+  $app.innerHTML = `<section class="login"><div class="login-hero"><img class="sym" src="${LOGO.s()}" alt=""><img class="wm" src="${LOGO.w()}" alt="Nexos Performance e Saúde"></div>
+    <div class="card center"><div class="h3">${t ? 'Você é treinador da Nexos' : 'Esta é a área dos treinadores'}</div>
+    <p class="small muted" style="margin:8px 0 16px">${t ? 'Sua conta entra pela Área do treinador, onde ficam alunos, planilhas, financeiro e eventos.' : 'Sua conta é de aluno. Seus treinos ficam na Área do aluno.'}</p>
+    <a class="btn block" href="${t ? '/treinador/' : '/app/'}">Ir para a ${t ? 'Área do treinador' : 'Área do aluno'} ${I.arrow}</a>
+    <button class="link-btn small" id="sair" style="margin-top:12px">Sair e entrar com outra conta</button></div></section>`;
+  document.getElementById('sair').onclick = () => sb.auth.signOut();
 }
 function viewSemAcesso() {
   $dock.hidden = true; layout('bare');
@@ -1594,7 +1608,7 @@ const ehIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 let swReg = null;
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {});
+  navigator.serviceWorker.register('sw.js', AREA === 'treinador' ? { scope: '/treinador/' } : undefined).then((r) => { swReg = r; }).catch(() => {});
   navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.nav) location.href = e.data.nav; });
 }
 function notificar(acao, id) {
@@ -1618,7 +1632,7 @@ async function ativarPushInterno() {
   }
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') throw new ErroPT('Notificações bloqueadas. Libere nas configurações do navegador para este site.');
-  const reg = swReg || (await navigator.serviceWorker.register('sw.js')); await navigator.serviceWorker.ready;
+  const reg = swReg || (await navigator.serviceWorker.register('sw.js', AREA === 'treinador' ? { scope: '/treinador/' } : undefined)); await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUB) });
   const j = sub.toJSON();

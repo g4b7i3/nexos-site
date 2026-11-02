@@ -8,7 +8,7 @@
   for = "/app/sw.js"
   [headers.values]
     Cache-Control = "no-cache"
-    Service-Worker-Allowed = "/app/"
+    Service-Worker-Allowed = "/"
 
 [[headers]]
   for = "/app/*.js"

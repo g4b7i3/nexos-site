@@ -1,0 +1,30 @@
+{
+  "name": "Nexos · Área do treinador",
+  "short_name": "Nexos Treinador",
+  "description": "Alunos, treinos, planilhas, financeiro e eventos da Nexos.",
+  "lang": "pt-BR",
+  "start_url": "/treinador/",
+  "scope": "/treinador/",
+  "display": "standalone",
+  "background_color": "#f3f6fb",
+  "theme_color": "#f3f6fb",
+  "icons": [
+    {
+      "src": "/app/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/app/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/app/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/treinador/"
+}
