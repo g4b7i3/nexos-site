@@ -1768,6 +1768,39 @@ function pacesDe(vdot) {
 }
 const faixaPace = (p) => p ? `${fmtPace(p[0]).replace('/km', '')}–${fmtPace(p[1])}` : '–';
 const prever = (distM, seg, alvoM) => seg * Math.pow(alvoM / distM, 1.06);
+/* fim da planilha de corrida de cada aluno (última data planejada) */
+async function fimPlanilhas() {
+  const { data } = await sb.from('nx_plano_corrida').select('aluno_id,data').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 120 * 864e5)).then((r) => r).catch(() => ({ data: [] }));
+  const fim = {}; (data || []).forEach((p) => { if (!fim[p.aluno_id] || p.data > fim[p.aluno_id]) fim[p.aluno_id] = p.data; }); return fim;
+}
+const statusPlanilha = (fimData) => {
+  if (!fimData) return { t: 'Sem planilha de corrida', cls: 'err', d: -999 };
+  const d = diasAte(fimData);
+  return { t: d < 0 ? `Planilha acabou em ${fmtCurto(fimData + 'T12:00:00')}` : `Planilha até ${fmtCurto(fimData + 'T12:00:00')}`, cls: d < 0 ? 'err' : d <= 6 ? 'warn' : 'ok', d };
+};
+const ehAniversario = (nasc, dias = 0) => { if (!nasc) return false; const h = new Date(Date.now() + dias * 864e5); return nasc.slice(5, 10) === isoDia(h).slice(5, 10); };
+
+/* Fitness (carga crônica, 42 dias), Fadiga (aguda, 7 dias) e Forma (diferença) — modelo de Banister/Coggan com rTSS */
+function cargaCorrida(corridas, perfil) {
+  const lim = perfil && perfil.paces && perfil.paces.limiar ? (perfil.paces.limiar[0] + perfil.paces.limiar[1]) / 2 : null;
+  const dia0 = new Date(); dia0.setHours(12, 0, 0, 0); const N = 120; const L = Array(N + 1).fill(0);
+  corridas.forEach((c) => {
+    if (!c.duracao_s || !c.distancia_m) return; const k = Math.round((dia0 - dia(isoDia(c.data))) / 864e5); if (k < 0 || k > N) return;
+    const pace = c.duracao_s / (c.distancia_m / 1000);
+    const IF = lim ? Math.min(1.25, Math.max(0.5, lim / pace)) : c.rpe != null ? 0.5 + c.rpe * 0.05 : 0.75;
+    L[N - k] += (c.duracao_s / 3600) * IF * IF * 100;
+  });
+  let ctl = 0, atl = 0; L.forEach((l) => { ctl += (l - ctl) / 42; atl += (l - atl) / 7; });
+  return { fitness: Math.round(ctl), fadiga: Math.round(atl), forma: Math.round(ctl - atl), temDados: L.some((x) => x > 0) };
+}
+function cargaHTML3(cg) {
+  if (!cg.temDados) return '';
+  const f = cg.forma; const est = f > 5 ? ['Descansado', 'ok'] : f >= -10 ? ['Equilibrado', 'ok'] : f >= -30 ? ['Treinando forte', 'warn'] : ['Atenção: carga alta', 'err'];
+  return `<div class="card carga3"><div class="c3">${[['Fitness', cg.fitness, 'c-fit', 'Condicionamento acumulado (42 dias)'], ['Fadiga', cg.fadiga, 'c-fad', 'Cansaço recente (7 dias)'], ['Forma', cg.forma, 'c-for', 'Fitness − Fadiga']].map(([n, v, c, d]) => `<div class="c3-i" title="${d}"><b class="${c}">${v}</b><span>${n}</span></div>`).join('')}</div>
+    <p class="small" style="margin-top:10px;text-align:center"><span class="tag ${est[1]}">${est[0]}</span></p>
+    <details class="ajuda" style="margin-top:6px"><summary>O que são esses números?</summary><p><b>Fitness</b> é a média da carga das corridas nas últimas 6 semanas: sobe devagar conforme o aluno treina. <b>Fadiga</b> é a carga dos últimos 7 dias. <b>Forma</b> = Fitness − Fadiga: positiva quer dizer descansado (bom para prova); muito negativa (abaixo de −30) indica carga alta e risco de excesso. A carga de cada corrida é calculada pelo tempo e pela intensidade em relação ao pace de limiar do aluno.</p></details></div>`;
+}
+
 function perfilCorrida(m) {
   const c = (m && m.corrida) || {};
   const vdot = vdotDe((c.teste_km || 0) * 1000, c.teste_seg);
@@ -2320,7 +2353,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs) {
   let corpo = '';
   if (sub === 'planilha') {
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
-    corpo = `${provasBannerHTML(provasProx, staff, !!(m.corrida && m.corrida.sem_polimento))}
+    corpo = `${provasBannerHTML(provasProx, staff, !!(m.corrida && m.corrida.sem_polimento))}${staff ? cargaHTML3(cargaCorrida(corridas, perfil)).replace('class="card carga3"', 'class="card carga3 compacto"') : ''}
       <div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${rotulo}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>Copiar semana</button><button class="btn sm" id="avisar">${I.bell} Avisar aluno</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
       <div class="${staff ? 'pl-grid' : ''}">
@@ -2330,6 +2363,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs) {
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:10px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
       ${!staff && !plano.length ? '<p class="small muted" style="margin-top:10px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
   } else if (sub === 'evolucao') {
+    const c3 = cargaHTML3(cargaCorrida(corridas, perfil));
     const sem = Array(12).fill(0); const base = inicioSemana();
     corridas.forEach((c) => { const w = Math.floor((base - inicioSemana(new Date(c.data))) / (7 * 864e5)); if (w >= 0 && w < 12) sem[11 - w] += c.distancia_m / 1000; });
     const maxS = Math.max(10, ...sem);
@@ -2337,7 +2371,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs) {
     const paceMed = c30.length ? c30.reduce((a, c) => a + c.duracao_s, 0) / (km30 / 1000) : null;
     const longa = corridas.reduce((a, c) => (!a || c.distancia_m > a.distancia_m ? c : a), null);
     const tend = corridas.filter((c) => c.distancia_m >= 3000 && c.tipo !== 'caminhada').slice(0, 16).reverse().map((c) => ({ x: fmtCurto(c.data), y: +(paceDe(c) / 60).toFixed(2) }));
-    corpo = `<div class="stats" style="margin-top:0"><div class="stat"><b>${f1(km30 / 1000)}</b><span>km em 30 dias</span></div><div class="stat"><b>${c30.length}</b><span>corridas em 30 dias</span></div><div class="stat"><b>${paceMed ? fmtPace(paceMed).replace('/km', '') : '–'}</b><span>pace médio (30 dias)</span></div></div>
+    corpo = c3 + `<div class="stats" style="margin-top:${c3 ? 12 : 0}px"><div class="stat"><b>${f1(km30 / 1000)}</b><span>km em 30 dias</span></div><div class="stat"><b>${c30.length}</b><span>corridas em 30 dias</span></div><div class="stat"><b>${paceMed ? fmtPace(paceMed).replace('/km', '') : '–'}</b><span>pace médio (30 dias)</span></div></div>
       <div class="grid2 g-charts">
         <div class="card" style="padding:14px"><div class="row between"><span class="small muted" style="font-weight:700">Km por semana</span><span class="tiny dim">12 semanas</span></div><div style="display:flex;gap:5px;margin-top:12px;align-items:flex-end;height:110px">${sem.map((v, i) => `<div title="${f1(v)} km" style="flex:1;height:${(v / maxS) * 100}%;min-height:${v ? 6 : 2}px;border-radius:5px;background:${i === 11 ? 'linear-gradient(180deg,var(--acc),var(--acc2))' : 'var(--s3)'}"></div>`).join('')}</div><div class="row between tiny dim" style="margin-top:6px"><span>12 semanas atrás</span><span>esta semana: ${f1(sem[11])} km</span></div></div>
         ${tend.length > 1 ? `<div class="card" style="padding:12px 8px;margin-top:0"><span class="small muted" style="padding-left:6px;font-weight:700">Pace médio por corrida · menor é melhor</span>${grafico(tend, { fmt: (v) => fmtPace(v * 60).replace('/km', '') })}</div>` : ''}
@@ -2740,7 +2774,7 @@ async function staffHoje() {
   loading();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const [{ data: membros }, sess, corr, anams, avs, cobs, provasEq] = await Promise.all([
-    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo,treinador_id,foto_url').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
+    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
     sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,visto_treinador').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => r.data || []),
@@ -2750,6 +2784,7 @@ async function staffHoje() {
     contarNaoVistos(), contarMsgNovas(),
   ]);
   dockStaff();
+  const fimPl = await fimPlanilhas();
   const ativos = (membros || []).filter((m) => m.ativo);
   const hoje = hojeISO();
   const ultimoTreino = {};
@@ -2772,7 +2807,8 @@ async function staffHoje() {
     const atr = cobs.find((c) => c.aluno_id === id && c.status === 'aberta' && c.vencimento < hoje);
     if (atr) l.push({ p: 3, t: 'Mensalidade atrasada', cls: 'warn', ir: '#/financeiro' });
     const ult = ultimoTreino[id]; const dd = ult ? diasDesde(ult) : diasDesde(m.criado_em);
-    if (dd >= 7) l.push({ p: 3, t: ult ? `Sem treinar há ${dd} dias` : 'Ainda não treinou', cls: 'warn', ir: `#/aluno/${id}/conversa` });
+    if (dd >= 7) l.push({ p: dd >= 21 ? 1 : 3, t: ult ? `Sem treinar há ${dd} dias` : 'Ainda não treinou', cls: dd >= 21 ? 'err' : 'warn', ir: `#/aluno/${id}/conversa` });
+    if (faz('corrida', m)) { const sp = statusPlanilha(fimPl[id]); if (sp.d < 0) l.push({ p: 1, t: fimPl[id] ? 'Planilha acabou, sem a próxima' : 'Sem planilha de corrida', cls: 'err', ir: `#/aluno/${id}/corrida` }); else if (sp.d <= 4) l.push({ p: 2, t: `Planilha acaba ${sp.d === 0 ? 'hoje' : sp.d === 1 ? 'amanhã' : `em ${sp.d} dias`}`, cls: 'warn', ir: `#/aluno/${id}/corrida` }); }
     const av = ultAval[id];
     if (av && av.proxima && av.proxima < hoje) l.push({ p: 4, t: 'Reavaliação pendente', cls: '', ir: `#/aluno/${id}/avaliacoes` });
     l.sort((a, b) => a.p - b.p);
@@ -2796,7 +2832,12 @@ async function staffHoje() {
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : alOutros.length ? 'Seus alunos estão em dia. 🎉' : 'Tudo em dia por aqui. 🎉'}</p>
     ${cartaoPushHTML()}
     <div class="stats"><a class="stat" href="#/alunos" style="color:inherit"><b>${ativos.length}</b><span>alunos ativos</span></a><div class="stat"><b>${treinosSemana}</b><span>treinos em 7 dias</span></div><a class="stat" href="#/financeiro" style="color:inherit"><b>${aReceber ? brl(aReceber).replace(',00', '') : 'R$ 0'}</b><span>a receber no mês</span></a></div>
-    ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}${m.treinador_id && m.treinador_id !== S.user.id && eqNomeH[m.treinador_id] ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNomeH[m.treinador_id])}</span>` : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${I.chev}</a>`;
+    ${(() => { const aniv = ativos.filter((m) => ehAniversario(m.nascimento)); const prox = ativos.filter((m) => !ehAniversario(m.nascimento) && [1, 2, 3, 4, 5, 6].some((d) => ehAniversario(m.nascimento, d)));
+      if (!aniv.length && !prox.length) return '';
+      const msg = (m) => encodeURIComponent(`Parabéns, ${firstName(m.nome)}! 🎉 Toda a equipe Nexos deseja um novo ano cheio de saúde, treinos e conquistas. Bora pra cima! 💪`);
+      return `<div class="section"><div class="section-h"><h2 class="h2">Aniversários 🎂</h2>${slashes}</div><div class="stack">${aniv.map((m) => `<div class="list-item aniv">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small" style="color:var(--acc);font-weight:700">Faz aniversário hoje${m.nascimento ? ` · ${idadeEm(m.nascimento)} anos` : ''}</span></div>${m.telefone ? `<a class="btn sm" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}?text=${msg(m)}" target="_blank" rel="noopener">Parabéns</a>` : `<a class="btn sm" href="#/aluno/${m.user_id}/conversa">Parabéns</a>`}</div>`).join('')}
+        ${prox.length ? `<p class="small muted" style="margin-top:4px">Esta semana: ${prox.map((m) => `${esc(firstName(m.nome))} (${fmtCurto(isoDia(new Date()).slice(0, 4) + m.nascimento.slice(4, 10) + 'T12:00:00')})`).join(', ')}</p>` : ''}</div></div>`; })()}
+    ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}${m.treinador_id && m.treinador_id !== S.user.id && eqNomeH[m.treinador_id] ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNomeH[m.treinador_id])}</span>` : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : '')
         + (alOutros.length ? `<div class="section"><details class="outros-al"${alMeus.length ? '' : ' open'}><summary><span class="h2" style="font-size:1rem">Alunos dos outros treinadores</span><span class="tag">${alOutros.length} · opcional</span></summary><div class="stack" style="margin-top:10px">${alOutros.map(card).join('')}</div></details></div>` : ''); })()}
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><a class="link-btn" href="#/feed">Ver retornos</a></div>
@@ -2887,6 +2928,9 @@ async function staffAlunos() {
     buscarSessoes(null, 400), contarNaoVistos(), contarMsgNovas(),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => { S.cache.anam = Object.fromEntries((r.data || []).map((x) => [x.aluno_id, x])); }),
   ]);
+  const [fimPl, corrRec] = await Promise.all([fimPlanilhas(), sb.from('nx_corridas').select('aluno_id,data').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => [])]);
+  const ultAtiv = {}; sess.forEach((x) => { if (!ultAtiv[x.aluno_id] || x.iniciado_em > ultAtiv[x.aluno_id]) ultAtiv[x.aluno_id] = x.iniciado_em; }); corrRec.forEach((c) => { if (!ultAtiv[c.aluno_id] || c.data > ultAtiv[c.aluno_id]) ultAtiv[c.aluno_id] = c.data; });
+  const segIso = isoDia(inicioSemana()); const nSem = {}; [...sess.map((x) => [x.aluno_id, x.iniciado_em]), ...corrRec.map((c) => [c.aluno_id, c.data])].forEach(([id, d]) => { if (isoDia(d) >= segIso) nSem[id] = (nSem[id] || 0) + 1; });
   if (error) throw error;
   dockStaff();
   const ult = {}; sess.forEach((s) => { if (!ult[s.aluno_id]) ult[s.aluno_id] = s; });
@@ -2904,7 +2948,7 @@ async function staffAlunos() {
       <div class="section-h"><h2 class="h2">Alunos</h2>${slashes}</div>
       <div class="seg" id="dono" style="margin-bottom:12px"><button type="button" data-d="meus" class="${state.dono === 'meus' ? 'on' : ''}">Meus alunos (${meus.filter((m) => m.ativo).length})</button><button type="button" data-d="todos" class="${state.dono === 'todos' ? 'on' : ''}">Todos (${ativos.length})</button></div>
       <div class="search">${I.search}<input class="input" id="q" placeholder="Buscar aluno pelo nome ou e-mail"></div>
-      <div class="chips" id="filtros"><button class="chip on" data-f="ativos">Ativos</button><button class="chip" data-f="sumidos">Sem treinar há 7+ dias</button><button class="chip" data-f="inativos">Inativos</button><button class="chip" data-f="todos">Todos</button></div>
+      <div class="chips" id="filtros"><button class="chip on" data-f="ativos">Ativos</button><button class="chip" data-f="planilha">Planilha acabando</button><button class="chip" data-f="sumidos">Sem treinar há 7+ dias</button><button class="chip" data-f="inativos">Inativos</button><button class="chip" data-f="todos">Todos</button></div>
       <div id="lista" class="cols" style="margin-top:12px"></div>
     </div>
     <button class="fab" id="novo" aria-label="Novo aluno">${I.plus}</button>`;
@@ -2914,12 +2958,14 @@ async function staffAlunos() {
     if (state.dono === 'meus') l = l.filter((m) => m.treinador_id === S.user.id);
     if (state.f === 'ativos') l = l.filter((m) => m.ativo);
     if (state.f === 'inativos') l = l.filter((m) => !m.ativo);
-    if (state.f === 'sumidos') l = l.filter((m) => m.ativo && (!ult[m.user_id] || diasDesde(ult[m.user_id].iniciado_em) >= 7));
+    if (state.f === 'sumidos') l = l.filter((m) => m.ativo && (!ultAtiv[m.user_id] || diasDesde(ultAtiv[m.user_id]) >= 7));
+    if (state.f === 'planilha') l = l.filter((m) => m.ativo && faz('corrida', m) && statusPlanilha(fimPl[m.user_id]).d <= 6).sort((a, b) => statusPlanilha(fimPl[a.user_id]).d - statusPlanilha(fimPl[b.user_id]).d);
     document.getElementById('lista').innerHTML = l.length ? l.map((m) => {
       const u = ult[m.user_id]; const dd = u ? diasDesde(u.iniciado_em) : null;
       const stc = !m.ativo ? '' : dd == null ? '' : dd <= 3 ? 'st-ok' : dd <= 7 ? 'st-warn' : '';
       const deOutro = m.treinador_id && m.treinador_id !== S.user.id && eqNome[m.treinador_id];
-      return `<div class="list-item" data-aluno="${m.user_id}">${avAluno(m, stc)}<div class="grow"><b class="ellip" style="display:block">${esc(m.nome)}${deOutro ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNome[m.treinador_id])}</span>` : ''}</b><span class="small muted">${u ? `Treinou ${quando(u.iniciado_em)}` : 'Ainda não treinou pelo app'}${!m.ativo ? ' · inativo' : ''}</span></div>${(S.cache.anam || {})[m.user_id]?.parq_positivo ? '<span class="tag warn">PAR-Q</span>' : !(S.cache.anam || {})[m.user_id] && m.ativo ? '<span class="tag">sem ficha</span>' : ''}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${u && u.dor && !u.visto_treinador ? '<span class="tag warn">dor</span>' : ''}${I.chev}</div>`;
+      return `<div class="list-item" data-aluno="${m.user_id}">${avAluno(m, stc)}<div class="grow"><b class="ellip" style="display:block">${esc(m.nome)}${deOutro ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNome[m.treinador_id])}</span>` : ''}</b><span class="small muted">${ultAtiv[m.user_id] ? `Treinou ${quando(ultAtiv[m.user_id])}` : 'Ainda não treinou pelo app'}${!m.ativo ? ' · inativo' : ''}</span>
+        ${m.ativo ? `<div class="al-st"><span class="${nSem[m.user_id] ? 'ok' : 'nao'}">${nSem[m.user_id] ? `✓ ${nSem[m.user_id]} treino${nSem[m.user_id] > 1 ? 's' : ''} na semana` : '✕ Sem treinos na semana'}</span>${faz('corrida', m) ? (() => { const sp = statusPlanilha(fimPl[m.user_id]); return `<span class="pl-${sp.cls}">${esc(sp.t)}</span>`; })() : ''}</div>` : ''}</div>${(S.cache.anam || {})[m.user_id]?.parq_positivo ? '<span class="tag warn">PAR-Q</span>' : !(S.cache.anam || {})[m.user_id] && m.ativo ? '<span class="tag">sem ficha</span>' : ''}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${u && u.dor && !u.visto_treinador ? '<span class="tag warn">dor</span>' : ''}${I.chev}</div>`;
     }).join('') : `<div class="empty" style="grid-column:1/-1"><div class="h3">${membros.length ? 'Nenhum aluno nesse filtro' : 'Nenhum aluno ainda'}</div><p class="small">${membros.length ? '' : 'Toque no + para cadastrar o primeiro aluno.'}</p></div>`;
   };
   draw();

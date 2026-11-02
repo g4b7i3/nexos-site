@@ -834,3 +834,21 @@ html[data-tema="escuro"]{--prova:#fb923c;--prova-bg:rgba(251,146,60,.1);--prova-
 .se-l.ok{border-color:rgba(14,154,95,.4);background:rgba(14,154,95,.08)}
 .se-l.ok i{background:var(--ok);border-color:var(--ok);color:#fff}
 .se-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== central de atenção e status dos alunos ===== */
+.nivel{flex:none;font-size:.74rem;font-weight:800;padding:4px 9px;border-radius:999px}
+.n-alta{background:rgba(220,38,38,.12);color:var(--err)}
+.n-media{background:rgba(217,119,6,.14);color:#b45309}
+.n-baixa{background:var(--s2);color:var(--mute)}
+html[data-tema="escuro"] .n-media{color:#fbbf24}
+.al-st{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:3px;font-size:.78rem;font-weight:700}
+.al-st .ok{color:var(--ok)}.al-st .nao{color:var(--mute)}
+.pl-ok{color:var(--ok)}.pl-warn{color:#d97706}.pl-err{color:var(--err)}
+.list-item.aniv{border-color:rgba(2,132,199,.35)}
+.carga3{padding:14px}
+.carga3.compacto{margin-bottom:12px}
+.c3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.c3-i{display:grid;justify-items:center;gap:6px}
+.c3-i b{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-m,monospace);font-size:1.1rem;border:3px solid}
+.c3-i span{font-size:.82rem;font-weight:700;color:var(--mute)}
+.c-fit{border-color:var(--ok);color:var(--ok)}.c-fad{border-color:var(--err);color:var(--err)}.c-for{border-color:var(--acc);color:var(--acc)}
