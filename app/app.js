@@ -65,6 +65,7 @@ const I = {
   down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
   bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
   cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>',
   run: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.5" r="2"/><path d="M9 21l2.5-5.5L14 17v4M7 12l3-4 4 1 2.5 3.5H19M10 8l-1.5 5 3 2.5"/></svg>',
@@ -154,9 +155,9 @@ const dockAluno = () => setDock([
 const dockStaff = () => setDock([
   { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.msgNovas || 0) || '' },
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Alunos' },
-  { href: '#/financeiro', match: ['#/financeiro'], icon: I.money, label: 'Financeiro' },
-  { href: '#/eventos', match: ['#/eventos'], icon: I.flag, label: 'Eventos' },
-  { href: '#/biblioteca', match: ['#/biblioteca', '#/modelo'], icon: I.lib, label: 'Exercícios' },
+  { href: '#/treinos', match: ['#/treinos', '#/modelo'], icon: I.cal, label: 'Treinos' },
+  { href: '#/biblioteca', match: ['#/biblioteca'], icon: I.lib, label: 'Exercícios' },
+  { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil'], icon: I.grid, label: 'Mais', badge: S.cache.pagInformados || '' },
 ]);
 
 function layout(cls = '') { $app.className = 'app ' + cls; window.scrollTo(0, 0); }
@@ -166,8 +167,8 @@ async function router() {
   closeSheet(); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT);
   if (!S.user) return viewLogin();
   if (!S.me) return viewSemAcesso();
-  if (AREA === 'aluno' && S.staff) return viewOutraArea('treinador');
-  if (AREA === 'treinador' && !S.staff) return viewOutraArea('aluno');
+  if (!window.NX_DEMO && AREA === 'aluno' && S.staff) return viewOutraArea('treinador');
+  if (!window.NX_DEMO && AREA === 'treinador' && !S.staff) return viewOutraArea('aluno');
   const parts = (location.hash.replace(/^#\/?/, '') || '').split('/').filter(Boolean);
   const [a, b, c, d] = parts;
   try {
@@ -191,7 +192,9 @@ async function router() {
       if (a === 'treino' && b) return await viewExecucao(b, true);
       if (a === 'feed') return await staffFeed();
       if (a === 'modelo' && b) return await staffTreinoEditor(null, b, 'modelo');
-      if (a === 'biblioteca') return await staffBiblioteca(b);
+      if (a === 'biblioteca') return b === 'modelos' ? (location.hash = '#/treinos') : await staffBiblioteca();
+      if (a === 'treinos') return await staffTreinos(b);
+      if (a === 'mais') return staffMais();
       if (a === 'eventos') return await viewEventos(b);
       if (a === 'perfil') return viewPerfil();
       return await staffHoje();
@@ -2879,23 +2882,54 @@ function mostrarCredenciais(d, existente, aluno = true) {
 
 async function staffAluno(alunoId, aba, extra) {
   loading(); let anamnese = null, termo = null, planoInfo = null;
+  let corrRec = [];
   const [{ data: m, error }, treinos, sess] = await Promise.all([
     sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(),
-    buscarTreinosDoAluno(alunoId), buscarSessoes(alunoId, 100), contarMsgNovas(),
+    buscarTreinosDoAluno(alunoId), buscarSessoes(alunoId, 300), contarMsgNovas(),
     sb.from('nx_anamneses').select('*').eq('org_id', S.org.id).eq('aluno_id', alunoId).maybeSingle().then((r) => r.data),
-  ]).then((r) => { anamnese = r[4]; return r; });
+    sb.from('nx_corridas').select('id,data').eq('aluno_id', alunoId).gte('data', isoDia(Date.now() - 60 * 864e5)).then((r) => r.data || []).catch(() => []),
+  ]).then((r) => { anamnese = r[4]; corrRec = r[5]; return r; });
   dockStaff();
   if (error) throw error;
   if (!m) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Aluno não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
-  aba = aba || 'treinos';
+  aba = aba || 'inicio';
   let grupos = [];
   const u = sess[0];
   let corpo = '';
-  if (aba === 'treinos') {
-    corpo = (treinos.length ? treinos.map((t, i) => `
-      <div class="card"><div class="row" style="align-items:flex-start"><div class="wletter" style="width:54px;height:54px;font-size:1.6rem">${esc(letraTreino(t, i))}</div>
-        <div class="grow"><div class="h3">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} ${t.nx_treino_itens.length === 1 ? 'exercício' : 'exercícios'}${!t.ativo ? ' · <span style="color:var(--warn)">pausado</span>' : ''}</div>
-        <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><a class="btn sm" href="#/aluno/${alunoId}/treino/${t.id}">Editar</a><a class="btn ghost sm" href="#/treino/${t.id}">${I.eye} Ver como aluno</a></div></div></div></div>`).join('')
+  const fM = faz('musculacao', m), fC = faz('corrida', m);
+  const SECOES = [
+    ['treinos', 'Treinos', I.lib, 'Musculação do aluno', fM],
+    ['corrida', 'Corrida', I.run, 'Planilha e evolução', fC],
+    ['historico', 'Feedbacks', I.feed, `${sess.length} treino${sess.length === 1 ? '' : 's'} registrados`, true],
+    ['cargas', 'Evolução de cargas', I.hist, 'Progressão por exercício', fM],
+    ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
+    ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],
+    ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? '⚠️ PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
+    ['conversa', 'Conversa', I.feed, (S.cache.msgPorAluno || {})[alunoId] ? `${S.cache.msgPorAluno[alunoId]} mensagem nova` : 'Falar com o aluno', true],
+    ['dados', 'Dados e plano', I.money, 'Cadastro, plano e acesso', true],
+  ].filter((x) => x[4]);
+  if (aba === 'inicio') {
+    const hoje = new Date(); hoje.setHours(12, 0, 0, 0); const seg = inicioSemana();
+    const diasAtiv = new Set([...sess.map((x) => isoDia(x.iniciado_em)), ...corrRec.map((c) => isoDia(c.data))]);
+    const circ = Array.from({ length: 7 }, (_, i) => { const d = new Date(seg); d.setDate(seg.getDate() + i); const k = isoDia(d); return `<div class="fq-d ${diasAtiv.has(k) ? 'ok' : ''} ${k === isoDia(hoje) ? 'hoje' : ''} ${k > isoDia(hoje) ? 'fut' : ''}"><i>${diasAtiv.has(k) ? I.check : ''}</i><span>${'STQQSSD'[i]}</span></div>`; }).join('');
+    const datas = [...diasAtiv].sort(); const ult = datas[datas.length - 1];
+    const diasSem = ult ? Math.round((dia(isoDia(hoje)) - dia(ult)) / 864e5) : null;
+    const n28 = [...sess.map((x) => x.iniciado_em), ...corrRec.map((c) => c.data)].filter((d) => diasDesde(d) < 28).length;
+    const media = n28 / 4;
+    const novo = !ult && diasDesde(m.criado_em) < 14;
+    const st = novo ? ['Novo', 'acc'] : diasSem == null || diasSem > 21 ? ['Abandono', 'err'] : diasSem > 7 ? ['Atenção', 'warn'] : ['Ativo', 'ok'];
+    corpo = `<div class="card ov-card"><div class="row between"><b>Frequência da semana</b><span class="small muted">${[...diasAtiv].filter((k) => k >= isoDia(seg)).length} dia(s)</span></div><div class="fq">${circ}</div></div>
+      <div class="card ov-card"><div class="row between"><b>Engajamento</b><span class="tag ${st[1]}">${st[0]}</span></div>
+        <div class="ov-num"><div><span>Último treino há</span><b>${diasSem == null ? '–' : diasSem === 0 ? 'hoje' : diasSem + (diasSem === 1 ? ' dia' : ' dias')}</b></div><div><span>Frequência média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x semana</b></div></div></div>
+      <div class="sec-grid">${SECOES.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`;
+  } else if (aba === 'treinos') {
+    const ultData = (t) => sess.filter((x) => x.treino_id === t.id);
+    corpo = (treinos.length ? treinos.map((t, i) => { const ex = ultData(t); return `
+      <div class="card tr-card"><div class="row between" style="align-items:flex-start;gap:10px"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
+        <div><div class="h3">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} ${t.nx_treino_itens.length === 1 ? 'exercício' : 'exercícios'}${!t.ativo ? ' · <span style="color:var(--warn)">pausado</span>' : ''}</div></div></div>
+        <a class="icon-btn sm" href="#/treino/${t.id}" aria-label="Ver como aluno" title="Ver como o aluno vê">${I.eye}</a></div>
+        <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Executado ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, última execução ${fmtData(ex[0].iniciado_em)}` : 'O aluno ainda não executou este treino'}</p>
+        <div class="grid3 tr-acoes"><a class="btn sm" href="#/aluno/${alunoId}/treino/${t.id}">Editar</a><a class="btn ghost sm" href="#/aluno/${alunoId}/cargas">${I.hist} Evolução</a><a class="btn ghost sm" href="#/aluno/${alunoId}/historico">${I.feed} Feedbacks</a></div></div>`; }).join('')
       : '<div class="empty"><div class="h3">Nenhum treino ainda</div><p class="small">Monte o primeiro treino deste aluno.</p></div>')
       + `<div class="grid2" style="margin-top:14px"><a class="btn" href="#/aluno/${alunoId}/treino/novo">${I.plus} Novo treino</a><button class="btn ghost" id="treino-modelo">${I.lib} Usar modelo</button></div>`;
   } else if (aba === 'historico') {
@@ -2927,16 +2961,19 @@ async function staffAluno(alunoId, aba, extra) {
     planoInfo = await planoDoAlunoHTML(m);
     corpo = `<div class="card" id="mods-card"><b>O que o aluno faz com a Nexos</b><p class="small muted" style="margin:4px 0 10px">O app do aluno mostra só o que estiver marcado.</p>${modsHTML(m.modalidades)}</div>` + planoInfo.html + corpo;
   }
-  $app.innerHTML = `
+  const secAtual = SECOES.find((x) => x[0] === aba);
+  const cabecalho = `
     <a class="back" href="#/alunos">${I.back} Alunos</a>
     <div class="row" style="gap:16px"><div class="av lg ${u && diasDesde(u.iniciado_em) <= 3 ? 'st-ok' : u && diasDesde(u.iniciado_em) <= 7 ? 'st-warn' : ''}">${esc(initials(m.nome))}</div>
       <div class="grow"><h1 class="h2">${esc(m.nome)}</h1><div class="small muted">${m.objetivo ? esc(m.objetivo) : 'Sem objetivo cadastrado'}</div>
       <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${u ? `<span class="tag">Último treino ${quando(u.iniciado_em)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</div></div></div>
     ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">⚠️ PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
-    ${tabsHTML(aba, [['treinos', 'Treinos'], ['corrida', 'Corrida'], ['historico', `Histórico (${sess.length})`], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos'], ['saude', anamnese && anamnese.parq_positivo ? 'Saúde ⚠️' : 'Saúde'], ['conversa', (S.cache.msgPorAluno || {})[alunoId] ? `Conversa <i class="badge in">${S.cache.msgPorAluno[alunoId]}</i>` : 'Conversa'], ['dados', 'Dados']])}
-    <div class="stack">${corpo}</div>`;
-  $app.querySelector('.tabs').onclick = (e) => { const b = e.target.closest('[data-aba]'); if (b) location.hash = `#/aluno/${alunoId}/${b.dataset.aba}`; };
-  const tabOn = $app.querySelector('.tabs .on'); if (tabOn) tabOn.scrollIntoView({ inline: 'center', block: 'nearest' });
+`;
+  $app.innerHTML = aba === 'inicio'
+    ? cabecalho + `<div class="stack" style="margin-top:16px">${corpo}</div>`
+    : `<a class="back" href="#/aluno/${alunoId}">${I.back} ${esc(m.nome)}</a>
+      <div class="sec-tit"><span class="st-ic">${secAtual ? secAtual[2] : I.user}</span><div><p class="eyebrow">${esc(firstName(m.nome))}</p><h1 class="h2">${secAtual ? secAtual[1] : 'Aluno'}</h1></div></div>
+      <div class="stack">${corpo}</div>`;
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
   const tm = document.getElementById('treino-modelo');
   if (tm) tm.onclick = () => escolherModeloTreino(async (md) => {
@@ -3020,10 +3057,10 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
     t.titulo = 'Treino ' + String.fromCharCode(65 + ex.length);
   }
   const exMap = Object.fromEntries(exs.map((e) => [e.id, e]));
-  const voltar = ehModelo ? '#/biblioteca/modelos' : `#/aluno/${alunoId}`;
+  const voltar = ehModelo ? '#/treinos' : `#/aluno/${alunoId}`;
   const draw = () => {
     $app.innerHTML = `
-      <a class="back" href="${voltar}">${I.back} ${ehModelo ? 'Modelos de treino' : esc(aluno?.nome || 'Aluno')}</a>
+      <a class="back" href="${voltar}">${I.back} ${ehModelo ? 'Treinos' : esc(aluno?.nome || 'Aluno')}</a>
       <p class="eyebrow">${ehModelo ? (novo ? 'Novo modelo de treino' : 'Modelo de treino') : novo ? 'Novo treino' : 'Editar treino'}</p>${!ehModelo && novo ? `<button class="aviso-linha" id="usar-modelo">${I.lib}<span><b>Começar de um modelo pronto</b> e só ajustar</span>${I.chev}</button>` : ''}
       <div class="card" style="margin-top:12px">
         <div class="grid2"><label class="field"><span>${ehModelo ? 'Nome do modelo' : 'Nome do treino'}</span><input class="input" id="t-titulo" value="${esc(t.titulo)}" placeholder="${ehModelo ? 'Ex.: Hipertrofia A – inferiores' : 'Treino A'}"></label>
@@ -3031,11 +3068,14 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
         <label class="field"><span>Recado para o aluno (aparece no topo do treino)</span><textarea class="textarea" id="t-obs" placeholder="Ex.: aqueça 10 min na esteira antes">${esc(t.observacoes || '')}</textarea></label>
         <label class="row small" style="gap:10px;cursor:pointer;${ehModelo ? 'display:none' : ''}"><input type="checkbox" id="t-ativo" ${t.ativo ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--acc)"> Treino liberado para o aluno</label>
       </div>
-      <div class="section"><div class="section-h"><h2 class="h2">Exercícios (${t.itens.length})</h2>${slashes}</div>
-        <div class="stack" id="itens">${t.itens.map((it, i) => {
+      <div class="section"><div class="section-h"><h2 class="h2">Exercícios (${t.itens.length})</h2>${t.itens.length ? `<button class="link-btn small" id="exp-todos">${t.itens.every((x) => x._aberto) ? 'Recolher todos' : 'Expandir todos'}</button>` : slashes}</div>
+        <div class="ex-lista" id="itens">${t.itens.map((it, i) => {
           const ex = exMap[it.exercicio_id] || { nome: '(exercício removido)' };
-          return `<div class="card" data-i="${i}"><div class="item-row"><div class="row" style="gap:12px;align-items:flex-start">${exFig(ex, 'thumb')}<div><span class="mono tiny dim">${String(i + 1).padStart(2, '0')} · ${esc(ex.grupo || '')}</span><div class="h3">${esc(ex.nome)}</div></div></div>
-            <div class="row" style="gap:6px"><div class="reorder"><button type="button" data-mv="-1" aria-label="Subir">${I.up}</button><button type="button" data-mv="1" aria-label="Descer">${I.down}</button></div><button type="button" class="icon-btn" data-rm aria-label="Remover" style="width:36px;height:36px">${I.x}</button></div></div>
+          const resumo = [it.series && it.repeticoes ? `${it.series} × ${it.repeticoes}` : it.series ? `${it.series} séries` : '', it.carga, it.descanso_seg ? `${it.descanso_seg}s` : ''].filter(Boolean).map(esc).join(' · ');
+          if (!it._aberto) return `<div class="ex-li" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span>${exFig(ex, 'thumb')}<span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${resumo || 'toque para definir séries e carga'}</small></span><span class="ex-chev">${I.chev}</span></button></div>`;
+          return `<div class="ex-li aberto card" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span><span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${esc(ex.grupo || '')}</small></span><span class="ex-chev up">${I.chev}</span></button>
+            <div class="item-row" style="margin-top:10px"><div class="ex-fig-g">${exFig(ex, '')}</div>
+            <div class="row" style="gap:6px;align-items:flex-start"><div class="reorder"><button type="button" data-mv="-1" aria-label="Subir">${I.up}</button><button type="button" data-mv="1" aria-label="Descer">${I.down}</button></div><button type="button" class="icon-btn" data-rm aria-label="Remover" style="width:36px;height:36px">${I.x}</button></div></div>
             <div class="grid4" style="margin-top:12px">
               <label><span class="tiny dim">Séries</span><input class="input c" inputmode="numeric" data-f="series" value="${esc(it.series ?? '')}" placeholder="3"></label>
               <label><span class="tiny dim">Reps</span><input class="input c" data-f="repeticoes" value="${esc(it.repeticoes ?? '')}" placeholder="12"></label>
@@ -3066,9 +3106,11 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
       if (j < 0 || j >= t.itens.length) return; [t.itens[i], t.itens[j]] = [t.itens[j], t.itens[i]]; draw(); return;
     }
     if (card && e.target.closest('[data-rm]')) { syncCampos(); t.itens.splice(+card.dataset.i, 1); draw(); return; }
+    if (card && e.target.closest('[data-tg]')) { syncCampos(); const it = t.itens[+card.dataset.i]; it._aberto = !it._aberto; draw(); const el = document.querySelector(`[data-i="${card.dataset.i}"]`); if (el && it._aberto) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+    if (e.target.closest('#exp-todos')) { syncCampos(); const abrir = !t.itens.every((x) => x._aberto); t.itens.forEach((x) => (x._aberto = abrir)); draw(); return; }
     if (e.target.closest('#add-ex')) {
       syncCampos();
-      escolherExercicio(exs, (ex) => { t.itens.push({ exercicio_id: ex.id, series: 3, repeticoes: '12', carga: '', descanso_seg: 60, observacao: '' }); draw(); toast(`${ex.nome} adicionado`); });
+      escolherExercicio(exs, (ex) => { t.itens.push({ exercicio_id: ex.id, series: 3, repeticoes: '12', carga: '', descanso_seg: 60, observacao: '', _aberto: true }); draw(); toast(`${ex.nome} adicionado`); });
       return;
     }
     if (e.target.closest('#usar-modelo')) {
@@ -3091,12 +3133,12 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
       const row = { nome: t.titulo.trim(), foco: t.foco.trim() || null, observacoes: t.observacoes.trim() || null, itens: itensLimpos(t.itens), atualizado_em: new Date().toISOString() };
       const { error } = t.id ? await sb.from('nx_modelos_treino').update(row).eq('id', t.id) : await sb.from('nx_modelos_treino').insert({ ...row, org_id: S.org.id, criado_por: S.user.id });
       if (error) { btn.disabled = false; return toast('Não foi possível salvar o modelo.', true); }
-      toast('Modelo salvo!'); location.hash = '#/biblioteca/modelos'; return;
+      toast('Modelo salvo!'); location.hash = '#/treinos'; return;
     }
     if (ehModelo && e.target.closest('#excluir')) {
       if (!confirm('Excluir este modelo? Os treinos já enviados aos alunos continuam.')) return;
       const { error } = await sb.from('nx_modelos_treino').delete().eq('id', t.id);
-      error ? toast('Não foi possível excluir.', true) : (toast('Modelo excluído.'), (location.hash = '#/biblioteca/modelos')); return;
+      error ? toast('Não foi possível excluir.', true) : (toast('Modelo excluído.'), (location.hash = '#/treinos')); return;
     }
     if (e.target.closest('#salvar')) {
       syncCampos();
@@ -3260,15 +3302,49 @@ async function staffFeed() {
   if (tv) tv.onclick = async () => { await sb.from('nx_sessoes').update({ visto_treinador: true }).eq('org_id', S.org.id).eq('visto_treinador', false); staffFeed(); };
 }
 
+/* ---------- montagem de treino: modelos de musculação e de corrida ---------- */
+const treinosAbas = (k) => `<div class="subtabs" style="margin-top:14px">${[['musculacao', 'Musculação'], ['corrida', 'Corrida']].map(([x, l]) => `<a class="${k === x ? 'on' : ''}" href="#/treinos${x === 'corrida' ? '/corrida' : ''}">${l}</a>`).join('')}</div>`;
+async function staffTreinos(aba) {
+  if (aba !== 'corrida') return staffBiblioteca('modelos');
+  loading();
+  const org = await sb.from('nx_modelos_corrida').select('*').eq('org_id', S.org.id).order('criado_em').then((r) => r.data || []).catch(() => []);
+  const perfil = perfilCorrida({});
+  const card = (md, meu) => `<div class="card mod-corr"><div class="row between" style="gap:10px"><b>${esc(md.nome)}</b>${meu ? `<button class="link-btn tiny" data-delmc="${md.id}" style="color:var(--err)">Excluir</button>` : '<span class="tag">padrão</span>'}</div>
+    <div style="margin:10px 0 6px">${perfilHTML(md.estrutura, perfil, true)}</div>
+    <p class="small muted">${esc(descreverEstrutura(md.estrutura))}</p></div>`;
+  $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('corrida')}
+    <p class="muted small">Modelos de treino de corrida. Para usar, abra a planilha de corrida do aluno e arraste o modelo para o dia. Para criar um modelo, monte o treino no dia e toque em “Salvar como modelo”.</p>
+    ${org.length ? `<div class="section"><div class="section-h"><h2 class="h2">Meus modelos</h2>${slashes}</div><div class="cols">${org.map((m) => card(m, true)).join('')}</div></div>` : ''}
+    <div class="section"><div class="section-h"><h2 class="h2">Modelos prontos</h2>${slashes}</div><div class="cols">${MODELOS_PADRAO.map((m) => card(m, false)).join('')}</div></div>
+    <a class="btn ghost block" href="#/alunos" style="margin-top:16px">${I.users} Abrir a planilha de um aluno</a>`;
+  $app.onclick = async (e) => {
+    const d = e.target.closest('[data-delmc]'); if (!d) return;
+    if (!confirm('Excluir este modelo de corrida?')) return;
+    const { error } = await sb.from('nx_modelos_corrida').delete().eq('id', d.dataset.delmc);
+    error ? toast('Não foi possível excluir.', true) : (toast('Modelo excluído.'), staffTreinos('corrida'));
+  };
+}
+function staffMais() {
+  dockStaff();
+  const it = (href, ic, t, d) => `<a class="list-item" href="${href}" style="color:inherit"><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
+  $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Gestão da assessoria</h1>
+    <div class="stack" style="margin-top:16px">
+      ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
+      ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
+      ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, treinadores e notificações' : 'Sua conta e notificações')}
+    </div>`;
+}
+
 /* ---------- biblioteca de exercícios ---------- */
 async function staffBiblioteca(aba) {
   loading();
   const abasBib = (k) => `<div class="subtabs" style="margin-top:14px">${[['exercicios', 'Exercícios'], ['modelos', 'Modelos de treino']].map(([x, l]) => `<a class="${k === x ? 'on' : ''}" href="#/biblioteca${x === 'modelos' ? '/modelos' : ''}">${l}</a>`).join('')}</div>`;
   if (aba === 'modelos') {
     const mods = await buscarModelosTreino();
+    dockStaff();
     const exs0 = await carregarExercicios();
     const exMap0 = Object.fromEntries(exs0.map((e) => [e.id, e]));
-    $app.innerHTML = `<p class="eyebrow">Biblioteca</p><h1 class="h1">Modelos de treino</h1>${abasBib('modelos')}
+    $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('musculacao')}
       <p class="muted small">Monte uma vez e use com quantos alunos quiser. Ao aplicar, cada aluno recebe a própria cópia, que você pode ajustar depois.</p>
       <div class="cols" style="margin-top:14px" id="mods">${mods.map((m) => { const its = m.itens || []; const grupos = [...new Set(its.map((i) => (exMap0[i.exercicio_id] || {}).grupo).filter(Boolean))].slice(0, 3); return `<div class="card modelo-t" data-mt="${m.id}"><div class="row between" style="align-items:flex-start;gap:10px"><div style="min-width:0"><b class="h3" style="display:block">${esc(m.nome)}</b><div class="small muted">${its.length} exercício${its.length === 1 ? '' : 's'}${grupos.length ? ' · ' + grupos.map(esc).join(', ') : ''}</div></div>${I.chev}</div>
         <div class="mt-fotos">${its.slice(0, 5).map((i) => exFig(exMap0[i.exercicio_id] || {}, 'thumb')).join('')}</div>
@@ -3288,7 +3364,7 @@ async function staffBiblioteca(aba) {
   let g = 'Todos', q = '', eq = 'Todos', n = LIM;
   const comFoto = exs.filter((e) => e.imagens && e.imagens.length).length;
   $app.innerHTML = `
-    <p class="eyebrow">Biblioteca</p><h1 class="h1">Exercícios</h1>${abasBib('exercicios')}
+    <p class="eyebrow">Biblioteca</p><h1 class="h1">Exercícios</h1>
     <p class="muted small" style="margin-top:6px">${exs.length} exercícios · ${comFoto} com fotos de execução. Toque em um para ver como fazer, editar ou adicionar vídeo.</p>
     <div class="search" style="margin-top:16px">${I.search}<input class="input" id="bq" placeholder="Buscar: supino, stiff, kettlebell…"></div>
     <div class="chips" id="bg">${grupos.map((x) => `<button class="chip ${x === g ? 'on' : ''}" data-g="${esc(x)}">${esc(x)}</button>`).join('')}</div>
