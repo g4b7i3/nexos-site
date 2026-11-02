@@ -268,7 +268,7 @@ function viewLogin() {
     </form>
     <div class="login-foot small muted">
       <button class="link-btn" id="esqueci">Esqueci minha senha</button>
-      <p style="margin-top:14px">${AREA === 'treinador' ? '<a href="/app/" class="muted">Sou aluno → Área do aluno</a>' : '<a href="/treinador/" class="muted">Sou treinador → Área do treinador</a>'}</p>
+      <p style="margin-top:14px">${AREA === 'treinador' ? '<a href="/app/" class="muted">Sou aluno → Área do aluno</a>' : ''}</p>
       <p style="margin-top:10px"><a href="../" class="muted">← Voltar ao site da Nexos</a> · <a href="../privacidade.html" class="muted" target="_blank" rel="noopener">Privacidade</a></p>
     </div>
   </section>`;
