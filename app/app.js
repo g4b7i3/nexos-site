@@ -1211,11 +1211,14 @@ async function contarMsgNovas() {
 async function viewConversa(alunoId, box, staff, sessaoId) {
   let ref = null;
   if (sessaoId) { const { data } = await sb.from('nx_sessoes').select('id,treino_titulo,iniciado_em,comentario,esforco').eq('id', sessaoId).maybeSingle(); ref = data; }
-  const equipe = await carregarEquipe();
-  const porId = Object.fromEntries(equipe.map((p) => [p.user_id, p]));
+  const equipeToda = await carregarEquipe();
+  const porId = Object.fromEntries(equipeToda.map((p) => [p.user_id, p]));
+  const resp = !staff && S.me.treinador_id && porId[S.me.treinador_id];
+  const equipe = resp ? [resp] : equipeToda;
   const nomesEq = equipe.map((p) => firstName(p.nome));
+  if (staff) { const { data: al } = await sb.from('nx_membros').select('user_id,nome,foto_url').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); if (al) porId[al.user_id] = al; }
   box.innerHTML = `${staff ? '' : `<p class="eyebrow">Conversa</p>
-    <div class="treinador-top">${equipe.length ? `<div class="fotos-eq">${equipe.slice(0, 3).map((p) => fotoHTML(p, 'md')).join('')}</div>` : ''}<div class="grow" style="min-width:0"><h1 class="h2">${equipe.length ? esc(nomesEq.length > 1 ? nomesEq.slice(0, -1).join(', ') + ' e ' + nomesEq[nomesEq.length - 1] : nomesEq[0]) : 'Seu treinador'}</h1><p class="small muted">${equipe.length > 1 ? 'Treinadores da Nexos' : 'Treinador da Nexos'} · <span class="online-dot"></span> respondem por aqui</p></div></div>
+    <div class="treinador-top">${equipe.length ? `<div class="fotos-eq">${equipe.slice(0, 3).map((p) => fotoHTML(p, 'md')).join('')}</div>` : ''}<div class="grow" style="min-width:0"><h1 class="h2">${equipe.length ? esc(nomesEq.length > 1 ? nomesEq.slice(0, -1).join(', ') + ' e ' + nomesEq[nomesEq.length - 1] : nomesEq[0]) : 'Seu treinador'}</h1><p class="small muted">${equipe.length > 1 ? 'Treinadores da Nexos' : 'Seu treinador na Nexos'} · <span class="online-dot"></span> ${equipe.length > 1 ? 'respondem' : 'responde'} por aqui</p></div></div>
     <p class="small muted" style="margin-top:10px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>`}
     <div class="chat" id="chat"><div class="boot-bar" style="margin:30px auto"><i></i></div></div>
     <form class="composer" id="f-msg">
@@ -1238,7 +1241,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
         const d = new Date(m.criado_em).toDateString(); const sep = d !== ult ? `<div class="day-sep">${quando(m.criado_em) === 'hoje' ? 'Hoje' : quando(m.criado_em) === 'ontem' ? 'Ontem' : fmtData(m.criado_em)}</div>` : ''; ult = d;
         const meu = ladoMeu(m);
         const autor = porId[m.autor_id];
-        const bolha = `<div class="bubble ${meu ? 'me' : ''}">${autor && (!meu || m.autor_id !== S.user.id) ? `<span class="b-autor">${esc(firstName(autor.nome))}</span>` : ''}${m.nx_sessoes ? `<span class="b-ref">Sobre: ${esc(m.nx_sessoes.treino_titulo || 'treino')} · ${fmtData(m.nx_sessoes.iniciado_em)}</span>` : ''}<p>${esc(m.texto)}</p><span class="b-meta">${fmtHora(m.criado_em)}${meu && m.lida ? ' · lida' : ''}</span></div>`;
+        const bolha = `<div class="bubble ${meu ? 'me' : ''}">${autor && (!meu || m.autor_id !== S.user.id) && !(staff && m.autor_id === alunoId) ? `<span class="b-autor">${esc(firstName(autor.nome))}</span>` : ''}${m.nx_sessoes ? `<span class="b-ref">Sobre: ${esc(m.nx_sessoes.treino_titulo || 'treino')} · ${fmtData(m.nx_sessoes.iniciado_em)}</span>` : ''}<p>${esc(m.texto)}</p><span class="b-meta">${fmtHora(m.criado_em)}${meu && m.lida ? ' · lida' : ''}</span></div>`;
         return sep + (!meu && autor ? `<div class="b-linha">${fotoHTML(autor, 'sm')}${bolha}</div>` : bolha);
       }).join('') : `<div class="empty"><div class="h3">Nenhuma mensagem ainda</div><p class="small">${staff ? 'Mande um recado, um ajuste ou um parabéns.' : 'Mande sua primeira mensagem para o treinador.'}</p></div>`;
       $chat.scrollTop = $chat.scrollHeight;
@@ -2714,7 +2717,7 @@ async function staffHoje() {
   loading();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const [{ data: membros }, sess, corr, anams, avs, cobs, provasEq] = await Promise.all([
-    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
+    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo,treinador_id,foto_url').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
     sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,visto_treinador').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => r.data || []),
@@ -2753,6 +2756,9 @@ async function staffHoje() {
     return { m, l };
   }).filter((x) => x.l.length).sort((a, b) => a.l[0].p - b.l[0].p || a.m.nome.localeCompare(b.m.nome));
   const nomes = Object.fromEntries((membros || []).map((m) => [m.user_id, m.nome]));
+  const eqH = await carregarEquipe(); const eqNomeH = Object.fromEntries(eqH.map((p) => [p.user_id, firstName(p.nome)]));
+  const ehMeu = (m) => !m.treinador_id || m.treinador_id === S.user.id || !eqNomeH[m.treinador_id];
+  const alMeus = alertas.filter(({ m }) => ehMeu(m)), alOutros = alertas.filter(({ m }) => !ehMeu(m));
   const recentes = [
     ...sess.filter((s) => s.iniciado_em > seteDias).map((s) => ({ t: s.iniciado_em, novo: !s.visto_treinador, h: `#/aluno/${s.aluno_id}/historico`, n: nomes[s.aluno_id], d: `${esc(s.treino_titulo || 'Treino')}${s.esforco != null ? ` · esforço ${s.esforco}` : ''}`, dor: s.dor, ic: I.lib })),
     ...corr.filter((c) => c.data > seteDias).map((c) => ({ t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}`, dor: c.dor, ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)) })),
@@ -2764,10 +2770,12 @@ async function staffHoje() {
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="icon-btn" href="#/perfil" aria-label="Perfil">${I.user}</a></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
-    <p class="muted" style="margin-top:6px">${alertas.length ? `${alertas.length} aluno${alertas.length > 1 ? 's pedem' : ' pede'} atenção hoje.` : 'Tudo em dia por aqui. 🎉'}</p>
+    <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : alOutros.length ? 'Seus alunos estão em dia. 🎉' : 'Tudo em dia por aqui. 🎉'}</p>
     ${cartaoPushHTML()}
     <div class="stats"><a class="stat" href="#/alunos" style="color:inherit"><b>${ativos.length}</b><span>alunos ativos</span></a><div class="stat"><b>${treinosSemana}</b><span>treinos em 7 dias</span></div><a class="stat" href="#/financeiro" style="color:inherit"><b>${aReceber ? brl(aReceber).replace(',00', '') : 'R$ 0'}</b><span>a receber no mês</span></a></div>
-    ${alertas.length ? `<div class="section"><div class="section-h"><h2 class="h2">Pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alertas.map(({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit"><div class="av">${esc(initials(m.nome))}</div><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${I.chev}</a>`).join('')}</div></div>` : ''}
+    ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}${m.treinador_id && m.treinador_id !== S.user.id && eqNomeH[m.treinador_id] ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNomeH[m.treinador_id])}</span>` : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${I.chev}</a>`;
+      return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : '')
+        + (alOutros.length ? `<div class="section"><details class="outros-al"${alMeus.length ? '' : ' open'}><summary><span class="h2" style="font-size:1rem">Alunos dos outros treinadores</span><span class="tag">${alOutros.length} · opcional</span></summary><div class="stack" style="margin-top:10px">${alOutros.map(card).join('')}</div></details></div>` : ''); })()}
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><a class="link-btn" href="#/feed">Ver retornos</a></div>
       ${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}${x.novo ? '<i class="alert-dot"></i>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>`).join('')}
         ${recentes.length > 6 && !st.tudo ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">Mostrar mais ${recentes.length - 6}</button>` : ''}</div>` : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'}
@@ -2784,6 +2792,7 @@ async function carregarEquipe(forcar) {
   S.cache.equipe = data || []; return S.cache.equipe;
 }
 const fotoHTML = (p, cls = '') => p && p.foto_url ? `<img class="foto ${cls}" src="${esc(p.foto_url)}" alt="${esc(p.nome || '')}" loading="lazy">` : `<span class="foto ini ${cls}">${esc(initials((p && p.nome) || 'N'))}</span>`;
+const avAluno = (m, cls = '') => `<div class="av ${cls} ${m && m.foto_url ? 'com-foto' : ''}">${m && m.foto_url ? `<img src="${esc(m.foto_url)}" alt="" loading="lazy">` : esc(initials((m && m.nome) || ''))}</div>`;
 function reduzirImagem(file, lado = 512) {
   return new Promise((res, rej) => {
     const img = new Image(); const url = URL.createObjectURL(file);
@@ -2803,7 +2812,7 @@ async function trocarFoto() {
       if (error) throw error;
       const url = sb.storage.from('nx-avatares').getPublicUrl(caminho).data.publicUrl;
       const { error: e2 } = await sb.rpc('nx_definir_foto', { p_url: url }); if (e2) throw e2;
-      S.me.foto_url = url; S.cache.equipe = null; toast('Foto atualizada! Os alunos já veem na conversa.'); viewPerfil();
+      S.me.foto_url = url; S.cache.equipe = null; toast(S.staff ? 'Foto atualizada! Os alunos já veem na conversa.' : 'Foto atualizada! Seu treinador já vê.'); viewPerfil();
     } catch (e) { console.error(e); toast('Não foi possível enviar a foto.', true); }
   };
   inp.click();
@@ -2813,7 +2822,7 @@ function viewPerfil() {
   const papel = { admin: 'Administrador', treinador: 'Treinador', aluno: 'Aluno' }[S.me.papel];
   $app.innerHTML = `
     <p class="eyebrow">Perfil</p>
-    <div class="row" style="margin-top:12px;gap:16px">${S.staff ? `<button class="foto-edit" id="trocar-foto" aria-label="Trocar foto">${fotoHTML(S.me, 'lg')}<i>${I.cam}</i></button>` : `<div class="av lg st-none">${esc(initials(S.me.nome))}</div>`}<div class="grow"><div class="h2">${esc(S.me.nome)}</div><div class="small muted ellip">${esc(S.user.email)}</div><span class="tag acc" style="margin-top:6px">${papel} · ${esc(S.org.nome)}</span></div></div>
+    <div class="row" style="margin-top:12px;gap:16px"><button class="foto-edit" id="trocar-foto" aria-label="Trocar foto">${fotoHTML(S.me, 'lg')}<i>${I.cam}</i></button><div class="grow"><div class="h2">${esc(S.me.nome)}</div><div class="small muted ellip">${esc(S.user.email)}</div><span class="tag acc" style="margin-top:6px">${papel} · ${esc(S.org.nome)}</span></div></div>
     <div class="section"><div class="section-h"><h2 class="h2">Trocar senha</h2></div>
       <form class="card" id="f-senha"><label class="field"><span>Nova senha</span><input class="input" type="password" name="s1" minlength="6" required autocomplete="new-password"></label><label class="field"><span>Repita a nova senha</span><input class="input" type="password" name="s2" minlength="6" required autocomplete="new-password"></label><button class="btn block">Salvar nova senha</button></form></div>
     ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button></div></div>` : ''}
@@ -2859,7 +2868,9 @@ async function staffAlunos() {
   const ult = {}; sess.forEach((s) => { if (!ult[s.aluno_id]) ult[s.aluno_id] = s; });
   const sem = sess.filter((s) => diasDesde(s.iniciado_em) < 7).length;
   const ativos = membros.filter((m) => m.ativo);
-  const state = { q: '', f: 'ativos' };
+  const equipe = await carregarEquipe(); const eqNome = Object.fromEntries(equipe.map((p) => [p.user_id, firstName(p.nome)]));
+  const meus = membros.filter((m) => m.treinador_id === S.user.id);
+  const state = { q: '', f: 'ativos', dono: meus.length ? 'meus' : 'todos' };
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="icon-btn" href="#/perfil" aria-label="Perfil">${I.user}</a></div>
     <h1 class="h1">Olá, ${esc(firstName(S.me.nome))}</h1>
@@ -2867,6 +2878,7 @@ async function staffAlunos() {
     <div class="stats"><div class="stat"><b>${ativos.length}</b><span>alunos ativos</span></div><div class="stat"><b>${sem}</b><span>treinos nos últimos 7 dias</span></div><a class="stat" href="#/feed" style="color:inherit"><b style="color:${S.cache.naoVistos ? 'var(--acc)' : 'inherit'}">${S.cache.naoVistos}</b><span>retornos novos</span></a></div>
     <div class="section">
       <div class="section-h"><h2 class="h2">Alunos</h2>${slashes}</div>
+      <div class="seg" id="dono" style="margin-bottom:12px"><button type="button" data-d="meus" class="${state.dono === 'meus' ? 'on' : ''}">Meus alunos (${meus.filter((m) => m.ativo).length})</button><button type="button" data-d="todos" class="${state.dono === 'todos' ? 'on' : ''}">Todos (${ativos.length})</button></div>
       <div class="search">${I.search}<input class="input" id="q" placeholder="Buscar aluno pelo nome ou e-mail"></div>
       <div class="chips" id="filtros"><button class="chip on" data-f="ativos">Ativos</button><button class="chip" data-f="sumidos">Sem treinar há 7+ dias</button><button class="chip" data-f="inativos">Inativos</button><button class="chip" data-f="todos">Todos</button></div>
       <div id="lista" class="cols" style="margin-top:12px"></div>
@@ -2875,17 +2887,20 @@ async function staffAlunos() {
   const draw = () => {
     const q = state.q.toLowerCase();
     let l = membros.filter((m) => !q || m.nome.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q));
+    if (state.dono === 'meus') l = l.filter((m) => m.treinador_id === S.user.id);
     if (state.f === 'ativos') l = l.filter((m) => m.ativo);
     if (state.f === 'inativos') l = l.filter((m) => !m.ativo);
     if (state.f === 'sumidos') l = l.filter((m) => m.ativo && (!ult[m.user_id] || diasDesde(ult[m.user_id].iniciado_em) >= 7));
     document.getElementById('lista').innerHTML = l.length ? l.map((m) => {
       const u = ult[m.user_id]; const dd = u ? diasDesde(u.iniciado_em) : null;
       const stc = !m.ativo ? '' : dd == null ? '' : dd <= 3 ? 'st-ok' : dd <= 7 ? 'st-warn' : '';
-      return `<div class="list-item" data-aluno="${m.user_id}"><div class="av ${stc}">${esc(initials(m.nome))}</div><div class="grow"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small muted">${u ? `Treinou ${quando(u.iniciado_em)}` : 'Ainda não treinou pelo app'}${!m.ativo ? ' · inativo' : ''}</span></div>${(S.cache.anam || {})[m.user_id]?.parq_positivo ? '<span class="tag warn">PAR-Q</span>' : !(S.cache.anam || {})[m.user_id] && m.ativo ? '<span class="tag">sem ficha</span>' : ''}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${u && u.dor && !u.visto_treinador ? '<span class="tag warn">dor</span>' : ''}${I.chev}</div>`;
+      const deOutro = m.treinador_id && m.treinador_id !== S.user.id && eqNome[m.treinador_id];
+      return `<div class="list-item" data-aluno="${m.user_id}">${avAluno(m, stc)}<div class="grow"><b class="ellip" style="display:block">${esc(m.nome)}${deOutro ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNome[m.treinador_id])}</span>` : ''}</b><span class="small muted">${u ? `Treinou ${quando(u.iniciado_em)}` : 'Ainda não treinou pelo app'}${!m.ativo ? ' · inativo' : ''}</span></div>${(S.cache.anam || {})[m.user_id]?.parq_positivo ? '<span class="tag warn">PAR-Q</span>' : !(S.cache.anam || {})[m.user_id] && m.ativo ? '<span class="tag">sem ficha</span>' : ''}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${u && u.dor && !u.visto_treinador ? '<span class="tag warn">dor</span>' : ''}${I.chev}</div>`;
     }).join('') : `<div class="empty" style="grid-column:1/-1"><div class="h3">${membros.length ? 'Nenhum aluno nesse filtro' : 'Nenhum aluno ainda'}</div><p class="small">${membros.length ? '' : 'Toque no + para cadastrar o primeiro aluno.'}</p></div>`;
   };
   draw();
   document.getElementById('q').oninput = (e) => { state.q = e.target.value; draw(); };
+  document.getElementById('dono').onclick = (e) => { const b = e.target.closest('[data-d]'); if (!b) return; state.dono = b.dataset.d; document.querySelectorAll('#dono button').forEach((x) => x.classList.toggle('on', x === b)); draw(); };
   document.getElementById('filtros').onclick = (e) => { const b = e.target.closest('[data-f]'); if (!b) return; state.f = b.dataset.f; document.querySelectorAll('#filtros .chip').forEach((c) => c.classList.toggle('on', c === b)); draw(); };
   document.getElementById('lista').onclick = (e) => { const it = e.target.closest('[data-aluno]'); if (it) location.hash = '#/aluno/' + it.dataset.aluno; };
   document.getElementById('novo').onclick = () => formPessoa('aluno');
@@ -3022,12 +3037,15 @@ async function staffAluno(alunoId, aba, extra) {
         <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost sm" id="reset-senha">Gerar nova senha</button><button class="btn ${m.ativo ? 'danger' : ''} sm" id="ativo">${m.ativo ? 'Desativar aluno' : 'Reativar aluno'}</button></div>
         <p class="tiny dim" style="margin-top:10px">Aluno desativado não consegue ver os treinos, mas o histórico fica guardado.</p></div>`;
     planoInfo = await planoDoAlunoHTML(m);
-    corpo = `<div class="card" id="mods-card"><b>O que o aluno faz com a Nexos</b><p class="small muted" style="margin:4px 0 10px">O app do aluno mostra só o que estiver marcado.</p>${modsHTML(m.modalidades)}</div>` + planoInfo.html + corpo;
+    const eqD = await carregarEquipe();
+    corpo = `<div class="card"><b>Treinador responsável</b><p class="small muted" style="margin:4px 0 10px">É quem tem a obrigação de acompanhar e responder este aluno. Os outros treinadores também podem responder, se quiserem. O aluno vê o responsável na conversa.</p>
+      <select class="select" id="resp"><option value="">Sem responsável</option>${eqD.map((p) => `<option value="${p.user_id}" ${p.user_id === m.treinador_id ? 'selected' : ''}>${esc(p.nome)}${p.user_id === S.user.id ? ' (você)' : ''}</option>`).join('')}</select></div>
+      <div class="card" id="mods-card"><b>O que o aluno faz com a Nexos</b><p class="small muted" style="margin:4px 0 10px">O app do aluno mostra só o que estiver marcado.</p>${modsHTML(m.modalidades)}</div>` + planoInfo.html + corpo;
   }
   const secAtual = SECOES.find((x) => x[0] === aba);
   const cabecalho = `
     <a class="back" href="#/alunos">${I.back} Alunos</a>
-    <div class="row" style="gap:16px"><div class="av lg ${u && diasDesde(u.iniciado_em) <= 3 ? 'st-ok' : u && diasDesde(u.iniciado_em) <= 7 ? 'st-warn' : ''}">${esc(initials(m.nome))}</div>
+    <div class="row" style="gap:16px">${avAluno(m, 'lg ' + (u && diasDesde(u.iniciado_em) <= 3 ? 'st-ok' : u && diasDesde(u.iniciado_em) <= 7 ? 'st-warn' : ''))}
       <div class="grow"><h1 class="h2">${esc(m.nome)}</h1><div class="small muted">${m.objetivo ? esc(m.objetivo) : 'Sem objetivo cadastrado'}</div>
       <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${u ? `<span class="tag">Último treino ${quando(u.iniciado_em)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</div></div></div>
     ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">⚠️ PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
@@ -3057,6 +3075,8 @@ async function staffAluno(alunoId, aba, extra) {
     sb.from('nx_sessoes').update({ visto_treinador: true }).eq('aluno_id', alunoId).eq('org_id', S.org.id).eq('visto_treinador', false).then(() => contarNaoVistos().then(dockStaff));
   }
   if (aba === 'dados') {
+    const rs = document.getElementById('resp');
+    rs.onchange = async () => { const { error } = await sb.from('nx_membros').update({ treinador_id: rs.value || null }).eq('org_id', S.org.id).eq('user_id', alunoId); if (error) return toast('Não foi possível salvar.', true); m.treinador_id = rs.value || null; toast(rs.value ? `Responsável: ${rs.options[rs.selectedIndex].text.replace(' (você)', '')}` : 'Aluno sem responsável.'); };
     const mc = document.getElementById('mods-card');
     mc.onchange = async () => {
       const sel = [...mc.querySelectorAll('input:checked')].map((i) => i.value);

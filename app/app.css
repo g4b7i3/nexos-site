@@ -811,3 +811,7 @@ html[data-tema="escuro"]{--prova:#fb923c;--prova-bg:rgba(251,146,60,.1);--prova-
 .b-linha .bubble{margin:0}
 .b-autor{display:block;font-size:.72rem;font-weight:800;color:var(--acc);margin-bottom:2px}
 .b-linha{align-self:flex-start;max-width:88%}.b-linha .bubble{max-width:100%}
+.av.com-foto{padding:0;overflow:visible}
+.av.com-foto img{width:100%;height:100%;object-fit:cover;object-position:50% 20%;border-radius:inherit;display:block}
+.outros-al summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;list-style:none;padding:12px 14px;border-radius:16px;border:1px dashed var(--line)}
+.outros-al summary::-webkit-details-marker{display:none}
