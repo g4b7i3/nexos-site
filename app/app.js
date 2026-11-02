@@ -43,6 +43,15 @@ function gerarSenha() {
   return 'nx' + r(a) + r(a) + r(a) + r(d) + r(d) + r(d) + r(d);
 }
 const AREA = window.NX_AREA === 'treinador' ? 'treinador' : 'aluno';
+// Na Área do treinador a página usa <base href="/app/">; sem isto, links "#/..." levariam para a Área do aluno.
+if (document.querySelector('base')) {
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented || a.target || e.metaKey || e.ctrlKey) return;
+    e.preventDefault(); const h = a.getAttribute('href');
+    if (location.hash === h) window.dispatchEvent(new HashChangeEvent('hashchange')); else location.hash = h;
+  });
+}
 const loginURL = () => { try { return new URL('.', document.baseURI).href; } catch { return location.origin + location.pathname.replace(/[^/]*$/, ''); } };
 
 const I = {
