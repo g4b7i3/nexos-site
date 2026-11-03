@@ -1062,3 +1062,15 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .acc-item[open]>summary>svg:last-child{transform:rotate(90deg)}
 .acc-item>form,.acc-item>p{padding:0 14px 14px}
 @media (min-width:900px){.perfil-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}}
+/* Day off */
+.off-ic{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#1b2c55,#0b1630);color:#fff;flex:none}
+.off-ic svg{width:12px;height:12px}
+.off-ic.lg{width:38px;height:38px;border-radius:12px}.off-ic.lg svg{width:18px;height:18px}
+.ses.folga{background:repeating-linear-gradient(135deg,var(--s1) 0 8px,var(--bg2) 8px 16px);border-style:dashed}
+.ses.folga .ses-t{display:flex;align-items:center;gap:6px}
+.mod-off .off-faixa{height:22px;border-radius:7px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#1b2c55,#0b1630)}
+.mod-off .off-faixa svg{width:13px;height:13px}
+.ftr.folga{border-left-color:#1b2c55;background:repeating-linear-gradient(135deg,var(--s1) 0 8px,var(--bg2) 8px 16px)}
+.wletter.off{background:linear-gradient(135deg,#1b2c55,#0b1630);color:#fff;border:0;height:74px;-webkit-text-stroke:0}
+.wletter.off svg{width:30px;height:30px}
+.wcard.dayoff{align-items:center}

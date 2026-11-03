@@ -600,8 +600,11 @@ async function alunoHoje() {
   const fC = faz('corrida'), fM = faz('musculacao');
   if (!fM) prox = null;
   const muscHoje = sessoes.find((s) => isoDia(s.iniciado_em) === hoje);
-  const corrDoDia = fC ? planoSem.filter((p) => p.data === hoje) : [];
-  const proxCorr = fC ? planoSem.find((p) => p.data > hoje) : null;
+  const offCorr = fC && planoSem.some((p) => p.data === hoje && p.tipo === 'folga');
+  const offForca = fM && (dispDe(S.me).off_forca || []).includes(dsemIdx(hoje));
+  if (offForca) prox = null;
+  const corrDoDia = fC ? planoSem.filter((p) => p.data === hoje && p.tipo !== 'folga') : [];
+  const proxCorr = fC ? planoSem.find((p) => p.data > hoje && p.tipo !== 'folga') : null;
   const h = new Date().getHours();
   const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const cardCorr = (p) => {
@@ -620,13 +623,13 @@ async function alunoHoje() {
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
     <div class="saud-row"><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a><div style="min-width:0"><p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
-    <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é descanso' : 'seu treino de hoje'}</h1></div></div>
+    <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é day off' : 'seu treino de hoje'}</h1></div></div>
     <div class="hoje-grid"><div class="hoje-main">
     ${cartaoCobrancaHTML(cobP)}
     <div class="stack" style="margin-top:18px">
       ${corrDoDia.map(cardCorr).join('')}
       ${cardMusc}
-      ${descanso ? `<div class="card center" style="padding:22px 18px"><div style="font-size:1.8rem">🌿</div><div class="h3" style="margin-top:4px">Dia de descanso</div><p class="small muted">Recuperar também é treino. Hidrate-se e durma bem.</p></div>` : ''}
+      ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
     ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
     ${proxCorr ? `<a class="list-item prox-l" href="#/planilha" style="margin-top:10px;color:inherit"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><span class="small muted">Próximo treino · ${dia(proxCorr.data).getTime() - dia(hoje).getTime() === 864e5 ? 'amanhã' : DIAS[dia(proxCorr.data).getDay()] + ' ' + dia(proxCorr.data).getDate()}</span><b class="ellip" style="display:block">${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</b></div>${I.chev}</a>` : ''}
@@ -1780,7 +1783,7 @@ function viewTermoLido() {
 /* ================= CORRIDA: planilha, registros, paces e evolução ================= */
 const TIPOS_CORRIDA = [
   ['rodagem', 'Rodagem', 'leve'], ['regenerativo', 'Regenerativo', 'leve'], ['longao', 'Longão', 'leve'], ['ritmo', 'Ritmo / limiar', 'limiar'],
-  ['intervalado', 'Intervalado', 'intervalado'], ['tiros', 'Tiros', 'tiros'], ['fartlek', 'Fartlek', 'limiar'], ['prova', 'Prova', 'maratona'], ['teste', 'Teste', 'intervalado'],
+  ['intervalado', 'Intervalado', 'intervalado'], ['tiros', 'Tiros', 'tiros'], ['fartlek', 'Fartlek', 'limiar'], ['prova', 'Prova', 'maratona'], ['teste', 'Teste', 'intervalado'], ['folga', 'Day off', 'leve'],
 ];
 const ZONAS_PACE = [['leve', 'Leve (conversando)'], ['maratona', 'Ritmo de maratona'], ['limiar', 'Limiar (forte e contínuo)'], ['intervalado', 'Intervalado (VO₂máx)'], ['tiros', 'Tiros (velocidade)']];
 const TIPOS_ATIV = [['corrida', 'Corrida de rua'], ['trail', 'Trail'], ['esteira', 'Esteira'], ['caminhada', 'Caminhada']];
@@ -2037,6 +2040,7 @@ const PASSOS = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Des
 const passo = (k, v, med, z) => ({ k, v, med, z });
 const serie = (n, passos) => ({ k: 'rep', n, passos });
 const MODELOS_PADRAO = [
+  { id: 'p-off', nome: 'Day off', tipo: 'folga', estrutura: [] },
   { id: 'p-rod', nome: 'Rodagem leve', tipo: 'rodagem', estrutura: [passo('co', 6, 'km', 'leve')] },
   { id: 'p-reg', nome: 'Regenerativo', tipo: 'regenerativo', estrutura: [passo('co', 30, 'min', 'leve')] },
   { id: 'p-lon', nome: 'Longão', tipo: 'longao', estrutura: [passo('co', 14, 'km', 'leve')] },
@@ -2082,6 +2086,7 @@ function perfilHTML(estrutura, perfil, alto = false) {
   return `<div class="perfil-int ${alto ? 'alto' : ''}" aria-hidden="true">${l.map((s) => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; return `<i style="flex:${(s.seg / tot * 100).toFixed(2)};height:${Math.round(z.h * 100)}%;background:${z.c}"></i>`; }).join('')}</div>`;
 }
 function estruturaDe(p) {
+  if (p.tipo === 'folga') return [];
   if (p.estrutura && p.estrutura.length) return p.estrutura;
   if (p.distancia_km) return [passo('co', +p.distancia_km, 'km', p.zona || 'leve')];
   if (p.duracao_min) return [passo('co', +p.duracao_min, 'min', p.zona || 'leve')];
@@ -2363,7 +2368,9 @@ async function polimentoSheet(alunoId, prova, perfil, aoAplicar) {
 }
 
 /* ---------- calendário da planilha ---------- */
+const OFF_IC = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a.6.6 0 0 0-.8-.7A9.6 9.6 0 1 0 21.2 15.4a.6.6 0 0 0-.7-.8z"/></svg>';
 function cartaoSessao(p, perfil, feito, staff) {
+  if (p.tipo === 'folga') return `<div class="ses folga" data-ses="${p.id}"><div class="ses-t"><span class="off-ic">${OFF_IC}</span><b>Day off</b></div><span class="ses-m">Descanso</span></div>`;
   const hoje = isoDia(new Date());
   const st = feito ? 'feito' : p.data < hoje ? 'perdido' : 'pend';
   const est = estruturaDe(p); const rs = resumoEstrutura(est, perfil);
@@ -2430,7 +2437,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       <div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${rotulo}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>Copiar semana</button><button class="btn sm" id="avisar">${I.bell} Avisar aluno</button><button class="btn ghost sm" id="guia-plan" title="Como usar a planilha">?</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
       <div class="${staff ? 'pl-grid' : ''}">
-        ${staff ? `<aside class="biblio"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span></div><div class="biblio-l">${modelos.map((md) => `<div class="mod" data-mod="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km${String(md.id).startsWith('p-') ? '' : ' · meu modelo'}</span></div>`).join('')}</div></aside>` : ''}
+        ${staff ? `<aside class="biblio"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span></div><div class="biblio-l">${modelos.map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : `<div class="mod" data-mod="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km${String(md.id).startsWith('p-') ? '' : ' · meu modelo'}</span></div>`).join('')}</div></aside>` : ''}
         <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:10px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
@@ -2490,10 +2497,13 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     cal.addEventListener('click', (e) => {
       const nv = e.target.closest('[data-novo]'), se = e.target.closest('[data-ses]');
       if (nv) return escolherModelo(nv.dataset.novo);
-      if (se) { const p = plano.find((x) => x.id === se.dataset.ses); if (!p) return; staff ? editorTreino({ alunoId, perfil, sessao: p, aoSalvar: recarregar, modelos: modelosOrg }) : verTreinoPlanilha(p, perfil, corridas.find((c) => c.plano_id === p.id)); }
+      if (se) { const p = plano.find((x) => x.id === se.dataset.ses); if (!p) return;
+        if (p.tipo === 'folga') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Day off</div><p class="small muted" style="margin-top:6px">Dia de descanso de corrida. O aluno vê “Hoje é day off” na tela inicial.</p><button class="btn danger block" id="off-del" style="margin-top:14px">Tirar o day off</button>`, (r) => { r.querySelector('#off-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Day off removido.'); recarregar(); }; }) : toast('Day off: dia de descanso.');
+        staff ? editorTreino({ alunoId, perfil, sessao: p, aoSalvar: recarregar, modelos: modelosOrg }) : verTreinoPlanilha(p, perfil, corridas.find((c) => c.plano_id === p.id)); }
     });
-    const escolherModelo = (data) => openSheet(`<p class="eyebrow">${fmtDia(data)}</p><div class="h2" style="margin-top:4px">Escolha um ponto de partida</div><div class="biblio-l sheet-mods" style="margin-top:14px">${modelos.map((md) => `<button class="mod" data-pick="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</span></button>`).join('')}<button class="mod" data-pick="">${'<div class="perfil-int vazio"></div>'}<b>Em branco</b><span>montar do zero</span></button></div>`, (r) => {
-      r.querySelector('.sheet-mods').onclick = (e) => { const b = e.target.closest('[data-pick]'); if (!b) return; const md = modelos.find((x) => x.id === b.dataset.pick); editorTreino({ alunoId, perfil, data, modelo: md || { nome: '', tipo: 'rodagem', estrutura: [] }, aoSalvar: recarregar, modelos: modelosOrg }); };
+    const escolherModelo = (data) => openSheet(`<p class="eyebrow">${fmtDia(data)}</p><div class="h2" style="margin-top:4px">Escolha um ponto de partida</div><div class="biblio-l sheet-mods" style="margin-top:14px">${modelos.map((md) => md.tipo === 'folga' ? `<button class="mod mod-off" data-pick="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></button>` : `<button class="mod" data-pick="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</span></button>`).join('')}<button class="mod" data-pick="">${'<div class="perfil-int vazio"></div>'}<b>Em branco</b><span>montar do zero</span></button></div>`, (r) => {
+      r.querySelector('.sheet-mods').onclick = async (e) => { const b = e.target.closest('[data-pick]'); if (!b) return; const md = modelos.find((x) => x.id === b.dataset.pick);
+        if (md && md.tipo === 'folga') { const { error } = await sb.from('nx_plano_corrida').insert({ org_id: S.org.id, aluno_id: alunoId, data, tipo: 'folga', titulo: 'Day off', estrutura: [], distancia_km: 0, duracao_min: 0, zona: null, criado_por: S.user.id }); closeSheet(); return error ? toast('Não foi possível salvar.', true) : (toast('Day off marcado.'), recarregar()); } editorTreino({ alunoId, perfil, data, modelo: md || { nome: '', tipo: 'rodagem', estrutura: [] }, aoSalvar: recarregar, modelos: modelosOrg }); };
     });
     if (staff) {
       const area = q('.pl-grid');
@@ -3019,7 +3029,7 @@ async function staffAlunos() {
     buscarSessoes(null, 600), contarNaoVistos(), contarMsgNovas(),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => { S.cache.anam = Object.fromEntries((r.data || []).map((x) => [x.aluno_id, x])); }),
     fimPlanilhas(),
-    sb.from('nx_plano_corrida').select('id,aluno_id,data').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => (r.data || []).filter((p) => p.tipo !== 'folga')).catch(() => []),
     sb.from('nx_corridas').select('aluno_id,data,plano_id').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hoje).order('data').then((r) => r.data || []).catch(() => []),
     sb.from('nx_treinos').select('aluno_id,dias,ativo').eq('org_id', S.org.id).eq('ativo', true).then((r) => r.data || []).catch(() => []),
@@ -3217,13 +3227,15 @@ async function staffAluno(alunoId, aba, extra) {
     const diasF = Array.from({ length: 7 }, (_, i) => { const d = new Date(ini); d.setDate(ini.getDate() + i); return isoDia(d); });
     const hojeF = hojeISO(); const ativosT = treinos.filter((t) => t.ativo);
     const semDia = ativosT.filter((t) => !(t.dias && t.dias.length));
+    const offF = (dispDe(m).off_forca || []);
     corpo = `<div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fs-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fs-h">${fst.off === 0 ? 'Esta semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fs-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
       <span class="small muted">${sess.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos na semana</span></div>
       <div class="fsem">${diasF.map((k, i) => { const doDia = ativosT.filter((t) => (t.dias || []).includes(i)); const feitos = sess.filter((x) => isoDia(x.iniciado_em) === k);
         return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span>${dispIcones(m, i)}<button class="cal-add" data-fadd="${i}" aria-label="Pôr treino na ${DSEM[i]}">${I.plus}</button></div>
           <div class="fdia-c">${doDia.map((t) => { const ok = feitos.find((x) => x.treino_id === t.id); return `<div class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}"><a href="#/aluno/${alunoId}/treino/${t.id}" class="grow" style="color:inherit;min-width:0"><b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? ` · ✓ feito${ok.esforco != null ? ', esforço ' + ok.esforco : ''}` : k < hojeF ? ' · não fez' : ''}</small></a><button class="sd-x" data-frm="${t.id}" data-d="${i}" aria-label="Tirar deste dia">${I.x}</button></div>`; }).join('')}
           ${feitos.filter((x) => !doDia.some((t) => t.id === x.treino_id)).map((x) => `<div class="ftr extra"><span class="grow"><b>${esc(x.treino_titulo || 'Treino')}</b><small>✓ feito fora do dia${x.esforco != null ? ', esforço ' + x.esforco : ''}</small></span></div>`).join('')}
-          ${!doDia.length && !feitos.length ? '<span class="cal-vazio">descanso</span>' : ''}</div></div>`; }).join('')}</div>
+          ${offF.includes(i) ? `<div class="ftr folga"><span class="off-ic">${OFF_IC}</span><span class="grow"><b>Day off</b><small>Descanso de força</small></span><button class="sd-x" data-froff="${i}" aria-label="Tirar o day off">${I.x}</button></div>` : ''}
+          ${!doDia.length && !feitos.length && !offF.includes(i) ? '<span class="cal-vazio">sem treino</span>' : ''}</div></div>`; }).join('')}</div>
       ${semDia.length ? `<p class="small muted" style="margin-top:10px">Sem dia fixo (o aluno faz na sequência): ${semDia.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}. Toque no + de um dia para fixar.</p>` : ''}
       <div class="section"><div class="section-h"><h2 class="h2">Treinos do aluno</h2>${slashes}</div><div class="stack">` + (treinos.length ? treinos.map((t, i) => { const ex = ultData(t); return `
       <div class="card tr-card"><div class="row between" style="align-items:flex-start;gap:10px"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
@@ -3301,12 +3313,15 @@ async function staffAluno(alunoId, aba, extra) {
     document.getElementById('fs-p').onclick = () => { fst.off += 1; re(); };
     document.getElementById('fs-h').onclick = () => { fst.off = 0; re(); };
     const salvarDias = async (t, dias) => { const { error } = await sb.from('nx_treinos').update({ dias: dias.length ? dias.sort() : null }).eq('id', t.id); if (error) return toast('Não foi possível salvar.', true); re(); };
+    const salvarOff = async (lista) => { const nv = { ...dispDe(m), off_forca: lista }; const { error } = await sb.from('nx_membros').update({ disponibilidade: nv }).eq('org_id', S.org.id).eq('user_id', alunoId); if (error) return toast('Não foi possível salvar.', true); m.disponibilidade = nv; re(); };
+    $app.querySelectorAll('[data-froff]').forEach((b) => b.onclick = () => salvarOff((dispDe(m).off_forca || []).filter((d) => d !== +b.dataset.froff)));
     $app.querySelectorAll('[data-frm]').forEach((b) => b.onclick = (e) => { e.preventDefault(); const t = treinos.find((x) => x.id === b.dataset.frm); salvarDias(t, (t.dias || []).filter((d) => d !== +b.dataset.d)); });
     $app.querySelectorAll('[data-fadd]').forEach((b) => b.onclick = () => {
       const d = +b.dataset.fadd; const at = treinos.filter((t) => t.ativo);
       openSheet(`<p class="eyebrow">${DSEM[d]}</p><div class="h2" style="margin-top:4px">Qual treino neste dia?</div><p class="small muted" style="margin-top:4px">Vale para todas as semanas, até você mudar.</p>
-        <div class="stack" style="margin-top:12px">${at.map((t, i) => `<button class="list-item" data-esc="${t.id}" style="width:100%;text-align:left"><div class="wletter sm">${esc(letraTreino(t, i))}</div><div class="grow"><b>${esc(t.titulo)}</b><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${diasTxt(t.dias) || 'sem dia fixo'}</div></div>${(t.dias || []).includes(d) ? '<span class="tag ok">já está</span>' : I.plus}</button>`).join('') || '<p class="small muted">O aluno ainda não tem treinos de força.</p>'}</div>
+        <div class="stack" style="margin-top:12px"><button class="list-item off-op" data-off="1" style="width:100%;text-align:left"><span class="off-ic lg">${OFF_IC}</span><div class="grow"><b>Day off</b><div class="small muted">Dia de descanso de força</div></div>${(dispDe(m).off_forca || []).includes(d) ? '<span class="tag ok">já está</span>' : I.plus}</button>${at.map((t, i) => `<button class="list-item" data-esc="${t.id}" style="width:100%;text-align:left"><div class="wletter sm">${esc(letraTreino(t, i))}</div><div class="grow"><b>${esc(t.titulo)}</b><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${diasTxt(t.dias) || 'sem dia fixo'}</div></div>${(t.dias || []).includes(d) ? '<span class="tag ok">já está</span>' : I.plus}</button>`).join('') || '<p class="small muted">O aluno ainda não tem treinos de força.</p>'}</div>
         <a class="btn ghost block" href="#/aluno/${alunoId}/treino/novo" style="margin-top:12px">${I.plus} Criar treino novo</a>`, (r) => {
+        r.querySelector('[data-off]').onclick = () => { closeSheet(); const l = dispDe(m).off_forca || []; if (!l.includes(d)) salvarOff([...l, d]); };
         r.querySelectorAll('[data-esc]').forEach((x) => x.onclick = () => { const t = treinos.find((y) => y.id === x.dataset.esc); closeSheet(); if ((t.dias || []).includes(d)) return; salvarDias(t, [...(t.dias || []), d]); });
       });
     });
@@ -3863,7 +3878,7 @@ function editarDisponibilidade(m, aoSalvar) {
     <label class="field"><span>Comentário sobre a disponibilidade</span><textarea class="textarea" name="obs">${esc(dp.obs || '')}</textarea></label><button class="btn block" type="submit">Salvar</button></form>`, (r) => {
     r.querySelector('#f-disp').onsubmit = async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
-      const nv = { corrida: fd.getAll('corrida').map(Number), forca: fd.getAll('forca').map(Number), obs: String(fd.get('obs') || '').trim() || undefined };
+      const nv = { ...dp, corrida: fd.getAll('corrida').map(Number), forca: fd.getAll('forca').map(Number), obs: String(fd.get('obs') || '').trim() || undefined };
       const { error } = await sb.from('nx_membros').update({ disponibilidade: nv }).eq('org_id', S.org.id).eq('user_id', m.user_id);
       if (error) return toast('Não foi possível salvar.', true);
       m.disponibilidade = nv; closeSheet(); toast('Dias salvos.'); aoSalvar && aoSalvar();
