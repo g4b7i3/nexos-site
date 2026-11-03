@@ -613,7 +613,7 @@ async function alunoHoje() {
       <div class="h3" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
       <div class="small muted">${[rs.km ? f1(rs.km) + ' km' : '', rs.seg ? fmtDur(rs.seg) : ''].filter(Boolean).join(' · ')}</div>
-      <p class="small" style="margin-top:6px">${esc(descreverEstrutura(est))}</p>
+      <p class="small" style="margin-top:6px">${esc(descreverEstrutura(est, perfC))}</p>
       <div class="row" style="gap:8px;margin-top:12px">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<button class="btn sm" data-reg="${p.id}">${I.plus} Registrar corrida</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
   const cardMusc = prox ? (muscHoje
@@ -1780,7 +1780,7 @@ const TIPOS_CORRIDA = [
   ['rodagem', 'Rodagem', 'leve'], ['regenerativo', 'Regenerativo', 'leve'], ['longao', 'Longão', 'leve'], ['ritmo', 'Ritmo / limiar', 'limiar'],
   ['intervalado', 'Intervalado', 'intervalado'], ['tiros', 'Tiros', 'tiros'], ['fartlek', 'Fartlek', 'limiar'], ['prova', 'Prova', 'maratona'], ['teste', 'Teste', 'intervalado'], ['folga', 'Day off', 'leve'],
 ];
-const ZONAS_PACE = [['leve', 'Leve (conversando)'], ['maratona', 'Ritmo de maratona'], ['limiar', 'Limiar (forte e contínuo)'], ['intervalado', 'Intervalado (VO₂máx)'], ['tiros', 'Tiros (velocidade)']];
+const ZONAS_PACE = [['leve', 'Z2 · Leve (conversando)'], ['maratona', 'Z3 · Moderado (ritmo de maratona)'], ['limiar', 'Z4 · Limiar (forte e contínuo)'], ['intervalado', 'Z5 · Forte (VO₂máx)'], ['tiros', 'Z6 · Máximo (velocidade)']];
 const TIPOS_ATIV = [['corrida', 'Corrida de rua'], ['trail', 'Trail'], ['esteira', 'Esteira'], ['caminhada', 'Caminhada']];
 const nomeTipo = (k) => (TIPOS_CORRIDA.find((t) => t[0] === k) || [, k || 'Corrida'])[1];
 const fmtKm = (m, d = 2) => m == null ? '–' : (m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: d }) + ' km';
@@ -2024,13 +2024,15 @@ function formPerfilCorrida(m, onSalvo) {
 
 /* ---------- treino estruturado: passos, zonas e perfil de intensidade ---------- */
 const ZONAS_INFO = {
-  rec: { n: 'Trote / caminhada', c: '#9aa8c0', h: 0.22, pd: 450 },
-  leve: { n: 'Leve', c: '#3ddc97', h: 0.4, pd: 390 },
-  maratona: { n: 'Maratona', c: '#46d6ff', h: 0.58, pd: 345 },
-  limiar: { n: 'Limiar', c: '#ffcf5c', h: 0.74, pd: 315 },
-  intervalado: { n: 'Intervalado', c: '#ff9f43', h: 0.88, pd: 290 },
-  tiros: { n: 'Tiros', c: '#ff6b6b', h: 1, pd: 270 },
+  rec: { z: 'Z1', d: 'Recuperação', n: 'Z1 · Recuperação', c: '#9aa8c0', h: 0.22, pd: 450 },
+  leve: { z: 'Z2', d: 'Leve', n: 'Z2 · Leve', c: '#3ddc97', h: 0.4, pd: 390 },
+  maratona: { z: 'Z3', d: 'Moderado', n: 'Z3 · Moderado', c: '#46d6ff', h: 0.58, pd: 345 },
+  limiar: { z: 'Z4', d: 'Limiar', n: 'Z4 · Limiar', c: '#ffcf5c', h: 0.74, pd: 315 },
+  intervalado: { z: 'Z5', d: 'Forte (VO₂)', n: 'Z5 · Forte', c: '#ff9f43', h: 0.88, pd: 290 },
+  tiros: { z: 'Z6', d: 'Máximo', n: 'Z6 · Máximo', c: '#ff6b6b', h: 1, pd: 270 },
 };
+// pace de cada zona para o aluno: faixa dele (pelo teste) ou média, sempre visível
+const paceZonaTxt = (z, perfil) => { const p = perfil && perfil.paces; if (p && p[z]) return faixaPace(p[z]); return '~' + fmtPace(paceZona(z, perfil)); };
 const PASSOS = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Desaquecimento' };
 const passo = (k, v, med, z) => ({ k, v, med, z });
 const serie = (n, passos) => ({ k: 'rep', n, passos });
@@ -2070,10 +2072,11 @@ function resumoEstrutura(estrutura, perfil) {
   return { km: l.reduce((a, s) => a + s.metros, 0) / 1000, seg: l.reduce((a, s) => a + s.seg, 0) };
 }
 const medTxt = (s) => s.med === 'km' ? `${String(s.v).replace('.', ',')} km` : s.med === 'm' ? `${s.v} m` : `${String(s.v).replace('.', ',')} min`;
-function descreverEstrutura(estrutura) {
+function descreverEstrutura(estrutura, perfil) {
+  const zt = (p) => { const z = ZONAS_INFO[p.z] || ZONAS_INFO.leve; return `${z.z}${perfil ? ' (' + paceZonaTxt(p.z, perfil).replace('/km', '') + ')' : ''}`; };
   return (estrutura || []).map((s) => s.k === 'rep'
-    ? `${s.n}× (${(s.passos || []).map((p) => `${medTxt(p)} ${p.k === 'rc' ? (p.z === 'rec' ? 'trote' : 'leve') : (ZONAS_INFO[p.z] || {}).n.toLowerCase()}`).join(' + ')})`
-    : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : ''}${medTxt(s)} ${(ZONAS_INFO[s.z] || {}).n.toLowerCase()}`).join(' · ');
+    ? `${s.n}× (${(s.passos || []).map((p) => `${medTxt(p)} ${zt(p)}`).join(' + ')})`
+    : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : ''}${medTxt(s)} ${zt(s)}`).join(' · ');
 }
 function perfilHTML(estrutura, perfil, alto = false) {
   const l = achatar(estrutura, perfil); const tot = l.reduce((a, s) => a + s.seg, 0) || 1;
@@ -2182,7 +2185,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       <select class="input ksel" data-cam="${cam}" data-f="k">${Object.entries(PASSOS).map(([k, l]) => `<option value="${k}" ${s.k === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <input class="input vin" data-cam="${cam}" data-f="v" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
       ${medSel(s.med, cam)}${zonaSel(s.z, cam)}
-      <em class="pace-dica">${s.z === 'rec' ? `trote · ~${fmtPace(paceZona('rec', perfil))}` : perfil.paces && perfil.paces[s.z] ? `pace ${faixaPace(perfil.paces[s.z])}` : `pace ~${fmtPace(paceZona(s.z, perfil))} <span>(média)</span>`}</em>
+      <em class="pace-dica">pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
     const rs = resumoEstrutura(t.estrutura, perfil);
@@ -2192,7 +2195,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       : linhaPasso(s, String(i))).join('') || '<p class="small muted">Adicione os passos do treino abaixo.</p>';
     r.querySelector('#perf').innerHTML = perfilHTML(t.estrutura, perfil, true);
     r.querySelector('#tot').innerHTML = `<b>${f1(rs.km)} km</b> · ~${fmtDur(rs.seg)}${perfil.paces ? '' : ' <span class="tiny dim">(estimativa com paces médios)</span>'}`;
-    r.querySelector('#desc-auto').textContent = descreverEstrutura(t.estrutura);
+    r.querySelector('#desc-auto').textContent = descreverEstrutura(t.estrutura, perfil);
   };
   const pega = (cam) => { const [a, b] = String(cam).split('.').map(Number); return b == null ? { lista: t.estrutura, i: a } : { lista: t.estrutura[a].passos, i: b }; };
   openSheet(`<p class="eyebrow">${sessao ? 'Editar treino' : 'Novo treino'} · ${fmtDia(base.data)}</p>
@@ -2264,7 +2267,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
 /* ---------- detalhe do treino para o aluno ---------- */
 function verTreinoPlanilha(p, perfil, feito) {
   const est = estruturaDe(p); const rs = resumoEstrutura(est, perfil);
-  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pz = s.z !== 'rec' && perfil.paces && perfil.paces[s.z]; const km = s.med === 'km' ? s.v : s.med === 'm' ? s.v / 1000 : 0; const alvoT = pz && km && km < 3 ? ` <em class="alvo-t">≈ ${fmtDur(km * pz[0])}–${fmtDur(km * pz[1])} cada</em>` : ''; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n}${pz ? ` · <strong>${faixaPace(pz)}</strong>` : ''}${alvoT}</span></div>`; };
+  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pz = s.z !== 'rec' && perfil.paces && perfil.paces[s.z]; const pzt = paceZonaTxt(s.z, perfil); const km = s.med === 'km' ? s.v : s.med === 'm' ? s.v / 1000 : 0; const alvoT = pz && km && km < 3 ? ` <em class="alvo-t">≈ ${fmtDur(km * pz[0])}–${fmtDur(km * pz[1])} cada</em>` : ''; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
   openSheet(`<p class="eyebrow">${fmtDia(p.data)} · ${esc(nomeTipo(p.tipo))}</p><div class="h2" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
     <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px"><b>${f1(rs.km)} km</b> · cerca de ${fmtDur(rs.seg)}</p></div>
     <div class="stack" style="margin-top:12px">${est.map((s) => s.k === 'rep' ? `<div class="serie-v"><b>Repita ${s.n} vezes:</b>${(s.passos || []).map((x) => passoH(x)).join('')}</div>` : passoH(s)).join('')}</div>
@@ -2460,7 +2463,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       <div class="section"><div class="section-h"><h2 class="h2">Relógio conectado</h2>${slashes}</div><div id="intervals-box">${intervalsCardHTML(integ, staff)}</div></div>`;
   } else {
     corpo = `${perfil.paces ? `<div class="card"><div class="row between"><span class="small muted">Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}</span><span class="tag acc">VDOT ${f1(perfil.vdot)}</span></div>
-        <div class="paces">${ZONAS_PACE.map(([k, l]) => `<div style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><b>${faixaPace(perfil.paces[k])}</b></div>`).join('')}</div>
+        <div class="paces"><div style="border-left:4px solid ${ZONAS_INFO.rec.c}"><span>Z1 · Recuperação (trote)</span><b>${paceZonaTxt('rec', perfil)}</b></div>${ZONAS_PACE.map(([k, l]) => `<div style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><b>${faixaPace(perfil.paces[k])}</b></div>`).join('')}</div>
         <span class="small muted" style="display:block;margin-top:14px;font-weight:700">Previsão de provas</span>
         <div class="prev-prova">${[[5000, '5 km'], [10000, '10 km'], [21097, '21 km'], [42195, '42 km']].map(([d, l]) => `<div><span>${l}</span><b>${fmtDurLongo(prever(perfil.teste_km * 1000, perfil.teste_seg, d))}</b></div>`).join('')}</div>
         <p class="tiny dim" style="margin-top:8px">Paces pelo VDOT de Jack Daniels; previsões pela fórmula de Riegel. São estimativas para provas no plano e com treino específico.</p></div>`
