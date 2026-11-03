@@ -617,9 +617,9 @@ async function alunoHoje() {
     : `<a class="card tap wcard" href="#/treino/${prox.id}" style="display:flex"><div class="wletter">${esc(letraTreino(prox, ativos.indexOf(prox)))}</div><div class="grow"><span class="eyebrow">Musculação · ${fixoHoje ? 'treino de hoje' : 'próximo da sequência'}</span><div class="h3" style="margin-top:2px">${esc(prox.titulo)}</div>${prox.foco ? `<div class="small muted">${esc(prox.foco)}</div>` : ''}<div class="meta"><span class="tag">${prox.nx_treino_itens.length} exercícios</span></div></div><span class="go">${I.play}</span></a>`) : '';
   const descanso = !corrDoDia.length && !cardMusc;
   $app.innerHTML = `
-    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="icon-btn" href="#/perfil" aria-label="Perfil">${I.user}</a></div>
-    <p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
-    <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é descanso' : 'seu treino de hoje'}</h1>
+    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div></div>
+    <div class="saud-row"><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a><div style="min-width:0"><p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
+    <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é descanso' : 'seu treino de hoje'}</h1></div></div>
     <div class="hoje-grid"><div class="hoje-main">
     ${cartaoCobrancaHTML(cobP)}
     ${cartaoPushHTML()}
@@ -2882,7 +2882,7 @@ async function staffHoje() {
   const h = new Date().getHours(); const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const st = S.cache.hoje || (S.cache.hoje = { tudo: false });
   $app.innerHTML = `
-    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="icon-btn" href="#/perfil" aria-label="Perfil">${I.user}</a></div>
+    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : alOutros.length ? 'Seus alunos estão em dia. 🎉' : 'Tudo em dia por aqui. 🎉'}</p>
     ${cartaoPushHTML()}
@@ -2941,6 +2941,7 @@ async function trocarFoto() {
 function viewPerfil() {
   const papel = { admin: 'Administrador', treinador: 'Treinador', aluno: 'Aluno' }[S.me.papel];
   $app.innerHTML = `
+    <a class="back" href="${S.staff ? '#/mais' : '#/'}">${I.back} Voltar</a>
     <p class="eyebrow">Perfil</p>
     <div class="row" style="margin-top:12px;gap:16px"><button class="foto-edit" id="trocar-foto" aria-label="Trocar foto">${fotoHTML(S.me, 'lg')}<i>${I.cam}</i></button><div class="grow"><div class="h2">${esc(S.me.nome)}</div><div class="small muted ellip">${esc(S.user.email)}</div><span class="tag acc" style="margin-top:6px">${papel} · ${esc(S.org.nome)}</span></div></div>
     <div class="section"><div class="section-h"><h2 class="h2">Trocar senha</h2></div>

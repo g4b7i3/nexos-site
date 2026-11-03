@@ -986,3 +986,7 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
   .cm-t.pr{border-left-color:#f97316;background:color-mix(in srgb,#f97316 12%,var(--bg2))}
   .app.aluno .perfil-pg{max-width:760px}
 }
+.top-foto{display:block;border-radius:50%;padding:2px;background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 4px 14px rgba(47,107,255,.25);flex:none}
+.top-foto .foto{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;object-fit:cover;border:2px solid var(--bg);font-size:.85rem}
+.saud-row{display:flex;align-items:center;gap:14px}
+.saud-row .top-foto .foto{width:54px;height:54px;font-size:1rem}
