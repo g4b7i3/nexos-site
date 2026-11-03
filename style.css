@@ -607,24 +607,20 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .cat-slide img{object-fit:contain!important}
 @media (max-width:420px){.coach-stats b{font-size:clamp(.86rem,4.3vw,1.05rem)}}
 
-/* ===== Conexões com relógios ===== */
-.rel-fluxo{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 28px;padding:0;counter-reset:none}
-.rel-fluxo li{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--card);display:flex;flex-direction:column;gap:6px;position:relative}
-.rel-fluxo b{font-family:var(--f-m);color:var(--acc);font-size:.8rem;letter-spacing:.08em}
-.rel-fluxo span{font-size:.95rem;line-height:1.35}
-.rel-grid{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:14px}
-.rel-logos{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
-.rel-logos .rel-logo{height:36px}
-.rel-logos .rel-nome{font-size:1.15rem}
-.rel-tile{border:1px solid var(--line);border-radius:var(--r);padding:20px;background:var(--card);display:flex;flex-direction:column;gap:8px;transition:border-color .2s,transform .2s}
-.rel-tile:hover{border-color:rgba(var(--acc-rgb),.5);transform:translateY(-2px)}
-.rel-tile.dir{border-color:rgba(var(--acc-rgb),.45);background:linear-gradient(160deg,rgba(var(--acc-rgb),.12),var(--card) 60%)}
-.rel-logo{height:44px;display:flex;align-items:center}
-.rel-logo img{max-height:34px;max-width:150px;object-fit:contain}
-.rel-nome{font-family:var(--f-h);font-weight:800;font-size:1.45rem;letter-spacing:.04em;text-transform:uppercase}
-.rel-outro{color:var(--mute);font-size:1.1rem}
-.rel-tile small{color:var(--acc);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
-.rel-tile p{color:var(--mute);font-size:.92rem;line-height:1.45;margin:0}
-.rel-nota{margin-top:18px;font-size:.78rem;color:var(--mute);opacity:.8}
-@media (max-width:900px){.rel-fluxo{grid-template-columns:1fr 1fr}.rel-grid{grid-template-columns:1fr}}
-@media (max-width:560px){.rel-fluxo{gap:8px}.rel-fluxo li{padding:12px}.rel-fluxo span{font-size:.85rem}.rel-tile{padding:16px}}
+/* ===== Fita "Integrado com" (hero) ===== */
+.fita{margin-top:22px;display:flex;align-items:stretch;max-width:560px;border:1px solid var(--line);border-radius:999px;background:rgba(var(--bg2-rgb),.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);overflow:hidden}
+.fita-tit{display:inline-flex;align-items:center;gap:7px;flex:none;padding:0 14px 0 16px;font-family:var(--f-m);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);border-right:1px solid var(--line);background:rgba(var(--acc-rgb),.07)}
+.fita-vp{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.fita-trilho{display:flex;width:max-content;animation:fita 22s linear infinite}
+.fita:hover .fita-trilho{animation-play-state:paused}
+.fita-g{display:flex;align-items:center;padding:11px 0}
+.fx-m{display:inline-flex;align-items:center;height:20px;padding:0 18px}
+.fx-m img{max-height:18px;max-width:96px;object-fit:contain}
+.fx-m b{font-family:var(--f-h);font-weight:800;font-size:.86rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);opacity:.88}
+.fita-g i{width:4px;height:4px;border-radius:50%;background:var(--acc);opacity:.6;flex:none}
+@keyframes fita{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.fita-trilho{animation:none}}
+@media (max-width:560px){.fita{margin-top:18px}.fita-tit{padding:0 10px 0 12px;font-size:.6rem}.fx-m{padding:0 14px}.fx-m b{font-size:.78rem}}
+/* título do topo sempre inteiro na linha, mesmo com fonte grande do celular */
+.hero h1{font-size:min(8.4vw,6.2rem);overflow-wrap:normal}
+.hero h1 .line{white-space:nowrap}
