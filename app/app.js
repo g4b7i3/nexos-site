@@ -4154,14 +4154,14 @@ async function trocarFoto() {
   inp.onchange = async () => {
     const f = inp.files && inp.files[0]; if (!f) return;
     try {
-      toast('Enviando foto…'); const blob = await reduzirImagem(f);
+      toast('Enviando foto…'); let blob; try { blob = await reduzirImagem(f); } catch { return toast('Não consegui ler essa imagem. Tente outra foto (JPG ou PNG).', true); }
       const caminho = `${S.user.id}/foto-${Date.now()}.jpg`;
-      const { error } = await sb.storage.from('nx-avatares').upload(caminho, blob, { contentType: 'image/jpeg', upsert: true });
+      const { error } = await sb.storage.from('nx-avatares').upload(caminho, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
       if (error) throw error;
       const url = sb.storage.from('nx-avatares').getPublicUrl(caminho).data.publicUrl;
       const { error: e2 } = await sb.rpc('nx_definir_foto', { p_url: url }); if (e2) throw e2;
       S.me.foto_url = url; S.cache.equipe = null; toast(S.staff ? 'Foto atualizada! Os alunos já veem na conversa.' : 'Foto atualizada! Seu treinador já vê.'); viewPerfil();
-    } catch (e) { console.error(e); toast('Não foi possível enviar a foto.', true); }
+    } catch (e) { console.error(e); toast('Não foi possível enviar a foto. Verifique a internet e tente de novo.', true); }
   };
   inp.click();
 }
