@@ -3234,7 +3234,7 @@ async function staffHoje() {
   const treinosSemana = recentes.length;
   // ---- resumo da semana (alunos do treinador) ----
   const meus = ativos.filter(ehMeu);
-  const naSem = (d, s0) => { const x = isoDia(d); return x >= s0 && x <= somaDias(s0, 6); };
+  const naSem = (d, s0) => { const x = String(d).length === 10 ? String(d) : isoDia(d); return x >= s0 && x <= somaDias(s0, 6); };
   const alvoLib = new Date().getDay() >= 1 && new Date().getDay() <= 4 ? segAtual : segProx; // seg–qui: esta semana · sex–dom: a próxima
   const rs = { treinaram: [], faltaram: [], provas: [], semLib: [] };
   meus.forEach((m) => {
