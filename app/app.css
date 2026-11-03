@@ -1290,4 +1290,5 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .sobre-t{margin-top:6px;padding-left:10px;border-left:3px solid var(--line2)}
 .sobre-ed{margin:8px 0 4px;padding:8px 12px;border-radius:12px;background:var(--s1);border:1px solid var(--line)}
 .sobre-ed:empty{display:none}
-.pend-mod{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(70,214,255,.1);border:1px solid rgba(70,214,255,.3);font-size:.95rem}
+.pend-mod{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(70,214,255,.1);border:1px solid rgba(70,214,255,.3);font-size:.95rem}
+.pend-ic{display:inline-flex;gap:4px}
