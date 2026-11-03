@@ -2542,14 +2542,14 @@ async function viewCorrida(id) {
   const membroC = S.staff ? nome : S.me; const pc = perfilCorrida(membroC || {});
   const fcMaxFonte = membroC && membroC.corrida && membroC.corrida.fc_max ? 'medida no perfil de corrida' : pc.fcMax ? 'estimada pela idade' : '';
   const analiseBlocos = c.analise ? analiseCorridaHTML(c, pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? pc.fcMax : c.fc_max, pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? fcMaxFonte : 'a maior da corrida') : [];
-  if (S.staff && !c.visto_treinador) sb.from('nx_corridas').update({ visto_treinador: true }).eq('id', c.id).then(() => {});
+  // o treinador marca como visto quando quiser (o aluno é avisado)
   const pace = paceDe(c);
   const parc = c.parciais || [];
   const pk = (p) => p.seg / (p.parcial ? (p.km % 1 || 1) : 1);
   const pMin = parc.length ? Math.min(...parc.map(pk)) : 0, pMax = parc.length ? Math.max(...parc.map(pk)) : 0;
   const voltar = S.staff ? `#/aluno/${c.aluno_id}/corrida` : '#/historico/corrida';
   $app.innerHTML = `
-    <div class="row between"><a class="back" href="${voltar}" style="margin:0">${I.back} ${S.staff ? esc(nome.nome || 'Aluno') : 'Corridas'}</a>${S.staff ? `<a class="btn ghost sm" href="#/aluno/${c.aluno_id}/conversa">${I.feed} Comentar</a>` : ''}</div>
+    <div class="row between"><a class="back" href="${voltar}" style="margin:0">${I.back} ${S.staff ? esc(nome.nome || 'Aluno') : 'Corridas'}</a>${S.staff ? `<div class="row" style="gap:6px">${c.visto_treinador ? `<span class="tag ok">${I.check} Visto</span>` : `<button class="btn sm visto-btn grande" data-visto="corrida|${c.id}">${I.check} Visto</button>`}<a class="btn ghost sm" href="#/aluno/${c.aluno_id}/conversa">${I.feed} Comentar</a></div>` : c.visto_treinador ? `<span class="tag ok">${I.check} Visto pelo treinador</span>` : ''}</div>
     <p class="eyebrow" style="margin-top:16px">${esc((TIPOS_ATIV.find((t) => t[0] === c.tipo) || [, 'Corrida'])[1])} · ${fmtDia(c.data)} · ${fmtHora(c.data)}${c.fonte === 'garmin' ? ' · Garmin' : ''}</p>
     <h1 class="h1">${esc(c.titulo && !/^\d/.test(c.titulo) ? c.titulo : fmtKm(c.distancia_m))}</h1>
     ${!S.staff && c.distancia_m ? `<button class="card-cta" id="gerar-card"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Gerar card para o story</b><span class="small">Com foto de fundo ou sem fundo, do jeito do Strava</span></div>${I.chev}</button>` : ''}
@@ -2575,6 +2575,7 @@ async function viewCorrida(id) {
     ${analiseBlocos.length && analiseBlocos[analiseBlocos.length - 1].includes('Todos os números') ? analiseBlocos[analiseBlocos.length - 1] : ''}
     <p class="tiny dim" style="margin-top:18px">Fonte: ${c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
   const gc = document.getElementById('gerar-card'); if (gc) gc.onclick = () => abrirCardCorrida(c);
+  $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = () => marcarVisto(b));
   if (c.analise) bindGraficos($app, c);
   document.getElementById('apagar-c').onclick = async () => {
     if (!confirm('Apagar esta corrida?')) return;
@@ -3949,6 +3950,15 @@ async function viewPagamentos() {
 }
 
 /* ================= HOJE: o que pede atenção ================= */
+/** treinador marca o treino como visto: o aluno recebe "Seu treinador analisou seu treino" */
+async function marcarVisto(b) {
+  const [tipo, id] = b.dataset.visto.split('|'); b.disabled = true; b.textContent = '…';
+  const { data, error } = await sb.functions.invoke('nx-push', { body: { acao: 'visto', tipo, id } });
+  if (error || (data && data.erro)) { b.disabled = false; b.innerHTML = `${I.check} Visto`; return toast((data && data.erro) || 'Não foi possível marcar agora.', true); }
+  b.outerHTML = `<span class="visto-ok" title="Você já viu">${I.check}</span>`;
+  toast('Visto! O aluno foi avisado que você analisou o treino.');
+  contarNaoVistos().then(dockStaff).catch(() => {});
+}
 async function staffHoje() {
   loading();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
@@ -4013,8 +4023,8 @@ async function staffHoje() {
   const ehMeu = (m) => !m.treinador_id || m.treinador_id === S.user.id || !eqNomeH[m.treinador_id];
   const alMeus = alertas.filter(({ m }) => ehMeu(m)), alOutros = alertas.filter(({ m }) => !ehMeu(m));
   const recentes = [
-    ...sess.filter((s) => s.iniciado_em > seteDias).map((s) => ({ t: s.iniciado_em, novo: !s.visto_treinador, h: `#/aluno/${s.aluno_id}/historico`, n: nomes[s.aluno_id], d: `${esc(s.treino_titulo || 'Treino')}${s.esforco != null ? ` · esforço ${s.esforco}` : ''}`, dor: s.dor, ic: I.lib })),
-    ...corr.filter((c) => c.data > seteDias).map((c) => ({ t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}`, dor: c.dor, ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)) })),
+    ...sess.filter((s) => s.iniciado_em > seteDias).map((s) => ({ id: s.id, tp: 'sessao', t: s.iniciado_em, novo: !s.visto_treinador, h: `#/aluno/${s.aluno_id}/historico`, n: nomes[s.aluno_id], d: `${esc(s.treino_titulo || 'Treino')}${s.esforco != null ? ` · esforço ${s.esforco}` : ''}`, dor: s.dor, ic: I.lib })),
+    ...corr.filter((c) => c.data > seteDias).map((c) => ({ id: c.id, tp: 'corrida', t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}`, dor: c.dor, ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)) })),
   ].sort((a, b) => (a.t < b.t ? 1 : -1));
   const treinosSemana = recentes.length;
   // ---- resumo da semana (alunos do treinador) ----
@@ -4068,10 +4078,11 @@ async function staffHoje() {
         + (alOutros.length ? `<div class="section"><details class="outros-al"${alMeus.length ? '' : ' open'}><summary><span class="h2" style="font-size:1rem">Alunos dos outros treinadores</span><span class="tag">${alOutros.length} · opcional</span></summary><div class="stack" style="margin-top:10px">${alOutros.map(card).join('')}</div></details></div>` : ''); })()}
     ${ehSeg ? '' : resumoHTML}
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><a class="link-btn" href="#/feed">Ver retornos</a></div>
-      ${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}${x.novo ? '<i class="alert-dot"></i>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>`).join('')}
+      ${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`).join('')}
         ${recentes.length > 6 && !st.tudo ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">Mostrar mais ${recentes.length - 6}</button>` : ''}</div>` : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'}
     </div>`;
   bindCartaoPush();
+  $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
     const m = pendentes.find((x) => x.user_id === b.dataset.aprovar); if (!m) return;
     b.disabled = true; b.textContent = 'Aprovando…';
