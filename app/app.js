@@ -659,6 +659,7 @@ async function alunoHoje() {
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
     ${semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi a corrida de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${fmtKm(semNota.distancia_m, 1)} · leva 10 segundos responder</div></div>${I.chev}</button>` : ''}
+    <div id="ciclo-box"></div>
     ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
     ${cartaoPushHTML()}
     </div><div class="hoje-side">
@@ -672,6 +673,7 @@ async function alunoHoje() {
   };
   const rh = document.getElementById('reg-home'); if (rh) rh.onclick = () => registrarCorrida(S.user.id, () => alunoHoje());
   const tc = document.getElementById('termo-corr'); if (tc) tc.onclick = () => termometroCorrida(semNota, () => alunoHoje());
+  if (S.me.sexo !== 'M') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx || !c) return; bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
 }
@@ -1512,6 +1514,7 @@ async function viewAnamnese(opts = {}) {
   if (a === undefined) { const { data } = await sb.from('nx_anamneses').select('*').eq('org_id', S.org.id).eq('aluno_id', alunoId).maybeSingle(); a = data; }
   const r = (a && a.respostas) || {}; const pq = (a && a.parq) || {};
   const box = opts.box || $app;
+  const cic = !staff && S.me.sexo !== 'M' ? await buscarCiclo(S.user.id) : null;
   if (opts.gate) { $dock.hidden = true; layout('bare'); }
   const sel = (name, val, ops) => `<select class="input" name="${name}"><option value="">Selecione</option>${ops.map(([k, l]) => `<option value="${k}" ${val === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const sn = (name, val) => `<div class="radios"><label><input type="radio" name="${name}" value="nao" ${val === 'nao' ? 'checked' : ''}><span>Não</span></label><label><input type="radio" name="${name}" value="sim" ${val === 'sim' ? 'checked' : ''}><span>Sim</span></label></div>`;
@@ -1546,12 +1549,41 @@ async function viewAnamnese(opts = {}) {
         <div class="grid2"><label class="field"><span>Horas de sono por noite</span>${sel('sono_h', r.sono_h, [['5', 'Até 5 h'], ['6', '6 h'], ['7', '7 h'], ['8', '8 h ou mais']])}</label><label class="field"><span>Qualidade do sono</span>${sel('sono_q', r.sono_q, [['boa', 'Boa'], ['regular', 'Regular'], ['ruim', 'Ruim']])}</label></div>
         <label class="field"><span>Nível de estresse no dia a dia</span>${sel('estresse', r.estresse, [['baixo', 'Baixo'], ['medio', 'Médio'], ['alto', 'Alto']])}</label>
       </div>
+      ${!staff && S.me.sexo !== 'M' ? `<div class="card" id="ciclo-card"><span class="eyebrow">Para alunas · ciclo menstrual · opcional</span>
+        <p class="tiny dim" style="margin:6px 0 10px">Ajuda o seu treinador a ajustar a intensidade de acordo com a fase do ciclo. Só você e os treinadores da Nexos veem.</p>
+        <label class="aceite"><input type="checkbox" name="cic_on" ${cic && cic.ativo ? 'checked' : ''}><span>Quero acompanhar o meu ciclo no app</span></label>
+        <div id="cic-campos" ${cic && cic.ativo ? '' : 'hidden'}>
+          <label class="field" style="margin-top:12px"><span>Como é o seu ciclo?</span>${sel('cic_sit', cic ? cic.situacao : 'regular', SIT_CICLO)}</label>
+          <div id="cic-datas">
+            <label class="field"><span>Início da última menstruação</span><input class="input" type="date" name="cic_ini" max="${hojeISO()}" value="${cic && cic.inicios && cic.inicios[0] ? cic.inicios[0] : ''}"></label>
+            <div class="grid2"><label class="field"><span>Duração média do ciclo (dias)</span><input class="input" name="cic_cl" inputmode="numeric" value="${cic ? cic.duracao_ciclo : 28}"></label><label class="field"><span>Dias de menstruação</span><input class="input" name="cic_dm" inputmode="numeric" value="${cic ? cic.duracao_menstr : 5}"></label></div>
+          </div>
+          <p class="tiny dim">Ao marcar, você concorda que esses dados de saúde sejam usados só para orientar o seu treino (LGPD, art. 11). Pode desativar quando quiser, e os registros são apagados.</p>
+        </div>
+      </div>` : ''}
       <div class="card"><span class="eyebrow">Contato de emergência</span>
         <div class="grid2" style="margin-top:12px"><label class="field"><span>Nome</span><input class="input" name="emerg_nome" value="${esc(r.emerg_nome || '')}"></label><label class="field"><span>Telefone</span><input class="input" name="emerg_tel" inputmode="tel" value="${esc(r.emerg_tel || '')}"></label></div>
       </div>
       <button class="btn block" type="submit">${opts.gate ? 'Concluir e começar' : 'Salvar ficha'} ${I.check}</button>
     </form>`;
   const f = box.querySelector('#f-ana');
+  const cc = box.querySelector('#ciclo-card');
+  if (cc) {
+    const mostrar = () => { cc.querySelector('#cic-campos').hidden = !f.cic_on.checked; const sit = f.cic_sit.value; cc.querySelector('#cic-datas').hidden = sit === 'contraceptivo' || sit === 'nao_menstrua'; };
+    f.cic_on.onchange = mostrar; f.cic_sit.onchange = mostrar; mostrar();
+  }
+  const salvarCiclo = async () => {
+    if (!cc) return true;
+    if (!f.cic_on.checked) { if (cic) { await sb.from('nx_ciclo_inicios').delete().eq('aluno_id', S.user.id); await sb.from('nx_ciclo').delete().eq('aluno_id', S.user.id); } return true; }
+    const sit = f.cic_sit.value || 'regular', semData = sit === 'contraceptivo' || sit === 'nao_menstrua';
+    const cl = Math.min(45, Math.max(20, parseInt(f.cic_cl.value, 10) || 28)), dm = Math.min(10, Math.max(2, parseInt(f.cic_dm.value, 10) || 5));
+    const ini = f.cic_ini.value;
+    if (!semData && (!ini || ini > hojeISO())) { toast('Informe o início da última menstruação.', true); return false; }
+    const { error } = await sb.from('nx_ciclo').upsert({ aluno_id: S.user.id, org_id: S.org.id, ativo: true, situacao: sit, duracao_ciclo: cl, duracao_menstr: dm, consentimento_em: (cic && cic.consentimento_em) || new Date().toISOString(), atualizado_em: new Date().toISOString() }, { onConflict: 'aluno_id' });
+    if (error) { toast('Não foi possível salvar o ciclo.', true); return false; }
+    if (!semData) await sb.from('nx_ciclo_inicios').upsert({ org_id: S.org.id, aluno_id: S.user.id, data: ini }, { onConflict: 'aluno_id,data' });
+    return true;
+  };
   f.onsubmit = async (e) => {
     e.preventDefault(); const fd = new FormData(f);
     const parq = {}; let falta = 0;
@@ -1563,6 +1595,7 @@ async function viewAnamnese(opts = {}) {
     resp.doencas = fd.getAll('doencas');
     const positivo = Object.values(parq).includes('sim');
     const btn = f.querySelector('[type=submit]'); btn.disabled = true;
+    if (!(await salvarCiclo())) { btn.disabled = false; return; }
     const row = { parq, parq_positivo: positivo, respostas: resp, atualizado_em: new Date().toISOString(), visto_treinador: staff };
     let id = a && a.id, error;
     if (id) ({ error } = await sb.from('nx_anamneses').update(row).eq('id', id));
@@ -2938,6 +2971,64 @@ function intervalsCardHTML(integ, staff) {
     <button class="btn sm" id="int-on" style="margin-top:10px">Conectar Intervals.icu</button>
     <p class="tiny dim" style="margin-top:8px">Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.</p></div>`;
 }
+/* ---------- ciclo menstrual (opcional, só a aluna e os treinadores veem) ---------- */
+const FASES_CICLO = {
+  menstrual: ['Fase menstrual', '#e85d75', 'A energia pode estar menor. Treine pela sensação e ajuste a intensidade se precisar.'],
+  folicular: ['Fase folicular', '#2fb6e0', 'Costuma ser uma boa fase para treinos fortes e de qualidade.'],
+  ovulatoria: ['Fase ovulatória', '#e0a400', 'Energia geralmente alta. Capriche no aquecimento.'],
+  lutea: ['Fase lútea', '#8b6be8', 'Calor e cansaço maiores são comuns. Hidratação extra e intensidade pelo esforço percebido.'],
+};
+const SIT_CICLO = [['regular', 'Regular, todo mês'], ['irregular', 'Irregular'], ['contraceptivo', 'Anticoncepcional sem menstruação'], ['nao_menstrua', 'Não menstruo (menopausa, gestação…)']];
+async function buscarCiclo(alunoId) {
+  const [c, ini] = await Promise.all([
+    sb.from('nx_ciclo').select('*').eq('aluno_id', alunoId).maybeSingle().then((r) => r.data).catch(() => null),
+    sb.from('nx_ciclo_inicios').select('data').eq('aluno_id', alunoId).order('data', { ascending: false }).limit(6).then((r) => r.data || []).catch(() => []),
+  ]);
+  return c ? { ...c, inicios: ini.map((x) => x.data) } : null;
+}
+function cicloInfo(c, ref = hojeISO()) {
+  if (!c || !c.ativo) return null;
+  if (c.situacao === 'contraceptivo' || c.situacao === 'nao_menstrua') return { semFase: true };
+  const ins = (c.inicios || []).filter((d) => d <= ref); if (!ins.length) return { semData: true };
+  let cl = c.duracao_ciclo || 28; const difs = [];
+  for (let i = 0; i < Math.min(ins.length - 1, 3); i++) { const d = Math.round((dia(ins[i]) - dia(ins[i + 1])) / 864e5); if (d >= 20 && d <= 45) difs.push(d); }
+  if (difs.length) cl = Math.round(difs.reduce((a, b) => a + b, 0) / difs.length);
+  const desde = Math.round((dia(ref) - dia(ins[0])) / 864e5), d = (desde % cl) + 1, dm = c.duracao_menstr || 5, ov = cl - 14;
+  const fase = d <= dm ? 'menstrual' : d < ov - 1 ? 'folicular' : d <= ov + 1 ? 'ovulatoria' : 'lutea';
+  return { dia: d, ciclo: cl, fase, prox: somaDias(ins[0], cl * (Math.floor(desde / cl) + 1)), ultimo: ins[0], atraso: desde >= cl ? desde - cl + 1 : 0 };
+}
+/** linha resumida da fase (aluna no Hoje e treinador na planilha) */
+function cicloLinhaHTML(c, staff) {
+  const inf = cicloInfo(c); if (!inf) return '';
+  if (inf.semFase) return staff ? `<div class="ciclo-l" style="--cf:#8b9ab8"><i></i><span>Ciclo: ${esc((SIT_CICLO.find((x) => x[0] === c.situacao) || [, ''])[1].split(' (')[0])}</span></div>` : '';
+  if (inf.semData) return staff ? '' : `<button type="button" class="ciclo-l btn-ciclo" style="--cf:#e85d75"><i></i><span><b>Ciclo menstrual</b> · registre o início da última menstruação</span>${I.chev}</button>`;
+  const f = FASES_CICLO[inf.fase];
+  const txt = inf.atraso ? `previsão passou há ${inf.atraso} dia${inf.atraso > 1 ? 's' : ''}${staff ? '' : ': já começou? toque para registrar'}` : `dia ${inf.dia} de ${inf.ciclo} · próxima menstruação ~${fmtCurto(inf.prox + 'T12:00:00')}`;
+  return staff
+    ? `<div class="ciclo-l" style="--cf:${f[1]}"><i></i><span><b>${f[0]}</b> · ${txt}</span></div>`
+    : `<button type="button" class="ciclo-l btn-ciclo" style="--cf:${f[1]}"><i></i><span><b>${f[0]}</b> · ${txt}</span>${I.chev}</button>`;
+}
+/** folha para a aluna registrar a menstruação e ver a fase */
+function abrirCiclo(c, depois) {
+  const inf = cicloInfo(c) || {};
+  const f = inf.fase ? FASES_CICLO[inf.fase] : null;
+  openSheet(`<p class="eyebrow">Meu ciclo</p><div class="h2" style="margin-top:4px">${f ? f[0] : 'Ciclo menstrual'}</div>
+    ${f ? `<p class="muted small" style="margin-top:6px">${inf.atraso ? 'A menstruação prevista ainda não foi registrada.' : `Dia ${inf.dia} de um ciclo de cerca de ${inf.ciclo} dias.`} ${f[2]}</p>` : '<p class="muted small" style="margin-top:6px">Registre o início da menstruação para o app calcular a sua fase e o seu treinador ajustar os treinos.</p>'}
+    <button class="btn block" id="ci-hoje" style="margin-top:16px">Minha menstruação começou hoje</button>
+    <label class="field" style="margin-top:12px"><span>Ou escolha a data em que começou</span><div class="row" style="gap:8px"><input class="input" type="date" id="ci-data" max="${hojeISO()}" value="${hojeISO()}"><button class="btn ghost sm" id="ci-salvar">Salvar</button></div></label>
+    ${c && c.inicios && c.inicios.length ? `<p class="tiny dim" style="margin-top:6px">Últimos registros: ${c.inicios.slice(0, 4).map((d) => fmtCurto(d + 'T12:00:00')).join(' · ')}</p>` : ''}
+    <a class="link-btn small" href="#/saude" style="display:inline-block;margin-top:12px">Editar ou desativar o acompanhamento</a>
+    <button class="btn ghost block" data-close style="margin-top:12px">Fechar</button>`, (r) => {
+    const salvar = async (data) => {
+      const { error } = await sb.from('nx_ciclo_inicios').upsert({ org_id: S.org.id, aluno_id: S.user.id, data }, { onConflict: 'aluno_id,data' });
+      if (error) return toast('Não foi possível salvar.', true);
+      closeSheet(); toast('Registrado! A fase do seu ciclo foi atualizada.'); depois && depois();
+    };
+    r.querySelector('#ci-hoje').onclick = () => salvar(hojeISO());
+    r.querySelector('#ci-salvar').onclick = () => { const v = r.querySelector('#ci-data').value; if (!v || v > hojeISO()) return toast('Escolha uma data válida.', true); salvar(v); };
+  });
+}
+
 /* ---------- aba Conexões (aluno): relógios e apps ---------- */
 async function viewConexoes(ret) {
   loading(); dockAluno();
@@ -3697,6 +3788,7 @@ async function staffAluno(alunoId, aba, extra) {
   if (error) throw error;
   if (!m) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Aluno não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
   aba = aba || 'inicio'; if (aba === 'treinos') aba = 'forca';
+  const cicloA = (aba === 'corrida' || aba === 'forca') && m.sexo !== 'M' ? await buscarCiclo(alunoId).catch(() => null) : null;
   const provaProxA = (aba === 'corrida' || aba === 'forca') ? (await sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', alunoId).gte('data', hojeISO()).order('data').limit(1).then((r) => (r.data || [])[0]).catch(() => null)) : null;
   let grupos = [];
   const u = sess[0];
@@ -3800,7 +3892,7 @@ async function staffAluno(alunoId, aba, extra) {
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
       <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a></div>
         <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div>
-        <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : `+ Marcar dias de treino ${selo('corrida', 'sm')} ${selo('forca', 'sm')}`} <span class="dim">· editar</span></button></div></div>
+        <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : `+ Marcar dias de treino ${selo('corrida', 'sm')} ${selo('forca', 'sm')}`} <span class="dim">· editar</span></button>${cicloA ? cicloLinhaHTML(cicloA, true) : ''}</div></div>
         ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>🏁 ${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
       ${fM && fC ? `<div class="subtabs mod-tabs" style="margin-top:12px"><a class="${aba === 'corrida' ? 'on' : ''}" href="#/aluno/${alunoId}/corrida">${I.run} Corrida</a><a class="${aba === 'forca' ? 'on' : ''}" href="#/aluno/${alunoId}/forca">${I.lib} Força</a></div>` : ''}`;
   $app.innerHTML = aba === 'inicio'

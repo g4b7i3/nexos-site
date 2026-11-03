@@ -1241,3 +1241,8 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .rel-ic{width:16px;height:16px;flex:none;vertical-align:-3px}
 .gar-btn{display:flex;align-items:center;justify-content:center;gap:8px}
 .gar-btn[hidden]{display:none}
+/* ciclo menstrual */
+.ciclo-l{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--cf) 10%,var(--s1));border:1px solid color-mix(in srgb,var(--cf) 35%,var(--line));color:var(--ink);font:inherit;font-size:.82rem;text-align:left}
+.ciclo-l i{width:10px;height:10px;border-radius:50%;background:var(--cf);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--cf) 25%,transparent)}
+.ciclo-l span{flex:1;min-width:0;color:var(--mute)}.ciclo-l b{color:var(--ink)}
+button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
