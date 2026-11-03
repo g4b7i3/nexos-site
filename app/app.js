@@ -167,8 +167,9 @@ const dockAluno = () => setDock([
   { href: '#/conversa', match: ['#/conversa'], icon: I.feed, label: 'Treinador', badge: S.cache.msgNovas || '' },
 ]);
 const dockStaff = () => setDock([
-  { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.msgNovas || 0) || '' },
+  { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: S.cache.naoVistos || '' },
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
+  { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo'], icon: I.cal, label: 'Treinos' },
   { href: '#/biblioteca', match: ['#/biblioteca'], icon: I.lib, label: 'Exercícios' },
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
@@ -212,6 +213,7 @@ async function router() {
       if (a === 'treinos') return await staffTreinos(b);
       if (a === 'mais') return staffMais();
       if (a === 'formularios') return await staffFormularios(b);
+      if (a === 'mensagens') return await staffMensagens(b);
       if (a === 'eventos') return await viewEventos(b);
       if (a === 'perfil') return viewPerfil();
       return await staffHoje();
@@ -3742,6 +3744,56 @@ async function formExercicio(exLista, grupos) {
       closeSheet(); toast('Exercício excluído.'); S.cache.ex = null; staffBiblioteca();
     };
   });
+}
+
+/* ---------- mensagens (caixa de entrada do treinador, estilo WhatsApp) ---------- */
+const horaMsg = (iso) => { const d = new Date(iso); const q = quando(iso); return q === 'hoje' ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : q === 'ontem' ? 'Ontem' : `${d.getDate()}/${d.getMonth() + 1}`; };
+async function staffMensagens(alunoId) {
+  const largo = innerWidth >= 900;
+  const st = S.cache.msgSt || (S.cache.msgSt = { q: '', dono: null });
+  if (!S.cache.msgLista) loading();
+  const [{ data: membros }, { data: msgs }] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,foto_url,treinador_id,ativo').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
+    sb.from('nx_mensagens').select('aluno_id,autor_id,texto,criado_em,lida').eq('org_id', S.org.id).order('criado_em', { ascending: false }).limit(2000),
+  ]);
+  dockStaff();
+  const ult = {}, nl = {};
+  (msgs || []).forEach((m) => { if (!ult[m.aluno_id]) ult[m.aluno_id] = m; if (m.autor_id === m.aluno_id && !m.lida) nl[m.aluno_id] = (nl[m.aluno_id] || 0) + 1; });
+  S.cache.msgNovas = Object.values(nl).reduce((a, b) => a + b, 0); dockStaff();
+  const porId = Object.fromEntries((membros || []).map((m) => [m.user_id, m]));
+  const meus = (membros || []).filter((m) => m.treinador_id === S.user.id);
+  if (!st.dono) st.dono = meus.length ? 'meus' : 'todos';
+  const conversas = Object.keys(ult).filter((id) => porId[id]).sort((a, b) => (ult[b].criado_em > ult[a].criado_em ? 1 : -1));
+  S.cache.msgLista = true;
+  const itemHTML = (id) => { const m = porId[id], u = ult[id], n = nl[id] || 0; const eu = u.autor_id !== id;
+    return `<a class="cv ${n ? 'nova' : ''} ${id === alunoId ? 'on' : ''}" href="#/mensagens/${id}" data-cv="${id}">${avAluno(m)}<div class="cv-c"><div class="cv-l1"><b class="ellip">${esc(m.nome)}</b><span class="cv-h">${horaMsg(u.criado_em)}</span></div>
+      <div class="cv-l2"><span class="ellip">${eu ? '<i class="cv-eu">Você:</i> ' : ''}${esc(u.texto || '')}</span>${n ? `<i class="cv-n">${n}</i>` : ''}</div></div></a>`; };
+  const listaHTML = () => {
+    const q = semAcento(st.q);
+    const l = conversas.filter((id) => (st.dono === 'todos' || porId[id].treinador_id === S.user.id) && (!q || semAcento(porId[id].nome).includes(q)));
+    return l.length ? l.map(itemHTML).join('') : `<div class="empty" style="margin-top:10px"><div class="h3">${conversas.length ? 'Nenhuma conversa aqui' : 'Nenhuma mensagem ainda'}</div><p class="small">${conversas.length ? 'Tente “Todos” ou outra busca.' : 'Quando um aluno mandar mensagem, a conversa aparece aqui.'}</p></div>`;
+  };
+  const painelLista = `<div class="cv-top"><div><p class="eyebrow">Conversas</p><h1 class="h1" style="margin:2px 0 0">Mensagens</h1></div><button class="btn sm" id="cv-nova">${I.plus} Nova</button></div>
+    <div class="search" style="margin-top:12px">${I.search}<input class="input" id="cv-q" placeholder="Buscar aluno" value="${esc(st.q)}"></div>
+    <div class="seg" id="cv-dono" style="margin-top:10px"><button type="button" data-d="meus" class="${st.dono === 'meus' ? 'on' : ''}">Meus alunos</button><button type="button" data-d="todos" class="${st.dono === 'todos' ? 'on' : ''}">Todos</button></div>
+    <div class="cv-lista" id="cv-lista">${listaHTML()}</div>`;
+  const aluno = alunoId && porId[alunoId];
+  const cabChat = aluno ? `<div class="cv-chat-h">${largo ? '' : `<a class="icon-btn sm" href="#/mensagens" aria-label="Voltar">${I.back}</a>`}${avAluno(aluno)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(aluno.nome)}</b><span class="tiny dim">Aluno${aluno.treinador_id && aluno.treinador_id !== S.user.id ? '' : ' seu'}</span></div><a class="btn ghost sm" href="#/aluno/${alunoId}">Ver atleta</a></div><div id="cv-box"></div>` : '';
+  if (largo) {
+    $app.innerHTML = `<div class="cv-split"><aside class="cv-side">${painelLista}</aside><section class="cv-main">${aluno ? cabChat : `<div class="cv-vazio">${I.feed}<b>Escolha uma conversa</b><span class="small muted">As mensagens dos alunos aparecem à esquerda, a mais recente em cima.</span></div>`}</section></div>`;
+  } else {
+    $app.innerHTML = aluno ? cabChat : painelLista;
+  }
+  if (aluno) { await viewConversa(alunoId, document.getElementById('cv-box'), true); nl[alunoId] = 0; S.cache.msgNovas = Object.values(nl).reduce((a, b) => a + b, 0); dockStaff(); const it = document.querySelector(`[data-cv="${alunoId}"]`); if (it) { it.classList.remove('nova'); it.querySelector('.cv-n')?.remove(); } }
+  const qi = document.getElementById('cv-q'); if (qi) qi.oninput = () => { st.q = qi.value; document.getElementById('cv-lista').innerHTML = listaHTML(); };
+  const dn = document.getElementById('cv-dono'); if (dn) dn.onclick = (e) => { const b = e.target.closest('[data-d]'); if (!b) return; st.dono = b.dataset.d; dn.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); document.getElementById('cv-lista').innerHTML = listaHTML(); };
+  const nv = document.getElementById('cv-nova'); if (nv) nv.onclick = () => {
+    const al = (membros || []).filter((m) => m.ativo);
+    openSheet(`<p class="eyebrow">Nova conversa</p><div class="h2" style="margin-top:4px">Para qual aluno?</div><div class="search" style="margin-top:12px">${I.search}<input class="input" id="nc-q" placeholder="Buscar aluno"></div><div class="stack" id="nc-l" style="margin-top:10px;max-height:52vh;overflow:auto"></div>`, (r) => {
+      const draw = (q) => { r.querySelector('#nc-l').innerHTML = al.filter((m) => !q || semAcento(m.nome).includes(semAcento(q))).map((m) => `<a class="list-item" href="#/mensagens/${m.user_id}" style="color:inherit">${avAluno(m)}<b class="grow">${esc(m.nome)}</b>${I.chev}</a>`).join('') || '<p class="small muted">Nenhum aluno encontrado.</p>'; };
+      draw(''); r.querySelector('#nc-q').oninput = (e) => draw(e.target.value);
+    });
+  };
 }
 
 /* ---------- formulários (ficha de entrada por link) ---------- */

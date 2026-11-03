@@ -993,3 +993,41 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .perfil-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-weight:800;font-size:.84rem;box-shadow:0 4px 14px rgba(10,30,70,.06)}
 .perfil-btn svg{width:17px;height:17px;color:var(--acc)}
 .perfil-btn:hover{border-color:var(--acc)}
+/* mensagens (estilo WhatsApp) */
+.cv-top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.cv-lista{display:flex;flex-direction:column;margin-top:12px;border:1px solid var(--line);border-radius:18px;background:var(--bg2);overflow:hidden}
+.cv-lista .empty{margin:12px}
+.cv{display:flex;align-items:center;gap:12px;padding:12px 14px;color:inherit;border-top:1px solid var(--line);transition:background .15s}
+.cv:first-child{border-top:0}
+.cv:hover{background:var(--s1)}
+.cv.on{background:color-mix(in srgb,var(--acc) 10%,var(--bg2))}
+.cv .av{flex:none}
+.cv-c{flex:1;min-width:0}
+.cv-l1,.cv-l2{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cv-l1 b{font-size:.95rem}
+.cv-h{font-size:.72rem;color:var(--dim);flex:none}
+.cv-l2{margin-top:2px;font-size:.84rem;color:var(--mute)}
+.cv-eu{font-style:normal;color:var(--dim)}
+.cv.nova .cv-l1 b{font-weight:900}
+.cv.nova .cv-h{color:var(--acc);font-weight:800}
+.cv.nova .cv-l2{color:var(--ink);font-weight:600}
+.cv-n{flex:none;font-style:normal;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-size:.72rem;font-weight:800;display:grid;place-items:center}
+.cv-chat-h{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:16px;background:var(--bg2)}
+.cv-vazio{height:100%;min-height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;color:var(--mute)}
+.cv-vazio svg{width:42px;height:42px;color:var(--acc);opacity:.6}
+@media (min-width:900px){
+  .cv-split{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px;align-items:start}
+  .cv-side{position:sticky;top:16px;max-height:calc(100vh - 140px);display:flex;flex-direction:column}
+  .cv-side .cv-lista{overflow-y:auto;min-height:0;flex:1}
+  .cv-main{min-height:calc(100vh - 140px);border:1px solid var(--line);border-radius:20px;background:color-mix(in srgb,var(--bg2) 60%,transparent);padding:12px;display:flex;flex-direction:column}
+  .cv-main .cv-chat-h{border:0;background:none;padding:4px 4px 10px;border-bottom:1px solid var(--line);border-radius:0}
+  .cv-main #cv-box{flex:1;display:flex;flex-direction:column}
+  .cv-main .chat{max-height:calc(100vh - 330px);flex:1}
+  .cv-main .composer{bottom:0}
+}
+@media (max-width:560px){
+  .dock{width:calc(100% - 16px);max-width:520px;justify-content:space-between;gap:2px;padding:5px}
+  .dock a{min-width:0;flex:1;padding:8px 2px;font-size:.6rem;letter-spacing:0}
+  .dock a .badge{right:calc(50% - 20px)}
+}
+@media (max-width:899px){#cv-box .chat{min-height:calc(100vh - 300px);min-height:calc(100dvh - 300px)}}
