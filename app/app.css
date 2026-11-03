@@ -1142,3 +1142,7 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .tool-ic{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--acc);font-weight:900;cursor:pointer}
 .tool-ic svg{width:17px;height:17px}
 @media (max-width:560px){.pl-top{row-gap:8px}.pl-tools{margin-left:0;width:100%;justify-content:flex-end}}
+/* lista do + (força): ícone de adicionar pequeno e alinhado */
+.add-ic{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
+.add-ic svg{width:17px;height:17px}
+.list-item>svg{width:18px;height:18px;flex:none}
