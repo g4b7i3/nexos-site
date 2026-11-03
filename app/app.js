@@ -83,6 +83,7 @@ const I = {
   run: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="16.4" cy="3.9" r="2.2" fill="currentColor" stroke="none"/><path d="M14.8 7.4 12.7 13"/><path d="M14.5 8.1 11.2 8.1 9.3 10.6"/><path d="M14.5 8.1 16.6 11.4 19.6 10.3"/><path d="M12.7 13 15.6 16.3 13.6 20.6"/><path d="M12.7 13 10.5 16.1 7.2 14.4"/><path d="M3.2 7.4h3.6M2 10.4h4M3.2 13.4h2.6" stroke-width="2"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   watch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5l8.5 6 8.5-6"/></svg>',
   flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
   today: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.6" fill="currentColor"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -3759,7 +3760,22 @@ function formPessoa(tipo, pre = {}, aoCriar) {
   });
 }
 
-function mostrarCredenciais(d, existente, aluno = true) {
+/** envia um e-mail da Nexos (com a logo) pelo Gmail da assessoria */
+async function enviarEmailNexos(body, btn) {
+  const txt = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const { data, error } = await sb.functions.invoke('nx-email', { body: { org_id: S.org.id, ...body } });
+    let erro = data && data.erro;
+    if (error) { erro = 'Não foi possível enviar o e-mail agora.'; try { const j = await error.context.json(); if (j?.erro) erro = j.erro; } catch {} }
+    if (data && data.configurado === false) { toast('O envio por e-mail ainda não foi configurado (falta a senha de app do Gmail).', true); return false; }
+    if (erro) { toast(erro, true); return false; }
+    toast(`E-mail enviado para ${body.para} ✉️`);
+    if (btn) { btn.innerHTML = `${I.check} E-mail enviado`; }
+    return true;
+  } finally { if (btn && btn.textContent === 'Enviando…') { btn.disabled = false; btn.innerHTML = txt; } }
+}
+function mostrarCredenciais(d, existente, aluno = true, tipo = 'acesso') {
   const url = loginURL();
   const msg = existente
     ? `Olá, ${firstName(d.nome)}! Seu acesso ao app da Nexos foi liberado. Entre em ${url} com o e-mail ${d.email} e a senha que você já usa.`
@@ -3771,8 +3787,11 @@ function mostrarCredenciais(d, existente, aluno = true) {
     <p class="small muted" style="margin:6px 0 16px">${existente ? 'Esse e-mail já tinha conta: a pessoa entra com a senha que já usa.' : 'Envie os dados de acesso:'}</p></div>
     <div class="cred">Acesso: <b>${esc(url)}</b><br>E-mail: <b>${esc(d.email)}</b>${existente ? '' : `<br>Senha: <b>${esc(d.senha)}</b>`}</div>
     <a class="btn block" style="margin-top:16px;background:#25d366;color:#04122b" href="${esc(wa)}" target="_blank" rel="noopener">${I.wa} Enviar pelo WhatsApp</a>
+    ${d.email ? `<button class="btn block mail-btn" id="por-email" style="margin-top:8px">${I.mail} Enviar por e-mail</button>` : ''}
     <button class="btn ghost block" id="copiar" style="margin-top:8px">Copiar mensagem</button>
     <button class="btn ghost block" data-close style="margin-top:8px">Concluir</button>`, (root) => {
+    const pe = root.querySelector('#por-email');
+    if (pe) pe.onclick = () => enviarEmailNexos({ tipo, para: d.email, nome: d.nome, login: d.email, senha: existente ? null : d.senha, link: url }, pe);
     root.querySelector('#copiar').onclick = async () => { try { await navigator.clipboard.writeText(msg); toast('Mensagem copiada!'); } catch { toast('Não foi possível copiar.', true); } };
   });
 }
@@ -3972,7 +3991,7 @@ async function staffAluno(alunoId, aba, extra) {
     };
     document.getElementById('reset-senha').onclick = async (e) => {
       const nova = gerarSenha(); e.currentTarget.disabled = true;
-      try { await chamarFuncao({ acao: 'senha', user_id: alunoId, senha: nova }); mostrarCredenciais({ nome: m.nome, email: m.email, senha: nova, telefone: m.telefone }, false); }
+      try { await chamarFuncao({ acao: 'senha', user_id: alunoId, senha: nova }); mostrarCredenciais({ nome: m.nome, email: m.email, senha: nova, telefone: m.telefone }, false, true, 'senha'); }
       catch (err) { toast(err.message, true); } finally { e.target.disabled = false; }
     };
   }
@@ -4649,7 +4668,9 @@ async function staffFormularios(id) {
       <p class="small muted" style="margin-top:6px">${f.multiplo ? 'Qualquer pessoa pode preencher este link, quantas vezes for preciso.' : 'Vale para uma pessoa. Depois que ela enviar, o link fecha.'}</p>
       <div class="ficha-link mono">${esc(link)}</div>
       <a class="btn block wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="margin-top:12px">Enviar no WhatsApp${tel ? '' : ' (escolher contato)'}</a>
+      <div class="mail-row" style="margin-top:8px"><input class="input" type="email" id="fx-mail" placeholder="E-mail da pessoa" value="${esc(f.email || '')}"><button class="btn mail-btn" id="fx-env">${I.mail} Enviar</button></div>
       <div class="grid2" style="margin-top:8px"><button class="btn ghost" id="cp-link">Copiar link</button><button class="btn ghost" id="cp-msg">Copiar mensagem</button></div>`, (r) => {
+      r.querySelector('#fx-env').onclick = (ev) => { const para = r.querySelector('#fx-mail').value.trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para)) return toast('Digite um e-mail válido.', true); enviarEmailNexos({ tipo: 'ficha', para, nome: f.nome || '', link }, ev.currentTarget); };
       const cp = async (t, ok) => { try { await navigator.clipboard.writeText(t); toast(ok); } catch { toast('Não foi possível copiar.', true); } };
       r.querySelector('#cp-link').onclick = () => cp(link, 'Link copiado!');
       r.querySelector('#cp-msg').onclick = () => cp(msg, 'Mensagem copiada!');

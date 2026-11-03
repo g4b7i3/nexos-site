@@ -1246,3 +1246,6 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .ciclo-l i{width:10px;height:10px;border-radius:50%;background:var(--cf);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--cf) 25%,transparent)}
 .ciclo-l span{flex:1;min-width:0;color:var(--mute)}.ciclo-l b{color:var(--ink)}
 button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
+.mail-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:#0b2352!important;color:#fff!important}
+.mail-btn svg{width:18px;height:18px}
+.mail-row{display:grid;grid-template-columns:1fr auto;gap:8px}
