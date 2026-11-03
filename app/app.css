@@ -1086,3 +1086,24 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .pz-in .input{flex:1;min-width:0;width:auto}
 @media (max-width:600px){.paces:has(.pz-ed){grid-template-columns:1fr}.pz-ed{flex-direction:row!important;align-items:center;justify-content:space-between}.pz-ed>span{flex:1}.paces .pz-in{flex:none;width:190px}}
 .pz-in .input{padding:7px 4px;font-size:.92rem}
+/* biblioteca de corrida por nível */
+.mod[hidden]{display:none!important}
+.niv-chips{margin:8px 0 6px;flex-wrap:nowrap;overflow-x:auto}
+.niv-chips .chip{padding:6px 11px;font-size:.74rem}
+.niv-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+@media(min-width:760px){.niv-tabs{grid-template-columns:repeat(6,1fr)}}
+.niv-tabs button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:var(--bg2);text-align:left;cursor:pointer;color:var(--ink)}
+.niv-tabs button span{font-size:.72rem;color:var(--mute)}
+.niv-tabs button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));border-color:transparent;color:#fff}
+.niv-tabs button.on span{color:rgba(255,255,255,.85)}
+.mc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+.tag.niv-ini{background:color-mix(in srgb,#3ddc97 18%,transparent);color:#15803d}
+.tag.niv-int{background:color-mix(in srgb,#46d6ff 18%,transparent);color:#0369a1}
+.tag.niv-ava{background:color-mix(in srgb,#ff9f43 20%,transparent);color:#b45309}
+.tag.niv-pro{background:color-mix(in srgb,#ff6b6b 18%,transparent);color:#b91c1c}
+.mc-info{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--s1);font-size:.78rem;color:var(--mute);line-height:1.45}
+.off-faixa.grande{height:46px;border-radius:12px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#1b2c55,#0b1630)}
+.off-faixa.grande svg{width:30px;height:30px}
+.sheet-mods .biblio-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.sheet-mods .mes-rot{margin:14px 0 6px}
+#pick-l{display:block!important;max-height:none}#pick-l .biblio-l{flex-direction:row;overflow:visible}

@@ -2039,19 +2039,76 @@ const paceZonaTxt = (z, perfil) => { const p = perfil && perfil.paces; if (p && 
 const PASSOS = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Desaquecimento' };
 const passo = (k, v, med, z) => ({ k, v, med, z });
 const serie = (n, passos) => ({ k: 'rep', n, passos });
+/* ---------- biblioteca de corrida por nível (base: método norueguês + ciência atual) ---------- */
+const NIVEIS_CORR = [['ini', 'Iniciante'], ['int', 'Intermediário'], ['ava', 'Avançado'], ['pro', 'Profissional']];
+const CATS_CORR = [['base', 'Base e rodagem'], ['limiar', 'Limiar norueguês'], ['vo2', 'VO₂máx'], ['veloc', 'Velocidade e subidas'], ['fartlek', 'Fartlek e progressivos'], ['longao', 'Longão'], ['rec', 'Recuperação'], ['teste', 'Testes e provas'], ['off', 'Descanso']];
+const _A = (v, med = 'km') => passo('aq', v, med, 'leve'), _D = (v, med = 'km') => passo('dq', v, med, 'leve'), _C = (v, med, z) => passo('co', v, med, z), _R = (v, med, z = 'rec') => passo('rc', v, med, z);
+const TODOS_NIV = ['ini', 'int', 'ava', 'pro'];
+const INFO_NOR = 'Método norueguês: limiar controlado (Z4 sem passar do ponto, lactato ~2–3,5 mmol) com pausas curtas. Muito volume de qualidade com pouca fadiga.';
 const MODELOS_PADRAO = [
-  { id: 'p-off', nome: 'Day off', tipo: 'folga', estrutura: [] },
-  { id: 'p-rod', nome: 'Rodagem leve', tipo: 'rodagem', estrutura: [passo('co', 6, 'km', 'leve')] },
-  { id: 'p-reg', nome: 'Regenerativo', tipo: 'regenerativo', estrutura: [passo('co', 30, 'min', 'leve')] },
-  { id: 'p-lon', nome: 'Longão', tipo: 'longao', estrutura: [passo('co', 14, 'km', 'leve')] },
-  { id: 'p-pro', nome: 'Progressivo', tipo: 'ritmo', estrutura: [passo('co', 3, 'km', 'leve'), passo('co', 2, 'km', 'maratona'), passo('co', 1, 'km', 'limiar')] },
-  { id: 'p-rit', nome: '3 × 2 km no limiar', tipo: 'ritmo', estrutura: [passo('aq', 2, 'km', 'leve'), serie(3, [passo('co', 2, 'km', 'limiar'), passo('rc', 3, 'min', 'rec')]), passo('dq', 1, 'km', 'leve')] },
-  { id: 'p-int', nome: '6 × 800 m', tipo: 'intervalado', estrutura: [passo('aq', 2, 'km', 'leve'), serie(6, [passo('co', 800, 'm', 'intervalado'), passo('rc', 2, 'min', 'rec')]), passo('dq', 1, 'km', 'leve')] },
-  { id: 'p-tir', nome: '10 × 200 m', tipo: 'tiros', estrutura: [passo('aq', 2, 'km', 'leve'), serie(10, [passo('co', 200, 'm', 'tiros'), passo('rc', 200, 'm', 'rec')]), passo('dq', 1, 'km', 'leve')] },
-  { id: 'p-far', nome: 'Fartlek 1/2', tipo: 'fartlek', estrutura: [passo('aq', 10, 'min', 'leve'), serie(8, [passo('co', 1, 'min', 'intervalado'), passo('rc', 2, 'min', 'leve')]), passo('dq', 10, 'min', 'leve')] },
-  { id: 'p-tes', nome: 'Teste de 5 km', tipo: 'teste', estrutura: [passo('aq', 2, 'km', 'leve'), passo('co', 5, 'km', 'intervalado'), passo('dq', 1, 'km', 'leve')] },
-  { id: 'p-prv', nome: 'Prova', tipo: 'prova', estrutura: [passo('co', 10, 'km', 'maratona')] },
+  { id: 'p-off', nome: 'Day off', tipo: 'folga', estrutura: [], niv: TODOS_NIV, cat: 'off', info: 'Descanso total. Faz parte do treino: é quando o corpo assimila o que foi feito.' },
+  // ---------- INICIANTE ----------
+  { id: 'i-cc8', nome: 'Corre e caminha 8 × 1 min', tipo: 'rodagem', niv: ['ini'], cat: 'base', info: 'Adaptação ao impacto: alterna trote leve e caminhada. Ideal para as primeiras semanas.', estrutura: [_A(5, 'min'), serie(8, [_C(1, 'min', 'leve'), _R(2, 'min')]), _D(5, 'min')] },
+  { id: 'i-cc6', nome: 'Corre e caminha 6 × 3 min', tipo: 'rodagem', niv: ['ini'], cat: 'base', info: 'Próximo passo do corre e caminha: blocos maiores de corrida com pausa curta caminhando.', estrutura: [_A(5, 'min'), serie(6, [_C(3, 'min', 'leve'), _R(1, 'min')]), _D(5, 'min')] },
+  { id: 'i-c20', nome: 'Contínuo 20 min leve', tipo: 'rodagem', niv: ['ini'], cat: 'base', info: 'Primeira corrida sem parar. Ritmo de conversa (Z2).', estrutura: [_C(20, 'min', 'leve')] },
+  { id: 'i-c30', nome: 'Contínuo 30 min leve', tipo: 'rodagem', niv: ['ini'], cat: 'base', info: 'Base aeróbica: a maior parte do treino de quem corre deve ser assim, leve (modelo polarizado, ~80% em Z1–Z2).', estrutura: [_C(30, 'min', 'leve')] },
+  { id: 'i-lim', nome: 'Limiar leve 4 × 3 min', tipo: 'ritmo', niv: ['ini'], cat: 'limiar', info: 'Primeiro contato com o limiar no estilo norueguês: blocos curtos, controlados, sem chegar ao limite.', estrutura: [_A(10, 'min'), serie(4, [_C(3, 'min', 'limiar'), _R(2, 'min')]), _D(5, 'min')] },
+  { id: 'i-far', nome: 'Fartlek leve 6 × 1 min', tipo: 'fartlek', niv: ['ini'], cat: 'fartlek', info: 'Brincadeira de ritmo: 1 min um pouco mais rápido (Z3) e 2 min bem leve.', estrutura: [_A(10, 'min'), serie(6, [_C(1, 'min', 'maratona'), _R(2, 'min')]), _D(5, 'min')] },
+  { id: 'i-pro', nome: 'Progressivo 25 min', tipo: 'ritmo', niv: ['ini'], cat: 'fartlek', info: 'Começa leve e termina moderado. Ensina a controlar o ritmo.', estrutura: [_C(18, 'min', 'leve'), _C(7, 'min', 'maratona')] },
+  { id: 'i-sub', nome: 'Subidas curtas 6 × 60 m', tipo: 'tiros', niv: ['ini'], cat: 'veloc', info: 'Força e técnica de corrida com pouco impacto (a subida reduz a carga nas articulações). Volta caminhando.', estrutura: [_A(10, 'min'), serie(6, [_C(60, 'm', 'tiros'), _R(1.5, 'min')]), _D(5, 'min')] },
+  { id: 'i-lo40', nome: 'Longão 40 min', tipo: 'longao', niv: ['ini'], cat: 'longao', info: 'O treino mais longo da semana, sempre leve. Constrói resistência.', estrutura: [_C(40, 'min', 'leve')] },
+  { id: 'i-lo5', nome: 'Longão 5 km', tipo: 'longao', niv: ['ini'], cat: 'longao', info: 'Longão por distância para quem já corre 30 min sem parar.', estrutura: [_C(5, 'km', 'leve')] },
+  { id: 'i-reg', nome: 'Regenerativo 20 min', tipo: 'regenerativo', niv: ['ini'], cat: 'rec', info: 'Trote muito leve (Z1) para recuperar no dia seguinte a um treino forte.', estrutura: [_C(20, 'min', 'rec')] },
+  { id: 'p-te3', nome: 'Teste de 3 km', tipo: 'teste', niv: ['ini', 'int'], cat: 'teste', info: 'Teste no máximo sustentável. O resultado entra em Ritmos e zonas e calcula os paces do aluno.', estrutura: [_A(10, 'min'), _C(3, 'km', 'intervalado'), _D(5, 'min')] },
+  // ---------- INTERMEDIÁRIO ----------
+  { id: 'p-rod', nome: 'Rodagem leve 6 km', tipo: 'rodagem', niv: ['int'], cat: 'base', info: 'Rodagem de base em Z2.', estrutura: [_C(6, 'km', 'leve')] },
+  { id: 'm-r8', nome: 'Rodagem 8 km', tipo: 'rodagem', niv: ['int', 'ava'], cat: 'base', info: 'Volume aeróbico em ritmo de conversa.', estrutura: [_C(8, 'km', 'leve')] },
+  { id: 'm-str', nome: 'Rodagem + 6 strides', tipo: 'rodagem', niv: ['int', 'ava'], cat: 'veloc', info: 'Rodagem leve com 6 acelerações de 100 m no fim: melhora a economia de corrida sem cansar.', estrutura: [_C(6, 'km', 'leve'), serie(6, [_C(100, 'm', 'tiros'), _R(100, 'm')])] },
+  { id: 'm-5x6', nome: 'Limiar norueguês 5 × 6 min', tipo: 'ritmo', niv: ['int', 'ava'], cat: 'limiar', info: INFO_NOR, estrutura: [_A(2), serie(5, [_C(6, 'min', 'limiar'), _R(1, 'min')]), _D(1)] },
+  { id: 'm-6x1k', nome: 'Limiar 6 × 1000 m', tipo: 'ritmo', niv: ['int'], cat: 'limiar', info: INFO_NOR, estrutura: [_A(2), serie(6, [_C(1000, 'm', 'limiar'), _R(1, 'min')]), _D(1)] },
+  { id: 'p-rit', nome: 'Limiar 3 × 2 km', tipo: 'ritmo', niv: ['int'], cat: 'limiar', info: INFO_NOR, estrutura: [_A(2), serie(3, [_C(2, 'km', 'limiar'), _R(90, 'm')]), _D(1)] },
+  { id: 'm-tmp', nome: 'Tempo run 20 min', tipo: 'ritmo', niv: ['int'], cat: 'limiar', info: 'Clássico contínuo no limiar. Bom para treinar a sensação do ritmo de prova de 10–21 km.', estrutura: [_A(2), _C(20, 'min', 'limiar'), _D(1)] },
+  { id: 'm-4x4', nome: '4 × 4 min (NTNU)', tipo: 'intervalado', niv: ['int', 'ava'], cat: 'vo2', info: 'Protocolo norueguês da NTNU (Helgerud): 4 min a 90–95% da FC máx com 3 min de trote. Um dos mais estudados para subir o VO₂máx.', estrutura: [_A(2), serie(4, [_C(4, 'min', 'intervalado'), _R(3, 'min')]), _D(1)] },
+  { id: 'p-int', nome: '6 × 800 m', tipo: 'intervalado', niv: ['int'], cat: 'vo2', info: 'Intervalado clássico em Z5 para potência aeróbica.', estrutura: [_A(2), serie(6, [_C(800, 'm', 'intervalado'), _R(2, 'min')]), _D(1)] },
+  { id: 'm-f10', nome: 'Fartlek 10 × 1 min', tipo: 'fartlek', niv: ['int'], cat: 'fartlek', info: '1 min no limiar e 1 min leve, sem parar. Trabalha troca de ritmo.', estrutura: [_A(10, 'min'), serie(10, [_C(1, 'min', 'limiar'), _R(1, 'min', 'leve')]), _D(10, 'min')] },
+  { id: 'p-pro', nome: 'Progressivo 6 km', tipo: 'ritmo', niv: ['int'], cat: 'fartlek', info: 'Termina mais rápido do que começa: Z2, Z3 e Z4.', estrutura: [_C(3, 'km', 'leve'), _C(2, 'km', 'maratona'), _C(1, 'km', 'limiar')] },
+  { id: 'm-sub', nome: 'Subidas 8 × 100 m', tipo: 'tiros', niv: ['int'], cat: 'veloc', info: 'Força específica na subida, volta trotando. Protege de lesão e melhora a passada.', estrutura: [_A(2), serie(8, [_C(100, 'm', 'tiros'), _R(1.5, 'min')]), _D(1)] },
+  { id: 'm-l12', nome: 'Longão 12 km', tipo: 'longao', niv: ['int'], cat: 'longao', info: 'Longão leve em Z2.', estrutura: [_C(12, 'km', 'leve')] },
+  { id: 'p-lon', nome: 'Longão 14 km', tipo: 'longao', niv: ['int', 'ava'], cat: 'longao', info: 'Longão leve em Z2.', estrutura: [_C(14, 'km', 'leve')] },
+  { id: 'p-reg', nome: 'Regenerativo 30 min', tipo: 'regenerativo', niv: ['int', 'ava', 'pro'], cat: 'rec', info: 'Trote muito leve (Z1). Recupera sem gerar fadiga.', estrutura: [_C(30, 'min', 'rec')] },
+  { id: 'p-tes', nome: 'Teste de 5 km', tipo: 'teste', niv: ['int', 'ava', 'pro'], cat: 'teste', info: 'Teste de 5 km no máximo. O resultado recalcula os paces em Ritmos e zonas.', estrutura: [_A(2), _C(5, 'km', 'intervalado'), _D(1)] },
+  // ---------- AVANÇADO ----------
+  { id: 'a-r10', nome: 'Rodagem 10 km', tipo: 'rodagem', niv: ['ava', 'pro'], cat: 'base', info: 'Volume aeróbico em Z2.', estrutura: [_C(10, 'km', 'leve')] },
+  { id: 'a-5x2', nome: 'Limiar norueguês 5 × 2 km', tipo: 'ritmo', niv: ['ava', 'pro'], cat: 'limiar', info: INFO_NOR, estrutura: [_A(3), serie(5, [_C(2, 'km', 'limiar'), _R(1, 'min')]), _D(2)] },
+  { id: 'a-25x4', nome: '25 × 400 m sublimiar', tipo: 'ritmo', niv: ['ava', 'pro'], cat: 'limiar', info: 'Sessão marcante dos Ingebrigtsen: muitos 400 m no limiar com 30 s de pausa. Muito volume de limiar com pouca fadiga.', estrutura: [_A(3), serie(25, [_C(400, 'm', 'limiar'), _R(0.5, 'min')]), _D(2)] },
+  { id: 'a-10x1k', nome: 'Limiar 10 × 1000 m', tipo: 'ritmo', niv: ['ava'], cat: 'limiar', info: INFO_NOR, estrutura: [_A(3), serie(10, [_C(1000, 'm', 'limiar'), _R(1, 'min')]), _D(2)] },
+  { id: 'a-4x8', nome: '4 × 8 min (Seiler)', tipo: 'ritmo', niv: ['ava'], cat: 'limiar', info: 'Estudo de Seiler (2013): 4 × 8 min com 2 min de pausa trouxe mais ganho que 4 × 4 ou 4 × 16 em corredores treinados.', estrutura: [_A(3), serie(4, [_C(8, 'min', 'limiar'), _R(2, 'min')]), _D(2)] },
+  { id: 'a-dlm', nome: 'Duplo limiar · manhã 5 × 6 min', tipo: 'ritmo', niv: ['ava'], cat: 'limiar', info: 'Dia de duplo limiar (método norueguês): duas sessões de limiar controlado no mesmo dia. Use com a sessão da tarde.', estrutura: [_A(2), serie(5, [_C(6, 'min', 'limiar'), _R(1, 'min')]), _D(1)] },
+  { id: 'a-dlt', nome: 'Duplo limiar · tarde 10 × 1000 m', tipo: 'ritmo', niv: ['ava'], cat: 'limiar', info: 'Segunda sessão do dia de duplo limiar. Ritmo controlado: deve terminar com sensação de que dava para mais.', estrutura: [_A(2), serie(10, [_C(1000, 'm', 'limiar'), _R(1, 'min')]), _D(1)] },
+  { id: 'a-5x1k', nome: '5 × 1000 m VO₂', tipo: 'intervalado', niv: ['ava'], cat: 'vo2', info: 'Intervalado em Z5 com pausa de 2 min. Potência aeróbica para 5 e 10 km.', estrutura: [_A(3), serie(5, [_C(1000, 'm', 'intervalado'), _R(2, 'min')]), _D(2)] },
+  { id: 'a-pir', nome: 'Pirâmide 400 a 1600 m', tipo: 'intervalado', niv: ['ava'], cat: 'vo2', info: 'Sobe e desce de distância em Z5. Variado e muito específico para provas de 5–10 km.', estrutura: [_A(3), _C(400, 'm', 'intervalado'), _R(1, 'min'), _C(800, 'm', 'intervalado'), _R(1.5, 'min'), _C(1200, 'm', 'intervalado'), _R(2, 'min'), _C(1600, 'm', 'intervalado'), _R(2, 'min'), _C(1200, 'm', 'intervalado'), _R(2, 'min'), _C(800, 'm', 'intervalado'), _R(1.5, 'min'), _C(400, 'm', 'intervalado'), _D(2)] },
+  { id: 'a-f21', nome: 'Fartlek 8 × (2 + 1 min)', tipo: 'fartlek', niv: ['ava'], cat: 'fartlek', info: '2 min no limiar e 1 min leve, contínuo.', estrutura: [_A(2), serie(8, [_C(2, 'min', 'limiar'), _R(1, 'min', 'leve')]), _D(1)] },
+  { id: 'a-sub', nome: 'Subidas 10 × 200 m', tipo: 'tiros', niv: ['ava'], cat: 'veloc', info: 'Subida forte (Z6) e volta trotando. Força específica e potência.', estrutura: [_A(3), serie(10, [_C(200, 'm', 'tiros'), _R(200, 'm')]), _D(2)] },
+  { id: 'p-tir', nome: '10 × 200 m velocidade', tipo: 'tiros', niv: ['ava', 'pro'], cat: 'veloc', info: 'Velocidade pura (Z6) com recuperação completa. Mantém a passada rápida e econômica.', estrutura: [_A(2), serie(10, [_C(200, 'm', 'tiros'), _R(200, 'm')]), _D(1)] },
+  { id: 'a-l18', nome: 'Longão 18 km com final forte', tipo: 'longao', niv: ['ava'], cat: 'longao', info: '14 km leves e os 4 últimos em ritmo moderado (Z3). Prepara para terminar forte na prova.', estrutura: [_C(14, 'km', 'leve'), _C(4, 'km', 'maratona')] },
+  // ---------- PROFISSIONAL ----------
+  { id: 'r-r14', nome: 'Rodagem 14 km', tipo: 'rodagem', niv: ['pro'], cat: 'base', info: 'Volume aeróbico em Z2.', estrutura: [_C(14, 'km', 'leve')] },
+  { id: 'r-dlm', nome: 'Duplo limiar · manhã 5 × 2 km', tipo: 'ritmo', niv: ['pro'], cat: 'limiar', info: 'Manhã do dia de duplo limiar (modelo Bakken/Ingebrigtsen). Controle o ritmo: limiar, não prova.', estrutura: [_A(3), serie(5, [_C(2, 'km', 'limiar'), _R(1, 'min')]), _D(2)] },
+  { id: 'r-dlt', nome: 'Duplo limiar · tarde 25 × 400 m', tipo: 'ritmo', niv: ['pro'], cat: 'limiar', info: 'Tarde do dia de duplo limiar: 400 m no limiar com 30 s de pausa.', estrutura: [_A(3), serie(25, [_C(400, 'm', 'limiar'), _R(0.5, 'min')]), _D(2)] },
+  { id: 'r-4x3', nome: 'Limiar 4 × 3 km', tipo: 'ritmo', niv: ['pro'], cat: 'limiar', info: INFO_NOR, estrutura: [_A(3), serie(4, [_C(3, 'km', 'limiar'), _R(1.5, 'min')]), _D(2)] },
+  { id: 'r-12x1k', nome: 'Limiar 12 × 1000 m', tipo: 'ritmo', niv: ['pro'], cat: 'limiar', info: INFO_NOR, estrutura: [_A(3), serie(12, [_C(1000, 'm', 'limiar'), _R(1, 'min')]), _D(2)] },
+  { id: 'r-6x16', nome: '6 × 1600 m VO₂', tipo: 'intervalado', niv: ['pro'], cat: 'vo2', info: 'Bloco longo em Z5 com 2 min de pausa. Específico para 10 km e meia.', estrutura: [_A(3), serie(6, [_C(1600, 'm', 'intervalado'), _R(2, 'min')]), _D(2)] },
+  { id: 'r-20x4', nome: '20 × 400 m', tipo: 'intervalado', niv: ['pro'], cat: 'vo2', info: '400 m em Z5 com 45 s de pausa. Potência aeróbica com volume.', estrutura: [_A(3), serie(20, [_C(400, 'm', 'intervalado'), _R(0.75, 'min')]), _D(2)] },
+  { id: 'r-x', nome: 'Elemento X · 10 × 60 m subida', tipo: 'tiros', niv: ['pro'], cat: 'veloc', info: 'O “X” do modelo norueguês: sprints curtos em subida depois de uma rodagem leve. Potência sem fadiga.', estrutura: [_C(10, 'km', 'leve'), serie(10, [_C(60, 'm', 'tiros'), _R(2, 'min')])] },
+  { id: 'r-l25', nome: 'Longão 25 km com 5 km em ritmo', tipo: 'longao', niv: ['pro'], cat: 'longao', info: '20 km em Z2 e 5 km em ritmo de maratona (Z3). Específico para meia e maratona.', estrutura: [_C(20, 'km', 'leve'), _C(5, 'km', 'maratona')] },
+  { id: 'r-l30', nome: 'Longão 30 km', tipo: 'longao', niv: ['pro'], cat: 'longao', info: 'Longão de maratona, todo em Z2.', estrutura: [_C(30, 'km', 'leve')] },
+  { id: 'p-prv', nome: 'Prova', tipo: 'prova', niv: TODOS_NIV, cat: 'teste', info: 'Dia de prova. Ajuste a distância no editor.', estrutura: [_C(10, 'km', 'maratona')] },
 ];
+// filtro de nível da biblioteca (lembra a escolha)
+const nivMod = (md) => md.niv || (md.org_id ? ['meus'] : TODOS_NIV);
+const chipsNivHTML = (sel, id) => `<div class="chips niv-chips" id="${id}">${[['todos', 'Todos'], ...NIVEIS_CORR, ['meus', 'Meus']].map(([k, l]) => `<button type="button" class="chip ${sel === k ? 'on' : ''}" data-niv="${k}">${l}</button>`).join('')}</div>`;
+const passaNiv = (md, sel) => sel === 'todos' || (sel === 'meus' ? !!md.org_id : (md.niv || []).includes(sel));
+const ordemCat = (md) => { if (md.cat === 'off') return -1; const i = CATS_CORR.findIndex((c) => c[0] === md.cat); return i < 0 ? 99 : i; };
 const clone = (x) => JSON.parse(JSON.stringify(x));
 function paceZona(z, perfil) {
   const p = perfil && perfil.paces;
@@ -2438,7 +2495,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       <div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${rotulo}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>Copiar semana</button><button class="btn sm" id="avisar">${I.bell} Avisar aluno</button><button class="btn ghost sm" id="guia-plan" title="Como usar a planilha">?</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
       <div class="${staff ? 'pl-grid' : ''}">
-        ${staff ? `<aside class="biblio"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span></div><div class="biblio-l">${modelos.map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : `<div class="mod" data-mod="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km${String(md.id).startsWith('p-') ? '' : ' · meu modelo'}</span></div>`).join('')}</div></aside>` : ''}
+        ${staff ? `<aside class="biblio"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span></div>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
         <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:10px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
@@ -2518,6 +2575,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     q('#sem-p').onclick = () => { st.off += semanas; recarregar(); };
     q('#sem-h').onclick = () => { st.off = 0; recarregar(); };
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
+    const bn = q('#bib-niv'); if (bn) bn.onclick = (e) => { const b = e.target.closest('[data-niv]'); if (!b) return; store.set('nx_bib_niv', b.dataset.niv); bn.querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === b)); box.querySelectorAll('.biblio-l .mod').forEach((el) => { const md = modelos.find((x) => x.id === el.dataset.mod); el.hidden = !!md && md.tipo !== 'folga' && !passaNiv(md, b.dataset.niv); }); };
     const cal = q('.cal');
     cal.addEventListener('click', (e) => {
       const nv = e.target.closest('[data-novo]'), se = e.target.closest('[data-ses]');
@@ -2526,7 +2584,17 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         if (p.tipo === 'folga') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Day off</div><p class="small muted" style="margin-top:6px">Dia de descanso de corrida. O aluno vê “Hoje é day off” na tela inicial.</p><button class="btn danger block" id="off-del" style="margin-top:14px">Tirar o day off</button>`, (r) => { r.querySelector('#off-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Day off removido.'); recarregar(); }; }) : toast('Day off: dia de descanso.');
         staff ? editorTreino({ alunoId, perfil, sessao: p, aoSalvar: recarregar, modelos: modelosOrg }) : verTreinoPlanilha(p, perfil, corridas.find((c) => c.plano_id === p.id)); }
     });
-    const escolherModelo = (data) => openSheet(`<p class="eyebrow">${fmtDia(data)}</p><div class="h2" style="margin-top:4px">Escolha um ponto de partida</div><div class="biblio-l sheet-mods" style="margin-top:14px">${modelos.map((md) => md.tipo === 'folga' ? `<button class="mod mod-off" data-pick="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></button>` : `<button class="mod" data-pick="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</span></button>`).join('')}<button class="mod" data-pick="">${'<div class="perfil-int vazio"></div>'}<b>Em branco</b><span>montar do zero</span></button></div>`, (r) => {
+    const escolherModelo = (data) => openSheet(`<p class="eyebrow">${fmtDia(data)}</p><div class="h2" style="margin-top:4px">Escolha um ponto de partida</div><div style="margin-top:12px">${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'pick-niv')}</div><div class="sheet-mods" id="pick-l"></div>`, (r) => {
+      const desenhaPick = () => { const sel = store.get('nx_bib_niv', 'todos'); const lst = modelos.filter((md) => md.tipo !== 'folga' && passaNiv(md, sel));
+        const grupos = CATS_CORR.filter((c) => c[0] !== 'off').map(([k, l]) => [l, lst.filter((md) => (md.cat || (md.org_id ? '' : 'base')) === k)]).filter(([, l2]) => l2.length);
+        const meus = lst.filter((md) => md.org_id);
+        const card = (md) => `<button class="mod" data-pick="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</span></button>`;
+        r.querySelector('#pick-l').innerHTML = `<div class="pick-g"><div class="biblio-l"><button class="mod mod-off" data-pick="p-off"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></button><button class="mod" data-pick=""><div class="perfil-int vazio"></div><b>Em branco</b><span>montar do zero</span></button></div></div>`
+          + (meus.length ? `<p class="mes-rot">Meus modelos</p><div class="biblio-l">${meus.map(card).join('')}</div>` : '')
+          + grupos.map(([l, l2]) => `<p class="mes-rot">${l}</p><div class="biblio-l">${l2.map(card).join('')}</div>`).join('');
+      };
+      desenhaPick();
+      r.querySelector('#pick-niv').onclick = (e) => { const b = e.target.closest('[data-niv]'); if (!b) return; store.set('nx_bib_niv', b.dataset.niv); r.querySelectorAll('#pick-niv .chip').forEach((x) => x.classList.toggle('on', x === b)); desenhaPick(); };
       r.querySelector('.sheet-mods').onclick = async (e) => { const b = e.target.closest('[data-pick]'); if (!b) return; const md = modelos.find((x) => x.id === b.dataset.pick);
         if (md && md.tipo === 'folga') { const { error } = await sb.from('nx_plano_corrida').insert({ org_id: S.org.id, aluno_id: alunoId, data, tipo: 'folga', titulo: 'Day off', estrutura: [], distancia_km: 0, duracao_min: 0, zona: null, criado_por: S.user.id }); closeSheet(); return error ? toast('Não foi possível salvar.', true) : (toast('Day off marcado.'), recarregar()); } editorTreino({ alunoId, perfil, data, modelo: md || { nome: '', tipo: 'rodagem', estrutura: [] }, aoSalvar: recarregar, modelos: modelosOrg }); };
     });
@@ -3689,14 +3757,25 @@ async function staffTreinos(aba) {
   loading();
   const org = await sb.from('nx_modelos_corrida').select('*').eq('org_id', S.org.id).order('criado_em').then((r) => r.data || []).catch(() => []);
   const perfil = perfilCorrida({});
-  const card = (md, meu) => `<div class="card mod-corr"><div class="row between" style="gap:10px"><b>${esc(md.nome)}</b>${meu ? `<button class="link-btn tiny" data-delmc="${md.id}" style="color:var(--err)">Excluir</button>` : '<span class="tag">padrão</span>'}</div>
-    <div style="margin:10px 0 6px">${perfilHTML(md.estrutura, perfil, true)}</div>
-    <p class="small muted">${esc(descreverEstrutura(md.estrutura))}</p></div>`;
-  $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('corrida')}
-    <p class="muted small">Modelos de treino de corrida. Para usar, abra a planilha de corrida do aluno e arraste o modelo para o dia. Para criar um modelo, monte o treino no dia e toque em “Salvar como modelo”.</p>
-    ${org.length ? `<div class="section"><div class="section-h"><h2 class="h2">Meus modelos</h2>${slashes}</div><div class="cols">${org.map((m) => card(m, true)).join('')}</div></div>` : ''}
-    <div class="section"><div class="section-h"><h2 class="h2">Modelos prontos</h2>${slashes}</div><div class="cols">${MODELOS_PADRAO.map((m) => card(m, false)).join('')}</div></div>
-    <a class="btn ghost block" href="#/alunos" style="margin-top:16px">${I.users} Abrir a planilha de um aluno</a>`;
+  const st = S.cache.libCorr || (S.cache.libCorr = { niv: store.get('nx_lib_niv', 'ini') });
+  const nomeNiv = Object.fromEntries(NIVEIS_CORR);
+  const card = (md, meu) => `<div class="card mod-corr"><div class="row between" style="gap:10px;align-items:flex-start"><div style="min-width:0"><b>${esc(md.nome)}</b><div class="mc-tags">${meu ? '<span class="tag acc">meu modelo</span>' : (md.niv || []).length === 4 ? '<span class="tag">todos os níveis</span>' : (md.niv || []).map((n) => `<span class="tag niv-${n}">${nomeNiv[n]}</span>`).join('')}</div></div>${meu ? `<button class="link-btn tiny" data-delmc="${md.id}" style="color:var(--err)">Excluir</button>` : ''}</div>
+    <div style="margin:10px 0 6px">${md.tipo === 'folga' ? `<div class="off-faixa grande">${OFF_IC}</div>` : perfilHTML(md.estrutura, perfil, true)}</div>
+    ${md.tipo === 'folga' ? '' : `<p class="small"><b>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</b> · ~${fmtDur(resumoEstrutura(md.estrutura, perfil).seg)}</p><p class="small muted" style="margin-top:2px">${esc(descreverEstrutura(md.estrutura))}</p>`}
+    ${md.info ? `<p class="mc-info">${esc(md.info)}</p>` : ''}</div>`;
+  const desenhar = () => {
+    const sel = st.niv; const lst = sel === 'meus' ? [] : MODELOS_PADRAO.filter((md) => passaNiv(md, sel));
+    const grupos = CATS_CORR.map(([k, l]) => [k, l, lst.filter((md) => md.cat === k)]).filter(([, , l2]) => l2.length);
+    const cont = (k) => k === 'meus' ? org.length : k === 'todos' ? MODELOS_PADRAO.length : MODELOS_PADRAO.filter((md) => (md.niv || []).includes(k)).length;
+    $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('corrida')}
+      <p class="muted small">Biblioteca de corrida organizada por nível. A maior parte segue o <b>método norueguês</b> (limiar controlado com pausas curtas, duplo limiar e muito volume leve). Para usar, abra a planilha do aluno e arraste o treino para o dia.</p>
+      <div class="niv-tabs" id="niv-tabs">${[...NIVEIS_CORR, ['todos', 'Todos'], ['meus', 'Meus modelos']].map(([k, l]) => `<button type="button" class="${sel === k ? 'on' : ''}" data-niv="${k}"><b>${l}</b><span>${cont(k)} treinos</span></button>`).join('')}</div>
+      ${sel === 'meus' ? (org.length ? `<div class="cols" style="margin-top:14px">${org.map((m2) => card(m2, true)).join('')}</div>` : '<div class="empty" style="margin-top:14px"><div class="h3">Nenhum modelo seu ainda</div><p class="small">Monte um treino na planilha de um aluno e toque em “Salvar como modelo”.</p></div>')
+        : grupos.map(([k, l, l2]) => `<div class="section"><div class="section-h"><h2 class="h2">${l}</h2><span class="tiny dim">${l2.length}</span></div><div class="cols">${l2.map((m2) => card(m2, false)).join('')}</div></div>`).join('')}
+      <a class="btn ghost block" href="#/alunos" style="margin-top:16px">${I.users} Abrir a planilha de um aluno</a>`;
+    document.getElementById('niv-tabs').onclick = (e) => { const b = e.target.closest('[data-niv]'); if (!b) return; st.niv = b.dataset.niv; store.set('nx_lib_niv', st.niv); desenhar(); };
+  };
+  desenhar();
   $app.onclick = async (e) => {
     const d = e.target.closest('[data-delmc]'); if (!d) return;
     if (!confirm('Excluir este modelo de corrida?')) return;
