@@ -8,7 +8,7 @@ self.addEventListener('push', (e) => {
   e.waitUntil(self.registration.showNotification(d.title || 'Nexos', {
     body: d.body || '',
     icon: 'icons/icon-192.png',
-    badge: 'icons/icon-192.png',
+    badge: 'icons/badge-96.png', // silhueta branca da logo (Android pinta o ícone pequeno de branco)
     tag: d.tag || undefined,
     renotify: !!d.tag,
     data: { url: d.url || '#/' },
