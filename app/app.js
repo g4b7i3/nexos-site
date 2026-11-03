@@ -1365,7 +1365,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
   const carregar = async () => {
     const { data, error } = await sb.from('nx_mensagens').select('*, nx_sessoes(treino_titulo,iniciado_em)').eq('org_id', S.org.id).eq('aluno_id', alunoId).order('criado_em').limit(400);
     if (error || !document.body.contains($chat)) return;
-    const msgs = data || [];
+    const msgs = data || []; S.chatMsgs = msgs;
     const nova = msgs.map((m) => m.id + (m.lida ? 1 : 0)).join();
     if (nova !== assin) {
       assin = nova; let ult = '';
@@ -1373,7 +1373,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
         const d = new Date(m.criado_em).toDateString(); const sep = d !== ult ? `<div class="day-sep">${quando(m.criado_em) === 'hoje' ? 'Hoje' : quando(m.criado_em) === 'ontem' ? 'Ontem' : fmtData(m.criado_em)}</div>` : ''; ult = d;
         const meu = ladoMeu(m);
         const autor = porId[m.autor_id];
-        const bolha = `<div class="bubble ${meu ? 'me' : ''}">${autor && (!meu || m.autor_id !== S.user.id) && !(staff && m.autor_id === alunoId) ? `<span class="b-autor">${esc(firstName(autor.nome))}</span>` : ''}${m.nx_sessoes ? `<span class="b-ref">Sobre: ${esc(m.nx_sessoes.treino_titulo || 'treino')} · ${fmtData(m.nx_sessoes.iniciado_em)}</span>` : ''}<p>${esc(m.texto)}</p><span class="b-meta">${fmtHora(m.criado_em)}${meu && m.lida ? ' · lida' : ''}</span></div>`;
+        const bolha = `<div class="bubble ${meu ? 'me' : ''}" data-msg="${m.id}">${autor && (!meu || m.autor_id !== S.user.id) && !(staff && m.autor_id === alunoId) ? `<span class="b-autor">${esc(firstName(autor.nome))}</span>` : ''}${m.nx_sessoes ? `<span class="b-ref">Sobre: ${esc(m.nx_sessoes.treino_titulo || 'treino')} · ${fmtData(m.nx_sessoes.iniciado_em)}</span>` : ''}<p>${esc(m.texto)}</p><span class="b-meta">${fmtHora(m.criado_em)}${meu && m.lida ? ' · lida' : ''}</span></div>`;
         return sep + (!meu && autor ? `<div class="b-linha">${fotoHTML(autor, 'sm')}${bolha}</div>` : bolha);
       }).join('') : `<div class="empty"><div class="h3">Nenhuma mensagem ainda</div><p class="small">${staff ? 'Mande um recado, um ajuste ou um parabéns.' : 'Mande sua primeira mensagem para o treinador.'}</p></div>`;
       $chat.scrollTop = $chat.scrollHeight;
@@ -1399,6 +1399,41 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
     notificar('mensagem', nm && nm.id);
     ta.value = ''; ta.style.height = ''; ref = null; drawRef(); await carregar();
   };
+  // pressionar a mensagem (ou botão direito no computador): copiar / apagar
+  const menuMsg = (id) => {
+    const m = (S.chatMsgs || []).find((x) => x.id === id); if (!m) return;
+    const minha = m.autor_id === S.user.id;
+    try { navigator.vibrate && navigator.vibrate(15); } catch {}
+    openSheet(`<div class="msg-prev">${esc(m.texto.length > 160 ? m.texto.slice(0, 159) + '…' : m.texto)}</div>
+      <div class="stack" style="margin-top:14px">
+        <button class="list-item msg-ac" id="mc-copiar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg><b>Copiar</b></button>
+        ${minha ? `<button class="list-item msg-ac del" id="mc-apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><b>Apagar para todos</b></button>` : ''}
+      </div>
+      <button class="btn ghost block" data-close style="margin-top:12px">Cancelar</button>`, (r) => {
+      r.querySelector('#mc-copiar').onclick = async () => {
+        try { await navigator.clipboard.writeText(m.texto); } catch { const t = document.createElement('textarea'); t.value = m.texto; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch {} t.remove(); }
+        closeSheet(); toast('Mensagem copiada');
+      };
+      const ap = r.querySelector('#mc-apagar');
+      if (ap) ap.onclick = async () => {
+        if (!ap.dataset.ok) { ap.dataset.ok = '1'; ap.querySelector('b').textContent = 'Toque de novo para apagar'; return; }
+        ap.disabled = true;
+        const { error } = await sb.from('nx_mensagens').delete().eq('id', m.id);
+        if (error) { ap.disabled = false; return toast('Não foi possível apagar.', true); }
+        closeSheet(); toast('Mensagem apagada'); assin = ''; await carregar(); contarMsgNovas();
+      };
+    });
+  };
+  let pressT = null, pressXY = null;
+  $chat.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('[data-msg]'); if (!b || e.button > 0) return;
+    pressXY = [e.clientX, e.clientY]; b.classList.add('press');
+    pressT = setTimeout(() => { pressT = null; b.classList.remove('press'); menuMsg(b.dataset.msg); }, 480);
+  });
+  const soltar = () => { if (pressT) clearTimeout(pressT); pressT = null; $chat.querySelectorAll('.press').forEach((x) => x.classList.remove('press')); };
+  $chat.addEventListener('pointerup', soltar); $chat.addEventListener('pointercancel', soltar); $chat.addEventListener('pointerleave', soltar);
+  $chat.addEventListener('pointermove', (e) => { if (pressXY && Math.hypot(e.clientX - pressXY[0], e.clientY - pressXY[1]) > 10) soltar(); });
+  $chat.addEventListener('contextmenu', (e) => { const b = e.target.closest('[data-msg]'); if (!b) return; e.preventDefault(); soltar(); menuMsg(b.dataset.msg); });
   await carregar();
   clearInterval(S.chatT); S.chatT = setInterval(carregar, 15000);
   if (sessaoId) ta.focus();
