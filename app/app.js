@@ -4533,7 +4533,7 @@ async function staffAluno(alunoId, aba, extra) {
     ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">⚠️ PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
 `;
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
-      <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a></div>
+      <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a><a class="tag acc" data-ficha-ins="${alunoId}" hidden>Ficha de inscrição ✎</a>${(setTimeout(() => preencherFichaIns(alunoId), 0), '')}</div>
         <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div>
         <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : `+ Marcar dias de treino ${selo('corrida', 'sm')} ${selo('forca', 'sm')}`} <span class="dim">· editar</span></button>${cicloA ? cicloLinhaHTML(cicloA, true) : ''}</div></div>
         ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>🏁 ${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
@@ -5365,6 +5365,80 @@ async function staffFormularios(id) {
   });
 }
 
+/* ---------- editar a ficha de inscrição (treinador) ---------- */
+async function preencherFichaIns(alunoId) {
+  const el = document.querySelector(`[data-ficha-ins="${alunoId}"]`); if (!el) return;
+  const { data } = await sb.from('nx_form_respostas').select('id').eq('aluno_id', alunoId).order('criado_em', { ascending: false }).limit(1).then((r) => r, () => ({ data: null }));
+  if (data && data[0]) { el.href = '#/formularios/' + data[0].id; el.hidden = false; }
+}
+function editarFicha(r, aoSalvar) {
+  const d = JSON.parse(JSON.stringify(r.dados || {})); const dp = d.disponibilidade || {}; const h = d.hist || {}, pq = d.parq || {};
+  const v = (k) => esc(d[k] || '');
+  const chk = (name, ops, sel, tipo = 'checkbox') => `<div class="chips wrap">${ops.map(([k, l]) => `<label class="chipc"><input type="${tipo}" name="${name}" value="${k}" ${(Array.isArray(sel) ? sel.map(String).includes(String(k)) : String(sel) === String(k)) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
+  const sn = (name, val, tres) => `<div class="radios ${tres ? 'r3' : ''}">${(tres ? [['sim', 'Sim'], ['nao', 'Não'], ['naosei', 'Não sei']] : [['nao', 'Não'], ['sim', 'Sim']]).map(([k, l]) => `<label><input type="radio" name="${name}" value="${k}" ${val === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
+  const sec = (t, corpo, aberto) => `<details class="card ed-sec" ${aberto ? 'open' : ''}><summary><b>${t}</b>${I.chev}</summary><div class="stack" style="margin-top:12px;gap:2px">${corpo}</div></details>`;
+  const diasOps = DSEM.map((x, i) => [String(i), x.slice(0, 3)]);
+  openSheet(`<p class="eyebrow">Ficha de inscrição</p><div class="h2" style="margin-top:4px">Editar ${esc(firstName(d.nome || ''))}</div>
+    <p class="small muted" style="margin-top:4px">Corrija o que precisar. ${r.aluno_id ? 'O cadastro do aluno no app é atualizado junto (modalidade, dados, dias de treino e PAR-Q).' : ''}</p>
+    <form id="f-edf" class="stack" style="margin-top:14px;gap:10px">
+      ${sec('Seus dados', `<label class="field"><span>Nome completo</span><input class="input" name="nome" value="${v('nome')}"></label>
+        <div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" value="${esc(MASCARA.tel(d.telefone || ''))}"></label><label class="field"><span>E-mail</span><input class="input" name="email" type="email" value="${v('email')}"></label></div>
+        <div class="grid2"><label class="field"><span>Nascimento</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${dataBR(d.nascimento)}"></label>
+        <label class="field"><span>Sexo</span><select class="input" name="sexo">${[['', 'Selecione'], ['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']].map(([k, l]) => `<option value="${k}" ${d.sexo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+        <div class="grid2"><label class="field"><span>Altura</span><input class="input" name="altura" data-mask="altura" inputmode="numeric" value="${v('altura')}"></label><label class="field"><span>Peso</span><input class="input" name="peso" data-mask="peso" inputmode="numeric" value="${v('peso')}"></label></div>
+        <label class="field"><span>Bairro / cidade</span><input class="input" name="cidade" value="${v('cidade')}"></label>`, true)}
+      ${sec('Objetivo e modalidade', `<div class="field"><span>Quer treinar</span>${chk('modalidades', MODS, d.modalidades || [])}</div>
+        <div class="field"><span>Objetivo principal</span>${chk('objetivo', OBJETIVOS, d.objetivo, 'radio')}</div>
+        <label class="field"><span>Objetivos pessoais</span><textarea class="textarea" name="meta">${v('meta')}</textarea></label>
+        <label class="field"><span>Prova em vista</span><input class="input" name="prova" value="${v('prova')}"></label>`, true)}
+      ${sec('Histórico esportivo', `<div class="field"><span>Esportes</span>${chk('esportes', FICHA_ESPORTES, d.esportes || [])}</div>
+        <label class="field"><span>Outros esportes</span><input class="input" name="esportes_outros" value="${v('esportes_outros')}"></label>
+        <label class="field"><span>Rotina de exercícios</span><textarea class="textarea" name="atividade">${v('atividade')}</textarea></label>
+        <div class="field"><span>Condicionamento</span>${chk('nivel', FICHA_NIVEL, d.nivel, 'radio')}</div>
+        <label class="field"><span>Experiência com corrida</span><select class="input" name="corrida_exp"><option value="">Selecione</option>${FICHA_EXP.map(([k, l]) => `<option value="${k}" ${d.corrida_exp === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <div class="grid2"><label class="field"><span>Maior distância</span><input class="input" name="maior_dist" value="${v('maior_dist')}"></label><label class="field"><span>Tempo recente</span><input class="input" name="tempo_recente" value="${v('tempo_recente')}"></label></div>
+        <label class="field"><span>Relógio</span><select class="input" name="relogio"><option value="">Selecione</option>${FICHA_RELOGIOS.map((x) => `<option ${d.relogio === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>`)}
+      ${sec('Histórico médico', `${FICHA_HIST.map((q, i) => `<div class="parq"><p>${q}</p>${sn('h' + (i + 1), h['h' + (i + 1)], true)}</div>`).join('')}
+        <label class="field" style="margin-top:8px"><span>Observações médicas</span><textarea class="textarea" name="obs_medica">${v('obs_medica')}</textarea></label>`)}
+      ${sec('PAR-Q', PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1), pq['q' + (i + 1)])}</div>`).join(''))}
+      ${sec('Disponibilidade', `<div class="field"><span>${selo('corrida', 'sm')} Dias de corrida</span>${chk('d_corrida', diasOps, (dp.corrida || []).map(String))}</div>
+        <div class="field"><span>${selo('forca', 'sm')} Dias de força</span>${chk('d_forca', diasOps, (dp.forca || []).map(String))}</div>
+        <div class="field"><span>Melhor horário</span>${chk('horario', FICHA_HOR, d.horario || [])}</div>
+        <div class="field"><span>Onde prefere treinar</span>${chk('local', FICHA_LOCAL, d.local || [])}</div>
+        <label class="field"><span>Comentário</span><textarea class="textarea" name="disp_obs">${v('disp_obs')}</textarea></label>`)}
+      ${sec('Outros', `<div class="field"><span>Como conheceu a Nexos</span>${chk('origem', FICHA_ORIGEM, d.origem, 'radio')}</div><label class="field"><span>Comentário</span><textarea class="textarea" name="obs">${v('obs')}</textarea></label>`)}
+      <button class="btn block" type="submit">Salvar alterações ${I.check}</button>
+    </form>`, (root) => {
+    const f = root.querySelector('#f-edf'); aplicarMascaras(f);
+    f.onsubmit = async (e) => {
+      e.preventDefault(); const fd = new FormData(f); const btn = f.querySelector('[type=submit]');
+      ['nome', 'telefone', 'email', 'sexo', 'altura', 'peso', 'cidade', 'objetivo', 'meta', 'prova', 'esportes_outros', 'atividade', 'nivel', 'corrida_exp', 'maior_dist', 'tempo_recente', 'relogio', 'obs_medica', 'disp_obs', 'origem', 'obs'].forEach((k) => { const x = String(fd.get(k) || '').trim(); if (x) d[k] = x.slice(0, 1500); else delete d[k]; });
+      const nas = String(fd.get('nascimento') || '').trim(); if (nas) { const iso = dataISO(nas); if (!iso) return toast('Confira a data de nascimento (dd/mm/aaaa).', true); d.nascimento = iso; } else delete d.nascimento;
+      ['modalidades', 'esportes', 'horario', 'local'].forEach((k) => { const x = fd.getAll(k); if (x.length) d[k] = x; else delete d[k]; });
+      if (!(d.modalidades || []).length) return toast('Marque corrida, musculação ou as duas.', true);
+      d.disponibilidade = { corrida: fd.getAll('d_corrida').map(Number), forca: fd.getAll('d_forca').map(Number) };
+      d.hist = {}; FICHA_HIST.forEach((_, i) => { d.hist['h' + (i + 1)] = fd.get('h' + (i + 1)) || null; });
+      d.parq = {}; PARQ.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; });
+      btn.disabled = true;
+      const { error } = await sb.from('nx_form_respostas').update({ dados: d }).eq('id', r.id);
+      if (error) { btn.disabled = false; return toast('Não foi possível salvar a ficha.', true); }
+      if (r.aluno_id) { // o cadastro do aluno acompanha
+        const mods = (d.modalidades || []).filter((x) => x === 'corrida' || x === 'musculacao');
+        const { data: mAnt } = await sb.from('nx_membros').select('disponibilidade').eq('org_id', S.org.id).eq('user_id', r.aluno_id).maybeSingle();
+        const upd = { nome: d.nome || undefined, telefone: d.telefone || null, nascimento: d.nascimento || null, objetivo: d.meta || null, sexo: d.sexo === 'feminino' ? 'F' : d.sexo === 'masculino' ? 'M' : null, modalidades: mods.length ? mods : null,
+          disponibilidade: { ...((mAnt && mAnt.disponibilidade) || {}), corrida: d.disponibilidade.corrida, forca: d.disponibilidade.forca, ...(d.disp_obs ? { obs: d.disp_obs } : {}) } };
+        Object.keys(upd).forEach((k) => upd[k] === undefined && delete upd[k]);
+        const { error: e2 } = await sb.from('nx_membros').update(upd).eq('org_id', S.org.id).eq('user_id', r.aluno_id);
+        if (e2) console.error(e2);
+        const parq = {}; PARQ.forEach((_, i) => { parq['q' + (i + 1)] = d.parq['q' + (i + 1)] || 'nao'; });
+        await sb.from('nx_anamneses').update({ parq, parq_positivo: Object.values(parq).includes('sim') }).eq('org_id', S.org.id).eq('aluno_id', r.aluno_id).then(() => {}, () => {});
+        S.cache.nomes = null;
+      }
+      closeSheet(); toast(r.aluno_id ? 'Ficha e cadastro do aluno atualizados.' : 'Ficha atualizada.'); aoSalvar && aoSalvar();
+    };
+  });
+}
+
 async function staffFichaResposta(id) {
   const { data: r } = await sb.from('nx_form_respostas').select('*').eq('id', id).maybeSingle();
   dockStaff();
@@ -5379,7 +5453,7 @@ async function staffFichaResposta(id) {
   const diasT = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', ');
   $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a>
     <div class="card plan-head"><div class="ph-id"><div class="av lg">${esc(initials(d.nome || '?'))}</div><div class="grow" style="min-width:0"><h1 class="h2">${esc(d.nome || 'Sem nome')}</h1><div class="small muted">Ficha enviada ${fmtData(r.criado_em)}${rs.mods ? ' · ' + esc(rs.mods) : ''}</div></div></div>
-      ${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" id="ed-ficha">✎ Editar ficha</button>${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div></div>
     ${rs.sim.length ? `<div class="card ficha-alerta"><b>⚠️ PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
     <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos 💪 Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
     <div class="stack" style="margin-top:14px">
@@ -5413,6 +5487,7 @@ async function staffFichaResposta(id) {
       } catch (e2) { console.error(e2); }
     });
   };
+  document.getElementById('ed-ficha').onclick = () => editarFicha(r, () => staffFichaResposta(id));
   document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };
 }
 
