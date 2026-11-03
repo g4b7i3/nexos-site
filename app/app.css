@@ -941,3 +941,10 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .ficha-alerta{margin-top:12px;border-color:color-mix(in srgb,var(--err,#ef4444) 40%,transparent);background:color-mix(in srgb,var(--err,#ef4444) 7%,var(--bg2))}
 .ficha-alerta p{margin-top:6px}
 @media (max-width:520px){.ficha-sec{flex-direction:column;gap:8px}}
+/* disponibilidade (🏃 / 💪) */
+.disp-ic{font-size:.8rem;line-height:1;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--s1);margin-left:2px}
+.disp-cal{display:inline-flex;gap:2px;margin-left:4px}
+.fdia-h .disp-ic{margin-left:0}
+.disp-res{display:block;margin-top:5px;padding:0;border:0;background:none;color:var(--acc);font-size:.8rem;font-weight:700;text-align:left;cursor:pointer}
+.radios.r3{grid-template-columns:1fr 1fr 1fr}
+.ficha-termo{max-height:190px;overflow:auto;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:.82rem;line-height:1.5;color:var(--mute);margin-bottom:10px}

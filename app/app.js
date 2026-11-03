@@ -2317,7 +2317,7 @@ function cartaoSessao(p, perfil, feito, staff) {
     <span class="ses-m">${rs.km ? f1(rs.km) + ' km' : ''}${rs.seg ? ' · ' + fmtDur(rs.seg) : ''}</span>
     ${feito ? `<span class="ses-f">${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</span>` : ''}</div>`;
 }
-function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = []) {
+function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [], m = null) {
   const hoje = isoDia(new Date()); let h = '';
   for (let w = 0; w < semanas; w++) {
     const s0 = new Date(ini); s0.setDate(ini.getDate() + w * 7);
@@ -2331,7 +2331,7 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
       const k = isoDia(d); const itens = plano.filter((p) => p.data === k);
       const av = corridas.filter((c) => !c.plano_id && isoDia(c.data) === k);
       const pr = provas.filter((p) => p.data === k);
-      h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
+      h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${staff ? `<span class="disp-cal">${dispIcones(m, (d.getDay() + 6) % 7)}</span>` : ''}${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
         ${pr.map((p) => `<a class="ses prova" href="${staff ? '#/eventos/equipe' : '#/eventos/minhas'}"><div class="ses-t"><b>🏁 ${esc(p.titulo)}</b></div><span class="ses-m">${esc(p.distancia || 'Prova')}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span></a>`).join('')}
         ${itens.map((p) => cartaoSessao(p, perfil, corridas.find((c) => c.plano_id === p.id), staff)).join('')}
         ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-t"><b>Corrida avulsa</b><span class="ses-ok">✓</span></div><span class="ses-f">${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}</span></a>`).join('')}
@@ -2373,7 +2373,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs) {
         <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>Copiar semana</button><button class="btn sm" id="avisar">${I.bell} Avisar aluno</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
       <div class="${staff ? 'pl-grid' : ''}">
         ${staff ? `<aside class="biblio"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span></div><div class="biblio-l">${modelos.map((md) => `<div class="mod" data-mod="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km${String(md.id).startsWith('p-') ? '' : ' · meu modelo'}</span></div>`).join('')}</div></aside>` : ''}
-        <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas)}</div>
+        <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:10px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
       ${!staff && !plano.length ? '<p class="small muted" style="margin-top:10px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
@@ -3147,7 +3147,7 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = `<div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fs-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fs-h">${fst.off === 0 ? 'Esta semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fs-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
       <span class="small muted">${sess.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos na semana</span></div>
       <div class="fsem">${diasF.map((k, i) => { const doDia = ativosT.filter((t) => (t.dias || []).includes(i)); const feitos = sess.filter((x) => isoDia(x.iniciado_em) === k);
-        return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span><button class="cal-add" data-fadd="${i}" aria-label="Pôr treino na ${DSEM[i]}">${I.plus}</button></div>
+        return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span>${dispIcones(m, i)}<button class="cal-add" data-fadd="${i}" aria-label="Pôr treino na ${DSEM[i]}">${I.plus}</button></div>
           <div class="fdia-c">${doDia.map((t) => { const ok = feitos.find((x) => x.treino_id === t.id); return `<div class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}"><a href="#/aluno/${alunoId}/treino/${t.id}" class="grow" style="color:inherit;min-width:0"><b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? ` · ✓ feito${ok.esforco != null ? ', esforço ' + ok.esforco : ''}` : k < hojeF ? ' · não fez' : ''}</small></a><button class="sd-x" data-frm="${t.id}" data-d="${i}" aria-label="Tirar deste dia">${I.x}</button></div>`; }).join('')}
           ${feitos.filter((x) => !doDia.some((t) => t.id === x.treino_id)).map((x) => `<div class="ftr extra"><span class="grow"><b>${esc(x.treino_titulo || 'Treino')}</b><small>✓ feito fora do dia${x.esforco != null ? ', esforço ' + x.esforco : ''}</small></span></div>`).join('')}
           ${!doDia.length && !feitos.length ? '<span class="cal-vazio">descanso</span>' : ''}</div></div>`; }).join('')}</div>
@@ -3202,7 +3202,8 @@ async function staffAluno(alunoId, aba, extra) {
 `;
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
       <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a></div>
-        <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div></div></div>
+        <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div>
+        <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : '+ Marcar dias de treino (🏃 / 💪)'} <span class="dim">· editar</span></button></div></div>
         ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>🏁 ${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
       ${fM && fC ? `<div class="subtabs mod-tabs" style="margin-top:12px"><a class="${aba === 'corrida' ? 'on' : ''}" href="#/aluno/${alunoId}/corrida">${I.run} Corrida</a><a class="${aba === 'forca' ? 'on' : ''}" href="#/aluno/${alunoId}/forca">${I.lib} Força</a></div>` : ''}`;
   $app.innerHTML = aba === 'inicio'
@@ -3219,6 +3220,7 @@ async function staffAluno(alunoId, aba, extra) {
   });
   if (aba === 'conversa') await viewConversa(alunoId, document.getElementById('conv'), true, extra);
   if (aba === 'fotos') await viewFotos(alunoId, document.getElementById('fotos'), true);
+  const dispEd = document.getElementById('disp-ed'); if (dispEd) dispEd.onclick = () => editarDisponibilidade(m, () => staffAluno(alunoId, aba));
   if (aba === 'corrida') await viewCorridaPainel(alunoId, document.getElementById('corr'), true, m);
   if (aba === 'forca') {
     const fst = S.cache.fsem; const re = () => staffAluno(alunoId, 'forca');
@@ -3706,9 +3708,32 @@ const FICHA_EXP = [['nunca', 'Nunca corri'], ['iniciante', 'Comecei há menos de
 const FICHA_HOR = [['cedo', 'Bem cedo (5h–7h)'], ['manha', 'Manhã'], ['tarde', 'Tarde'], ['noite', 'Noite']];
 const FICHA_LOCAL = [['rua', 'Rua / orla'], ['esteira', 'Esteira'], ['academia', 'Academia'], ['pista', 'Pista de atletismo'], ['trilha', 'Trilha'], ['casa', 'Em casa']];
 const FICHA_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação de amigo'], ['radar', 'Radar Corridas Maranhão'], ['evento', 'Em uma prova ou treinão'], ['outro', 'Outro']];
+const FICHA_ESPORTES = [['nunca', 'Nunca pratiquei'], ['corrida', 'Corrida'], ['natacao', 'Natação'], ['ciclismo', 'Ciclismo'], ['musculacao', 'Musculação'], ['triathlon', 'Triathlon'], ['futebol', 'Futebol'], ['voleibol', 'Voleibol'], ['basquete', 'Basquetebol'], ['judo', 'Judô'], ['lutas', 'Artes marciais'], ['outros', 'Outros esportes']];
+const FICHA_NIVEL = [['sedentario', 'Sedentário'], ['iniciante', 'Iniciante'], ['intermediario', 'Intermediário'], ['avancado', 'Avançado'], ['profissional', 'Profissional']];
+const FICHA_HIST = ['Alguma doença na família nos últimos anos?', 'Alguma doença pessoal nos últimos anos?', 'Possui alguma restrição à prática de atividade física?', 'Já fez alguma cirurgia?', 'Possui algum tipo de alergia?', 'Já sofreu algum acidente ou lesão nos ossos, músculos ou articulações?', 'Usa algum medicamento?', 'Fuma ou já teve o hábito de fumar?', 'Tem sentido dores no corpo?', 'Está em dieta para perder ou ganhar peso?', 'Fez algum exame do coração nos últimos 6 meses?'];
+const FICHA_TERMO = 'Declaro que, como atleta interessado em receber orientação de treino da Nexos Performance e Saúde, conheço os riscos que a prática esportiva pode trazer, como lesões musculares e outros problemas causados por treinar acima das minhas condições físicas reais. Declaro que as informações desta ficha são verdadeiras, que estou em condições de praticar a atividade proposta e que vou avisar o treinador sobre qualquer mudança na minha saúde, me responsabilizando pelo que eu informar nos acompanhamentos dos treinos. Autorizo a Nexos a usar estes dados, inclusive os de saúde, somente para montar e acompanhar o meu treino, conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).';
 const fichaLink = (tk) => loginURL() + '#/ficha/' + tk;
 const telWa = (t) => { const d = String(t || '').replace(/\D/g, ''); return d ? (d.length <= 11 ? '55' + d : d) : ''; };
 const fichaMsg = (nome, link) => `Olá${nome ? ', ' + firstName(nome) : ''}! Aqui é da Nexos Performance e Saúde 💪\n\nPara montarmos o seu treino, preencha sua ficha de entrada (leva uns 5 minutos):\n${link}`;
+// disponibilidade do aluno (dias que corre / faz força), marcada na ficha ou pelo treinador
+const dispDe = (m) => (m && m.disponibilidade) || {};
+const dispIcones = (m, i) => { const dp = dispDe(m); return `${(dp.corrida || []).includes(i) ? '<span class="disp-ic" title="Costuma correr neste dia">🏃</span>' : ''}${(dp.forca || []).includes(i) ? '<span class="disp-ic" title="Costuma fazer força neste dia">💪</span>' : ''}`; };
+const dispResumo = (m) => { const dp = dispDe(m); const t = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', '); return [dp.corrida && dp.corrida.length ? `🏃 ${t(dp.corrida)}` : '', dp.forca && dp.forca.length ? `💪 ${t(dp.forca)}` : ''].filter(Boolean).join(' · '); };
+function editarDisponibilidade(m, aoSalvar) {
+  const dp = dispDe(m);
+  const linha = (k, ic, l) => `<div class="field"><span>${ic} ${l}</span><div class="chips wrap">${DSEM.map((d, i) => `<label class="chipc"><input type="checkbox" name="${k}" value="${i}" ${(dp[k] || []).includes(i) ? 'checked' : ''}><span>${d.slice(0, 3)}</span></label>`).join('')}</div></div>`;
+  openSheet(`<p class="eyebrow">${esc(firstName(m.nome))}</p><div class="h2" style="margin-top:4px">Dias de treino</div><p class="small muted" style="margin-top:4px">Os dias aparecem com 🏃 e 💪 nas planilhas, para você encaixar os treinos certinho.</p>
+    <form id="f-disp" style="margin-top:14px">${faz('corrida', m) ? linha('corrida', '🏃', 'Corrida') : ''}${faz('musculacao', m) ? linha('forca', '💪', 'Força') : ''}
+    <label class="field"><span>Comentário sobre a disponibilidade</span><textarea class="textarea" name="obs">${esc(dp.obs || '')}</textarea></label><button class="btn block" type="submit">Salvar</button></form>`, (r) => {
+    r.querySelector('#f-disp').onsubmit = async (e) => {
+      e.preventDefault(); const fd = new FormData(e.target);
+      const nv = { corrida: fd.getAll('corrida').map(Number), forca: fd.getAll('forca').map(Number), obs: String(fd.get('obs') || '').trim() || undefined };
+      const { error } = await sb.from('nx_membros').update({ disponibilidade: nv }).eq('org_id', S.org.id).eq('user_id', m.user_id);
+      if (error) return toast('Não foi possível salvar.', true);
+      m.disponibilidade = nv; closeSheet(); toast('Dias salvos.'); aoSalvar && aoSalvar();
+    };
+  });
+}
 
 async function chamarForm(body) {
   const { data, error } = await sb.functions.invoke('nx-form', { body });
@@ -3725,11 +3750,13 @@ async function viewFicha(token) {
   if (info.respondido) { $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:26px 18px"><div style="font-size:2rem">✅</div><div class="h2" style="margin-top:6px">Ficha já enviada</div><p class="small muted" style="margin-top:6px">Recebemos suas respostas. O seu treinador vai falar com você pelo WhatsApp.</p></div>`; return; }
   const chips = (name, ops, tipo = 'checkbox') => `<div class="chips wrap">${ops.map(([k, l]) => `<label class="chipc"><input type="${tipo}" name="${name}" value="${k}"><span>${l}</span></label>`).join('')}</div>`;
   const sn = (name) => `<div class="radios"><label><input type="radio" name="${name}" value="nao"><span>Não</span></label><label><input type="radio" name="${name}" value="sim"><span>Sim</span></label></div>`;
+  const sn3 = (name) => `<div class="radios r3"><label><input type="radio" name="${name}" value="sim"><span>Sim</span></label><label><input type="radio" name="${name}" value="nao"><span>Não</span></label><label><input type="radio" name="${name}" value="naosei"><span>Não sei</span></label></div>`;
+  const diasL = (k, ic, l) => `<div class="field disp-l" data-disp="${k}"><span>${ic} ${l}</span>${chips('d_' + k, DSEM.map((d, i) => [String(i), d.slice(0, 3)]))}</div>`;
   const sec = (n, t, d, corpo) => `<section class="card ficha-sec"><div class="ficha-n">${n}</div><div class="grow" style="min-width:0"><div class="h3">${t}</div>${d ? `<p class="tiny dim" style="margin:3px 0 0">${d}</p>` : ''}<div class="stack" style="margin-top:12px;gap:2px">${corpo}</div></div></section>`;
   $app.innerHTML = `
     <div class="ficha-top"><img src="${LOGO.s()}" alt="">${slashes}</div>
     <p class="eyebrow">${esc(info.org)}</p><h1 class="h1" style="margin-top:4px">Ficha de entrada</h1>
-    <p class="muted small" style="margin:8px 0 0">Leva uns 5 minutos. Com essas respostas o treinador monta um treino certo para você, com segurança.</p>
+    <p class="muted small" style="margin:8px 0 0">Leva uns 5 minutos. Com essas respostas o treinador monta um treino certo para você, com segurança. Campos com * são obrigatórios.</p>
     <form id="f-ficha" class="stack" style="margin-top:16px" novalidate>
       ${sec(1, 'Seus dados', '', `
         <label class="field"><span>Nome completo *</span><input class="input" name="nome" required value="${esc(info.nome)}" autocomplete="name"></label>
@@ -3738,49 +3765,73 @@ async function viewFicha(token) {
         <div class="grid2"><label class="field"><span>Data de nascimento</span><input class="input" type="date" name="nascimento"></label>
         <label class="field"><span>Sexo</span><select class="input" name="sexo"><option value="">Selecione</option><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="nao_informar">Prefiro não dizer</option></select></label></div>
         <label class="field"><span>Bairro / cidade</span><input class="input" name="cidade" placeholder="Ex.: Cohama, São Luís"></label>`)}
-      ${sec(2, 'Seu objetivo', '', `
-        <div class="field"><span>Quer treinar *</span>${chips('modalidades', MODS)}</div>
+      ${sec(2, 'Objetivo', '', `
+        <div class="field"><span>Quer treinar com a Nexos *</span>${chips('modalidades', MODS)}</div>
         <div class="field"><span>Objetivo principal</span>${chips('objetivo', OBJETIVOS, 'radio')}</div>
-        <label class="field"><span>Meta específica</span><input class="input" name="meta" placeholder="Ex.: correr meus primeiros 10 km, baixar o tempo da meia"></label>
+        <label class="field"><span>Quais são os seus objetivos pessoais com o treino? *</span><textarea class="textarea" name="meta" placeholder="Ex.: correr meus primeiros 10 km, perder peso, voltar a treinar sem dor"></textarea></label>
         <label class="field"><span>Tem alguma prova em vista?</span><input class="input" name="prova" placeholder="Nome e data, se já souber"></label>`)}
-      ${sec(3, 'Sua experiência', '', `
-        <div class="field"><span>Pratica alguma atividade física hoje?</span>${sn('ativo_hoje')}</div>
-        <label class="field"><span>Qual e quantas vezes por semana?</span><input class="input" name="atividade" placeholder="Ex.: musculação 3x, futebol 1x"></label>
-        <div class="field ficha-corr"><span>Corrida</span><select class="input" name="corrida_exp"><option value="">Selecione</option>${FICHA_EXP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+      ${sec(3, 'Histórico esportivo', '', `
+        <div class="field"><span>Já praticou ou pratica algum esporte? *</span>${chips('esportes', FICHA_ESPORTES)}</div>
+        <label class="field" id="esp-outros" hidden><span>Quais outros esportes?</span><input class="input" name="esportes_outros"></label>
+        <label class="field"><span>Como é ou foi a sua rotina de exercícios?</span><textarea class="textarea" name="atividade" placeholder="Ex.: musculação 3x por semana há 1 ano, futebol aos sábados"></textarea></label>
+        <div class="field"><span>Como avalia o seu condicionamento físico hoje? *</span>${chips('nivel', FICHA_NIVEL, 'radio')}</div>
+        <div class="field ficha-corr"><span>Experiência com corrida</span><select class="input" name="corrida_exp"><option value="">Selecione</option>${FICHA_EXP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
         <div class="grid2 ficha-corr"><label class="field"><span>Maior distância que já correu</span><input class="input" name="maior_dist" placeholder="Ex.: 10 km"></label>
         <label class="field"><span>Tempo recente (5 ou 10 km)</span><input class="input" name="tempo_recente" placeholder="Ex.: 5 km em 32 min"></label></div>
         <label class="field ficha-corr"><span>Relógio ou app que usa</span><select class="input" name="relogio"><option value="">Selecione</option>${FICHA_RELOGIOS.map((r) => `<option>${r}</option>`).join('')}</select></label>`)}
-      ${sec(4, 'Sua rotina', 'Marque tudo o que valer.', `
-        <div class="field"><span>Dias que pode treinar</span>${chips('dias', DSEM.map((d, i) => [String(i), d.slice(0, 3)]))}</div>
+      ${sec(4, 'Histórico médico', 'Responda todas. Se tiver dúvida, marque “Não sei”.', `
+        ${FICHA_HIST.map((q, i) => `<div class="parq"><p>${q}</p>${sn3('h' + (i + 1))}</div>`).join('')}
+        <label class="field" style="margin-top:8px"><span>Observações sobre o seu histórico médico</span><textarea class="textarea" name="obs_medica" placeholder="Conte o que marcou como “sim”: qual doença, cirurgia, remédio, lesão…"></textarea></label>`)}
+      ${sec(5, 'PAR-Q · prontidão para atividade física', 'Responda com sinceridade. Um "sim" não impede o treino, só pede uma conversa com o médico antes.', `
+        ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1))}</div>`).join('')}`)}
+      ${sec(6, 'Disponibilidade para treinar', 'Marque os dias em que você consegue treinar cada modalidade.', `
+        ${diasL('corrida', '🏃', 'Dias de corrida')}${diasL('forca', '💪', 'Dias de força (musculação)')}
         <div class="field"><span>Melhor horário</span>${chips('horario', FICHA_HOR)}</div>
-        <div class="field"><span>Onde prefere treinar</span>${chips('local', FICHA_LOCAL)}</div>`)}
-      ${sec(5, 'Sua saúde (PAR-Q)', 'Responda com sinceridade. Um "sim" não impede o treino, só pede uma conversa com o médico antes.', `
-        ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1))}</div>`).join('')}
-        <div class="field" style="margin-top:8px"><span>Tem ou já teve</span>${chips('doencas', DOENCAS.map((d) => [d, d]))}</div>
-        <label class="field"><span>Lesões, dores ou cirurgias</span><textarea class="textarea" name="lesoes" placeholder="Ex.: entorse no tornozelo em 2024, dor no joelho ao descer escada"></textarea></label>
-        <label class="field"><span>Remédios de uso contínuo</span><input class="input" name="medicamentos"></label>`)}
-      ${sec(6, 'Para terminar', '', `
-        <div class="field"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
-        <label class="field"><span>Quer contar mais alguma coisa?</span><textarea class="textarea" name="obs"></textarea></label>
-        <label class="ficha-aceite"><input type="checkbox" name="aceite"><span>Declaro que as informações são verdadeiras e autorizo a Nexos a usá-las para montar e acompanhar o meu treino.</span></label>`)}
+        <div class="field"><span>Onde prefere treinar</span>${chips('local', FICHA_LOCAL)}</div>
+        <label class="field"><span>Algum comentário sobre a sua disponibilidade?</span><textarea class="textarea" name="disp_obs" placeholder="Ex.: às quartas só depois das 19h"></textarea></label>`)}
+      ${sec(7, 'Termo de aceite', '', `
+        <div class="ficha-termo">${FICHA_TERMO}</div>
+        <label class="ficha-aceite"><input type="checkbox" name="aceite"><span>Li e aceito o termo de responsabilidade acima. *</span></label>
+        <div class="field" style="margin-top:12px"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
+        <label class="field"><span>Quer contar mais alguma coisa?</span><textarea class="textarea" name="obs"></textarea></label>`)}
       <button class="btn block" type="submit">Enviar ficha</button>
       <p class="tiny dim center">Suas respostas vão só para a equipe de treinadores da Nexos.</p>
     </form>`;
   const f = document.getElementById('f-ficha');
-  const corr = () => { const on = f.querySelector('[name=modalidades][value=corrida]').checked || !f.querySelectorAll('[name=modalidades]:checked').length; f.querySelectorAll('.ficha-corr').forEach((x) => (x.hidden = !on)); };
-  f.addEventListener('change', (e) => { if (e.target.name === 'modalidades') corr(); });
+  const ajustar = () => {
+    const mods = [...f.querySelectorAll('[name=modalidades]:checked')].map((x) => x.value);
+    const corrOn = !mods.length || mods.includes('corrida'), forOn = !mods.length || mods.includes('musculacao');
+    f.querySelectorAll('.ficha-corr').forEach((x) => (x.hidden = !corrOn));
+    f.querySelector('[data-disp=corrida]').hidden = !corrOn; f.querySelector('[data-disp=forca]').hidden = !forOn;
+    f.querySelector('#esp-outros').hidden = !f.querySelector('[name=esportes][value=outros]').checked;
+  };
+  f.addEventListener('change', (e) => {
+    if (e.target.name === 'esportes' && e.target.checked) { // "nunca pratiquei" exclui os outros
+      if (e.target.value === 'nunca') f.querySelectorAll('[name=esportes]').forEach((x) => { if (x !== e.target) x.checked = false; });
+      else f.querySelector('[name=esportes][value=nunca]').checked = false;
+    }
+    ajustar();
+  });
   f.onsubmit = async (e) => {
     e.preventDefault(); const fd = new FormData(f); const btn = f.querySelector('[type=submit]');
-    const d = {}; ['nome', 'telefone', 'email', 'nascimento', 'sexo', 'cidade', 'objetivo', 'meta', 'prova', 'ativo_hoje', 'atividade', 'corrida_exp', 'maior_dist', 'tempo_recente', 'relogio', 'lesoes', 'medicamentos', 'origem', 'obs'].forEach((k) => { const v = String(fd.get(k) || '').trim(); if (v) d[k] = v.slice(0, 1000); });
-    ['modalidades', 'dias', 'horario', 'local', 'doencas'].forEach((k) => { const v = fd.getAll(k); if (v.length) d[k] = k === 'dias' ? v.map(Number) : v; });
+    const d = {}; ['nome', 'telefone', 'email', 'nascimento', 'sexo', 'cidade', 'objetivo', 'meta', 'prova', 'esportes_outros', 'atividade', 'nivel', 'corrida_exp', 'maior_dist', 'tempo_recente', 'relogio', 'obs_medica', 'disp_obs', 'origem', 'obs'].forEach((k) => { const v = String(fd.get(k) || '').trim(); if (v) d[k] = v.slice(0, 1500); });
+    ['modalidades', 'esportes', 'horario', 'local'].forEach((k) => { const v = fd.getAll(k); if (v.length) d[k] = v; });
+    const mods = d.modalidades || [];
+    d.disponibilidade = { corrida: mods.includes('corrida') ? fd.getAll('d_corrida').map(Number) : [], forca: mods.includes('musculacao') ? fd.getAll('d_forca').map(Number) : [] };
+    d.hist = {}; FICHA_HIST.forEach((_, i) => { d.hist['h' + (i + 1)] = fd.get('h' + (i + 1)) || null; });
     d.parq = {}; PARQ.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; });
     const falta = (sel, msg) => { const el = f.querySelector(sel); toast(msg, true); if (el) el.closest('.field, .parq, .ficha-aceite, label')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     if (!d.nome || d.nome.length < 3) return falta('[name=nome]', 'Escreva seu nome completo.');
     if (String(d.telefone || '').replace(/\D/g, '').length < 10) return falta('[name=telefone]', 'Confira o seu WhatsApp com DDD.');
     if (!/^\S+@\S+\.\S+$/.test(d.email || '')) return falta('[name=email]', 'Confira o seu e-mail.');
-    if (!d.modalidades) return falta('[name=modalidades]', 'Marque corrida, musculação ou as duas.');
-    const iq = PARQ.findIndex((_, i) => !d.parq['q' + (i + 1)]); if (iq >= 0) return falta(`[name=q${iq + 1}]`, `Responda a pergunta ${iq + 1} da saúde.`);
-    if (!fd.get('aceite')) return falta('[name=aceite]', 'Marque a declaração no final.');
+    if (!mods.length) return falta('[name=modalidades]', 'Marque corrida, musculação ou as duas.');
+    if (!d.meta) return falta('[name=meta]', 'Conte quais são os seus objetivos.');
+    if (!d.esportes) return falta('[name=esportes]', 'Marque os esportes que já praticou (ou “Nunca pratiquei”).');
+    if (!d.nivel) return falta('[name=nivel]', 'Escolha o seu nível de condicionamento.');
+    const ih = FICHA_HIST.findIndex((_, i) => !d.hist['h' + (i + 1)]); if (ih >= 0) return falta(`[name=h${ih + 1}]`, 'Responda todas as perguntas do histórico médico.');
+    const iq = PARQ.findIndex((_, i) => !d.parq['q' + (i + 1)]); if (iq >= 0) return falta(`[name=q${iq + 1}]`, `Responda a pergunta ${iq + 1} do PAR-Q.`);
+    if (!d.disponibilidade.corrida.length && !d.disponibilidade.forca.length) return falta('.disp-l:not([hidden]) input', 'Marque os dias em que pode treinar.');
+    if (!fd.get('aceite')) return falta('[name=aceite]', 'Aceite o termo de responsabilidade no final.');
     d.aceite = true; btn.disabled = true; btn.textContent = 'Enviando…';
     try {
       await chamarForm({ acao: 'enviar', token, dados: d });
@@ -3792,7 +3843,8 @@ async function viewFicha(token) {
 
 function fichaResumo(d) {
   const sim = PARQ.map((q, i) => [i + 1, q]).filter(([n]) => (d.parq || {})['q' + n] === 'sim');
-  return { sim, mods: (d.modalidades || []).map((k) => (MODS.find((m) => m[0] === k) || [k, k])[1]).join(' + '), obj: (OBJETIVOS.find((o) => o[0] === d.objetivo) || [])[1] || '' };
+  const histSim = FICHA_HIST.map((q, i) => [q, (d.hist || {})['h' + (i + 1)]]).filter(([, v]) => v === 'sim' || v === 'naosei');
+  return { sim, histSim, mods: (d.modalidades || []).map((k) => (MODS.find((m) => m[0] === k) || [k, k])[1]).join(' + '), obj: (OBJETIVOS.find((o) => o[0] === d.objetivo) || [])[1] || '' };
 }
 
 async function staffFormularios(id) {
@@ -3863,7 +3915,8 @@ async function staffFichaResposta(id) {
   const idade = d.nascimento ? Math.floor((Date.now() - dia(d.nascimento)) / 31557600000) : null;
   const lin = (t, v) => v ? `<div class="ficha-l"><span>${t}</span><b>${v}</b></div>` : '';
   const lista = (arr, l) => (arr || []).map((k) => esc(l ? nome(l, k) || k : k)).join(', ');
-  const tel = telWa(d.telefone);
+  const tel = telWa(d.telefone); const dp = d.disponibilidade || {};
+  const diasT = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', ');
   $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a>
     <div class="card plan-head"><div class="ph-id"><div class="av lg">${esc(initials(d.nome || '?'))}</div><div class="grow" style="min-width:0"><h1 class="h2">${esc(d.nome || 'Sem nome')}</h1><div class="small muted">Ficha enviada ${fmtData(r.criado_em)}${rs.mods ? ' · ' + esc(rs.mods) : ''}</div></div></div>
       ${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div>
@@ -3871,17 +3924,22 @@ async function staffFichaResposta(id) {
     <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos 💪 Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
     <div class="stack" style="margin-top:14px">
       <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
-      <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Meta', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
-      <div class="card"><span class="eyebrow">Experiência</span>${lin('Ativo hoje', d.ativo_hoje === 'sim' ? 'Sim' : d.ativo_hoje === 'nao' ? 'Não' : '')}${lin('Atividades', esc(d.atividade || ''))}${lin('Corrida', esc(nome(FICHA_EXP, d.corrida_exp)))}${lin('Maior distância', esc(d.maior_dist || ''))}${lin('Tempo recente', esc(d.tempo_recente || ''))}${lin('Relógio', esc(d.relogio || ''))}</div>
-      <div class="card"><span class="eyebrow">Rotina</span>${lin('Dias', (d.dias || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', '))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}</div>
-      <div class="card"><span class="eyebrow">Saúde</span>${lin('PAR-Q', rs.sim.length ? `<span style="color:var(--err)">${rs.sim.length} sim</span>` : 'Tudo “não”')}${lin('Tem ou já teve', lista(d.doencas))}${lin('Lesões / cirurgias', esc(d.lesoes || ''))}${lin('Remédios', esc(d.medicamentos || ''))}</div>
+      <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Objetivos pessoais', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
+      <div class="card"><span class="eyebrow">Disponibilidade</span>${lin('🏃 Corrida', diasT(dp.corrida))}${lin('💪 Força', diasT(dp.forca))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}${lin('Comentário', esc(d.disp_obs || ''))}</div>
+      <div class="card"><span class="eyebrow">Histórico esportivo</span>${lin('Esportes', lista(d.esportes, FICHA_ESPORTES) + (d.esportes_outros ? ` (${esc(d.esportes_outros)})` : ''))}${lin('Rotina', esc(d.atividade || ''))}${lin('Condicionamento', esc(nome(FICHA_NIVEL, d.nivel)))}${lin('Corrida', esc(nome(FICHA_EXP, d.corrida_exp)))}${lin('Maior distância', esc(d.maior_dist || ''))}${lin('Tempo recente', esc(d.tempo_recente || ''))}${lin('Relógio', esc(d.relogio || ''))}</div>
+      <div class="card"><span class="eyebrow">Histórico médico</span>${rs.histSim.length ? rs.histSim.map(([q, v]) => lin(esc(q), v === 'sim' ? '<span style="color:var(--err)">Sim</span>' : 'Não sei')).join('') : lin('Respostas', 'Tudo “não”')}${lin('Observações', esc(d.obs_medica || ''))}${lin('PAR-Q', rs.sim.length ? `<span style="color:var(--err)">${rs.sim.length} sim</span>` : 'Tudo “não”')}</div>
       ${d.origem || d.obs ? `<div class="card"><span class="eyebrow">Outros</span>${lin('Conheceu por', esc(nome(FICHA_ORIGEM, d.origem)))}${lin('Comentário', esc(d.obs || ''))}</div>` : ''}
+      <p class="tiny dim">✓ Aceitou o termo de responsabilidade ao enviar.</p>
       <button class="link-btn small" id="apagar" style="color:var(--err);justify-self:start">Apagar esta ficha</button>
     </div>`;
   const cad = document.getElementById('cadastrar');
   if (cad) cad.onclick = () => {
-    const saude = [d.lesoes, d.medicamentos ? 'Remédios: ' + d.medicamentos : '', (d.doencas || []).length ? 'Tem/teve: ' + d.doencas.join(', ') : '', rs.sim.length ? `PAR-Q com ${rs.sim.length} sim` : ''].filter(Boolean).join('. ');
-    formPessoa('aluno', { nome: d.nome, email: d.email, telefone: d.telefone, nascimento: d.nascimento, objetivo: [rs.obj, d.meta].filter(Boolean).join(': '), observacoes: saude, mods: d.modalidades }, async (res) => { if (res && res.user_id) await sb.from('nx_form_respostas').update({ aluno_id: res.user_id }).eq('id', id); });
+    const saude = [rs.histSim.filter(([, v]) => v === 'sim').map(([q]) => q.replace(/\?$/, '')).join('; '), d.obs_medica, rs.sim.length ? `PAR-Q com ${rs.sim.length} sim` : ''].filter(Boolean).join('. ');
+    formPessoa('aluno', { nome: d.nome, email: d.email, telefone: d.telefone, nascimento: d.nascimento, objetivo: d.meta || rs.obj, observacoes: saude, mods: d.modalidades }, async (res) => {
+      if (!res || !res.user_id) return;
+      await sb.from('nx_form_respostas').update({ aluno_id: res.user_id }).eq('id', id);
+      if (dp.corrida || dp.forca) await sb.from('nx_membros').update({ disponibilidade: { corrida: dp.corrida || [], forca: dp.forca || [], obs: d.disp_obs || undefined } }).eq('org_id', S.org.id).eq('user_id', res.user_id);
+    });
   };
   document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };
 }
