@@ -25,3 +25,10 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Link curto para a bio do Instagram: abre a ficha de entrada geral (cria o acesso ao app no final)
+[[redirects]]
+  from = "/aluno"
+  to = "/app/#/ficha/07a9a8d4aeba1eb6c6"
+  status = 302
+  force = true
