@@ -40,10 +40,12 @@ addEventListener('scroll', () => {
 }, { passive: true });
 
 $('#burger').addEventListener('click', e => {
-  e.currentTarget.classList.toggle('open'); $('#links').classList.toggle('open');
+  e.currentTarget.classList.toggle('open'); const ab = $('#links').classList.toggle('open');
+  $('#nav').classList.toggle('menu-aberto', ab); document.body.style.overflow = ab ? 'hidden' : '';
 });
 $$('#links a').forEach(a => a.addEventListener('click', () => {
   $('#burger').classList.remove('open'); $('#links').classList.remove('open');
+  $('#nav').classList.remove('menu-aberto'); document.body.style.overflow = '';
 }));
 
 const glow = $('#glow');

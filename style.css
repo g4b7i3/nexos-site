@@ -627,3 +627,10 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 /* título do topo sempre inteiro na linha, mesmo com fonte grande do celular */
 .hero h1{font-size:min(8.4vw,6.2rem);overflow-wrap:normal}
 .hero h1 .line{white-space:nowrap}
+
+/* menu do celular: fundo sólido e tela inteira (no Instagram o desfoque do topo prendia o menu e ele ficava transparente) */
+@media (max-width:860px){
+  .nav.menu-aberto{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg);border-bottom-color:transparent}
+  body:has(.nav.menu-aberto) .fab{opacity:0;pointer-events:none}
+  .links{background:var(--bg);backdrop-filter:none;-webkit-backdrop-filter:none;height:100vh;height:100dvh}
+}
