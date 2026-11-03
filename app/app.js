@@ -615,7 +615,7 @@ async function alunoHoje() {
     sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,plano_id,titulo,elevacao_m,fc_media,cadencia,rota').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 8 * 864e5)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', S.user.id).gte('data', hoje).order('data').limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
     // corridas que chegaram do relógio sem o check-in (esforço/dor)
-    sb.from('nx_corridas').select('id,data,distancia_m').eq('aluno_id', S.user.id).is('rpe', null).gte('data', isoDia(Date.now() - 3 * 864e5)).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
+    sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,fonte,titulo,comentario').eq('aluno_id', S.user.id).is('rpe', null).gte('data', isoDia(Date.now() - 3 * 864e5)).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
   ]);
   const corrNova = corrSem.filter((c) => c.distancia_m && Date.now() - new Date(c.data) < 864e5 && !(() => { try { return localStorage.getItem('nx-card-' + c.id); } catch { return 1; } })()).sort((a, b) => (a.data < b.data ? 1 : -1))[0];
   corrSem.splice(0, corrSem.length, ...corrSem.filter((c) => isoDia(c.data) >= isoDia(inicioSemana())));
@@ -684,6 +684,22 @@ async function alunoHoje() {
   const rh = document.getElementById('reg-home'); if (rh) rh.onclick = () => registrarCorrida(S.user.id, () => alunoHoje());
   const cn = document.getElementById('card-nova'); if (cn) cn.onclick = () => abrirCardCorrida(corrNova);
   const tc = document.getElementById('termo-corr'); if (tc) tc.onclick = () => termometroCorrida(semNota, () => alunoHoje());
+  let jaAvisou = true; try { jaAvisou = !!(semNota && (localStorage.getItem('nx-pop-' + semNota.id) || sessionStorage.getItem('nx-pop-' + semNota.id))); } catch {}
+  if (semNota && !jaAvisou) setTimeout(() => {
+    if (location.hash && location.hash !== '#/' ) return;
+    try { sessionStorage.setItem('nx-pop-' + semNota.id, '1'); } catch {}
+    const c = semNota; const quandoC = isoDia(c.data) === hoje ? 'hoje' : isoDia(c.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(c.data)).split(',')[0].toLowerCase();
+    openSheet(`<div class="center"><div class="chegou-ic">${I.check}</div>
+      <p class="eyebrow" style="margin-top:12px">${c.fonte === 'garmin' ? 'Treino carregado do Garmin' : 'Treino registrado'}</p>
+      <div class="h2" style="margin-top:4px">Sua corrida de ${quandoC} foi concluída</div></div>
+      <div class="mini-stats" style="margin-top:16px"><div><b>${fmtKm(c.distancia_m, 1)}</b><span>distância</span></div>${c.duracao_s ? `<div><b>${fmtDur(c.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(c))}</b><span>pace</span></div>` : ''}</div>
+      <p class="small muted center" style="margin-top:14px">Quer comentar como foi o treino? Seu treinador usa isso para ajustar os próximos.</p>
+      <button class="btn block" id="pop-sim" style="margin-top:14px">Comentar o treino</button>
+      <button class="btn ghost block" id="pop-nao" style="margin-top:8px">Agora não</button>`, (r) => {
+      r.querySelector('#pop-sim').onclick = () => { closeSheet(); termometroCorrida(c, () => alunoHoje()); };
+      r.querySelector('#pop-nao').onclick = () => { try { localStorage.setItem('nx-pop-' + c.id, '1'); } catch {} closeSheet(); };
+    });
+  }, 500);
   if (S.me.sexo === 'F') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx || !c) return; bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
@@ -700,15 +716,17 @@ function termometroCorrida(c, depois) {
       <div class="seg" style="margin-top:8px"><button type="button" class="on" data-dor="0">Não</button><button type="button" data-dor="1">Sim</button></div>
       <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:10px" hidden></div>
     ${corpoHTML()}
-    <button class="btn block" id="t-salvar" style="margin-top:20px">Enviar ${I.check}</button>`, (root) => {
+    <label class="field" style="margin-top:18px"><span>Comentário para o treinador (opcional)</span><textarea class="textarea" id="t-coment" placeholder="Ex.: senti as pernas pesadas no fim, o calor atrapalhou">${esc(c.comentario || '')}</textarea></label>
+    <button class="btn block" id="t-salvar" style="margin-top:12px">Enviar ${I.check}</button>`, (root) => {
     root.querySelector('#eff').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; rpe = +b.dataset.n; root.querySelectorAll('#eff button').forEach((x) => { const on = +x.dataset.n === rpe; x.classList.toggle('on', on); x.style.background = on ? rpeCor(rpe) : ''; }); root.querySelector('#eff-txt').textContent = rpeTxt(rpe); };
     root.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => { dor = b.dataset.dor === '1'; root.querySelectorAll('[data-dor]').forEach((x) => { x.classList.toggle('on', x === b); x.classList.toggle('alert', x === b && dor); }); root.querySelector('#dor-local').hidden = !dor; });
     bindCorpo(root, corpo);
     root.querySelector('#t-salvar').onclick = async (e) => {
       if (rpe == null) return toast('Escolha o esforço de 0 a 10.', true);
       e.currentTarget.disabled = true;
-      const { error } = await sb.from('nx_corridas').update({ rpe, dor, dor_local: dor ? (root.querySelector('#dor-local').value.trim() || null) : null, cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null, visto_treinador: false }).eq('id', c.id);
+      const { error } = await sb.from('nx_corridas').update({ rpe, dor, dor_local: dor ? (root.querySelector('#dor-local').value.trim() || null) : null, cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null, comentario: root.querySelector('#t-coment').value.trim() || null, visto_treinador: false }).eq('id', c.id);
       if (error) { e.currentTarget.disabled = false; return toast('Não foi possível salvar. Verifique a internet.', true); }
+      try { localStorage.setItem('nx-pop-' + c.id, '1'); } catch {}
       closeSheet(); toast('Valeu! Seu treinador já vê como você está.'); depois && depois();
     };
   });
