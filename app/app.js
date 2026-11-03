@@ -162,8 +162,8 @@ const modsHTML = (sel, nome = 'mod') => `<div class="chips wrap">${MODS.map(([k,
 const dockAluno = () => setDock([
   { href: '#/', match: ['#/', '#'], icon: I.home, label: 'Hoje' },
   { href: '#/planilha', match: ['#/planilha'], icon: I.cal, label: 'Planilha' },
-  ...(faz('corrida') ? [{ href: '#/eventos', match: ['#/eventos'], icon: I.flag, label: 'Eventos' }] : []),
   { href: '#/historico', match: ['#/historico', '#/avaliacao', '#/corrida', '#/relatorio'], icon: I.hist, label: 'Evolução' },
+  ...(faz('corrida') ? [{ href: '#/eventos', match: ['#/eventos'], icon: I.flag, label: 'Eventos' }] : []),
   { href: '#/conversa', match: ['#/conversa'], icon: I.feed, label: 'Treinador', badge: S.cache.msgNovas || '' },
 ]);
 const dockStaff = () => setDock([
@@ -347,7 +347,7 @@ function detalheEvento(e, dados, aoMudar) {
   const eu = !S.staff && dados.part.find((p) => p.evento_ref === e.ref);
   const quem = S.staff ? dados.part.filter((p) => p.evento_ref === e.ref) : [];
   const dists = e.distancias || [];
-  openSheet(`<p class="eyebrow">${e.fonte === 'nexos' ? esc(TIPO_EV[e.tipo] || 'Evento Nexos') : 'Agenda do Radar Corridas MA'}</p>
+  openSheet(`<p class="eyebrow">${e.fonte === 'nexos' ? esc(TIPO_EV[e.tipo] || 'Evento Nexos') : e.fonte === 'manual' ? 'Prova cadastrada por você' : 'Agenda do Radar Corridas MA'}</p>
     <div class="h2" style="margin-top:4px">${esc(e.nome)}</div>
     <p class="small muted" style="margin-top:6px">${fmtDiaSem(e.data)}${e.hora ? ' · ' + esc(e.hora) : ''} · ${faltam(e.data)}</p>
     <div class="ev-info">
@@ -440,7 +440,7 @@ async function viewEventos(aba) {
   }
   $app.innerHTML = `<p class="eyebrow">Eventos</p><h1 class="h1">${S.staff ? 'Provas e eventos' : 'Provas e eventos'}</h1>
     <div class="subtabs" style="margin-top:14px">${abas.map(([k, l]) => `<a class="${aba === k ? 'on' : ''}" href="#/eventos${k === 'proximas' ? '' : '/' + k}">${l}</a>`).join('')}</div>
-    ${S.staff ? `<button class="btn sm" id="ev-novo" style="margin-bottom:12px">${I.plus} Treinão ou evento da Nexos</button>` : ''}
+    ${S.staff ? `<button class="btn sm" id="ev-novo" style="margin-bottom:12px">${I.plus} Treinão ou evento da Nexos</button>` : `<button class="card tap prova-fora" id="ev-minha"><span class="go">${I.plus}</span><div class="grow"><b>A prova que vou correr não está aqui</b><div class="small muted">Cadastre a sua prova e ela entra na sua planilha</div></div>${I.chev}</button>`}
     ${corpo}`;
   const re = () => viewEventos(aba);
   const q = document.getElementById('ev-q');
@@ -453,6 +453,34 @@ async function viewEventos(aba) {
     if (p) { const pp = dados.part.find((x) => x.id === p.dataset.part); const ev = dados.eventos.find((x) => x.ref === pp.evento_ref) || { ref: pp.evento_ref, fonte: pp.fonte, nome: pp.titulo, data: pp.data, cidade: pp.cidade, distancias: pp.distancia ? [pp.distancia] : [], link: pp.link }; return detalheEvento(ev, dados, re); }
   };
   const nv = document.getElementById('ev-novo'); if (nv) nv.onclick = () => formEventoNexos(null, re);
+  const mp = document.getElementById('ev-minha'); if (mp) mp.onclick = () => formProvaPropria(() => { location.hash = '#/eventos/minhas'; if (aba === 'minhas') re(); });
+}
+function formProvaPropria(aoSalvar) {
+  const DIST = ['5 km', '10 km', '21 km', '42 km'];
+  openSheet(`<p class="eyebrow">Minha prova</p><div class="h2" style="margin-top:4px">Cadastrar uma prova</div><p class="small muted" style="margin-top:4px">Para provas fora do Maranhão ou que ainda não estão na agenda. O treinador é avisado e a prova entra na sua planilha.</p>
+    <form id="f-pp" style="margin-top:14px">
+      <label class="field"><span>Nome da prova *</span><input class="input" name="titulo" required placeholder="Ex.: Maratona do Rio"></label>
+      <div class="grid2"><label class="field"><span>Data *</span><input class="input" type="date" name="data" required min="${hojeISO()}"></label><label class="field"><span>Cidade</span><input class="input" name="cidade" placeholder="Ex.: Rio de Janeiro"></label></div>
+      <div class="field"><span>Distância</span><div class="chips wrap">${DIST.map((d) => `<label class="chipc"><input type="radio" name="dist" value="${d}"><span>${d}</span></label>`).join('')}<label class="chipc"><input type="radio" name="dist" value="outra"><span>Outra</span></label></div></div>
+      <label class="field" id="pp-outra" hidden><span>Qual distância?</span><input class="input" name="dist_outra" placeholder="Ex.: 15 km, trail 25 km"></label>
+      <div class="grid2"><label class="field"><span>Meta de tempo</span><input class="input" name="meta" placeholder="Ex.: 55:00"></label><label class="field"><span>Site da prova</span><input class="input" name="link" inputmode="url" placeholder="opcional"></label></div>
+      <button class="btn block" type="submit">Salvar minha prova</button></form>`, (r) => {
+    const f = r.querySelector('#f-pp');
+    f.onchange = (e) => { if (e.target.name === 'dist') r.querySelector('#pp-outra').hidden = e.target.value !== 'outra'; };
+    f.onsubmit = async (e) => {
+      e.preventDefault(); const fd = new FormData(f); const btn = f.querySelector('[type=submit]');
+      const titulo = String(fd.get('titulo') || '').trim(); const data = fd.get('data');
+      if (titulo.length < 3) return toast('Escreva o nome da prova.', true);
+      if (!data) return toast('Escolha a data da prova.', true);
+      let dist = fd.get('dist') || ''; if (dist === 'outra') dist = String(fd.get('dist_outra') || '').trim();
+      let link = String(fd.get('link') || '').trim(); if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+      btn.disabled = true;
+      const { data: nova, error } = await sb.from('nx_participacoes').insert({ org_id: S.org.id, aluno_id: S.user.id, evento_ref: 'manual-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), fonte: 'manual', titulo: titulo.slice(0, 140), data, cidade: String(fd.get('cidade') || '').trim() || null, distancia: dist || null, meta: String(fd.get('meta') || '').trim() || null, link: link || null }).select('id').single();
+      if (error) { btn.disabled = false; return toast('Não foi possível salvar.', true); }
+      notificar('prova', nova && nova.id);
+      S.cache.eventos = null; closeSheet(); toast('Prova salva! Ela já está na sua planilha.'); aoSalvar && aoSalvar();
+    };
+  });
 }
 
 /* ================= PLANILHA DO ALUNO: corrida, musculação e calendário ================= */
