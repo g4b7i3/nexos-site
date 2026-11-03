@@ -172,7 +172,7 @@ const dockAluno = () => setDock([
   { href: '#/conexoes', match: ['#/conexoes'], icon: I.watch, label: 'Conexões' },
 ]);
 const dockStaff = () => setDock([
-  { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: S.cache.naoVistos || '' },
+  { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.pendentes || 0) || '' },
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
@@ -315,8 +315,13 @@ function viewOutraArea(destino) {
 }
 function viewSemAcesso() {
   $dock.hidden = true; layout('bare');
-  $app.innerHTML = `<section class="login"><div class="empty"><div class="h3">Sua conta ainda não está ligada a uma assessoria</div><p class="small" style="margin:8px 0 16px">Peça ao seu treinador para cadastrar o seu e-mail no app da Nexos.</p><button class="btn sm ghost" id="sair">Sair</button></div></section>`;
-  document.getElementById('sair').onclick = () => sb.auth.signOut();
+  const pinta = (pend) => { $app.innerHTML = pend
+    ? `<section class="login"><div class="empty"><div style="font-size:2.2rem">⏳</div><div class="h3">Seu cadastro está aguardando a aprovação do treinador</div><p class="small" style="margin:8px 0 16px">Assim que ele aprovar, você recebe o acesso no seu e-mail e já pode entrar.</p><button class="btn sm" id="de-novo">Verificar de novo</button> <button class="btn sm ghost" id="sair">Sair</button></div></section>`
+    : `<section class="login"><div class="empty"><div class="h3">Sua conta ainda não está ligada a uma assessoria</div><p class="small" style="margin:8px 0 16px">Peça ao seu treinador para cadastrar o seu e-mail no app da Nexos.</p><button class="btn sm ghost" id="sair">Sair</button></div></section>`;
+    document.getElementById('sair').onclick = () => sb.auth.signOut();
+    const dn = document.getElementById('de-novo'); if (dn) dn.onclick = async () => { await carregarPerfil().catch(() => {}); router(); }; };
+  pinta(false);
+  sb.from('nx_membros').select('aprovacao').eq('user_id', S.user.id).eq('aprovacao', 'pendente').limit(1).then((r) => { if (r.data && r.data.length) pinta(true); }, () => {});
 }
 
 /* ================= EVENTOS: provas do Radar + eventos da Nexos ================= */
@@ -3420,7 +3425,7 @@ async function staffHoje() {
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const segAtual = isoDia(inicioSemana()), segPass = somaDias(segAtual, -7), segProx = somaDias(segAtual, 7);
   const [{ data: membros }, sess, corr, anams, avs, cobs, provasEq, planoRes, treinosRes, libsRes] = await Promise.all([
-    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
+    sb.from('nx_membros').select('user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
     sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,dor_local,cansaco,sono,visto_treinador,plano_id').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => r.data || []),
@@ -3435,6 +3440,8 @@ async function staffHoje() {
   dockStaff();
   const fimPl = await fimPlanilhas();
   const ativos = (membros || []).filter((m) => m.ativo);
+  const pendentes = (membros || []).filter((m) => m.aprovacao === 'pendente').sort((a, b) => ((a.pedido_em || '') < (b.pedido_em || '') ? 1 : -1));
+  S.cache.pendentes = pendentes.length; dockStaff();
   const hoje = hojeISO();
   const ultimoTreino = {};
   sess.forEach((s) => { if (!ultimoTreino[s.aluno_id] || s.iniciado_em > ultimoTreino[s.aluno_id]) ultimoTreino[s.aluno_id] = s.iniciado_em; });
@@ -3513,6 +3520,11 @@ async function staffHoje() {
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : alOutros.length ? 'Seus alunos estão em dia. 🎉' : 'Tudo em dia por aqui. 🎉'}</p>
+    ${pendentes.length ? `<div class="section"><div class="section-h"><h2 class="h2">Novos alunos para aprovar 🙋</h2><span class="tag acc">${pendentes.length}</span></div><div class="stack">${pendentes.map((m) => `<div class="card aprovar" data-pend="${m.user_id}">
+      <div class="row" style="gap:12px">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small muted ellip" style="display:block">${esc(m.email || '')}</span></div><span class="tiny dim">${m.pedido_em ? quando(m.pedido_em) : ''}</span></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${(m.modalidades || []).map((x) => `<span class="tag">${x === 'corrida' ? '🏃 Corrida' : '💪 Musculação'}</span>`).join('')}${m.objetivo ? `<span class="tag">${esc(String(m.objetivo).slice(0, 60))}</span>` : ''}</div>
+      <p class="small muted" style="margin-top:8px">Preencheu a ficha de entrada e pediu acesso ao app.</p>
+      <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm" data-aprovar="${m.user_id}">${I.check} Aprovar</button><button class="btn sm ghost" data-recusar="${m.user_id}">Recusar</button><a class="link-btn small" href="#/aluno/${m.user_id}/saude" style="margin-left:auto">Ver ficha</a></div></div>`).join('')}</div></div>` : ''}
     ${cartaoPushHTML()}
     <div class="stats"><a class="stat" href="#/alunos" style="color:inherit"><b>${ativos.length}</b><span>alunos ativos</span></a><div class="stat"><b>${treinosSemana}</b><span>treinos em 7 dias</span></div><a class="stat" href="#/financeiro" style="color:inherit"><b>${aReceber ? brl(aReceber).replace(',00', '') : 'R$ 0'}</b><span>a receber no mês</span></a></div>
     ${ehSeg ? resumoHTML : ''}
@@ -3530,6 +3542,24 @@ async function staffHoje() {
         ${recentes.length > 6 && !st.tudo ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">Mostrar mais ${recentes.length - 6}</button>` : ''}</div>` : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'}
     </div>`;
   bindCartaoPush();
+  $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
+    const m = pendentes.find((x) => x.user_id === b.dataset.aprovar); if (!m) return;
+    b.disabled = true; b.textContent = 'Aprovando…';
+    const { data: r, error } = await sb.functions.invoke('nx-email', { body: { org_id: S.org.id, acao: 'aprovar', aluno_id: m.user_id } });
+    if (error || !r || r.erro) { b.disabled = false; b.innerHTML = `${I.check} Aprovar`; return toast((r && r.erro) || 'Não foi possível aprovar agora.', true); }
+    S.cache.nomes = null;
+    if (r.enviado) { toast(`${firstName(m.nome)} aprovado! O acesso foi para ${r.email}.`); return staffHoje(); }
+    if (r.senha) return mostrarCredenciais({ nome: m.nome, telefone: m.telefone, email: r.email, senha: r.senha }, false, true, 'acesso'), staffHoje();
+    toast(`${firstName(m.nome)} aprovado! Ele entra com a senha que já tem.`); staffHoje();
+  });
+  $app.querySelectorAll('[data-recusar]').forEach((b) => b.onclick = async () => {
+    const m = pendentes.find((x) => x.user_id === b.dataset.recusar); if (!m) return;
+    if (!confirm(`Recusar o pedido de ${m.nome}? Ele não vai ter acesso ao app.`)) return;
+    b.disabled = true;
+    const { data: r, error } = await sb.functions.invoke('nx-email', { body: { org_id: S.org.id, acao: 'recusar', aluno_id: m.user_id } });
+    if (error || !r || r.erro) { b.disabled = false; return toast((r && r.erro) || 'Não foi possível recusar agora.', true); }
+    toast('Pedido recusado.'); staffHoje();
+  });
   const ma = document.getElementById('mais-ativ'); if (ma) ma.onclick = () => { st.tudo = true; staffHoje(); };
   $app.querySelectorAll('[data-rs]').forEach((b) => b.onclick = () => {
     const abrir = !b.classList.contains('on');
@@ -3618,6 +3648,8 @@ function viewPerfil() {
 async function contarNaoVistos() {
   const { count } = await sb.from('nx_sessoes').select('id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('visto_treinador', false).not('finalizado_em', 'is', null);
   S.cache.naoVistos = count || 0;
+  const { count: pend } = await sb.from('nx_membros').select('user_id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('papel', 'aluno').eq('aprovacao', 'pendente');
+  S.cache.pendentes = pend || 0;
 }
 async function staffAlunos() {
   loading();
@@ -4631,17 +4663,19 @@ async function viewFicha(token) {
       window.scrollTo(0, 0);
       $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:28px 18px"><div style="font-size:2.2rem">🙌</div><div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">O seu treinador da Nexos já recebeu as suas respostas.</p></div>
         ${env && env.resposta ? `<div class="card acesso-card" id="acesso-card" style="margin-top:14px"><span class="eyebrow">Último passo · seu acesso ao app</span><div class="h3" style="margin-top:6px">Receba o seu login no e-mail</div>
-          <p class="small muted" style="margin-top:4px">Vamos criar o seu acesso ao app da Nexos e mandar o login e a senha para o e-mail que você registrou:</p>
+          <p class="small muted" style="margin-top:4px">Peça o seu acesso ao app da Nexos. Assim que o treinador aprovar, o login e a senha chegam no e-mail que você registrou:</p>
           <div class="acesso-mail">${I.mail}<b>${esc(d.email)}</b><span class="tag ok">registrado</span></div>
-          <button class="btn block mail-btn" id="receber" style="margin-top:12px">${I.mail} Receber meu acesso no e-mail</button>
+          <button class="btn block mail-btn" id="receber" style="margin-top:12px">${I.mail} Pedir meu acesso</button>
           <p class="tiny dim" style="margin-top:8px">O e-mail está errado? Fale com o seu treinador pelo WhatsApp.</p></div>` : ''}`;
       const rb = document.getElementById('receber');
       if (rb) rb.onclick = async () => {
-        rb.disabled = true; rb.textContent = 'Criando o seu acesso…';
+        rb.disabled = true; rb.textContent = 'Enviando o pedido…';
         try {
           const r = await chamarForm({ acao: 'criar_acesso', token, resposta: env.resposta });
           const box = document.getElementById('acesso-card');
-          box.innerHTML = r.senha
+          box.innerHTML = r.pendente
+            ? `<div class="center"><div style="font-size:2rem">⏳</div><div class="h3" style="margin-top:6px">Pedido enviado!</div><p class="small muted" style="margin:6px 0 4px">Assim que o seu treinador aprovar, o login e a senha chegam em <b>${esc(r.email)}</b>.</p><p class="tiny dim" style="margin-bottom:4px">Se não aparecer, olhe também no Spam ou em Promoções.</p></div>`
+            : r.senha
             ? `<div class="center"><div style="font-size:2rem">✅</div><div class="h3" style="margin-top:6px">Acesso criado!</div><p class="small muted" style="margin:6px 0 12px">Não conseguimos enviar o e-mail agora. Anote os seus dados:</p></div><div class="cred">E-mail: <b>${esc(r.email)}</b><br>Senha: <b>${esc(r.senha)}</b></div><a class="btn block" href="${esc(loginURL())}" style="margin-top:12px">Entrar no app</a>`
             : `<div class="center"><div style="font-size:2rem">📬</div><div class="h3" style="margin-top:6px">${r.existente || r.ja ? 'Você já tem acesso!' : 'Pronto! Confira o seu e-mail'}</div><p class="small muted" style="margin:6px 0 12px">${r.existente || r.ja ? `Entre no app com <b>${esc(r.email)}</b> e a senha que você já usa.` : `Enviamos o seu login e a sua senha para <b>${esc(r.email)}</b>. Se não aparecer em alguns minutos, olhe também no Spam ou em Promoções.`}</p></div><a class="btn block" href="${esc(loginURL())}">Ir para o app</a>`;
         } catch (er) { rb.disabled = false; rb.innerHTML = `${I.mail} Tentar de novo`; toast(er.message, true); }
