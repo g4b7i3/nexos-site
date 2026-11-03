@@ -1,4 +1,4 @@
-/* Nexos App — service worker: notificações push */
+/* Nexos App — service worker: notificações push (v2: logo no badge) */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
@@ -7,8 +7,8 @@ self.addEventListener('push', (e) => {
   try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'Nexos', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Nexos', {
     body: d.body || '',
-    icon: 'icons/icon-192.png',
-    badge: 'icons/badge-96.png', // silhueta branca da logo (Android pinta o ícone pequeno de branco)
+    icon: new URL('icons/icon-192.png', self.location).href,
+    badge: new URL('icons/badge-96.png', self.location).href, // silhueta branca da logo (Android pinta o ícone pequeno de branco)
     tag: d.tag || undefined,
     renotify: !!d.tag,
     data: { url: d.url || '#/' },

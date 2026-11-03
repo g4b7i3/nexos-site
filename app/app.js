@@ -1710,7 +1710,7 @@ const ehIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 let swReg = null;
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js', AREA === 'treinador' ? { scope: '/treinador/' } : undefined).then((r) => { swReg = r; }).catch(() => {});
+  navigator.serviceWorker.register('sw.js', AREA === 'treinador' ? { scope: '/treinador/' } : undefined).then((r) => { swReg = r; r.update().catch(() => {}); }).catch(() => {}); // sempre procura versão nova do service worker
   navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.nav) location.href = e.data.nav; });
 }
 function notificar(acao, id) {
