@@ -5277,24 +5277,23 @@ async function viewFicha(token) {
       const env = await chamarForm({ acao: 'enviar', token, dados: d });
       window.scrollTo(0, 0);
       $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:28px 18px"><div style="font-size:2.2rem">🙌</div><div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">O seu treinador da Nexos já recebeu as suas respostas.</p></div>
-        ${env && env.resposta ? `<div class="card acesso-card" id="acesso-card" style="margin-top:14px"><span class="eyebrow">Último passo · seu acesso ao app</span><div class="h3" style="margin-top:6px">Receba o seu login no e-mail</div>
-          <p class="small muted" style="margin-top:4px">Peça o seu acesso ao app da Nexos. Assim que o treinador aprovar, o login e a senha chegam no e-mail que você registrou:</p>
-          <div class="acesso-mail">${I.mail}<b>${esc(d.email)}</b><span class="tag ok">registrado</span></div>
-          <button class="btn block mail-btn" id="receber" style="margin-top:12px">${I.mail} Pedir meu acesso</button>
-          <p class="tiny dim" style="margin-top:8px">O e-mail está errado? Fale com o seu treinador pelo WhatsApp.</p></div>` : ''}`;
-      const rb = document.getElementById('receber');
-      if (rb) rb.onclick = async () => {
-        rb.disabled = true; rb.textContent = 'Enviando o pedido…';
+        ${env && env.resposta ? `<div class="card acesso-card" id="acesso-card" style="margin-top:14px"><div class="center"><div class="h3">Enviando o seu pedido de acesso…</div></div></div>` : ''}`;
+      // o pedido de acesso sai sozinho junto com a ficha (antes dependia de mais um toque e muita gente saía da página)
+      const pedir = async () => {
+        const box = document.getElementById('acesso-card'); if (!box) return;
         try {
           const r = await chamarForm({ acao: 'criar_acesso', token, resposta: env.resposta });
-          const box = document.getElementById('acesso-card');
           box.innerHTML = r.pendente
-            ? `<div class="center"><div style="font-size:2rem">⏳</div><div class="h3" style="margin-top:6px">Pedido enviado!</div><p class="small muted" style="margin:6px 0 4px">Assim que o seu treinador aprovar, o login e a senha chegam em <b>${esc(r.email)}</b>.</p><p class="tiny dim" style="margin-bottom:4px">Se não aparecer, olhe também no Spam ou em Promoções.</p></div>`
+            ? `<div class="center"><div style="font-size:2rem">⏳</div><div class="h3" style="margin-top:6px">Pedido de acesso enviado!</div><p class="small muted" style="margin:6px 0 4px">Assim que o seu treinador aprovar, o login e a senha do app chegam em <b>${esc(r.email)}</b>.</p><p class="tiny dim">Pode fechar esta página. Se o e-mail não aparecer, olhe também no Spam ou em Promoções.</p></div>`
             : r.senha
-            ? `<div class="center"><div style="font-size:2rem">✅</div><div class="h3" style="margin-top:6px">Acesso criado!</div><p class="small muted" style="margin:6px 0 12px">Não conseguimos enviar o e-mail agora. Anote os seus dados:</p></div><div class="cred">E-mail: <b>${esc(r.email)}</b><br>Senha: <b>${esc(r.senha)}</b></div><a class="btn block" href="${esc(loginURL())}" style="margin-top:12px">Entrar no app</a>`
-            : `<div class="center"><div style="font-size:2rem">📬</div><div class="h3" style="margin-top:6px">${r.existente || r.ja ? 'Você já tem acesso!' : 'Pronto! Confira o seu e-mail'}</div><p class="small muted" style="margin:6px 0 12px">${r.existente || r.ja ? `Entre no app com <b>${esc(r.email)}</b> e a senha que você já usa.` : `Enviamos o seu login e a sua senha para <b>${esc(r.email)}</b>. Se não aparecer em alguns minutos, olhe também no Spam ou em Promoções.`}</p></div><a class="btn block" href="${esc(loginURL())}">Ir para o app</a>`;
-        } catch (er) { rb.disabled = false; rb.innerHTML = `${I.mail} Tentar de novo`; toast(er.message, true); }
+            ? `<div class="center"><div style="font-size:2rem">✅</div><div class="h3" style="margin-top:6px">Acesso criado!</div><p class="small muted" style="margin:6px 0 12px">Anote os seus dados:</p></div><div class="cred">E-mail: <b>${esc(r.email)}</b><br>Senha: <b>${esc(r.senha)}</b></div><a class="btn block" href="${esc(loginURL())}" style="margin-top:12px">Entrar no app</a>`
+            : `<div class="center"><div style="font-size:2rem">📬</div><div class="h3" style="margin-top:6px">Você já tem acesso!</div><p class="small muted" style="margin:6px 0 12px">Entre no app com <b>${esc(r.email)}</b> e a senha que você já usa.</p></div><a class="btn block" href="${esc(loginURL())}">Ir para o app</a>`;
+        } catch (er) {
+          box.innerHTML = `<div class="center"><div class="h3">Falta só um passo</div><p class="small muted" style="margin:6px 0 12px">${esc(er.message || 'Não conseguimos enviar o pedido de acesso agora.')}</p></div><button class="btn block mail-btn" id="receber">${I.mail} Pedir meu acesso de novo</button>`;
+          box.querySelector('#receber').onclick = () => { box.innerHTML = '<div class="center"><div class="h3">Enviando…</div></div>'; pedir(); };
+        }
       };
+      if (env && env.resposta) pedir();
     } catch (err) { btn.disabled = false; btn.textContent = 'Enviar ficha'; toast(err.message, true); }
   };
 }
