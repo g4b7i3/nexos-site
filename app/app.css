@@ -1115,3 +1115,12 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .niv-tabs button b{font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 @media(max-width:420px){.niv-tabs button b{font-size:.8rem}}
 .colar-btn{background:linear-gradient(135deg,#16a34a,#15803d)!important;color:#fff!important}
+/* Meus Atletas: uma semana, maior */
+.sem3.so1{grid-template-columns:1fr}
+.so1 .sem1{gap:4px;padding:6px 4px;background:rgba(2,132,199,.05)}
+.so1 .pt{gap:4px}
+.so1 .pt small{font-size:.66rem}
+.so1 .pt i{width:22px;height:22px}
+.so1 .pt em{font-style:normal;font-size:.68rem;color:var(--mute);font-weight:700;line-height:1}
+.so1 .pt.hoje em{color:var(--acc)}
+.so1 .pt.hoje i{box-shadow:0 0 0 3px rgba(2,132,199,.35)}

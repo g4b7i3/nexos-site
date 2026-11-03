@@ -3146,9 +3146,9 @@ async function contarNaoVistos() {
 async function staffAlunos() {
   loading();
   const st0 = S.cache.atl || (S.cache.atl = { off: 0, q: '', f: 'ativos', dono: null, modo: 'corrida' }); if (!st0.modo) st0.modo = 'corrida';
-  const ini = inicioSemana(); ini.setDate(ini.getDate() + (st0.off - 1) * 7);
-  const dias = Array.from({ length: 21 }, (_, i) => { const d = new Date(ini); d.setDate(ini.getDate() + i); return isoDia(d); });
-  const de = dias[0], ate = dias[20], hoje = hojeISO();
+  const ini = inicioSemana(); ini.setDate(ini.getDate() + st0.off * 7);
+  const dias = Array.from({ length: 7 }, (_, i) => { const d = new Date(ini); d.setDate(ini.getDate() + i); return isoDia(d); });
+  const de = dias[0], ate = dias[6], hoje = hojeISO();
   const [{ data: membros, error }, sess, , , , fimPl, plano, corrs, provas, trDias] = await Promise.all([
     sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 600), contarNaoVistos(), contarMsgNovas(),
@@ -3181,25 +3181,25 @@ async function staffAlunos() {
     const md = mapa[id] || {};
     if (st0.modo === 'forca') {
       const fd = fDias[id] || new Set();
-      return `<div class="sem3">${[0, 1, 2].map((w) => `<div class="sem1 ${dias[w * 7] <= hoje && hoje <= dias[w * 7 + 6] ? 'atual' : ''}">${dias.slice(w * 7, w * 7 + 7).map((k, i) => {
+      return `<div class="sem3 so1"><div class="sem1">${dias.map((k, i) => {
         const x = md[k] || {}; let c = 'vazio', t = 'Sem treino';
         if (fd.has(i)) { const feito = (x.mu || 0) >= 1; c = feito ? 'feito' : k < hoje ? 'perdeu' : 'plan'; t = feito ? 'Treino feito' : k < hoje ? 'Treino não feito' : 'Treino planejado'; }
         else if (x.mu) { c = 'extra'; t = 'Treino fora do dia'; }
-        return `<span class="pt ${c} ${k === hoje ? 'hoje' : ''}" title="${rot(k)} · ${t}"><i></i><small>${'STQQSSD'[i]}</small></span>`;
-      }).join('')}</div>`).join('')}</div>`;
+        return `<span class="pt ${c} ${k === hoje ? 'hoje' : ''}" title="${rot(k)} · ${t}"><small>${'STQQSSD'[i]}</small><i></i><em>${dia(k).getDate()}</em></span>`;
+      }).join('')}</div></div>`;
     }
-    return `<div class="sem3">${[0, 1, 2].map((w) => `<div class="sem1 ${dias[w * 7] <= hoje && hoje <= dias[w * 7 + 6] ? 'atual' : ''}">${dias.slice(w * 7, w * 7 + 7).map((k, i) => {
+    return `<div class="sem3 so1"><div class="sem1">${dias.map((k, i) => {
       const x = md[k] || {}; let c = 'vazio', t = 'Sem treino';
       if (x.pr) { c = 'prova'; t = 'Prova'; }
       else if (x.pl) { const feito = (x.co || 0) >= 1; c = feito ? 'feito' : k < hoje ? 'perdeu' : 'plan'; t = feito ? 'Corrida feita' : k < hoje ? 'Treino não feito' : 'Treino planejado'; }
       else if (x.co || x.mu) { c = 'extra'; t = x.co ? 'Corrida' : 'Musculação'; }
-      return `<span class="pt ${c} ${k === hoje ? 'hoje' : ''}" title="${rot(k)} · ${t}"><i></i><small>${'STQQSSD'[i]}</small></span>`;
-    }).join('')}</div>`).join('')}</div>`;
+      return `<span class="pt ${c} ${k === hoje ? 'hoje' : ''}" title="${rot(k)} · ${t}"><small>${'STQQSSD'[i]}</small><i></i><em>${dia(k).getDate()}</em></span>`;
+    }).join('')}</div></div>`;
   };
   $app.innerHTML = `
     <div class="row between" style="gap:10px;flex-wrap:wrap"><div><p class="eyebrow">Gestão de atletas</p><h1 class="h1">Meus Atletas</h1></div><button class="btn sm" id="novo">${I.plus} Novo aluno</button></div>
     <div class="atl-top">
-      <div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semanas anteriores">${I.back}</button><button class="btn ghost sm" id="sem-h">${rot(de)} a ${rot(ate)}</button><button class="icon-btn sm" id="sem-p" aria-label="Próximas semanas" style="transform:scaleX(-1)">${I.back}</button></div>
+      <div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${st0.off === 0 ? 'Esta semana' : st0.off === -1 ? 'Semana passada' : st0.off === 1 ? 'Próxima semana' : `${rot(de)} a ${rot(ate)}`}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
       <div class="seg" id="dono"><button type="button" data-d="meus" class="${st0.dono === 'meus' ? 'on' : ''}">Meus (${meus.filter((m) => m.ativo).length})</button><button type="button" data-d="todos" class="${st0.dono === 'todos' ? 'on' : ''}">Todos (${ativos.length})</button></div>
     </div>
     <div class="subtabs mod-tabs" id="modo" style="margin-top:12px"><button type="button" data-m="corrida" class="${st0.modo === 'corrida' ? 'on' : ''}">${I.run} Corrida</button><button type="button" data-m="forca" class="${st0.modo === 'forca' ? 'on' : ''}">${I.lib} Força</button></div>
