@@ -1183,6 +1183,7 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .rm-cargas span{flex:1;min-width:0}
 .rm-cargas b{font-family:var(--f-m)}
 .rm-cargas em{font-style:normal;font-weight:800;color:#15803d;font-size:.78rem}
+.rm-cargas em.nv{color:#5b6b88;font-weight:700}
 .rm-msg{margin-top:18px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,#0b1834,#1b2c55);color:#fff}
 .rm-msg span{font-family:var(--f-m);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:#46d6ff}
 .rm-msg p{margin:6px 0 4px;font-size:.95rem;line-height:1.45;white-space:pre-line}
