@@ -1229,3 +1229,8 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 @keyframes spFade{to{opacity:1}}
 @keyframes spBar{to{width:100%}}
 @media (prefers-reduced-motion:reduce){.nx-splash .splash-logo{animation:spIn .01s forwards}.nx-splash .splash-ring,.nx-splash .splash-shine{animation:none}}
+.outro-rel>summary{cursor:pointer;list-style:none;font-size:.85rem;font-weight:700;color:var(--mute);padding:10px 2px}
+.outro-rel>summary::-webkit-details-marker{display:none}
+.outro-rel>summary::after{content:" ›";}
+.outro-rel[open]>summary::after{content:" ⌄"}
+.garmin-card.on{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
