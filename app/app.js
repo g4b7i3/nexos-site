@@ -702,8 +702,8 @@ function constanciaHTML(datas, titulo = 'Sua constância') {
 }
 async function alunoHistorico(aba) {
   loading();
-  const abasH = [['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => k !== 'corrida' || faz('corrida'));
-  const INFO = { treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
+  const abasH = [['relatorio', 'Relatório'], ['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => k !== 'corrida' || faz('corrida'));
+  const INFO = { relatorio: [I.ficha, 'Relatório do mês', 'Seu resumo mensal em PDF'], treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
   if (!aba || !abasH.some(([k]) => k === aba)) {
     const [ses, cor] = await Promise.all([buscarSessoes(S.user.id, 200), sb.from('nx_corridas').select('data').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 60 * 864e5)).then((r) => r.data || []).catch(() => [])]);
     const datas = [...ses.map((x) => x.iniciado_em), ...cor.map((c) => c.data)];
@@ -714,6 +714,7 @@ async function alunoHistorico(aba) {
   }
   const head = `<a class="back" href="#/historico">${I.back} Evolução</a><div class="sec-tit"><span class="st-ic">${INFO[aba][0]}</span><div><p class="eyebrow">Sua evolução</p><h1 class="h2">${INFO[aba][1]}</h1></div></div>`;
   const bindTabs = () => {};
+  if (aba === 'relatorio') { $app.innerHTML = head + '<div id="relm"></div>'; return relatorioMes(S.user.id, document.getElementById('relm'), false, S.me); }
   if (aba === 'cargas') {
     const grupos = agruparCargas(await buscarRegistros(S.user.id));
     $app.innerHTML = head + `<div id="cargas">${cargasHTML(grupos, false)}</div>`; bindTabs(); bindCargas(document.getElementById('cargas'), grupos); return;
@@ -2184,6 +2185,97 @@ function estruturaDe(p) {
   return [];
 }
 
+/* ---------- relatório mensal do aluno (PDF para mandar no WhatsApp) ---------- */
+async function relatorioMes(alunoId, box, staff, m) {
+  const st = S.cache.relM || (S.cache.relM = { comp: compDe(), msg: '' });
+  const [y, mm] = st.comp.split('-').map(Number);
+  const ini = isoDia(new Date(y, mm - 1, 1, 12)), fim = isoDia(new Date(y, mm, 0, 12));
+  const iniAnt = isoDia(new Date(y, mm - 2, 1, 12)), fimAnt = isoDia(new Date(y, mm - 1, 0, 12));
+  box.innerHTML = '<div class="boot-bar" style="margin:30px auto"><i></i></div>';
+  const ate = (d) => d + 'T23:59:59';
+  const [corrs, corrsAnt, sess, sessAnt, plano, regs, provas] = await Promise.all([
+    sb.from('nx_corridas').select('data,distancia_m,duracao_s,plano_id').eq('aluno_id', alunoId).gte('data', ini).lte('data', ate(fim)).order('data').then((r) => r.data || []).catch(() => []),
+    sb.from('nx_corridas').select('data,distancia_m').eq('aluno_id', alunoId).gte('data', iniAnt).lte('data', ate(fimAnt)).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_sessoes').select('iniciado_em,treino_titulo').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', ini).lte('iniciado_em', ate(fim)).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_sessoes').select('iniciado_em').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', iniAnt).lte('iniciado_em', ate(fimAnt)).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_plano_corrida').select('id,data,tipo,liberado').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => (r.data || []).filter((p) => p.tipo !== 'folga' && p.liberado !== false)).catch(() => []),
+    sb.from('nx_registros').select('exercicio_nome,carga_kg,criado_em').eq('aluno_id', alunoId).not('carga_kg', 'is', null).lte('criado_em', ate(fim)).order('criado_em').limit(3000).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => r.data || []).catch(() => []),
+  ]);
+  const km = corrs.reduce((a, c) => a + c.distancia_m, 0) / 1000, kmAnt = corrsAnt.reduce((a, c) => a + c.distancia_m, 0) / 1000;
+  const diasT = new Set([...corrs.map((c) => isoDia(c.data)), ...sess.map((x) => isoDia(x.iniciado_em))]).size;
+  const diasAnt = new Set([...corrsAnt.map((c) => isoDia(c.data)), ...sessAnt.map((x) => isoDia(x.iniciado_em))]).size;
+  const feitosPl = plano.filter((p) => corrs.some((c) => c.plano_id === p.id)).length;
+  const ader = plano.length ? Math.round((feitosPl / plano.length) * 100) : null;
+  // km e pace por semana do mês
+  const semanas = []; for (let d = inicioSemana(dia(ini)); isoDia(d) <= fim; d.setDate(d.getDate() + 7)) semanas.push(isoDia(d));
+  const porSem = semanas.map((s0) => { const s1 = isoDia(dia(s0).getTime() + 6 * 864e5); const l = corrs.filter((c) => isoDia(c.data) >= s0 && isoDia(c.data) <= s1); const dist = l.reduce((a, c) => a + c.distancia_m, 0); const t = l.filter((c) => c.distancia_m >= 2500).reduce((a, c) => [a[0] + c.duracao_s, a[1] + c.distancia_m], [0, 0]); return { s0, km: dist / 1000, pace: t[1] ? t[0] / (t[1] / 1000) : null }; });
+  const maxKm = Math.max(5, ...porSem.map((x) => x.km));
+  const longa = corrs.reduce((a, c) => (!a || c.distancia_m > a.distancia_m ? c : a), null);
+  const rapida = corrs.filter((c) => c.distancia_m >= 3000).reduce((a, c) => (!a || paceDe(c) < paceDe(a) ? c : a), null);
+  // cargas: melhor carga no mês x antes do mês
+  const porEx = {}; regs.forEach((r) => { const n = r.exercicio_nome || 'Exercício'; const e = (porEx[n] = porEx[n] || { antes: 0, mes: 0, vezes: 0 }); const c = +r.carga_kg || 0; if (isoDia(r.criado_em) >= ini) { e.mes = Math.max(e.mes, c); e.vezes++; } else e.antes = Math.max(e.antes, c); });
+  const cargas = Object.entries(porEx).filter(([, e]) => e.mes > 0).sort((a, b) => (b[1].mes - b[1].antes) - (a[1].mes - a[1].antes) || b[1].vezes - a[1].vezes).slice(0, 5);
+  const delta = (a, b, un = '') => { if (!b) return ''; const d = a - b; if (Math.abs(d) < 0.05) return '<span class="rm-d">igual ao mês anterior</span>'; return `<span class="rm-d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${un === 'km' ? f1(Math.abs(d)) + ' km' : Math.abs(Math.round(d))} vs. mês anterior</span>`; };
+  const treinador = (await carregarEquipe()).find((p) => p.user_id === (m.treinador_id || S.user.id));
+  const nomeMesTxt = nomeMes(st.comp);
+  const fC = faz('corrida', m), fM = faz('musculacao', m);
+  box.innerHTML = `
+    <div class="rm-bar"><div class="row" style="gap:6px"><button class="icon-btn sm" id="rm-a" aria-label="Mês anterior">${I.back}</button><b class="rm-mes">${nomeMesTxt}</b><button class="icon-btn sm" id="rm-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
+      <div class="row" style="gap:6px"><button class="btn sm" id="rm-pdf">${I.ficha} ${staff ? 'Gerar PDF' : 'Baixar PDF'}</button></div></div>
+    ${staff ? `<label class="field" style="margin-top:12px"><span>Mensagem do treinador (vai no relatório)</span><textarea class="textarea" id="rm-msg" placeholder="Ex.: Mês muito consistente! Agora é manter os longões e caprichar no sono.">${esc(st.msg)}</textarea></label>` : ''}
+    <div class="rm-folha" id="rm-folha">
+      <div class="rm-top"><img src="icons/simbolo-escuro.svg" alt="Nexos"><div><span class="rm-ey">Relatório mensal</span><b>${nomeMesTxt}</b></div></div>
+      <div class="rm-aluno">${fotoHTML(m, 'md')}<div><h2>${esc(m.nome || '')}</h2><span>${m.objetivo ? 'Objetivo: ' + esc(m.objetivo) : 'Nexos Performance e Saúde'}</span></div></div>
+      <div class="rm-nums">
+        ${fC ? `<div><b>${f1(km)}</b><span>km corridos</span>${delta(km, kmAnt, 'km')}</div><div><b>${corrs.length}</b><span>corridas</span></div>` : ''}
+        ${fM ? `<div><b>${sess.length}</b><span>treinos de força</span></div>` : ''}
+        <div><b>${diasT}</b><span>dias treinados</span>${delta(diasT, diasAnt)}</div>
+        ${fC && ader != null ? `<div><b>${ader}%</b><span>da planilha cumprida</span></div>` : ''}
+      </div>
+      ${fC && corrs.length ? `<div class="rm-sec"><h3>Quilômetros por semana</h3><div class="rm-barras">${porSem.map((x) => `<div><i style="height:${Math.max(3, (x.km / maxKm) * 100)}%"></i><b>${f1(x.km)}</b><small>${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small></div>`).join('')}</div></div>
+      <div class="rm-sec"><h3>Pace médio por semana</h3><div class="rm-paces">${porSem.filter((x) => x.pace).map((x) => `<div><small>semana de ${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small><b>${fmtPace(x.pace)}</b></div>`).join('') || '<p class="small muted">Sem corridas de 2,5 km ou mais no mês.</p>'}</div></div>
+      <div class="rm-sec"><h3>Destaques</h3><ul class="rm-dest">${longa ? `<li>Corrida mais longa: <b>${fmtKm(longa.distancia_m, 1)}</b> em ${fmtDia(longa.data)}</li>` : ''}${rapida ? `<li>Melhor pace (3 km ou mais): <b>${fmtPace(paceDe(rapida))}</b> em ${fmtDia(rapida.data)}</li>` : ''}${provas.map((p) => `<li>🏁 Prova: <b>${esc(p.titulo)}</b>${p.distancia ? ' · ' + esc(p.distancia) : ''}</li>`).join('')}</ul></div>` : ''}
+      ${fM && cargas.length ? `<div class="rm-sec"><h3>Evolução de cargas</h3><div class="rm-cargas">${cargas.map(([n, e]) => `<div><span>${esc(n)}</span><b>${e.antes ? `${fmtKg(e.antes)} → ` : ''}${fmtKg(e.mes)}</b>${e.antes && e.mes > e.antes ? `<em>+${fmtKg(e.mes - e.antes)}</em>` : ''}</div>`).join('')}</div></div>` : ''}
+      ${!corrs.length && !sess.length ? '<p class="small muted" style="margin:14px 0">Nenhum treino registrado neste mês.</p>' : ''}
+      <div class="rm-msg" id="rm-msg-out" ${st.msg ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(st.msg)}</p>${treinador ? `<b>${esc(firstName(treinador.nome))}</b>` : ''}</div>
+      <div class="rm-pe">Nexos Performance e Saúde · ${esc(CONTATO.insta)} · São Luís–MA</div>
+    </div>`;
+  const re = () => relatorioMes(alunoId, box, staff, m);
+  box.querySelector('#rm-a').onclick = () => { st.comp = somaMes(st.comp, -1); re(); };
+  box.querySelector('#rm-p').onclick = () => { st.comp = somaMes(st.comp, 1); re(); };
+  const msg = box.querySelector('#rm-msg'); if (msg) msg.oninput = () => { st.msg = msg.value; const o = box.querySelector('#rm-msg-out'); o.hidden = !st.msg.trim(); o.querySelector('p').textContent = st.msg; };
+  box.querySelector('#rm-pdf').onclick = async (e) => {
+    const b = e.currentTarget; b.disabled = true; const txt = b.innerHTML; b.textContent = 'Gerando…';
+    try {
+      if (!window.html2pdf) await new Promise((ok, erro) => { const sc = document.createElement('script'); sc.src = (window.NX_DEMO && window.NX_VENDOR) || new URL('vendor/html2pdf.bundle.min.js', document.baseURI).href; sc.onload = ok; sc.onerror = erro; document.head.appendChild(sc); });
+      // o gerador de PDF não desenha SVG: troca a logo por PNG antes
+      for (const im of box.querySelectorAll('#rm-folha img')) {
+        if (!/svg/i.test(im.src)) continue;
+        const w = im.clientWidth || 80, h = im.clientHeight || 34, cv = document.createElement('canvas'); cv.width = w * 3; cv.height = h * 3;
+        await new Promise((ok) => { const t = new Image(); t.onload = () => { cv.getContext('2d').drawImage(t, 0, 0, cv.width, cv.height); ok(); }; t.onerror = ok; t.src = im.src; });
+        im.style.width = w + 'px'; im.style.height = h + 'px'; im.src = cv.toDataURL('image/png');
+      }
+      const nomeArq = `Relatorio-Nexos-${firstName(m.nome || 'aluno')}-${st.comp}.pdf`;
+      const folha = box.querySelector('#rm-folha'); folha.classList.add('rm-print'); // no celular, gera no tamanho de uma folha A4
+      let blob; try { blob = await window.html2pdf().set({ margin: 0, filename: nomeArq, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 900 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(folha).outputPdf('blob'); } finally { folha.classList.remove('rm-print'); }
+      const arq = new File([blob], nomeArq, { type: 'application/pdf' });
+      if (staff) {
+        const tel = telWa(m.telefone);
+        openSheet(`<p class="eyebrow">Relatório de ${esc(nomeMesTxt)}</p><div class="h2" style="margin-top:4px">PDF pronto</div><p class="small muted" style="margin-top:6px">Compartilhe direto no WhatsApp do aluno ou baixe o arquivo.</p>
+          <div class="stack" style="margin-top:14px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="rm-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
+          <button class="btn ghost block" id="rm-down">Baixar o PDF</button>
+          ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o seu relatório de ${nomeMesTxt} da Nexos 💪`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>
+          <p class="tiny dim" style="margin-top:10px">No computador: baixe o PDF, abra a conversa e arraste o arquivo para o WhatsApp.</p>`, (r) => {
+          const sh = r.querySelector('#rm-share'); if (sh) sh.onclick = () => navigator.share({ files: [arq], title: nomeArq, text: `Relatório de ${nomeMesTxt} · Nexos` }).catch(() => {});
+          r.querySelector('#rm-down').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nomeArq; a.click(); };
+        });
+      } else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nomeArq; a.click(); toast('PDF baixado!'); }
+    } catch (err) { console.error(err); toast('Não foi possível gerar o PDF. Tente de novo.', true); }
+    b.disabled = false; b.innerHTML = txt;
+  };
+}
+
 /* ---------- guia rápido da planilha (primeira vez) ---------- */
 function guiaPlanilha() {
   const toque = matchMedia('(pointer:coarse)').matches;
@@ -3363,6 +3455,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['corrida', 'Corrida', icCorr(m), 'Planilha e evolução', fC],
     ['historico', 'Feedbacks', I.feed, `${sess.length} treino${sess.length === 1 ? '' : 's'} registrados`, true],
     ['cargas', 'Evolução de cargas', I.hist, 'Progressão por exercício', fM],
+    ['relmes', 'Relatório do mês', I.ficha, 'PDF para mandar ao aluno', true],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
     ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],
     ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? '⚠️ PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
@@ -3383,6 +3476,8 @@ async function staffAluno(alunoId, aba, extra) {
       <div class="card ov-card"><div class="row between"><b>Engajamento</b><span class="tag ${st[1]}">${st[0]}</span></div>
         <div class="ov-num"><div><span>Último treino há</span><b>${diasSem == null ? '–' : diasSem === 0 ? 'hoje' : diasSem + (diasSem === 1 ? ' dia' : ' dias')}</b></div><div><span>Frequência média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x semana</b></div></div></div>
       <div class="sec-grid">${SECOES.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`;
+  } else if (aba === 'relmes') {
+    corpo = '<div id="relm"></div>';
   } else if (aba === 'forca') {
     const ultData = (t) => sess.filter((x) => x.treino_id === t.id);
     const fst = S.cache.fsem || (S.cache.fsem = { off: 0 }); const ini = inicioSemana(); ini.setDate(ini.getDate() + fst.off * 7);
@@ -3472,6 +3567,7 @@ async function staffAluno(alunoId, aba, extra) {
   if (aba === 'fotos') await viewFotos(alunoId, document.getElementById('fotos'), true);
   const dispEd = document.getElementById('disp-ed'); if (dispEd) dispEd.onclick = () => editarDisponibilidade(m, () => silencioso(() => staffAluno(alunoId, aba)));
   if (aba === 'corrida') await viewCorridaPainel(alunoId, document.getElementById('corr'), true, m);
+  if (aba === 'relmes') await relatorioMes(alunoId, document.getElementById('relm'), true, m);
   if (aba === 'forca') {
     const fst = S.cache.fsem; const re = () => silencioso(() => staffAluno(alunoId, 'forca'));
     document.getElementById('fs-a').onclick = () => { fst.off -= 1; re(); };
