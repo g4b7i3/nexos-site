@@ -82,6 +82,7 @@ const I = {
   money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>',
   run: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="16.4" cy="3.9" r="2.2" fill="currentColor" stroke="none"/><path d="M14.8 7.4 12.7 13"/><path d="M14.5 8.1 11.2 8.1 9.3 10.6"/><path d="M14.5 8.1 16.6 11.4 19.6 10.3"/><path d="M12.7 13 15.6 16.3 13.6 20.6"/><path d="M12.7 13 10.5 16.1 7.2 14.4"/><path d="M3.2 7.4h3.6M2 10.4h4M3.2 13.4h2.6" stroke-width="2"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  watch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg>',
   flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
   today: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.6" fill="currentColor"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -167,6 +168,7 @@ const dockAluno = () => setDock([
   { href: '#/historico', match: ['#/historico', '#/avaliacao', '#/corrida', '#/relatorio'], icon: I.hist, label: 'Evolução' },
   ...(faz('corrida') ? [{ href: '#/eventos', match: ['#/eventos'], icon: I.flag, label: 'Eventos' }] : []),
   { href: '#/conversa', match: ['#/conversa'], icon: I.feed, label: 'Treinador', badge: S.cache.msgNovas || '' },
+  { href: '#/conexoes', match: ['#/conexoes'], icon: I.watch, label: 'Conexões' },
 ]);
 const dockStaff = () => setDock([
   { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: S.cache.naoVistos || '' },
@@ -227,6 +229,7 @@ async function router() {
     if (a === 'eventos' && faz('corrida')) return await viewEventos(b);
     if (a === 'relatorio' && b) return await viewRelatorio(b);
     if (a === 'conversa') return await viewConversa(S.user.id, $app, false);
+    if (a === 'conexoes') return await viewConexoes(b);
     if (a === 'postural' && b) return await viewPostural(b);
     if (a === 'corrida' && b) return await viewCorrida(b);
     if (a === 'saude') return await viewAnamnese({});
@@ -752,6 +755,7 @@ async function alunoHistorico(aba) {
   }
   if (aba === 'corrida') {
     $app.innerHTML = head + '<div id="corr"></div>'; bindTabs();
+    if (/\/(garmin-ok|garmin-erro|ok|erro)$/.test(location.hash)) { location.replace(location.pathname + '#/conexoes/' + location.hash.split('/').pop()); return; }
     if (/\/garmin-(ok|erro)$/.test(location.hash)) { const ok = location.hash.endsWith('-ok'); toast(ok ? 'Garmin conectado! Suas próximas corridas chegam sozinhas.' : 'Não foi possível conectar o Garmin. Tente de novo.', !ok); history.replaceState(null, '', location.pathname + '#/historico/corrida'); }
     else if (/\/(ok|erro)$/.test(location.hash)) { toast(location.hash.endsWith('/ok') ? 'Intervals.icu conectado! Buscando suas corridas…' : 'Não foi possível conectar o Intervals.icu.', !location.hash.endsWith('/ok')); history.replaceState(null, '', location.pathname + '#/historico/corrida'); S.cache.semCorr = { off: 0, sub: 'corridas', aluno: S.user.id }; }
     await viewCorridaPainel(S.user.id, document.getElementById('corr'), false, S.me, ['evolucao', 'corridas', 'ritmos']); return;
@@ -2558,7 +2562,7 @@ function verTreinoPlanilha(p, perfil, feito) {
       sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) g.hidden = false; }).catch(() => {});
       g.onclick = async () => {
         g.disabled = true; g.textContent = 'Enviando…';
-        try { const res = await enviarGarmin(S.user.id, [p], perfil); if (res.enviados) { p.garmin_enviado_em = new Date().toISOString(); g.innerHTML = `${RELOGIO_IC} No seu Garmin ✓`; toast('Treino enviado! Sincronize o relógio para ele aparecer.'); } else { g.disabled = false; g.textContent = 'Tentar de novo'; toast(res.sem_garmin ? 'Conecte o Garmin na aba Evolução › Corrida.' : 'Não consegui enviar agora. Tente de novo.', true); } }
+        try { const res = await enviarGarmin(S.user.id, [p], perfil); if (res.enviados) { p.garmin_enviado_em = new Date().toISOString(); g.innerHTML = `${RELOGIO_IC} No seu Garmin ✓`; toast('Treino enviado! Sincronize o relógio para ele aparecer.'); } else { g.disabled = false; g.textContent = 'Tentar de novo'; toast(res.sem_garmin ? 'Conecte o Garmin na aba Conexões.' : 'Não consegui enviar agora. Tente de novo.', true); } }
         catch (er) { g.disabled = false; g.textContent = 'Tentar de novo'; toast(er.message, true); }
       };
     }
@@ -2754,7 +2758,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     corpo = `${staff ? '' : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}
       ${corridas.length ? `<div class="stack" style="margin-top:12px">${corridas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span></div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${corridas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:10px">Ver todas as ${corridas.length} corridas</button>` : ''}`
         : `<div class="empty" style="margin-top:12px"><div class="h3">Nenhuma corrida registrada</div><p class="small">${staff ? 'As corridas do aluno aparecem aqui.' : 'Depois de correr, toque em “Registrar corrida”. Dá para enviar o arquivo do relógio.'}</p></div>`}
-      <div class="section"><div class="section-h"><h2 class="h2">Relógio conectado</h2>${slashes}</div><div id="garmin-box">${garminCardHTML(garm, staff)}</div>${garm && !integ ? '' : `<div id="intervals-box" style="margin-top:10px">${integ || staff ? intervalsCardHTML(integ, staff) : `<details class="outro-rel"><summary>Usa Coros, Polar, Suunto ou outro relógio?</summary>${intervalsCardHTML(integ, staff)}</details>`}</div>`}</div>`;
+      ${staff ? `<p class="small muted" style="margin-top:14px">${I.watch.replace('<svg', '<svg class="rel-ic"')} ${garm ? 'Garmin conectado: as corridas chegam sozinhas e os treinos liberados vão para o relógio.' : integ ? 'Relógio conectado pelo Intervals.icu.' : 'O aluno ainda não conectou um relógio (ele faz isso na aba Conexões).'}</p>` : `<a class="list-item" href="#/conexoes" style="margin-top:14px">${I.watch}<div class="grow"><b>${garm || integ ? 'Relógio conectado ✓' : 'Conectar o seu relógio'}</b><div class="small muted">${garm || integ ? 'Gerencie na aba Conexões' : 'Garmin, Coros, Polar e outros: as corridas chegam sozinhas'}</div></div>${I.chev}</a>`}`;
   } else {
     const ZT = [['rec', 'Z1 · Recuperação (trote)'], ...ZONAS_PACE];
     const faixaDe = (k) => (perfil.paces && perfil.paces[k]) || (k === 'rec' && perfil.paces && perfil.paces.leve ? [Math.round(perfil.paces.leve[1] * 1.08), Math.round(perfil.paces.leve[1] * 1.16)] : [ZONAS_INFO[k].pd - 10, ZONAS_INFO[k].pd + 10]);
@@ -2934,6 +2938,30 @@ function intervalsCardHTML(integ, staff) {
     <button class="btn sm" id="int-on" style="margin-top:10px">Conectar Intervals.icu</button>
     <p class="tiny dim" style="margin-top:8px">Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.</p></div>`;
 }
+/* ---------- aba Conexões (aluno): relógios e apps ---------- */
+async function viewConexoes(ret) {
+  loading(); dockAluno();
+  const integs = await sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em').eq('user_id', S.user.id).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []);
+  const integ = integs.find((x) => x.provedor === 'intervals') || null, garm = integs.find((x) => x.provedor === 'garmin') || null;
+  if (ret) {
+    const ok = /ok$/.test(ret), g = ret.startsWith('garmin');
+    toast(g ? (ok ? 'Garmin conectado! Suas corridas chegam sozinhas e os treinos vão para o relógio.' : 'Não foi possível conectar o Garmin. Tente de novo.') : (ok ? 'Intervals.icu conectado! Buscando suas corridas…' : 'Não foi possível conectar o Intervals.icu.'), !ok);
+    history.replaceState(null, '', location.pathname + '#/conexoes');
+  }
+  $app.innerHTML = `
+    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
+    <p class="eyebrow">Conexões</p><h1 class="h1">Seus aparelhos</h1>
+    <p class="muted" style="margin-top:6px">Conecte o seu relógio uma vez: as corridas entram sozinhas no app${garm ? ' e os treinos da planilha vão para o relógio' : ''}.</p>
+    <div class="section"><div class="section-h"><h2 class="h2">Garmin</h2>${slashes}</div><div id="garmin-box">${garminCardHTML(garm, false)}</div></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Outros relógios</h2>${slashes}</div><p class="small muted" style="margin:-4px 0 10px">Coros, Polar, Suunto, Wahoo e outros, pelo Intervals.icu (gratuito).</p><div id="intervals-box">${intervalsCardHTML(integ, false).replace('Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.', 'Tem Garmin? Use a conexão Garmin acima, que é direta e oficial.')}</div></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Sem conexão?</h2>${slashes}</div><button class="list-item" id="cx-arq" style="width:100%;text-align:left"><span class="ativ-ic">${I.plus}</span><div class="grow"><b>Enviar o arquivo do relógio</b><div class="small muted">.FIT, .GPX ou .TCX, ou digite distância e tempo</div></div>${I.chev}</button></div>`;
+  const recarregar = () => viewConexoes();
+  bindGarmin(document.getElementById('garmin-box'), recarregar);
+  bindIntervals(document.getElementById('intervals-box'), integ, false, S.user.id, recarregar);
+  document.getElementById('cx-arq').onclick = () => registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; });
+  if (integ && (!integ.ultima_sync || Date.now() - new Date(integ.ultima_sync) > 30 * 60000)) sincronizarIntervals(S.user.id).then((n) => { if (n > 0) toast(`${n} corrida${n > 1 ? 's' : ''} nova${n > 1 ? 's' : ''} do relógio`); }).catch(() => {});
+}
+
 /* ---------- Garmin Connect (conexão oficial) ---------- */
 const RELOGIO_IC = '<svg class="rel-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg>';
 /** converte um treino da planilha para o formato de passos enviado ao Garmin */
@@ -2968,7 +2996,7 @@ async function enviarGarmin(alunoId, planos, perfil) {
 }
 function garminCardHTML(g, staff) {
   if (g) return `<div class="card garmin-card on"><div class="row between" style="gap:12px"><div style="min-width:0"><b>Garmin conectado ✓</b><p class="small muted">${g.erro ? `<span style="color:var(--warn)">${esc(g.erro)}</span>` : g.ultima_sync ? 'Última corrida recebida ' + quando(g.ultima_sync) + ' às ' + fmtHora(g.ultima_sync) : 'As próximas corridas do relógio chegam aqui sozinhas.'}</p></div>${staff ? '' : '<button class="link-btn small" id="gar-off">Desconectar</button>'}</div></div>`;
-  if (staff) return '<div class="card"><p class="small muted">O aluno ainda não conectou o Garmin. Ele faz isso na aba de corrida dele, com um toque.</p></div>';
+  if (staff) return '<div class="card"><p class="small muted">O aluno ainda não conectou o Garmin. Ele faz isso na aba Conexões, com um toque.</p></div>';
   return `<div class="card garmin-card"><b>Tem relógio Garmin?</b><p class="small muted" style="margin-top:4px">Conecte uma vez e cada corrida que você terminar no relógio entra sozinha aqui, já ligada ao treino do dia, com pace, frequência cardíaca, parciais e percurso.</p>
     <button class="btn sm" id="gar-on" style="margin-top:10px">Conectar Garmin</button>
     <p class="tiny dim" style="margin-top:8px">Você autoriza na tela oficial da Garmin e pode desconectar quando quiser. Só entram as atividades feitas depois da conexão.</p></div>`;
