@@ -499,11 +499,27 @@ async function viewPlanilhaAluno(aba) {
     const ativos = treinos.filter((t) => t.ativo); const ultima = sessoes[0];
     const hj = dsemIdx(hojeISO()); const seq = ativos.filter((t) => !(t.dias && t.dias.length));
     const idx = ultima ? seq.findIndex((t) => t.id === ultima.treino_id) : -1; const prox = ativos.find((t) => (t.dias || []).includes(hj)) || (seq.length ? seq[(idx + 1) % seq.length] : null);
-    box.innerHTML = ativos.length ? `<div class="stack">${ativos.map((t, i) => { const ex = sessoes.filter((s) => s.treino_id === t.id); return `<div class="card tr-card ${prox && prox.id === t.id ? 'prox' : ''}"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
+    // semana de força do aluno (mesma visão do treinador, só leitura)
+    const fs = S.cache.fsemA || (S.cache.fsemA = { off: 0 }); const iniF = inicioSemana(); iniF.setDate(iniF.getDate() + fs.off * 7);
+    const diasF = Array.from({ length: 7 }, (_, i) => { const d = new Date(iniF); d.setDate(iniF.getDate() + i); return isoDia(d); });
+    const hojeF = hojeISO(); const offF = dispDe(S.me).off_forca || []; const temDias = ativos.some((t) => t.dias && t.dias.length);
+    const semanaF = `<div class="pl-top" style="margin-top:4px"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fa-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fa-h">${fs.off === 0 ? 'Esta semana' : fs.off === -1 ? 'Semana passada' : fs.off === 1 ? 'Próxima semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fa-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
+        <span class="small muted">${sessoes.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos</span></div>
+      <div class="fsem">${diasF.map((k, i) => { const doDia = ativos.filter((t) => (t.dias || []).includes(i)); const feitos = sessoes.filter((x) => isoDia(x.iniciado_em) === k);
+        return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span></div>
+          <div class="fdia-c">${doDia.map((t) => { const ok = feitos.find((x) => x.treino_id === t.id); return `<a class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}" href="#/treino/${t.id}" style="color:inherit"><span class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? ' · ✓ feito' : k < hojeF ? ' · não feito' : ''}</small></span>${!ok && k >= hojeF ? `<span class="add-ic">${I.play}</span>` : ''}</a>`; }).join('')}
+          ${feitos.filter((x) => !doDia.some((t) => t.id === x.treino_id)).map((x) => `<div class="ftr extra"><span class="grow"><b>${esc(x.treino_titulo || 'Treino')}</b><small>✓ feito</small></span></div>`).join('')}
+          ${offF.includes(i) ? `<div class="ftr folga"><span class="off-ic">${OFF_IC}</span><span class="grow"><b>Day off</b><small>Descanso de força</small></span></div>` : ''}
+          ${!doDia.length && !feitos.length && !offF.includes(i) ? `<span class="cal-vazio">${temDias ? 'sem treino' : 'treino na sequência abaixo'}</span>` : ''}</div></div>`; }).join('')}</div>
+      ${seq.length && temDias ? `<p class="small muted" style="margin-top:8px">Sem dia fixo (faça na sequência): ${seq.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}.</p>` : ''}`;
+    box.innerHTML = ativos.length ? semanaF + `<div class="section"><div class="section-h"><h2 class="h2">Seus treinos</h2>${slashes}</div><div class="stack">${ativos.map((t, i) => { const ex = sessoes.filter((s) => s.treino_id === t.id); return `<div class="card tr-card ${prox && prox.id === t.id ? 'prox' : ''}"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
       <div class="grow">${prox && prox.id === t.id ? `<span class="eyebrow">${(t.dias || []).includes(hj) ? 'Treino de hoje' : 'Próximo da sequência'}</span>` : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:5px">${diasTxt(t.dias)}</span>` : ''}</div></div>
       <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Você fez ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, a última em ${fmtData(ex[0].iniciado_em)}` : 'Você ainda não fez este treino'}</p>
-      <div class="grid2 tr-acoes"><a class="btn sm" href="#/treino/${t.id}">${I.play} Começar</a><a class="btn ghost sm" href="#/historico/cargas">${I.hist} Evolução</a></div></div>`; }).join('')}</div>`
+      <div class="grid2 tr-acoes"><a class="btn sm" href="#/treino/${t.id}">${I.play} Começar</a><a class="btn ghost sm" href="#/historico/cargas">${I.hist} Evolução</a></div></div>`; }).join('')}</div></div>`
       : '<div class="empty"><div class="h3">Seu treino de musculação está sendo preparado</div><p class="small">Assim que o treinador liberar, ele aparece aqui.</p></div>';
+    const reF = () => viewPlanilhaAluno('musculacao');
+    const fa = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = () => { f(); reF(); }; };
+    fa('fa-a', () => fs.off--); fa('fa-p', () => fs.off++); fa('fa-h', () => { fs.off = 0; });
     return;
   }
   return viewCalendarioMes(S.user.id, box);
