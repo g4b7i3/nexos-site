@@ -1146,3 +1146,4 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .add-ic{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
 .add-ic svg{width:17px;height:17px}
 .list-item>svg{width:18px;height:18px;flex:none}
+.fsem.rasc .ftr:not(.feito):not(.extra){opacity:.6;border-left-style:dashed}

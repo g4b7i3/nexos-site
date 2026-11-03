@@ -502,10 +502,13 @@ async function viewPlanilhaAluno(aba) {
     // semana de força do aluno (mesma visão do treinador, só leitura)
     const fs = S.cache.fsemA || (S.cache.fsemA = { off: 0 }); const iniF = inicioSemana(); iniF.setDate(iniF.getDate() + fs.off * 7);
     const diasF = Array.from({ length: 7 }, (_, i) => { const d = new Date(iniF); d.setDate(iniF.getDate() + i); return isoDia(d); });
-    const hojeF = hojeISO(); const offF = dispDe(S.me).off_forca || []; const temDias = ativos.some((t) => t.dias && t.dias.length);
+    const hojeF = hojeISO(); const temDias = ativos.some((t) => t.dias && t.dias.length);
+    const libA = await sb.from('nx_forca_semanas').select('id').eq('aluno_id', S.user.id).eq('semana', diasF[0]).maybeSingle().then((r) => !!r.data).catch(() => false);
+    const offF = libA ? (dispDe(S.me).off_forca || []) : [];
     const semanaF = `<div class="pl-top" style="margin-top:4px"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fa-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fa-h">${fs.off === 0 ? 'Esta semana' : fs.off === -1 ? 'Semana passada' : fs.off === 1 ? 'Próxima semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fa-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         <span class="small muted">${sessoes.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos</span></div>
-      <div class="fsem">${diasF.map((k, i) => { const doDia = ativos.filter((t) => (t.dias || []).includes(i)); const feitos = sessoes.filter((x) => isoDia(x.iniciado_em) === k);
+      ${temDias && !libA ? '<div class="lib-bar"><span>Seu treinador ainda não liberou esta semana de força.</span></div>' : ''}
+      <div class="fsem">${diasF.map((k, i) => { const doDia = libA ? ativos.filter((t) => (t.dias || []).includes(i)) : []; const feitos = sessoes.filter((x) => isoDia(x.iniciado_em) === k);
         return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span></div>
           <div class="fdia-c">${doDia.map((t) => { const ok = feitos.find((x) => x.treino_id === t.id); return `<a class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}" href="#/treino/${t.id}" style="color:inherit"><span class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? ' · ✓ feito' : k < hojeF ? ' · não feito' : ''}</small></span>${!ok && k >= hojeF ? `<span class="add-ic">${I.play}</span>` : ''}</a>`; }).join('')}
           ${feitos.filter((x) => !doDia.some((t) => t.id === x.treino_id)).map((x) => `<div class="ftr extra"><span class="grow"><b>${esc(x.treino_titulo || 'Treino')}</b><small>✓ feito</small></span></div>`).join('')}
@@ -611,7 +614,8 @@ async function alunoHoje() {
   const semanaCount = ativSem.filter((s) => diasDesde(s.iniciado_em) < 7).length;
   const ultima = sessoes[0];
   let prox = null;
-  const doDiaM = ativos.filter((t) => (t.dias || []).includes(dsemIdx(hoje))); const seqM = ativos.filter((t) => !(t.dias && t.dias.length));
+  const forcaLib = await sb.from('nx_forca_semanas').select('id').eq('aluno_id', S.user.id).eq('semana', isoDia(inicioSemana())).maybeSingle().then((r) => !!r.data).catch(() => false);
+  const doDiaM = forcaLib ? ativos.filter((t) => (t.dias || []).includes(dsemIdx(hoje))) : []; const seqM = ativos.filter((t) => !(t.dias && t.dias.length));
   let fixoHoje = false;
   if (doDiaM.length) { prox = doDiaM.find((t) => !sessoes.some((s) => s.treino_id === t.id && isoDia(s.iniciado_em) === hoje)) || doDiaM[0]; fixoHoje = true; }
   // só mostra musculação no Hoje quando há treino marcado para este dia (sem “próximo da sequência”)
@@ -619,7 +623,7 @@ async function alunoHoje() {
   if (!fM) prox = null;
   const muscHoje = sessoes.find((s) => isoDia(s.iniciado_em) === hoje);
   const offCorr = fC && planoSem.some((p) => p.data === hoje && p.tipo === 'folga');
-  const offForca = fM && (dispDe(S.me).off_forca || []).includes(dsemIdx(hoje));
+  const offForca = fM && forcaLib && (dispDe(S.me).off_forca || []).includes(dsemIdx(hoje));
   if (offForca) prox = null;
   const corrDoDia = fC ? planoSem.filter((p) => p.data === hoje && p.tipo !== 'folga') : [];
   const proxCorr = fC ? planoSem.find((p) => p.data > hoje && p.tipo !== 'folga') : null;
@@ -3386,9 +3390,12 @@ async function staffAluno(alunoId, aba, extra) {
     const hojeF = hojeISO(); const ativosT = treinos.filter((t) => t.ativo);
     const semDia = ativosT.filter((t) => !(t.dias && t.dias.length));
     const offF = (dispDe(m).off_forca || []);
+    const libF = await sb.from('nx_forca_semanas').select('id').eq('aluno_id', alunoId).eq('semana', diasF[0]).maybeSingle().then((r) => r.data).catch(() => null);
+    const temFixos = ativosT.some((t) => t.dias && t.dias.length) || offF.length;
     corpo = `<div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fs-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fs-h">${fst.off === 0 ? 'Esta semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fs-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
       <span class="small muted">${sess.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos na semana</span></div>
-      <div class="fsem">${diasF.map((k, i) => { const doDia = ativosT.filter((t) => (t.dias || []).includes(i)); const feitos = sess.filter((x) => isoDia(x.iniciado_em) === k);
+      ${temFixos ? (libF ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" id="f-desliberar">Cancelar liberação</button></div>` : `<div class="lib-bar"><span>Rascunho: o aluno ainda não vê esta semana</span><button type="button" class="btn sm lib-btn" id="f-liberar">Liberar semana</button></div>`) : ''}
+      <div class="fsem ${temFixos && !libF ? 'rasc' : ''}">${diasF.map((k, i) => { const doDia = ativosT.filter((t) => (t.dias || []).includes(i)); const feitos = sess.filter((x) => isoDia(x.iniciado_em) === k);
         return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span>${dispIcones(m, i)}<button class="cal-add" data-fadd="${i}" aria-label="Pôr treino na ${DSEM[i]}">${I.plus}</button></div>
           <div class="fdia-c">${doDia.map((t) => { const ok = feitos.find((x) => x.treino_id === t.id); return `<div class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}"><a href="#/aluno/${alunoId}/treino/${t.id}" class="grow" style="color:inherit;min-width:0"><b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? ` · ✓ feito${ok.esforco != null ? ', esforço ' + ok.esforco : ''}` : k < hojeF ? ' · não fez' : ''}</small></a><button class="sd-x" data-frm="${t.id}" data-d="${i}" aria-label="Tirar deste dia">${I.x}</button></div>`; }).join('')}
           ${feitos.filter((x) => !doDia.some((t) => t.id === x.treino_id)).map((x) => `<div class="ftr extra"><span class="grow"><b>${esc(x.treino_titulo || 'Treino')}</b><small>✓ feito fora do dia${x.esforco != null ? ', esforço ' + x.esforco : ''}</small></span></div>`).join('')}
@@ -3471,6 +3478,9 @@ async function staffAluno(alunoId, aba, extra) {
     document.getElementById('fs-p').onclick = () => { fst.off += 1; re(); };
     document.getElementById('fs-h').onclick = () => { fst.off = 0; re(); };
     const salvarDias = async (t, dias) => { const { error } = await sb.from('nx_treinos').update({ dias: dias.length ? dias.sort() : null }).eq('id', t.id); if (error) return toast('Não foi possível salvar.', true); re(); };
+    const iniFs = inicioSemana(); iniFs.setDate(iniFs.getDate() + fst.off * 7); const segF = isoDia(iniFs);
+    const fl = document.getElementById('f-liberar'); if (fl) fl.onclick = async () => { fl.disabled = true; const { error } = await sb.from('nx_forca_semanas').insert({ org_id: S.org.id, aluno_id: alunoId, semana: segF, liberado_por: S.user.id }); if (error && !/duplicate/i.test(error.message || '')) { fl.disabled = false; return toast('Não foi possível liberar.', true); } notificarAluno('planilha_forca', alunoId); toast('Semana de força liberada! O aluno foi avisado.'); re(); };
+    const fd = document.getElementById('f-desliberar'); if (fd) fd.onclick = async () => { if (!confirm('Cancelar a liberação? O aluno deixa de ver os treinos de força desta semana.')) return; await sb.from('nx_forca_semanas').delete().eq('aluno_id', alunoId).eq('semana', segF); toast('Liberação cancelada. A semana voltou a ser rascunho.'); re(); };
     const salvarOff = async (lista) => { const nv = { ...dispDe(m), off_forca: lista }; const { error } = await sb.from('nx_membros').update({ disponibilidade: nv }).eq('org_id', S.org.id).eq('user_id', alunoId); if (error) return toast('Não foi possível salvar.', true); m.disponibilidade = nv; re(); };
     $app.querySelectorAll('[data-froff]').forEach((b) => b.onclick = () => salvarOff((dispDe(m).off_forca || []).filter((d) => d !== +b.dataset.froff)));
     $app.querySelectorAll('[data-frm]').forEach((b) => b.onclick = (e) => { e.preventDefault(); const t = treinos.find((x) => x.id === b.dataset.frm); salvarDias(t, (t.dias || []).filter((d) => d !== +b.dataset.d)); });
