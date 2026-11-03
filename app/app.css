@@ -942,10 +942,23 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .ficha-alerta p{margin-top:6px}
 @media (max-width:520px){.ficha-sec{flex-direction:column;gap:8px}}
 /* disponibilidade (🏃 / 💪) */
-.disp-ic{font-size:.8rem;line-height:1;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--s1);margin-left:2px}
+/* selos sólidos Nexos (corrida / força) */
+.selo{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;color:#fff;flex:none;vertical-align:middle;box-shadow:0 2px 6px rgba(10,30,70,.18)}
+.selo svg{width:15px;height:15px}
+.selo-c{background:linear-gradient(135deg,var(--acc),var(--acc2,#2f6bff))}
+.selo-c svg{stroke:#fff}
+.selo-f{background:linear-gradient(135deg,#1b2c55,#0b1630)}
+:root[data-tema="escuro"] .selo-f{background:linear-gradient(135deg,#34518f,#1b2c55)}
+.selo.sm{width:19px;height:19px;border-radius:6px;box-shadow:none}
+.selo.sm svg{width:13px;height:13px}
+.disp-ic{margin-left:3px}
 .disp-cal{display:inline-flex;gap:2px;margin-left:4px}
 .fdia-h .disp-ic{margin-left:0}
 .disp-res{display:block;margin-top:5px;padding:0;border:0;background:none;color:var(--acc);font-size:.8rem;font-weight:700;text-align:left;cursor:pointer}
 .radios.r3{grid-template-columns:1fr 1fr 1fr}
 .ficha-termo{max-height:190px;overflow:auto;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:.82rem;line-height:1.5;color:var(--mute);margin-bottom:10px}
 .ses.salvando{opacity:.6;pointer-events:none}
+.selo,.cal-dia-h .selo,.cal-dia.hoje .cal-dia-h .selo{color:#fff!important;font-size:0}
+.disp-cal{display:flex;flex-wrap:wrap;gap:3px;margin-left:0;max-width:48px}
+.disp-cal .selo{width:20px;height:20px;border-radius:6px;margin:0}
+.disp-cal .selo svg{width:13px;height:13px}

@@ -86,6 +86,9 @@ const I = {
   wa: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2.1 1-2.4c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.6 2.1 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.1z"/></svg>',
 };
 const icCorr = () => I.run;
+// selos sólidos da marca para corrida e força (no lugar de emoji)
+const HALTER_S = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="1.2" y="9" width="2.8" height="6" rx="1.1"/><rect x="4.6" y="5.6" width="3.6" height="12.8" rx="1.4"/><rect x="15.8" y="5.6" width="3.6" height="12.8" rx="1.4"/><rect x="20" y="9" width="2.8" height="6" rx="1.1"/><rect x="8" y="10.5" width="8" height="3" rx="1"/></svg>';
+const selo = (k, extra = '') => `<span class="selo ${k === 'corrida' ? 'selo-c' : 'selo-f'} ${extra}" ${k === 'corrida' ? 'title="Corrida"' : 'title="Força"'}>${k === 'corrida' ? I.run : HALTER_S}</span>`;
 const imgURL = (p) => (/^https?:/.test(p) ? p : 'ex/' + p);
 function exFig(ex, cls = '') {
   const im = (ex && ex.imagens) || [];
@@ -3210,7 +3213,7 @@ async function staffAluno(alunoId, aba, extra) {
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
       <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a></div>
         <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div>
-        <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : '+ Marcar dias de treino (🏃 / 💪)'} <span class="dim">· editar</span></button></div></div>
+        <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : `+ Marcar dias de treino ${selo('corrida', 'sm')} ${selo('forca', 'sm')}`} <span class="dim">· editar</span></button></div></div>
         ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>🏁 ${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
       ${fM && fC ? `<div class="subtabs mod-tabs" style="margin-top:12px"><a class="${aba === 'corrida' ? 'on' : ''}" href="#/aluno/${alunoId}/corrida">${I.run} Corrida</a><a class="${aba === 'forca' ? 'on' : ''}" href="#/aluno/${alunoId}/forca">${I.lib} Força</a></div>` : ''}`;
   $app.innerHTML = aba === 'inicio'
@@ -3724,13 +3727,13 @@ const telWa = (t) => { const d = String(t || '').replace(/\D/g, ''); return d ? 
 const fichaMsg = (nome, link) => `Olá${nome ? ', ' + firstName(nome) : ''}! Aqui é da Nexos Performance e Saúde 💪\n\nPara montarmos o seu treino, preencha sua ficha de entrada (leva uns 5 minutos):\n${link}`;
 // disponibilidade do aluno (dias que corre / faz força), marcada na ficha ou pelo treinador
 const dispDe = (m) => (m && m.disponibilidade) || {};
-const dispIcones = (m, i) => { const dp = dispDe(m); return `${(dp.corrida || []).includes(i) ? '<span class="disp-ic" title="Costuma correr neste dia">🏃</span>' : ''}${(dp.forca || []).includes(i) ? '<span class="disp-ic" title="Costuma fazer força neste dia">💪</span>' : ''}`; };
-const dispResumo = (m) => { const dp = dispDe(m); const t = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', '); return [dp.corrida && dp.corrida.length ? `🏃 ${t(dp.corrida)}` : '', dp.forca && dp.forca.length ? `💪 ${t(dp.forca)}` : ''].filter(Boolean).join(' · '); };
+const dispIcones = (m, i) => { const dp = dispDe(m); return `${(dp.corrida || []).includes(i) ? selo('corrida', 'disp-ic') : ''}${(dp.forca || []).includes(i) ? selo('forca', 'disp-ic') : ''}`; };
+const dispResumo = (m) => { const dp = dispDe(m); const t = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', '); return [dp.corrida && dp.corrida.length ? `${selo('corrida', 'sm')} ${t(dp.corrida)}` : '', dp.forca && dp.forca.length ? `${selo('forca', 'sm')} ${t(dp.forca)}` : ''].filter(Boolean).join(' · '); };
 function editarDisponibilidade(m, aoSalvar) {
   const dp = dispDe(m);
   const linha = (k, ic, l) => `<div class="field"><span>${ic} ${l}</span><div class="chips wrap">${DSEM.map((d, i) => `<label class="chipc"><input type="checkbox" name="${k}" value="${i}" ${(dp[k] || []).includes(i) ? 'checked' : ''}><span>${d.slice(0, 3)}</span></label>`).join('')}</div></div>`;
-  openSheet(`<p class="eyebrow">${esc(firstName(m.nome))}</p><div class="h2" style="margin-top:4px">Dias de treino</div><p class="small muted" style="margin-top:4px">Os dias aparecem com 🏃 e 💪 nas planilhas, para você encaixar os treinos certinho.</p>
-    <form id="f-disp" style="margin-top:14px">${faz('corrida', m) ? linha('corrida', '🏃', 'Corrida') : ''}${faz('musculacao', m) ? linha('forca', '💪', 'Força') : ''}
+  openSheet(`<p class="eyebrow">${esc(firstName(m.nome))}</p><div class="h2" style="margin-top:4px">Dias de treino</div><p class="small muted" style="margin-top:4px">Os dias aparecem com ${selo('corrida', 'sm')} e ${selo('forca', 'sm')} nas planilhas, para você encaixar os treinos certinho.</p>
+    <form id="f-disp" style="margin-top:14px">${faz('corrida', m) ? linha('corrida', selo('corrida', 'sm'), 'Corrida') : ''}${faz('musculacao', m) ? linha('forca', selo('forca', 'sm'), 'Força') : ''}
     <label class="field"><span>Comentário sobre a disponibilidade</span><textarea class="textarea" name="obs">${esc(dp.obs || '')}</textarea></label><button class="btn block" type="submit">Salvar</button></form>`, (r) => {
     r.querySelector('#f-disp').onsubmit = async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
@@ -3792,7 +3795,7 @@ async function viewFicha(token) {
       ${sec(5, 'PAR-Q · prontidão para atividade física', 'Responda com sinceridade. Um "sim" não impede o treino, só pede uma conversa com o médico antes.', `
         ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1))}</div>`).join('')}`)}
       ${sec(6, 'Disponibilidade para treinar', 'Marque os dias em que você consegue treinar cada modalidade.', `
-        ${diasL('corrida', '🏃', 'Dias de corrida')}${diasL('forca', '💪', 'Dias de força (musculação)')}
+        ${diasL('corrida', selo('corrida', 'sm'), 'Dias de corrida')}${diasL('forca', selo('forca', 'sm'), 'Dias de força (musculação)')}
         <div class="field"><span>Melhor horário</span>${chips('horario', FICHA_HOR)}</div>
         <div class="field"><span>Onde prefere treinar</span>${chips('local', FICHA_LOCAL)}</div>
         <label class="field"><span>Algum comentário sobre a sua disponibilidade?</span><textarea class="textarea" name="disp_obs" placeholder="Ex.: às quartas só depois das 19h"></textarea></label>`)}
@@ -3932,7 +3935,7 @@ async function staffFichaResposta(id) {
     <div class="stack" style="margin-top:14px">
       <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
       <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Objetivos pessoais', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
-      <div class="card"><span class="eyebrow">Disponibilidade</span>${lin('🏃 Corrida', diasT(dp.corrida))}${lin('💪 Força', diasT(dp.forca))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}${lin('Comentário', esc(d.disp_obs || ''))}</div>
+      <div class="card"><span class="eyebrow">Disponibilidade</span>${lin(selo('corrida', 'sm') + ' Corrida', diasT(dp.corrida))}${lin(selo('forca', 'sm') + ' Força', diasT(dp.forca))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}${lin('Comentário', esc(d.disp_obs || ''))}</div>
       <div class="card"><span class="eyebrow">Histórico esportivo</span>${lin('Esportes', lista(d.esportes, FICHA_ESPORTES) + (d.esportes_outros ? ` (${esc(d.esportes_outros)})` : ''))}${lin('Rotina', esc(d.atividade || ''))}${lin('Condicionamento', esc(nome(FICHA_NIVEL, d.nivel)))}${lin('Corrida', esc(nome(FICHA_EXP, d.corrida_exp)))}${lin('Maior distância', esc(d.maior_dist || ''))}${lin('Tempo recente', esc(d.tempo_recente || ''))}${lin('Relógio', esc(d.relogio || ''))}</div>
       <div class="card"><span class="eyebrow">Histórico médico</span>${rs.histSim.length ? rs.histSim.map(([q, v]) => lin(esc(q), v === 'sim' ? '<span style="color:var(--err)">Sim</span>' : 'Não sei')).join('') : lin('Respostas', 'Tudo “não”')}${lin('Observações', esc(d.obs_medica || ''))}${lin('PAR-Q', rs.sim.length ? `<span style="color:var(--err)">${rs.sim.length} sim</span>` : 'Tudo “não”')}</div>
       ${d.origem || d.obs ? `<div class="card"><span class="eyebrow">Outros</span>${lin('Conheceu por', esc(nome(FICHA_ORIGEM, d.origem)))}${lin('Comentário', esc(d.obs || ''))}</div>` : ''}
