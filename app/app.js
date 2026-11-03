@@ -1936,6 +1936,32 @@ const VAPID_PUB = 'BJaMy5iaiHmB1quf2fmZe0m8IabwKFr98xYW9N4y-3yGtQKNTg-CIU9kvt5Nw
 const pushSuportado = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const ehIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// Android/Chrome: guarda o pedido de instalação para o botão "Instalar o app"
+let pedidoInstalar = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedidoInstalar = e; if (location.hash === '#/conexoes') viewConexoes(); });
+window.addEventListener('appinstalled', () => { pedidoInstalar = null; try { localStorage.setItem('nx-instalado', '1'); } catch {} if (location.hash === '#/conexoes') viewConexoes(); });
+const IC_COMPART = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+const IC_MAIS = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-3px"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
+function instalarHTML() {
+  if (instalado()) return `<div class="card inst-card ok"><b>App instalado ✓</b><p class="small muted" style="margin-top:4px">Você já está usando o app da Nexos pela tela de início.</p></div>`;
+  if (ehIOS()) return `<div class="card inst-card"><b>No iPhone, pelo Safari</b><ol class="inst-passos">
+      <li>Abra este link no <b>Safari</b>.</li>
+      <li>Toque em <span class="inst-ic">${IC_COMPART}</span> <b>Compartilhar</b>, na barra de baixo (ou de cima).</li>
+      <li>Role a lista e toque em <span class="inst-ic">${IC_MAIS}</span> <b>Adicionar à Tela de Início</b>.</li>
+      <li>Toque em <b>Adicionar</b>. Pronto: o ícone da Nexos aparece junto dos seus apps.</li></ol>
+      <p class="tiny dim">Depois abra sempre pelo ícone. É assim que as notificações funcionam no iPhone.</p></div>`;
+  return `<div class="card inst-card"><b>No Android</b>
+      ${pedidoInstalar ? `<p class="small muted" style="margin-top:4px">Um toque e o app da Nexos fica na sua tela de início, como qualquer aplicativo.</p><button class="btn block" id="inst-btn" style="margin-top:12px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg> Instalar o app</button>` : ''}
+      ${pedidoInstalar ? '<p class="tiny dim" style="margin:14px 0 0">Se o botão não funcionar:</p>' : ''}<ol class="inst-passos">
+      <li>Abra este link no <b>Chrome</b>.</li>
+      <li>Toque nos <b>três pontinhos ⋮</b>, no canto de cima.</li>
+      <li>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li>
+      <li>Confirme em <b>Instalar</b>. O ícone da Nexos aparece junto dos seus apps.</li></ol></div>`;
+}
+function bindInstalar(root) {
+  const b = root.querySelector('#inst-btn'); if (!b) return;
+  b.onclick = async () => { if (!pedidoInstalar) return; pedidoInstalar.prompt(); const r = await pedidoInstalar.userChoice.catch(() => null); pedidoInstalar = null; if (r && r.outcome === 'accepted') toast('App instalado! Procure o ícone da Nexos na tela de início.'); viewConexoes(); };
+}
 let swReg = null;
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js', AREA === 'treinador' ? { scope: '/treinador/' } : undefined).then((r) => { swReg = r; r.update().catch(() => {}); }).catch(() => {}); // sempre procura versão nova do service worker
@@ -3133,7 +3159,9 @@ async function viewConexoes(ret) {
     <p class="muted" style="margin-top:6px">Conecte o seu relógio uma vez: as corridas entram sozinhas no app${garm ? ' e os treinos da planilha vão para o relógio' : ''}.</p>
     <div class="section"><div class="section-h"><h2 class="h2">Garmin</h2>${slashes}</div><div id="garmin-box">${garminCardHTML(garm, false)}</div></div>
     <div class="section"><div class="section-h"><h2 class="h2">Outros relógios</h2>${slashes}</div><p class="small muted" style="margin:-4px 0 10px">Coros, Polar, Suunto, Wahoo e outros, pelo Intervals.icu (gratuito).</p><div id="intervals-box">${intervalsCardHTML(integ, false).replace('Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.', 'Tem Garmin? Use a conexão Garmin acima, que é direta e oficial.')}</div></div>
-    <div class="section"><div class="section-h"><h2 class="h2">Sem conexão?</h2>${slashes}</div><button class="list-item" id="cx-arq" style="width:100%;text-align:left"><span class="ativ-ic">${I.plus}</span><div class="grow"><b>Enviar o arquivo do relógio</b><div class="small muted">.FIT, .GPX ou .TCX, ou digite distância e tempo</div></div>${I.chev}</button></div>`;
+    <div class="section"><div class="section-h"><h2 class="h2">Sem conexão?</h2>${slashes}</div><button class="list-item" id="cx-arq" style="width:100%;text-align:left"><span class="ativ-ic">${I.plus}</span><div class="grow"><b>Enviar o arquivo do relógio</b><div class="small muted">.FIT, .GPX ou .TCX, ou digite distância e tempo</div></div>${I.chev}</button></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Instalar o aplicativo</h2>${slashes}</div><p class="small muted" style="margin:-4px 0 10px">Tenha a Nexos na tela de início do celular, abrindo como um aplicativo e recebendo notificações.</p><div id="inst-box">${instalarHTML()}</div></div>`;
+  bindInstalar($app);
   const recarregar = () => viewConexoes();
   bindGarmin(document.getElementById('garmin-box'), recarregar);
   bindIntervals(document.getElementById('intervals-box'), integ, false, S.user.id, recarregar);
