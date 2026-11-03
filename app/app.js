@@ -2115,14 +2115,14 @@ function arrastar(root, { item, alvo, soltar, handle }) {
 function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos }) {
   const base = sessao ? { ...sessao, estrutura: clone(estruturaDe(sessao)) } : { data, tipo: (modelo && modelo.tipo) || 'rodagem', titulo: modelo ? modelo.nome : '', estrutura: clone(modelo ? modelo.estrutura : [passo('co', 6, 'km', 'leve')]), descricao: '' };
   const t = base;
-  const zonaSel = (z, cam) => `<select class="input zsel" data-cam="${cam}" data-f="z" style="--zc:${(ZONAS_INFO[z] || ZONAS_INFO.leve).c}">${Object.entries(ZONAS_INFO).map(([k, i]) => `<option value="${k}" ${z === k ? 'selected' : ''}>${i.n}${k !== 'rec' && perfil.paces && perfil.paces[k] ? ' · ' + faixaPace(perfil.paces[k]).replace('/km', '') : ''}</option>`).join('')}</select>`;
+  const zonaSel = (z, cam) => `<select class="input zsel" data-cam="${cam}" data-f="z" style="--zc:${(ZONAS_INFO[z] || ZONAS_INFO.leve).c}">${Object.entries(ZONAS_INFO).map(([k, i]) => `<option value="${k}" ${z === k ? 'selected' : ''}>${i.n}</option>`).join('')}</select>`;
   const medSel = (m, cam) => `<select class="input msel" data-cam="${cam}" data-f="med">${[['km', 'km'], ['m', 'metros'], ['min', 'min']].map(([k, l]) => `<option value="${k}" ${m === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const linhaPasso = (s, cam) => `<div class="passo" data-cam="${cam}" style="--zc:${(ZONAS_INFO[s.z] || ZONAS_INFO.leve).c}">
       <span class="alca" aria-label="Arrastar">⋮⋮</span>
       <select class="input ksel" data-cam="${cam}" data-f="k">${Object.entries(PASSOS).map(([k, l]) => `<option value="${k}" ${s.k === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <input class="input vin" data-cam="${cam}" data-f="v" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
       ${medSel(s.med, cam)}${zonaSel(s.z, cam)}
-      <em class="pace-dica">${s.z !== 'rec' && perfil.paces && perfil.paces[s.z] ? faixaPace(perfil.paces[s.z]) : ''}</em>
+      <em class="pace-dica">${s.z === 'rec' ? `trote · ~${fmtPace(paceZona('rec', perfil))}` : perfil.paces && perfil.paces[s.z] ? `pace ${faixaPace(perfil.paces[s.z])}` : `pace ~${fmtPace(paceZona(s.z, perfil))} <span>(média)</span>`}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
     const rs = resumoEstrutura(t.estrutura, perfil);

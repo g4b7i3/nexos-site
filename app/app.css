@@ -585,8 +585,10 @@ body.arrastando #dock{display:none}
 .passos{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .passo{display:grid;grid-template-columns:22px minmax(0,1.3fr) 70px 86px minmax(0,1.2fr) 30px;gap:6px;align-items:center;padding:8px;border-radius:14px;background:var(--bg2);border:1px solid var(--line);border-left:5px solid var(--zc)}
 .passo .input{padding:9px 8px;font-size:.88rem;border-radius:10px}
-.passo .pace-dica{display:none}
-@media(max-width:560px){.passo{grid-template-columns:22px 1fr 1fr 30px}.passo .ksel{grid-column:2/4}.passo .x-passo{grid-column:4;grid-row:1}.passo .vin{grid-column:2}.passo .msel{grid-column:3}.passo .zsel{grid-column:2/4}}
+.passo .pace-dica{grid-column:2/-1;font-style:normal;font-size:.74rem;color:var(--mute);padding:0 2px;margin-top:-2px;font-variant-numeric:tabular-nums}
+.passo .pace-dica::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--zc);margin-right:6px;vertical-align:1px}
+.passo .pace-dica span{color:var(--dim)}
+@media(max-width:560px){.passo{grid-template-columns:22px 1fr 1fr 30px}.passo .ksel{grid-column:2/4}.passo .x-passo{grid-column:4;grid-row:1}.passo .vin{grid-column:2}.passo .msel{grid-column:3}.passo .zsel{grid-column:2/4}.passo .pace-dica{grid-column:2/4}}
 .passo.alvo-on,.serie.alvo-on{outline:2px dashed var(--acc);outline-offset:2px}
 .alca{cursor:grab;color:var(--dim);font-weight:800;letter-spacing:-2px;text-align:center;user-select:none;touch-action:none;padding:6px 0}
 .x-passo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--mute)}
