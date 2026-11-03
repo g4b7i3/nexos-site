@@ -673,7 +673,7 @@ async function alunoHoje() {
   };
   const rh = document.getElementById('reg-home'); if (rh) rh.onclick = () => registrarCorrida(S.user.id, () => alunoHoje());
   const tc = document.getElementById('termo-corr'); if (tc) tc.onclick = () => termometroCorrida(semNota, () => alunoHoje());
-  if (S.me.sexo !== 'M') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx || !c) return; bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
+  if (S.me.sexo === 'F') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx || !c) return; bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
 }
@@ -1514,7 +1514,7 @@ async function viewAnamnese(opts = {}) {
   if (a === undefined) { const { data } = await sb.from('nx_anamneses').select('*').eq('org_id', S.org.id).eq('aluno_id', alunoId).maybeSingle(); a = data; }
   const r = (a && a.respostas) || {}; const pq = (a && a.parq) || {};
   const box = opts.box || $app;
-  const cic = !staff && S.me.sexo !== 'M' ? await buscarCiclo(S.user.id) : null;
+  const cic = !staff && S.me.sexo === 'F' ? await buscarCiclo(S.user.id) : null;
   if (opts.gate) { $dock.hidden = true; layout('bare'); }
   const sel = (name, val, ops) => `<select class="input" name="${name}"><option value="">Selecione</option>${ops.map(([k, l]) => `<option value="${k}" ${val === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const sn = (name, val) => `<div class="radios"><label><input type="radio" name="${name}" value="nao" ${val === 'nao' ? 'checked' : ''}><span>Não</span></label><label><input type="radio" name="${name}" value="sim" ${val === 'sim' ? 'checked' : ''}><span>Sim</span></label></div>`;
@@ -1526,6 +1526,7 @@ async function viewAnamnese(opts = {}) {
         <p class="tiny dim" style="margin:6px 0 4px">Responda com sinceridade. Uma resposta "sim" não impede o treino, mas pede uma conversa com o médico antes.</p>
         ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1), pq['q' + (i + 1)])}</div>`).join('')}
       </div>
+      ${!staff && !S.me.sexo ? `<div class="card"><span class="eyebrow">Sobre você</span><div class="field" style="margin-top:12px"><span>Sexo</span><div class="radios"><label><input type="radio" name="sexo_al" value="F"><span>Feminino</span></label><label><input type="radio" name="sexo_al" value="M"><span>Masculino</span></label></div></div></div>` : ''}
       <div class="card"><span class="eyebrow">Objetivo e rotina</span>
         <label class="field" style="margin-top:12px"><span>Objetivo principal</span>${sel('objetivo', r.objetivo, OBJETIVOS)}</label>
         <label class="field"><span>Conte mais sobre o seu objetivo (opcional)</span><input class="input" name="objetivo_txt" value="${esc(r.objetivo_txt || '')}" placeholder="Ex.: correr 10 km abaixo de 55 min"></label>
@@ -1549,7 +1550,7 @@ async function viewAnamnese(opts = {}) {
         <div class="grid2"><label class="field"><span>Horas de sono por noite</span>${sel('sono_h', r.sono_h, [['5', 'Até 5 h'], ['6', '6 h'], ['7', '7 h'], ['8', '8 h ou mais']])}</label><label class="field"><span>Qualidade do sono</span>${sel('sono_q', r.sono_q, [['boa', 'Boa'], ['regular', 'Regular'], ['ruim', 'Ruim']])}</label></div>
         <label class="field"><span>Nível de estresse no dia a dia</span>${sel('estresse', r.estresse, [['baixo', 'Baixo'], ['medio', 'Médio'], ['alto', 'Alto']])}</label>
       </div>
-      ${!staff && S.me.sexo !== 'M' ? `<div class="card" id="ciclo-card"><span class="eyebrow">Para alunas · ciclo menstrual · opcional</span>
+      ${!staff && S.me.sexo !== 'M' ? `<div class="card" id="ciclo-card" ${S.me.sexo === 'F' ? '' : 'hidden'}><span class="eyebrow">Ciclo menstrual · opcional</span>
         <p class="tiny dim" style="margin:6px 0 10px">Ajuda o seu treinador a ajustar a intensidade de acordo com a fase do ciclo. Só você e os treinadores da Nexos veem.</p>
         <label class="aceite"><input type="checkbox" name="cic_on" ${cic && cic.ativo ? 'checked' : ''}><span>Quero acompanhar o meu ciclo no app</span></label>
         <div id="cic-campos" ${cic && cic.ativo ? '' : 'hidden'}>
@@ -1571,9 +1572,10 @@ async function viewAnamnese(opts = {}) {
   if (cc) {
     const mostrar = () => { cc.querySelector('#cic-campos').hidden = !f.cic_on.checked; const sit = f.cic_sit.value; cc.querySelector('#cic-datas').hidden = sit === 'contraceptivo' || sit === 'nao_menstrua'; };
     f.cic_on.onchange = mostrar; f.cic_sit.onchange = mostrar; mostrar();
+    f.querySelectorAll('[name=sexo_al]').forEach((x) => x.onchange = () => { cc.hidden = f.sexo_al.value !== 'F'; if (cc.hidden) f.cic_on.checked = false; mostrar(); });
   }
   const salvarCiclo = async () => {
-    if (!cc) return true;
+    if (!cc || cc.hidden) return true;
     if (!f.cic_on.checked) { if (cic) { await sb.from('nx_ciclo_inicios').delete().eq('aluno_id', S.user.id); await sb.from('nx_ciclo').delete().eq('aluno_id', S.user.id); } return true; }
     const sit = f.cic_sit.value || 'regular', semData = sit === 'contraceptivo' || sit === 'nao_menstrua';
     const cl = Math.min(45, Math.max(20, parseInt(f.cic_cl.value, 10) || 28)), dm = Math.min(10, Math.max(2, parseInt(f.cic_dm.value, 10) || 5));
@@ -1595,6 +1597,7 @@ async function viewAnamnese(opts = {}) {
     resp.doencas = fd.getAll('doencas');
     const positivo = Object.values(parq).includes('sim');
     const btn = f.querySelector('[type=submit]'); btn.disabled = true;
+    if (f.sexo_al && f.sexo_al.value) { await sb.rpc('nx_definir_sexo', { p_sexo: f.sexo_al.value }).catch(() => {}); S.me.sexo = f.sexo_al.value; }
     if (!(await salvarCiclo())) { btn.disabled = false; return; }
     const row = { parq, parq_positivo: positivo, respostas: resp, atualizado_em: new Date().toISOString(), visto_treinador: staff };
     let id = a && a.id, error;
@@ -3788,7 +3791,7 @@ async function staffAluno(alunoId, aba, extra) {
   if (error) throw error;
   if (!m) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Aluno não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
   aba = aba || 'inicio'; if (aba === 'treinos') aba = 'forca';
-  const cicloA = (aba === 'corrida' || aba === 'forca') && m.sexo !== 'M' ? await buscarCiclo(alunoId).catch(() => null) : null;
+  const cicloA = (aba === 'corrida' || aba === 'forca') && m.sexo === 'F' ? await buscarCiclo(alunoId).catch(() => null) : null;
   const provaProxA = (aba === 'corrida' || aba === 'forca') ? (await sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', alunoId).gte('data', hojeISO()).order('data').limit(1).then((r) => (r.data || [])[0]).catch(() => null)) : null;
   let grupos = [];
   const u = sess[0];
