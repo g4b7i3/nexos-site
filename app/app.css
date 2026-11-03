@@ -964,3 +964,25 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .disp-cal .selo svg{width:13px;height:13px}
 .prova-fora{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:14px;padding:14px 16px;border:1px dashed var(--acc);background:color-mix(in srgb,var(--acc) 6%,var(--bg2))}
 .prova-fora .go{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}.prova-fora .go svg{width:20px;height:20px;stroke:#fff}
+/* área do aluno no computador */
+@media (min-width:900px){
+  .app.aluno .hoje-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);gap:22px;align-items:start}
+  .app.aluno .hoje-side{position:sticky;top:20px}
+  .app.aluno .hoje-side>:first-child{margin-top:18px!important}
+  .app.aluno .h1{font-size:2.4rem}
+}
+.cm-txt{display:none}
+@media (min-width:900px){
+  .app.aluno #pl-c>.stack{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .app.aluno #pl-c>.stack>*{margin:0}
+  .app.aluno .stack:has(>.ev-card){display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .app.aluno .stack:has(>.ev-card)>*{margin:0}
+  .app.aluno .cm-d{min-height:96px;align-content:start}
+  .app.aluno .cm-txt{display:flex;flex-direction:column;gap:3px;width:100%;margin-top:4px}
+  .app.aluno .cm-d .cm-txt:not(:empty)+.cm-ic{display:none!important}
+  .cm-t{display:block;font-style:normal;font-size:.68rem;font-weight:700;text-align:left;padding:2px 6px;border-radius:5px;border-left:3px solid var(--c,var(--acc));background:var(--s1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cm-t.ok{background:color-mix(in srgb,var(--ok,#22c55e) 14%,var(--bg2))}
+  .cm-t.tmu{border-left-color:#1b2c55}
+  .cm-t.pr{border-left-color:#f97316;background:color-mix(in srgb,#f97316 12%,var(--bg2))}
+  .app.aluno .perfil-pg{max-width:760px}
+}

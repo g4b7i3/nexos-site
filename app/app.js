@@ -217,7 +217,7 @@ async function router() {
       return await staffHoje();
     }
     if (a === 'treino' && b) { $dock.hidden = true; layout(); return await viewExecucao(b, false); }
-    dockAluno(); layout();
+    dockAluno(); layout('wide aluno');
     if (!a) return await alunoHoje();
     if (a === 'historico') return await alunoHistorico(b);
     if (a === 'planilha') return await viewPlanilhaAluno(b);
@@ -524,7 +524,8 @@ async function viewCalendarioMes(alunoId, box) {
   for (let d = 1; d <= nd; d++) {
     const k = `${st.comp}-${String(d).padStart(2, '0')}`; const x = doDia(k);
     const corPl = x.pl.map((p) => { const z = achatar(estruturaDe(p), perfil).filter((s) => s.k === 'co').sort((a, b) => b.seg - a.seg)[0]; return (ZONAS_INFO[(z && z.z) || 'leve'] || ZONAS_INFO.leve).c; });
-    cells += `<button class="cm-d ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-k="${k}"><span>${d}</span><div class="cm-ic">${x.pr.length ? '<i class="pr">🏁</i>' : ''}${x.pl.map((p, j) => `<i class="dot ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}"></i>`).join('')}${x.co.filter((c) => !c.plano_id).map(() => '<i class="dot ok" style="--c:var(--ok)"></i>').join('')}${x.se.length ? '<i class="mu"></i>' : ''}</div></button>`;
+    const lbl = [...x.pr.map((p) => `<i class="cm-t pr">🏁 ${esc(p.titulo)}</i>`), ...x.pl.map((p, j) => `<i class="cm-t ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}">${esc(p.titulo || nomeTipo(p.tipo))}</i>`), ...x.co.filter((c) => !c.plano_id).map((c) => `<i class="cm-t ok" style="--c:var(--ok)">${f1(c.distancia_m / 1000)} km</i>`), ...x.se.map((s2) => `<i class="cm-t tmu">${esc(s2.treino_titulo || 'Musculação')}</i>`)].join('');
+    cells += `<button class="cm-d ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-k="${k}"><span>${d}</span><div class="cm-txt">${lbl}</div><div class="cm-ic">${x.pr.length ? '<i class="pr">🏁</i>' : ''}${x.pl.map((p, j) => `<i class="dot ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}"></i>`).join('')}${x.co.filter((c) => !c.plano_id).map(() => '<i class="dot ok" style="--c:var(--ok)"></i>').join('')}${x.se.length ? '<i class="mu"></i>' : ''}</div></button>`;
   }
   const totKm = plano.reduce((a, p) => a + resumoEstrutura(estruturaDe(p), perfil).km, 0), feitoKm = corrs.reduce((a, c) => a + c.distancia_m / 1000, 0);
   box.innerHTML = `<div class="mes-nav" style="margin-top:4px"><button class="icon-btn sm" id="cm-a" aria-label="Mês anterior">${I.back}</button><b>${nomeMes(st.comp)}</b><button class="icon-btn sm" id="cm-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
@@ -619,6 +620,7 @@ async function alunoHoje() {
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="icon-btn" href="#/perfil" aria-label="Perfil">${I.user}</a></div>
     <p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
     <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é descanso' : 'seu treino de hoje'}</h1>
+    <div class="hoje-grid"><div class="hoje-main">
     ${cartaoCobrancaHTML(cobP)}
     ${cartaoPushHTML()}
     ${S.cache.msgNovas ? `<a class="card tap msg-card" href="#/conversa" style="margin-top:18px;display:flex"><span class="go">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div>${I.chev}</a>` : ''}
@@ -629,13 +631,14 @@ async function alunoHoje() {
       ${fC && !corrDoDia.length ? `<div class="card"><div class="row between" style="gap:10px"><div><b>Correu por conta própria?</b><div class="small muted">Registre para entrar na sua evolução.</div></div><button class="btn ghost sm" id="reg-home">${I.plus} Registrar</button></div></div>` : ''}
     </div>
     ${proxCorr ? `<a class="list-item prox-l" href="#/planilha" style="margin-top:12px;color:inherit"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><span class="small muted">Próxima corrida · ${dia(proxCorr.data).getTime() - dia(hoje).getTime() === 864e5 ? 'amanhã' : DIAS[dia(proxCorr.data).getDay()] + ' ' + dia(proxCorr.data).getDate()}</span><b class="ellip" style="display:block">${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</b></div>${I.chev}</a>` : ''}
+    </div><div class="hoje-side">
     ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex"><div class="pc-n"><b>${Math.max(0, Math.round((dia(provaProx.data) - dia(hoje)) / 864e5))}</b><span>dias</span></div><div class="grow" style="min-width:0"><span class="eyebrow">🏁 Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
     <div style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
     <div class="atalhos">
       <a href="#/planilha"><span>${I.cal}</span>Planilha completa</a>
       <a href="#/planilha/calendario"><span>${I.today}</span>Calendário</a>
       ${fC ? `<a href="#/eventos"><span>${I.flag}</span>Provas</a>` : `<a href="#/historico"><span>${I.hist}</span>Evolução</a>`}
-    </div>`;
+    </div></div></div>`;
   bindCartaoPush();
   $app.onclick = (e) => {
     const r = e.target.closest('[data-reg]'); if (r) return registrarCorrida(S.user.id, () => alunoHoje());
@@ -2383,7 +2386,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   if (st.aluno !== alunoId) { st.aluno = alunoId; st.off = 0; st.sub = 'planilha'; st.todas = false; }
   const SUBS = subs || ['planilha', 'evolucao', 'corridas', 'ritmos'];
   if (!SUBS.includes(st.sub)) st.sub = SUBS[0];
-  const semanas = staff && innerWidth >= 900 ? 2 : 1;
+  const semanas = innerWidth >= 900 ? 2 : 1;
   const ini = inicioSemana(); ini.setDate(ini.getDate() + st.off * 7);
   const fim = new Date(ini); fim.setDate(ini.getDate() + semanas * 7 - 1);
   const [corridas, plano, integ, modelosOrg, provas, provasProx] = await Promise.all([
