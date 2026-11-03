@@ -2549,7 +2549,7 @@ async function viewCorrida(id) {
   const pMin = parc.length ? Math.min(...parc.map(pk)) : 0, pMax = parc.length ? Math.max(...parc.map(pk)) : 0;
   const voltar = S.staff ? `#/aluno/${c.aluno_id}/corrida` : '#/historico/corrida';
   $app.innerHTML = `
-    <div class="row between"><a class="back" href="${voltar}" style="margin:0">${I.back} ${S.staff ? esc(nome.nome || 'Aluno') : 'Corridas'}</a>${S.staff ? `<div class="row" style="gap:6px">${c.visto_treinador ? `<span class="tag ok">${I.check} Visto</span>` : `<button class="btn sm visto-btn grande" data-visto="corrida|${c.id}">${I.check} Visto</button>`}<a class="btn ghost sm" href="#/aluno/${c.aluno_id}/conversa">${I.feed} Comentar</a></div>` : c.visto_treinador ? `<span class="tag ok">${I.check} Visto pelo treinador</span>` : ''}</div>
+    <div class="row between"><a class="back" href="${voltar}" style="margin:0">${I.back} ${S.staff ? esc(nome.nome || 'Aluno') : 'Corridas'}</a>${S.staff ? `<div class="row" style="gap:6px">${c.visto_treinador ? `<span class="tag ok">${I.check} Visto</span>` : `<button class="btn sm visto-btn grande" data-visto="corrida|${c.id}">${I.check} Visto</button>`}<button class="btn ghost sm" id="coment-tr">${I.feed} Comentar</button></div>` : c.visto_treinador ? `<span class="tag ok">${I.check} Visto pelo treinador</span>` : ''}</div>
     <p class="eyebrow" style="margin-top:16px">${esc((TIPOS_ATIV.find((t) => t[0] === c.tipo) || [, 'Corrida'])[1])} · ${fmtDia(c.data)} · ${fmtHora(c.data)}${c.fonte === 'garmin' ? ' · Garmin' : ''}</p>
     <h1 class="h1">${esc(c.titulo && !/^\d/.test(c.titulo) ? c.titulo : fmtKm(c.distancia_m))}</h1>
     ${!S.staff && c.distancia_m ? `<button class="card-cta" id="gerar-card"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Gerar card para o story</b><span class="small">Com foto de fundo ou sem fundo, do jeito do Strava</span></div>${I.chev}</button>` : ''}
@@ -2565,6 +2565,7 @@ async function viewCorrida(id) {
     ${c.dor ? `<div class="card" style="margin-top:12px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor${c.dor_local ? ': ' + esc(c.dor_local) : ''}</span></div>` : ''}
     ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
     ${c.comentario ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Como foi</span><p style="margin-top:6px">“${esc(c.comentario)}”</p></div>` : ''}
+    ${c.comentario_treinador ? `<div class="card coment-tr" style="margin-top:12px"><div class="row between"><span class="eyebrow">${I.feed} Comentário do treinador</span>${c.comentario_treinador_em ? `<span class="tiny dim">${fmtDia(c.comentario_treinador_em)}</span>` : ''}</div><p style="margin-top:6px;white-space:pre-line">${esc(c.comentario_treinador)}</p>${S.staff ? `<button class="link-btn tiny" id="coment-tr-ed" style="margin-top:8px">Editar</button>` : ''}</div>` : ''}
     ${plano ? `<div class="card plan-vs"><span class="eyebrow">Previsto × realizado</span><div class="h3" style="margin-top:4px">${esc(plano.titulo || nomeTipo(plano.tipo))}</div>
       <div class="pv"><div><span>Previsto</span><b>${plano.distancia_km ? String(plano.distancia_km).replace('.', ',') + ' km' : plano.duracao_min ? plano.duracao_min + ' min' : '–'}</b></div><div><span>Feito</span><b>${fmtKm(c.distancia_m)}</b></div>
       ${plano.distancia_km ? `<div><span>Cumprido</span><b>${Math.round((c.distancia_m / 1000 / plano.distancia_km) * 100)}%</b></div>` : ''}</div>
@@ -2576,6 +2577,7 @@ async function viewCorrida(id) {
     <p class="tiny dim" style="margin-top:18px">Fonte: ${c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
   const gc = document.getElementById('gerar-card'); if (gc) gc.onclick = () => abrirCardCorrida(c);
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = () => marcarVisto(b));
+  ['coment-tr', 'coment-tr-ed'].forEach((k) => { const e = document.getElementById(k); if (e) e.onclick = () => comentarTreino(c, nome); });
   if (c.analise) bindGraficos($app, c);
   document.getElementById('apagar-c').onclick = async () => {
     if (!confirm('Apagar esta corrida?')) return;
@@ -3951,6 +3953,26 @@ async function viewPagamentos() {
 
 /* ================= HOJE: o que pede atenção ================= */
 /** treinador marca o treino como visto: o aluno recebe "Seu treinador analisou seu treino" */
+// comentário do treinador sobre um treino (fica no treino, não vai para o chat)
+function comentarTreino(c, al) {
+  const tinha = !!c.comentario_treinador;
+  openSheet(`<p class="eyebrow">Comentário sobre o treino</p><div class="h2" style="margin-top:4px">${esc(firstName((al && al.nome) || 'Aluno'))} · ${fmtKm(c.distancia_m)}</div>
+    <p class="small muted" style="margin-top:6px">Aparece para o aluno dentro deste treino. Não vai para o chat.</p>
+    <textarea class="textarea" id="ct-txt" rows="5" style="margin-top:12px" placeholder="Ex.: ótimo controle no ritmo dos tiros. Na recuperação, segure um pouco mais." autofocus>${esc(c.comentario_treinador || '')}</textarea>
+    <button class="btn block" id="ct-salvar" style="margin-top:12px">${tinha ? 'Salvar comentário' : 'Enviar comentário'}</button>
+    ${tinha ? '<button class="link-btn small" id="ct-apagar" style="margin:12px auto 0;display:block">Remover comentário</button>' : ''}`, (r) => {
+    const enviar = async (texto) => {
+      const bt = r.querySelector('#ct-salvar'); bt.disabled = true; bt.textContent = 'Enviando…';
+      const { data, error } = await sb.functions.invoke('nx-push', { body: { acao: 'visto', tipo: 'corrida', id: c.id, comentario: texto } });
+      if (error || (data && data.erro)) { bt.disabled = false; bt.textContent = 'Tentar de novo'; return toast((data && data.erro) || 'Não foi possível salvar agora.', true); }
+      closeSheet(); toast(texto ? 'Comentário enviado! O aluno vê no treino.' : 'Comentário removido.');
+      contarNaoVistos().then(dockStaff).catch(() => {});
+      router();
+    };
+    r.querySelector('#ct-salvar').onclick = () => { const t = r.querySelector('#ct-txt').value.trim(); if (!t) return toast('Escreva o comentário.', true); enviar(t); };
+    const ap = r.querySelector('#ct-apagar'); if (ap) ap.onclick = () => confirm('Remover o comentário deste treino?') && enviar('');
+  });
+}
 async function marcarVisto(b) {
   const [tipo, id] = b.dataset.visto.split('|'); b.disabled = true; b.textContent = '…';
   const { data, error } = await sb.functions.invoke('nx-push', { body: { acao: 'visto', tipo, id } });

@@ -1407,3 +1407,6 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .visto-ok svg{width:13px;height:13px}
 .ativ-row{display:flex;align-items:center;gap:8px}
 .ativ-row>.ativ-l{flex:1;min-width:0}
+.coment-tr{border-color:color-mix(in srgb,var(--acc) 40%,transparent);background:color-mix(in srgb,var(--acc) 6%,var(--card,transparent))}
+.coment-tr .eyebrow{display:inline-flex;align-items:center;gap:6px;color:var(--acc)}
+.coment-tr .eyebrow svg{width:14px;height:14px}
