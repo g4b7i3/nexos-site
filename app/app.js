@@ -498,7 +498,7 @@ async function viewPlanilhaAluno(aba) {
     const [treinos, sessoes] = await Promise.all([buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 200)]);
     const ativos = treinos.filter((t) => t.ativo); const ultima = sessoes[0];
     const hj = dsemIdx(hojeISO()); const seq = ativos.filter((t) => !(t.dias && t.dias.length));
-    const idx = ultima ? seq.findIndex((t) => t.id === ultima.treino_id) : -1; const prox = ativos.find((t) => (t.dias || []).includes(hj)) || (seq.length ? seq[(idx + 1) % seq.length] : null);
+    const prox = ativos.find((t) => (t.dias || []).includes(hj)) || null;
     // semana de força do aluno (mesma visão do treinador, só leitura)
     const fs = S.cache.fsemA || (S.cache.fsemA = { off: 0 }); const iniF = inicioSemana(); iniF.setDate(iniF.getDate() + fs.off * 7);
     const diasF = Array.from({ length: 7 }, (_, i) => { const d = new Date(iniF); d.setDate(iniF.getDate() + i); return isoDia(d); });
@@ -614,7 +614,7 @@ async function alunoHoje() {
   const doDiaM = ativos.filter((t) => (t.dias || []).includes(dsemIdx(hoje))); const seqM = ativos.filter((t) => !(t.dias && t.dias.length));
   let fixoHoje = false;
   if (doDiaM.length) { prox = doDiaM.find((t) => !sessoes.some((s) => s.treino_id === t.id && isoDia(s.iniciado_em) === hoje)) || doDiaM[0]; fixoHoje = true; }
-  else if (seqM.length) { const idx = ultima ? seqM.findIndex((t) => t.id === ultima.treino_id) : -1; prox = seqM[(idx + 1) % seqM.length]; }
+  // só mostra musculação no Hoje quando há treino marcado para este dia (sem “próximo da sequência”)
   const fC = faz('corrida'), fM = faz('musculacao');
   if (!fM) prox = null;
   const muscHoje = sessoes.find((s) => isoDia(s.iniciado_em) === hoje);
