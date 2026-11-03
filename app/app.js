@@ -5311,13 +5311,16 @@ async function staffFormularios(id) {
     sb.from('nx_formularios').select('*').eq('org_id', S.org.id).eq('ativo', true).order('criado_em', { ascending: false }).limit(200),
     sb.from('nx_form_respostas').select('*').eq('org_id', S.org.id).order('criado_em', { ascending: false }).limit(300),
   ]);
+  const { data: mbs } = await sb.from('nx_membros').select('user_id,aprovacao,ativo').eq('org_id', S.org.id).eq('papel', 'aluno');
+  const stM = Object.fromEntries((mbs || []).map((m) => [m.user_id, m]));
+  const semAcesso = (r) => !r.aluno_id || (stM[r.aluno_id] && stM[r.aluno_id].aprovacao === 'pendente');
   dockStaff();
   S.cache.fichasNovas = (resps || []).filter((r) => !r.visto).length;
   const geral = (forms || []).find((f) => f.multiplo);
   const aguardando = (forms || []).filter((f) => !f.multiplo && !f.respondido_em);
   const linhaResp = (r) => { const d = r.dados || {}; const rs = fichaResumo(d);
     return `<a class="list-item ficha-it" href="#/formularios/${r.id}" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(d.nome || 'Sem nome')}</b><div class="small muted ellip">${[rs.mods, rs.obj].filter(Boolean).map(esc).join(' · ') || 'Ficha de entrada'}</div>
-      <div class="ficha-tags">${!r.visto ? '<span class="tag acc">nova</span>' : ''}${rs.sim.length ? '<span class="tag err">PAR-Q</span>' : ''}${r.aluno_id ? '<span class="tag ok">cadastrado</span>' : ''}<span class="tiny dim">${quando(r.criado_em)}</span></div></div>${I.chev}</a>`; };
+      <div class="ficha-tags">${!r.visto ? '<span class="tag acc">nova</span>' : ''}${rs.sim.length ? '<span class="tag err">PAR-Q</span>' : ''}${semAcesso(r) ? '<span class="tag warn">aguardando acesso</span>' : r.aluno_id ? '<span class="tag ok">cadastrado</span>' : ''}<span class="tiny dim">${quando(r.criado_em)}</span></div></div>${I.chev}</a>`; };
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a>
     <p class="eyebrow">Formulários</p><h1 class="h1">Ficha de entrada</h1>
     <p class="muted small" style="margin-top:6px">Gere o link, mande no WhatsApp e a pessoa preenche pelo celular, sem precisar de login. As respostas chegam aqui.</p>
@@ -5444,6 +5447,8 @@ async function staffFichaResposta(id) {
   if (!r) { $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a><div class="empty"><div class="h3">Ficha não encontrada</div></div>`; return; }
   if (!r.visto) { sb.from('nx_form_respostas').update({ visto: true }).eq('id', id).then(() => {}, () => {}); S.cache.fichasNovas = Math.max(0, (S.cache.fichasNovas || 1) - 1); }
   const d = r.dados || {}; const rs = fichaResumo(d);
+  const mbr = r.aluno_id ? (await sb.from('nx_membros').select('aprovacao,ativo').eq('org_id', S.org.id).eq('user_id', r.aluno_id).maybeSingle()).data : null;
+  const pend = !!(d.email && (!r.aluno_id || (mbr && mbr.aprovacao === 'pendente')));
   const nome = (l, k) => ((l.find((x) => x[0] === k) || [])[1]) || '';
   const idade = d.nascimento ? Math.floor((Date.now() - dia(d.nascimento)) / 31557600000) : null;
   const lin = (t, v) => v ? `<div class="ficha-l"><span>${t}</span><b>${v}</b></div>` : '';
@@ -5452,9 +5457,10 @@ async function staffFichaResposta(id) {
   const diasT = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', ');
   $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a>
     <div class="card plan-head"><div class="ph-id"><div class="av lg">${esc(initials(d.nome || '?'))}</div><div class="grow" style="min-width:0"><h1 class="h2">${esc(d.nome || 'Sem nome')}</h1><div class="small muted">Ficha enviada ${fmtData(r.criado_em)}${rs.mods ? ' · ' + esc(rs.mods) : ''}</div></div></div>
+      ${pend ? `<div class="aviso-acesso"><b>Esta pessoa ainda não tem acesso ao app.</b><span class="small muted">${r.aluno_id ? 'O pedido está esperando a sua aprovação.' : 'Ela mandou a ficha, mas não chegou a pedir o acesso.'}</span><button class="btn block" id="ap-acesso" style="margin-top:10px">${I.mail} Aprovar e enviar acesso por e-mail</button></div>` : ''}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" id="ed-ficha">✎ Editar ficha</button>${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div></div>
     ${rs.sim.length ? `<div class="card ficha-alerta"><b>⚠️ PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
-    <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos 💪 Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
+    <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos 💪 Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id || pend ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
     <div class="stack" style="margin-top:14px">
       <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Altura e peso', esc([d.altura && d.altura + ' m', d.peso && d.peso + ' kg'].filter(Boolean).join(' · ')))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
       <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Objetivos pessoais', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
@@ -5487,6 +5493,27 @@ async function staffFichaResposta(id) {
     });
   };
   document.getElementById('ed-ficha').onclick = () => editarFicha(r, () => staffFichaResposta(id));
+  const apA = document.getElementById('ap-acesso');
+  if (apA) apA.onclick = async () => {
+    apA.disabled = true; apA.textContent = 'Criando o acesso…';
+    try {
+      let alunoId = r.aluno_id;
+      if (!alunoId) { // cria o pedido como se a pessoa tivesse pedido no fim da ficha
+        const { data: fm } = await sb.from('nx_formularios').select('token').eq('id', r.form_id).maybeSingle();
+        if (!fm) throw new Error('O link desta ficha não existe mais.');
+        await chamarForm({ acao: 'criar_acesso', token: fm.token, resposta: r.id });
+        const { data: r2 } = await sb.from('nx_form_respostas').select('aluno_id').eq('id', r.id).maybeSingle(); alunoId = r2 && r2.aluno_id;
+        if (!alunoId) throw new Error('Não foi possível criar o acesso.');
+      }
+      const { data: res, error: er } = await sb.functions.invoke('nx-email', { body: { org_id: S.org.id, acao: 'aprovar', aluno_id: alunoId } });
+      if (er || !res || res.erro) throw new Error((res && res.erro) || 'Não foi possível aprovar agora.');
+      S.cache.nomes = null; S.cache.pendentes = Math.max(0, (S.cache.pendentes || 1) - 1);
+      if (res.enviado) toast(`Acesso aprovado! O login foi para ${res.email}.`);
+      else if (res.senha) mostrarCredenciais({ nome: d.nome, telefone: d.telefone, email: res.email, senha: res.senha }, false, true, 'acesso');
+      else toast('Acesso aprovado! Ela entra com a senha que já tem.');
+      staffFichaResposta(id);
+    } catch (e) { apA.disabled = false; apA.innerHTML = `${I.mail} Aprovar e enviar acesso por e-mail`; toast(e.message, true); }
+  };
   document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };
 }
 

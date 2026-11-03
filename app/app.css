@@ -1398,3 +1398,4 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .ed-sec>summary::-webkit-details-marker{display:none}
 .ed-sec>summary svg{width:16px;height:16px;transition:transform .2s;color:var(--mute)}
 .ed-sec[open]>summary svg{transform:rotate(90deg)}
+.aviso-acesso{display:grid;gap:2px;margin-top:12px;padding:12px 14px;border-radius:14px;background:rgba(232,162,0,.1);border:1px solid rgba(232,162,0,.4)}
