@@ -2670,6 +2670,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             const { error } = await sb.from('nx_plano_corrida').insert(novos);
             closeSheet();
             if (error) return toast('Não foi possível colar.', true);
+            store.del('nx_clip_corr'); // colou: some o “Colar” e volta só o “Copiar”
             toast('Treinos colados!'); recarregar();
           };
         });
