@@ -990,3 +990,6 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .top-foto .foto{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;object-fit:cover;border:2px solid var(--bg);font-size:.85rem}
 .saud-row{display:flex;align-items:center;gap:14px}
 .saud-row .top-foto .foto{width:54px;height:54px;font-size:1rem}
+.perfil-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-weight:800;font-size:.84rem;box-shadow:0 4px 14px rgba(10,30,70,.06)}
+.perfil-btn svg{width:17px;height:17px;color:var(--acc)}
+.perfil-btn:hover{border-color:var(--acc)}

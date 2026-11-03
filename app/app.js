@@ -617,7 +617,7 @@ async function alunoHoje() {
     : `<a class="card tap wcard" href="#/treino/${prox.id}" style="display:flex"><div class="wletter">${esc(letraTreino(prox, ativos.indexOf(prox)))}</div><div class="grow"><span class="eyebrow">Musculação · ${fixoHoje ? 'treino de hoje' : 'próximo da sequência'}</span><div class="h3" style="margin-top:2px">${esc(prox.titulo)}</div>${prox.foco ? `<div class="small muted">${esc(prox.foco)}</div>` : ''}<div class="meta"><span class="tag">${prox.nx_treino_itens.length} exercícios</span></div></div><span class="go">${I.play}</span></a>`) : '';
   const descanso = !corrDoDia.length && !cardMusc;
   $app.innerHTML = `
-    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div></div>
+    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
     <div class="saud-row"><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a><div style="min-width:0"><p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
     <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é descanso' : 'seu treino de hoje'}</h1></div></div>
     <div class="hoje-grid"><div class="hoje-main">
