@@ -2503,7 +2503,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
     corpo = `${provasBannerHTML(provasProx, staff, !!(m.corrida && m.corrida.sem_polimento))}${staff ? cargaHTML3(cargaCorrida(corridas, perfil)).replace('class="card carga3"', 'class="card carga3 compacto"') : ''}
       <div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${rotulo}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
-        <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>Copiar semana</button><button class="btn sm" id="avisar">${I.bell} Avisar aluno</button><button class="btn ghost sm" id="guia-plan" title="Como usar a planilha">?</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
+        <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>${semanas > 1 ? 'Copiar semanas' : 'Copiar semana'}</button>${store.get('nx_clip_corr', null) ? `<button class="btn sm colar-btn" id="colar-sem" title="${esc('Copiado de ' + store.get('nx_clip_corr', {}).origem)}">Colar ${store.get('nx_clip_corr', {}).semanas > 1 ? 'semanas' : 'semana'}</button>` : ''}<button class="btn sm" id="avisar">${I.bell} Avisar aluno</button><button class="btn ghost sm" id="guia-plan" title="Como usar a planilha">?</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
       <div class="${staff ? 'pl-grid' : ''}">
         ${staff ? `<aside class="biblio"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span></div>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
         <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
@@ -2631,12 +2631,34 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           else { const { error } = await sb.from('nx_plano_corrida').update({ data }).eq('id', p.id); error ? toast('Não foi possível mover.', true) : (toast(`Movido para ${DIAS[dia(data).getDay()]} ${dia(data).getDate()}`), recarregar()); }
         }
       } });
-      q('#copiar-sem').onclick = async () => {
-        const novos = plano.map((p) => { const d = dia(p.data); d.setDate(d.getDate() + 7 * semanas); const { id, criado_em, ...resto } = p; return { ...resto, data: isoDia(d), criado_por: S.user.id }; });
-        if (!novos.length) return;
-        const { error } = await sb.from('nx_plano_corrida').insert(novos);
-        if (error) return toast('Não foi possível copiar.', true);
-        toast(semanas > 1 ? 'Duas semanas copiadas para as seguintes!' : 'Semana copiada para a seguinte!'); st.off += semanas; recarregar();
+      // copiar/colar semana: a cópia fica guardada e dá para colar em outra semana ou em outro aluno
+      q('#copiar-sem').onclick = () => {
+        if (!plano.length) return;
+        const base = isoDia(ini);
+        const itens = plano.map((p) => { const { id, criado_em, aluno_id, org_id, data, criado_por, ...resto } = p; return { ...resto, off: Math.round((dia(data) - dia(base)) / 864e5) }; });
+        store.set('nx_clip_corr', { origem: `${firstName(m.nome || 'aluno')} · ${ini.getDate()}/${ini.getMonth() + 1}`, semanas, itens });
+        toast(`${itens.length} treino${itens.length > 1 ? 's' : ''} copiado${itens.length > 1 ? 's' : ''}. Vá até a semana (ou outro aluno) e toque em “Colar”.`); recarregar();
+      };
+      const colar = q('#colar-sem'); if (colar) colar.onclick = () => {
+        const clip = store.get('nx_clip_corr', null); if (!clip) return;
+        const fimC = new Date(ini); fimC.setDate(ini.getDate() + clip.semanas * 7 - 1);
+        const ja = plano.filter((p) => p.data >= isoDia(ini) && p.data <= isoDia(fimC)).length;
+        openSheet(`<p class="eyebrow">Colar ${clip.semanas > 1 ? 'semanas' : 'semana'}</p><div class="h2" style="margin-top:4px">${clip.itens.length} treino${clip.itens.length > 1 ? 's' : ''} de ${esc(clip.origem)}</div>
+          <p class="small muted" style="margin-top:6px">Vão para ${esc(firstName(m.nome || 'o aluno'))}, a partir de ${fmtDia(isoDia(ini))}, nos mesmos dias da semana.${ja ? ` Essa semana já tem ${ja} treino${ja > 1 ? 's' : ''}.` : ''}</p>
+          <div class="stack" style="margin-top:14px">${ja ? `<button class="btn block" data-modo="trocar">Substituir os ${ja} treinos que já estão lá</button><button class="btn ghost block" data-modo="somar">Somar aos que já estão</button>` : '<button class="btn block" data-modo="somar">Colar aqui</button>'}
+          <button class="link-btn small" data-modo="limpar" style="color:var(--err)">Descartar a cópia</button></div>`, (r) => {
+          r.onclick = async (e) => {
+            const b2 = e.target.closest('[data-modo]'); if (!b2) return; const modo = b2.dataset.modo;
+            if (modo === 'limpar') { store.del('nx_clip_corr'); closeSheet(); toast('Cópia descartada.'); return recarregar(); }
+            b2.disabled = true;
+            if (modo === 'trocar') { const ids = plano.filter((p) => p.data >= isoDia(ini) && p.data <= isoDia(fimC)).map((p) => p.id); if (ids.length) await sb.from('nx_plano_corrida').delete().in('id', ids); }
+            const novos = clip.itens.map(({ off, ...resto }) => { const d = new Date(ini); d.setDate(ini.getDate() + off); return { ...resto, org_id: S.org.id, aluno_id: alunoId, data: isoDia(d), criado_por: S.user.id }; });
+            const { error } = await sb.from('nx_plano_corrida').insert(novos);
+            closeSheet();
+            if (error) return toast('Não foi possível colar.', true);
+            toast('Treinos colados!'); recarregar();
+          };
+        });
       };
       q('#avisar').onclick = () => { notificarAluno('planilha', alunoId); toast('Aluno avisado da planilha.'); };
       q('#guia-plan').onclick = () => guiaPlanilha();

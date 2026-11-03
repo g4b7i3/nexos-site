@@ -1114,3 +1114,4 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .niv-tabs button{min-width:0;padding:10px 12px}
 .niv-tabs button b{font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 @media(max-width:420px){.niv-tabs button b{font-size:.8rem}}
+.colar-btn{background:linear-gradient(135deg,#16a34a,#15803d)!important;color:#fff!important}
