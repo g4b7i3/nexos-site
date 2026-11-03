@@ -2343,8 +2343,10 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
 }
 
 /* ---------- painel de corrida (aluno e treinador) ---------- */
-async function viewCorridaPainel(alunoId, box, staff, m, subs) {
-  box.innerHTML = '<div class="boot-bar" style="margin:30px auto"><i></i></div>';
+async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
+  // silencioso: atualiza sem piscar a tela nem perder a rolagem (depois de arrastar, salvar etc.)
+  const sv = silencioso && box.isConnected ? { y: scrollY, h: box.offsetHeight, bl: (box.querySelector('.biblio-l') || {}).scrollLeft || 0 } : null;
+  if (sv) box.style.minHeight = sv.h + 'px'; else box.innerHTML = '<div class="boot-bar" style="margin:30px auto"><i></i></div>';
   if (!m || m.user_id !== alunoId) { const { data } = await sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); m = data || {}; }
   const st = S.cache.semCorr || (S.cache.semCorr = { off: 0, sub: 'planilha' });
   if (st.aluno !== alunoId) { st.aluno = alunoId; st.off = 0; st.sub = 'planilha'; st.todas = false; }
@@ -2361,7 +2363,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs) {
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', hojeISO()).order('data').limit(3).then((r) => r.data || []).catch(() => []),
   ]);
   const perfil = perfilCorrida(m);
-  const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs);
+  const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
   const sub = st.sub;
   const subTabs = `<div class="subtabs">${[['planilha', 'Planilha'], ['evolucao', 'Evolução'], ['corridas', `Corridas${corridas.length ? ' (' + corridas.length + ')' : ''}`], ['ritmos', 'Ritmos e zonas']].filter(([k]) => SUBS.includes(k)).map(([k, l]) => `<button class="${sub === k ? 'on' : ''}" data-sub="${k}">${l}</button>`).join('')}</div>`;
   const rotulo = st.off === 0 ? (semanas > 1 ? 'Esta semana e a próxima' : 'Esta semana') : st.off === 1 ? 'Próxima semana' : st.off === -1 ? 'Semana passada' : `${ini.getDate()}/${ini.getMonth() + 1} a ${fim.getDate()}/${fim.getMonth() + 1}`;
@@ -2409,6 +2411,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs) {
       ${perfil.fcMax ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}</span><div class="zonas" style="margin-top:10px">${zonasFC(perfil.fcMax, perfil.fcRep).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
   }
   box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${corpo}</div>`;
+  if (sv) { const bl = box.querySelector('.biblio-l'); if (bl) bl.scrollLeft = sv.bl; scrollTo(scrollX, sv.y); requestAnimationFrame(() => { box.style.minHeight = ''; }); }
   if (SUBS.length > 1) box.querySelector('.subtabs').onclick = (e) => { const b = e.target.closest('[data-sub]'); if (b) { st.sub = b.dataset.sub; recarregar(); } };
   const q = (s) => box.querySelector(s);
   if (q('#reg-c')) q('#reg-c').onclick = () => registrarCorrida(alunoId, (id) => { location.hash = '#/corrida/' + id; });
@@ -2439,6 +2442,9 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs) {
     if (staff) {
       const area = q('.pl-grid');
       arrastar(area, { item: '.mod, .ses[data-ses]', alvo: '.cal-dia, .lixeira', soltar: async (el, alvoEl, ev) => {
+        // mostra o resultado na hora, antes de salvar
+        if (alvoEl.id === 'lixeira') { if (el.dataset.ses) el.remove(); }
+        else { const c = alvoEl.querySelector('.cal-dia-c'); if (c) { c.querySelector('.cal-vazio')?.remove(); const nv = el.dataset.mod ? Object.assign(document.createElement('div'), { className: 'ses salvando', innerHTML: `<div class="ses-t"><b>${esc(el.querySelector('b')?.textContent || 'Treino')}</b></div>${el.querySelector('.perfil-int')?.outerHTML || ''}<span class="ses-m">salvando…</span>` }) : ev.copia ? Object.assign(el.cloneNode(true), { className: el.className + ' salvando' }) : el; c.appendChild(nv); } }
         if (alvoEl.id === 'lixeira') {
           if (!el.dataset.ses) return;
           const { error } = await sb.from('nx_plano_corrida').delete().eq('id', el.dataset.ses);
@@ -3095,8 +3101,9 @@ function mostrarCredenciais(d, existente, aluno = true) {
   });
 }
 
+async function silencioso(fn) { const y = scrollY; S.silencio = true; try { await fn(); } finally { S.silencio = false; scrollTo(scrollX, y); } }
 async function staffAluno(alunoId, aba, extra) {
-  loading(); let anamnese = null, termo = null, planoInfo = null;
+  if (!S.silencio) loading(); let anamnese = null, termo = null, planoInfo = null;
   let corrRec = [];
   const [{ data: m, error }, treinos, sess] = await Promise.all([
     sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(),
@@ -3220,10 +3227,10 @@ async function staffAluno(alunoId, aba, extra) {
   });
   if (aba === 'conversa') await viewConversa(alunoId, document.getElementById('conv'), true, extra);
   if (aba === 'fotos') await viewFotos(alunoId, document.getElementById('fotos'), true);
-  const dispEd = document.getElementById('disp-ed'); if (dispEd) dispEd.onclick = () => editarDisponibilidade(m, () => staffAluno(alunoId, aba));
+  const dispEd = document.getElementById('disp-ed'); if (dispEd) dispEd.onclick = () => editarDisponibilidade(m, () => silencioso(() => staffAluno(alunoId, aba)));
   if (aba === 'corrida') await viewCorridaPainel(alunoId, document.getElementById('corr'), true, m);
   if (aba === 'forca') {
-    const fst = S.cache.fsem; const re = () => staffAluno(alunoId, 'forca');
+    const fst = S.cache.fsem; const re = () => silencioso(() => staffAluno(alunoId, 'forca'));
     document.getElementById('fs-a').onclick = () => { fst.off -= 1; re(); };
     document.getElementById('fs-p').onclick = () => { fst.off += 1; re(); };
     document.getElementById('fs-h').onclick = () => { fst.off = 0; re(); };
