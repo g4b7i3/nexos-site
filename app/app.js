@@ -3597,9 +3597,9 @@ function garminItem(p, perfil) {
   const faixa = (z) => { const pz = perfil && perfil.paces && perfil.paces[z]; if (pz) { const a = Math.min(pz[0], pz[1]), b = Math.max(pz[0], pz[1]); return a === b ? [a * 0.97, a * 1.03] : [a, b]; } const c = paceZona(z, perfil); return [c * 0.96, c * 1.04]; };
   const INT = { aq: 'WARMUP', dq: 'COOLDOWN', rc: 'RECOVERY', co: 'INTERVAL' };
   const conv = (s, emSerie) => {
-    const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const solto = s.k === 'rc' || s.z === 'rec';
-    const [pmin, pmax] = solto ? [null, null] : faixa(s.z);
-    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: `${zi.n} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ${estimaPasso(s, perfil).txt}`.slice(0, 100) };
+    const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
+    const [pmin, pmax] = faixaZona(s.z, perfil); // todo passo leva a faixa de pace como alvo, inclusive a recuperação
+    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: `${zi.z} ${zi.d} · ${fmtPace(pmin).replace('/km', '')}–${fmtPace(pmax)}`.slice(0, 100) };
   };
   const tot = estimaTotal(est, perfil);
   const desc = [sobreTreino(p.tipo), `Total est.: ${tot.soDist ? '' : '≈ '}${tot.km} · ${tot.soTempo ? '' : '≈ '}${tot.tempo}`, p.descricao ? 'Treinador: ' + p.descricao : ''].filter(Boolean).join('\n\n');
@@ -3608,7 +3608,8 @@ function garminItem(p, perfil) {
 /** manda ao Garmin os treinos liberados (de hoje em diante) que ainda não estão lá — uma vez por sessão por aluno */
 async function sincronizarGarmin(alunoId, planos, perfil, staff) {
   const chave = 'garSync:' + alunoId; S.cache.garSync = S.cache.garSync || {};
-  const pend = (planos || []).filter((p) => p.liberado !== false && p.tipo !== 'folga' && p.data >= hojeISO() && !p.garmin_workout_id && estruturaDe(p).length && !(S.cache.garSync[chave] || []).includes(p.id));
+  const GARMIN_FMT = '2026-11-03T23:00:00Z'; // mudou o que vai para o relógio: o que foi antes disso é reenviado
+  const pend = (planos || []).filter((p) => p.liberado !== false && p.tipo !== 'folga' && p.data >= hojeISO() && (!p.garmin_workout_id || (p.garmin_enviado_em && p.garmin_enviado_em < GARMIN_FMT)) && estruturaDe(p).length && !(S.cache.garSync[chave] || []).includes(p.id));
   if (!pend.length) return 0;
   S.cache.garSync[chave] = [...(S.cache.garSync[chave] || []), ...pend.map((p) => p.id)];
   try {
