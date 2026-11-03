@@ -2257,8 +2257,10 @@ async function relatorioMes(alunoId, box, staff, m) {
         im.style.width = w + 'px'; im.style.height = h + 'px'; im.src = cv.toDataURL('image/png');
       }
       const nomeArq = `Relatorio-Nexos-${firstName(m.nome || 'aluno')}-${st.comp}.pdf`;
-      const folha = box.querySelector('#rm-folha'); folha.classList.add('rm-print'); // no celular, gera no tamanho de uma folha A4
-      let blob; try { blob = await window.html2pdf().set({ margin: 0, filename: nomeArq, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 900 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(folha).outputPdf('blob'); } finally { folha.classList.remove('rm-print'); }
+      // gera a partir de uma cópia com largura de folha A4 (assim fica igual no celular e no computador)
+      const caixa = document.createElement('div'); caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none;opacity:1';
+      const copia = box.querySelector('#rm-folha').cloneNode(true); copia.removeAttribute('id'); copia.classList.add('rm-print'); caixa.appendChild(copia); document.body.appendChild(caixa);
+      let blob; try { blob = await window.html2pdf().set({ margin: 0, filename: nomeArq, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 760, windowWidth: 760, scrollX: 0, scrollY: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(copia).outputPdf('blob'); } finally { caixa.remove(); }
       const arq = new File([blob], nomeArq, { type: 'application/pdf' });
       if (staff) {
         const tel = telWa(m.telefone);
