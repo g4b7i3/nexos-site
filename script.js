@@ -13,9 +13,9 @@ const CONFIG = {
   linkPix: '',
   linkCartao: '',
   patrocinadores: [
-    { nome: 'Vida Mais Medicina do Trabalho', img: 'img/sp-vida-mais.png' },
-    { nome: 'Empório Döll Produtos Naturais', img: 'img/sp-emporio-doll.png' },
-    { nome: 'Iogurte São João', img: 'img/sp-iogurte-sao-joao.png' },
+    { nome: 'Vida Mais Medicina do Trabalho', img: 'img/sp-vida-mais.webp' },
+    { nome: 'Empório Döll Produtos Naturais', img: 'img/sp-emporio-doll.webp' },
+    { nome: 'Iogurte São João', img: 'img/sp-iogurte-sao-joao.webp' },
     { nome: 'Ótica Diniz Prime', img: 'img/sp-diniz.svg' },
   ],
 };

@@ -1285,3 +1285,5 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .card-prev.xadrez{background:repeating-conic-gradient(#3a4660 0 25%,#2a3550 0 50%) 0 0/22px 22px}
 .card-prev canvas{width:100%;height:100%;display:block}
 .card-seg{display:flex;flex-wrap:nowrap}.card-seg button{flex:1 1 0;min-width:0;padding-left:6px;padding-right:6px;font-size:.86rem;white-space:nowrap}
+.nx-atual{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom));z-index:90;padding:11px 18px;border-radius:999px;border:0;background:var(--ink);color:var(--bg);font:600 .88rem var(--f-b);box-shadow:0 8px 24px rgba(0,0,0,.25);white-space:nowrap}
+.nx-atual b{color:var(--acc)}

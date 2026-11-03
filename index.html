@@ -7,9 +7,9 @@
 <meta name="description" content="Assessoria esportiva Nexos: corrida, musculação online e funcional estruturado. Performance e saúde.">
 <meta name="theme-color" content="#050c1c">
 <link rel="icon" href="img/nexos-icon-navy.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="style.css">
 <script>try{var t=localStorage.getItem("nexos-tema");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
@@ -216,10 +216,10 @@
       <div class="coach-gallery">
         <p class="mono gal-label">NO ESPORTE</p>
         <div class="gal" data-gal="gabriel">
-          <button class="gal-item" data-src="img/treinadores/gabriel-trilha.jpg" data-cap="Corrida de trilha"><img src="img/treinadores/gabriel-trilha.jpg" alt="Gabriel em corrida de trilha" loading="lazy"><span>Corrida de trilha</span></button>
-          <button class="gal-item" data-src="img/treinadores/gabriel-medalha.jpg" data-cap="Medalha no atletismo"><img src="img/treinadores/gabriel-medalha.jpg" alt="Gabriel com medalha de atletismo" loading="lazy"><span>Medalha no atletismo</span></button>
-          <button class="gal-item" data-src="img/treinadores/gabriel-podio.jpg" data-cap="Pódio no atletismo"><img src="img/treinadores/gabriel-podio.jpg" alt="Gabriel no pódio de atletismo" loading="lazy"><span>Pódio no atletismo</span></button>
-          <button class="gal-item" data-src="img/treinadores/gabriel-nar.jpg" data-cap="Núcleo de Alto Rendimento Esportivo de São Paulo (NAR)"><img src="img/treinadores/gabriel-nar.jpg" alt="Gabriel no NAR em São Paulo" loading="lazy"><span>NAR · São Paulo</span></button>
+          <button class="gal-item" data-src="img/treinadores/gabriel-trilha.jpg" data-cap="Corrida de trilha"><img src="img/treinadores/mini/gabriel-trilha.jpg" decoding="async" alt="Gabriel em corrida de trilha" loading="lazy"><span>Corrida de trilha</span></button>
+          <button class="gal-item" data-src="img/treinadores/gabriel-medalha.jpg" data-cap="Medalha no atletismo"><img src="img/treinadores/mini/gabriel-medalha.jpg" decoding="async" alt="Gabriel com medalha de atletismo" loading="lazy"><span>Medalha no atletismo</span></button>
+          <button class="gal-item" data-src="img/treinadores/gabriel-podio.jpg" data-cap="Pódio no atletismo"><img src="img/treinadores/mini/gabriel-podio.jpg" decoding="async" alt="Gabriel no pódio de atletismo" loading="lazy"><span>Pódio no atletismo</span></button>
+          <button class="gal-item" data-src="img/treinadores/gabriel-nar.jpg" data-cap="Núcleo de Alto Rendimento Esportivo de São Paulo (NAR)"><img src="img/treinadores/mini/gabriel-nar.jpg" decoding="async" alt="Gabriel no NAR em São Paulo" loading="lazy"><span>NAR · São Paulo</span></button>
         </div>
       </div>
     </article>
@@ -242,8 +242,8 @@
       <div class="coach-gallery">
         <p class="mono gal-label">NO ESPORTE</p>
         <div class="gal" data-gal="orlando">
-          <button class="gal-item" data-src="img/treinadores/orlando-corrida.jpg" data-cap="Treino de corrida"><img src="img/treinadores/orlando-corrida.jpg" alt="Orlando correndo na rua" loading="lazy"><span>Treino de corrida</span></button>
-          <button class="gal-item" data-src="img/treinadores/orlando-ensaio.jpg" data-cap="Orlando Borges"><img src="img/treinadores/orlando-ensaio.jpg" alt="Orlando em ensaio fotográfico" loading="lazy"><span>Ensaio</span></button>
+          <button class="gal-item" data-src="img/treinadores/orlando-corrida.jpg" data-cap="Treino de corrida"><img src="img/treinadores/mini/orlando-corrida.jpg" decoding="async" alt="Orlando correndo na rua" loading="lazy"><span>Treino de corrida</span></button>
+          <button class="gal-item" data-src="img/treinadores/orlando-ensaio.jpg" data-cap="Orlando Borges"><img src="img/treinadores/mini/orlando-ensaio.jpg" decoding="async" alt="Orlando em ensaio fotográfico" loading="lazy"><span>Ensaio</span></button>
         </div>
       </div>
     </article>
@@ -479,7 +479,7 @@
   <p class="dev">Desenvolvido por <a href="https://www.instagram.com/gabriel_vinicius_jj/" target="_blank" rel="noopener">@gabriel_vinicius_jj</a></p>
 </footer>
 
-<a href="#treinadores" class="fab" id="fab"><span class="fab-faces"><img src="img/treinadores/gabriel-avatar.jpg" alt=""><img src="img/treinadores/orlando-retrato.jpg" alt=""></span>Conheça os treinadores</a>
+<a href="#treinadores" class="fab" id="fab"><span class="fab-faces"><img src="img/treinadores/gabriel-avatar.jpg" alt="" width="60" height="60"><img src="img/treinadores/orlando-avatar.jpg" alt="" width="60" height="60"></span>Conheça os treinadores</a>
 
 <div class="lightbox" id="lightbox" aria-hidden="true">
   <button class="lb-close" id="lb-close" aria-label="Fechar">×</button>

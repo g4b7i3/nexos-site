@@ -1969,7 +1969,12 @@ function bindInstalar(root) {
 let swReg = null;
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js', AREA === 'treinador' ? { scope: '/treinador/' } : undefined).then((r) => { swReg = r; r.update().catch(() => {}); }).catch(() => {}); // sempre procura versão nova do service worker
-  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.nav) location.href = e.data.nav; });
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data && e.data.nav) location.href = e.data.nav;
+    if (e.data && e.data.atualizado && !document.getElementById('nx-atual')) { // versão nova baixada em segundo plano
+      const b = document.createElement('button'); b.id = 'nx-atual'; b.className = 'nx-atual'; b.innerHTML = 'Nova versão do app pronta · <b>Atualizar</b>'; b.onclick = () => location.reload(); document.body.append(b);
+    }
+  });
 }
 function notificar(acao, id) {
   if (!id) return;
