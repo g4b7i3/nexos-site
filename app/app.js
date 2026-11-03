@@ -856,9 +856,9 @@ async function viewExecucao(treinoId, preview) {
 
   const cargaHTML = (it) => {
     const prev = prevs[it.exercicio_id]; const sg = sug[it.id];
-    if (!prev && !sg && !numCarga(it.carga)) return `<div class="load"><label class="load-in"><span>Carga hoje</span><input inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="kg" ${preview ? 'disabled' : ''}></label><span class="tiny dim">Sem carga? Deixe em branco.</span></div>`;
+    if (!prev && !sg && !numCarga(it.carga)) return `<div class="load"><label class="load-in"><span>Carga hoje</span><input data-mask="dec" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="kg" ${preview ? 'disabled' : ''}></label><span class="tiny dim">Sem carga? Deixe em branco.</span></div>`;
     return `<div class="load">
-      <label class="load-in"><span>Carga hoje</span><input inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="${sg ? String(sg.kg).replace('.', ',') : 'kg'}" ${preview ? 'disabled' : ''}><em>kg</em></label>
+      <label class="load-in"><span>Carga hoje</span><input data-mask="dec" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="${sg ? String(sg.kg).replace('.', ',') : 'kg'}" ${preview ? 'disabled' : ''}><em>kg</em></label>
       <div class="load-info">
         ${prev ? `<span class="tiny muted">Última vez: <b>${fmtKg(prev.carga_kg)}</b> · ${quando(prev.criado_em)}</span>` : '<span class="tiny muted">Primeira vez registrando</span>'}
         ${sg ? `<button type="button" class="sug" data-sug="${it.id}" data-kg="${sg.kg}" title="${esc(sg.motivo)}">Sugerida <b>${fmtKg(sg.kg)}</b></button><span class="tiny dim">${esc(sg.motivo)}</span>` : ''}
@@ -1198,7 +1198,7 @@ async function formAvaliacao(alunoId, avId) {
   };
   if (!av) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Avaliação não encontrada</div></div>'; return; }
   const v = (x) => (x == null ? '' : String(x).replace('.', ','));
-  const inp = (name, val, ph = '', unid = '') => `<div class="inp-u"><input class="input" name="${name}" inputmode="decimal" value="${esc(v(val))}" placeholder="${ph}">${unid ? `<em>${unid}</em>` : ''}</div>`;
+  const inp = (name, val, ph = '', unid = '') => `<div class="inp-u"><input class="input" name="${name}" data-mask="dec" inputmode="decimal" value="${esc(v(val))}" placeholder="${ph}">${unid ? `<em>${unid}</em>` : ''}</div>`;
   const radios = (name, val, ops) => `<div class="radios">${ops.map(([k, l]) => `<label><input type="radio" name="${name}" value="${k}" ${val === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
   $app.innerHTML = `
     <a class="back" href="#/aluno/${alunoId}/avaliacoes">${I.back} ${esc(m.nome)}</a>
@@ -1217,7 +1217,7 @@ async function formAvaliacao(alunoId, avId) {
           <div id="b-dobras">
             <label class="field"><span>Protocolo</span><select class="input" name="protocolo">${Object.entries(PROTOCOLOS).map(([k, p]) => `<option value="${k}" ${av.protocolo === k ? 'selected' : ''}>${p.nome}</option>`).join('')}</select></label>
             <p class="tiny dim" style="margin:-4px 0 10px">Meça até 3 vezes cada ponto (lado direito). O app usa a mediana automaticamente.</p>
-            <div id="dobras">${DOBRAS.map(([k, l]) => { const ms = ((av.dobras || {})._medidas || {})[k] || [(av.dobras || {})[k]]; return `<div class="dobra-row" data-dobra="${k}"><span>${l}</span>${[0, 1, 2].map((n) => `<input class="input c" name="d_${k}_${n}" inputmode="decimal" value="${esc(v(ms[n]))}" placeholder="${n + 1}ª" aria-label="${l} medida ${n + 1}">`).join('')}<b data-med="${k}">–</b></div>`; }).join('')}</div>
+            <div id="dobras">${DOBRAS.map(([k, l]) => { const ms = ((av.dobras || {})._medidas || {})[k] || [(av.dobras || {})[k]]; return `<div class="dobra-row" data-dobra="${k}"><span>${l}</span>${[0, 1, 2].map((n) => `<input class="input c" name="d_${k}_${n}" data-mask="dec" inputmode="decimal" value="${esc(v(ms[n]))}" placeholder="${n + 1}ª" aria-label="${l} medida ${n + 1}">`).join('')}<b data-med="${k}">–</b></div>`; }).join('')}</div>
             <p class="tiny dim" id="dobras-msg"></p>
           </div>
           <div id="b-bio"><div class="grid2">${BIO.map(([k, l, u]) => `<label class="field"><span>${l}</span>${inp('b_' + k, (av.bio || {})[k], '', u)}</label>`).join('')}</div></div>
@@ -1528,18 +1528,21 @@ const MASCARA = {
   altura: (v) => { const d = soDig(v).slice(0, 3); return d.length > 1 ? `${d[0]},${d.slice(1)}` : d; },
   peso: (v) => { const d = soDig(v).slice(0, 4); const n = d[0] === '1' || d[0] === '2' ? 3 : 2; return d.length > n ? `${d.slice(0, n)},${d[n]}` : d; }, // 88 · 885→88,5 · 105 · 1055→105,5
   num: (v, el) => soDig(v).slice(0, +(el && el.dataset.max) || 3),
+  // tempo como no relógio: 2530 → 25:30 · 12530 → 1:25:30
+  tempo: (v) => { const d = soDig(v).replace(/^0+(?=\d{3})/, '').slice(0, 6); if (d.length <= 2) return d; if (d.length <= 4) return `${d.slice(0, -2)}:${d.slice(-2)}`; return `${d.slice(0, -4)}:${d.slice(-4, -2)}:${d.slice(-2)}`; },
+  // pace: 512 → 5:12 · 1005 → 10:05
+  pace: (v) => { const d = soDig(v).replace(/^0+(?=\d{3})/, '').slice(0, 4); return d.length <= 2 ? d : `${d.slice(0, -2)}:${d.slice(-2)}`; },
+  // número com vírgula (km, kg, cm, R$): aceita ponto ou vírgula e mostra vírgula
+  dec: (v) => { let t = String(v || '').replace(/\./g, ',').replace(/[^\d,]/g, ''); const i = t.indexOf(','); if (i >= 0) t = t.slice(0, i + 1) + t.slice(i + 1).replace(/,/g, '').slice(0, 2); return t; },
 };
 // "25/03/1995" -> "1995-03-25" (ou '' se não for uma data válida)
 const dataISO = (br) => { const m = String(br || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (!m) return ''; const iso = `${m[3]}-${m[2]}-${m[1]}`; const d = new Date(iso + 'T12:00:00'); return !isNaN(d) && d.getDate() === +m[1] && d.getMonth() + 1 === +m[2] ? iso : ''; };
 const dataBR = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || '')) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '');
 function aplicarMascaras(root) {
-  root.querySelectorAll('[data-mask]').forEach((el) => {
-    const fn = MASCARA[el.dataset.mask]; if (!fn) return;
-    el.setAttribute('autocomplete', el.getAttribute('autocomplete') || 'off');
-    if (el.value) el.value = fn(el.value, el);
-    el.addEventListener('input', () => { el.value = fn(el.value, el); });
-  });
+  root.querySelectorAll('[data-mask]').forEach((el) => { const fn = MASCARA[el.dataset.mask]; if (fn && el.value) el.value = fn(el.value, el); });
 }
+// vale para todos os campos com data-mask do app, em qualquer tela ou janela
+document.addEventListener('input', (e) => { const el = e.target; const fn = el && el.dataset && MASCARA[el.dataset.mask]; if (fn) { const nv = fn(el.value, el); if (nv !== el.value) el.value = nv; } }, true);
 // mostra uma etapa por vez; "Próximo" só avança quando validar(etapa) não devolve erro
 function etapas(form, validar) {
   form.classList.add('wz');
@@ -2053,7 +2056,7 @@ const fmtDur = (s) => { if (s == null) return '–'; s = Math.round(s); const h 
 const fmtDurLongo = (s) => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
 const fmtPace = (sPorKm) => { if (!sPorKm || !isFinite(sPorKm)) return '–'; const s = Math.round(sPorKm); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}/km`; };
 const paceDe = (c) => c && c.distancia_m > 0 ? c.duracao_s / (c.distancia_m / 1000) : null;
-const lerTempo = (t) => { const p = String(t || '').trim().split(':').map((x) => +x.replace(',', '.')); if (p.some((x) => !isFinite(x))) return null; if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2]; if (p.length === 2) return p[0] * 60 + p[1]; if (p.length === 1 && p[0]) return p[0] * 60; return null; };
+const lerTempo = (t) => { const p = String(t || '').trim().split(':').map((x) => +x.replace(',', '.')); if (p.some((x) => !isFinite(x))) return null; if (p.length > 1 && p.slice(1).some((x) => x >= 60)) return null; if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2]; if (p.length === 2) return p[0] * 60 + p[1]; if (p.length === 1 && p[0]) return p[0] * 60; return null; };
 
 /** VDOT de Jack Daniels a partir de uma prova/teste */
 function vdotDe(distM, seg) {
@@ -2189,9 +2192,9 @@ function formCorrida(alunoId, d, plano, onSalvo) {
     ${d.fonte === 'arquivo' ? `<div class="mini-stats"><div><b>${fmtKm(d.distancia_m)}</b><span>distância</span></div><div><b>${fmtDur(d.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(d))}</b><span>pace</span></div></div>${d.rota ? `<div class="rota-box">${rotaSVG(d.rota, 150)}</div>` : ''}` : ''}
     <form id="f-corr" style="margin-top:14px">
       <div class="grid2"><label class="field"><span>Data e hora</span><input class="input" type="datetime-local" name="data" value="${dt.toISOString().slice(0, 16)}" required></label><label class="field"><span>Tipo</span><select class="input" name="tipo">${TIPOS_ATIV.map(([k, l]) => `<option value="${k}" ${d.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-      <div class="grid2"><label class="field"><span>Distância (km)</span><input class="input" name="km" inputmode="decimal" value="${d.distancia_m ? String(+(d.distancia_m / 1000).toFixed(2)).replace('.', ',') : ''}" placeholder="Ex.: 8,2" required></label><label class="field"><span>Tempo (h:mm:ss)</span><input class="input" name="tempo" inputmode="numeric" value="${d.duracao_s ? fmtDurLongo(d.duracao_s) : ''}" placeholder="Ex.: 45:30" required></label></div>
+      <div class="grid2"><label class="field"><span>Distância (km)</span><input class="input" name="km" data-mask="dec" inputmode="decimal" value="${d.distancia_m ? String(+(d.distancia_m / 1000).toFixed(2)).replace('.', ',') : ''}" placeholder="Ex.: 8,2" required></label><label class="field"><span>Tempo (h:mm:ss)</span><input class="input" name="tempo" data-mask="tempo" inputmode="numeric" value="${d.duracao_s ? fmtDurLongo(d.duracao_s) : ''}" placeholder="Ex.: 45:30" required></label></div>
       <p class="small muted" id="pace-calc" style="margin:-6px 0 12px"></p>
-      <div class="grid2"><label class="field"><span>FC média (bpm)</span><input class="input" name="fc_media" inputmode="numeric" value="${esc(d.fc_media ?? '')}"></label><label class="field"><span>FC máxima (bpm)</span><input class="input" name="fc_max" inputmode="numeric" value="${esc(d.fc_max ?? '')}"></label></div>
+      <div class="grid2"><label class="field"><span>FC média (bpm)</span><input class="input" name="fc_media" data-mask="num" inputmode="numeric" value="${esc(d.fc_media ?? '')}"></label><label class="field"><span>FC máxima (bpm)</span><input class="input" name="fc_max" data-mask="num" inputmode="numeric" value="${esc(d.fc_max ?? '')}"></label></div>
       ${plano.length ? `<label class="field"><span>É de qual treino da planilha?</span><select class="input" name="plano"><option value="">Corrida avulsa</option>${prox.slice(0, 8).map((p) => `<option value="${p.id}" ${(d.plano_id || sugerido?.id) === p.id ? 'selected' : ''}>${fmtData(p.data + 'T12:00:00')} · ${esc(p.titulo || nomeTipo(p.tipo))}${p.distancia_km ? ' · ' + String(p.distancia_km).replace('.', ',') + ' km' : ''}</option>`).join('')}</select></label>` : ''}
       <div class="field"><span>Esforço percebido (0 a 10)</span><div class="effort" id="rpe">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}" class="${rpe === n ? 'on' : ''}" style="${rpe === n ? 'background:' + rpeCor(n) : ''}">${n}</button>`).join('')}</div></div>
       <div class="field"><span>Sentiu alguma dor?</span><div class="seg"><button type="button" class="${dor ? '' : 'on'}" data-dor="0">Não</button><button type="button" class="${dor ? 'on alert' : ''}" data-dor="1">Sim</button></div>
@@ -2438,13 +2441,13 @@ function formPerfilCorrida(m, onSalvo) {
   openSheet(`<p class="eyebrow">Perfil de corrida</p><div class="h2" style="margin-top:4px">${esc(firstName(m.nome))}</div>
     <p class="small muted" style="margin-top:6px">Use uma prova ou teste recente feito no limite (ideal: 3 a 10 km). O app calcula o VDOT, os paces de treino e as previsões de prova.</p>
     <form id="f-pc" style="margin-top:14px">
-      <div class="grid2"><label class="field"><span>Distância do teste (km)</span><input class="input" name="km" inputmode="decimal" value="${esc(c.teste_km != null ? String(c.teste_km).replace('.', ',') : '')}" placeholder="5"></label><label class="field"><span>Tempo (h:mm:ss)</span><input class="input" name="tempo" value="${c.teste_seg ? fmtDurLongo(c.teste_seg) : ''}" placeholder="25:30"></label></div>
+      <div class="grid2"><label class="field"><span>Distância do teste (km)</span><input class="input" name="km" data-mask="dec" inputmode="decimal" value="${esc(c.teste_km != null ? String(c.teste_km).replace('.', ',') : '')}" placeholder="5"></label><label class="field"><span>Tempo (h:mm:ss)</span><input class="input" name="tempo" data-mask="tempo" inputmode="numeric" value="${c.teste_seg ? fmtDurLongo(c.teste_seg) : ''}" placeholder="25:30"></label></div>
       <label class="field"><span>Data do teste</span><input class="input" type="date" name="data" value="${esc(c.teste_data || hojeISO())}"></label>
-      <div class="grid2"><label class="field"><span>FC máxima medida (opcional)</span><input class="input" name="fcmax" inputmode="numeric" value="${esc(c.fc_max ?? '')}" placeholder="se souber"></label><label class="field"><span>FC de repouso</span><input class="input" name="fcrep" inputmode="numeric" value="${esc(c.fc_rep ?? '')}"></label></div>
+      <div class="grid2"><label class="field"><span>FC máxima medida (opcional)</span><input class="input" name="fcmax" data-mask="num" inputmode="numeric" value="${esc(c.fc_max ?? '')}" placeholder="se souber"></label><label class="field"><span>FC de repouso</span><input class="input" name="fcrep" data-mask="num" inputmode="numeric" value="${esc(c.fc_rep ?? '')}"></label></div>
       <p class="small" id="pc-prev" style="margin:-4px 0 12px;color:var(--acc)"></p>
       <button class="btn block" type="submit">Salvar perfil</button></form>`, (r) => {
     const f = r.querySelector('#f-pc');
-    const prev = () => { const v = vdotDe(num(f.km.value) * 1000, lerTempo(f.tempo.value)); r.querySelector('#pc-prev').textContent = v ? `VDOT ${f1(v)} · leve ${faixaPace(pacesDe(v).leve)} · limiar ${faixaPace(pacesDe(v).limiar)}` : ''; };
+    const prev = () => { const v = vdotDe(num(f.km.value) * 1000, lerTempo(f.tempo.value)); r.querySelector('#pc-prev').textContent = v > 0 ? `VDOT ${f1(v)} · leve ${faixaPace(pacesDe(v).leve)} · limiar ${faixaPace(pacesDe(v).limiar)}` : ''; };
     f.oninput = prev; prev();
     f.onsubmit = async (e) => {
       e.preventDefault();
@@ -2777,14 +2780,14 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
   const linhaPasso = (s, cam) => `<div class="passo" data-cam="${cam}" style="--zc:${(ZONAS_INFO[s.z] || ZONAS_INFO.leve).c}">
       <span class="alca" aria-label="Arrastar">⋮⋮</span>
       <select class="input ksel" data-cam="${cam}" data-f="k">${Object.entries(PASSOS).map(([k, l]) => `<option value="${k}" ${s.k === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      <input class="input vin" data-cam="${cam}" data-f="v" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
+      <input class="input vin" data-cam="${cam}" data-f="v" data-mask="dec" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
       ${medSel(s.med, cam)}${zonaSel(s.z, cam)}
       <em class="pace-dica">pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
     const rs = resumoEstrutura(t.estrutura, perfil);
     r.querySelector('#passos').innerHTML = t.estrutura.map((s, i) => s.k === 'rep'
-      ? `<div class="serie" data-cam="${i}"><div class="serie-h"><span class="alca" aria-label="Arrastar">⋮⋮</span><b>Repetir</b><input class="input nin" data-cam="${i}" data-f="n" inputmode="numeric" value="${s.n}"><b>vezes</b><button type="button" class="x-passo" data-del="${i}" aria-label="Remover série">${I.x}</button></div>
+      ? `<div class="serie" data-cam="${i}"><div class="serie-h"><span class="alca" aria-label="Arrastar">⋮⋮</span><b>Repetir</b><input class="input nin" data-cam="${i}" data-f="n" data-mask="num" data-max="2" inputmode="numeric" value="${s.n}"><b>vezes</b><button type="button" class="x-passo" data-del="${i}" aria-label="Remover série">${I.x}</button></div>
           <div class="serie-c">${(s.passos || []).map((p, j) => linhaPasso(p, i + '.' + j)).join('')}<button type="button" class="link-btn small" data-addin="${i}">+ passo na série</button></div></div>`
       : linhaPasso(s, String(i))).join('') || '<p class="small muted">Adicione os passos do treino abaixo.</p>';
     r.querySelector('#perf').innerHTML = perfilHTML(t.estrutura, perfil, true);
@@ -3079,7 +3082,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const faixaDe = (k) => (perfil.paces && perfil.paces[k]) || (k === 'rec' && perfil.paces && perfil.paces.leve ? [Math.round(perfil.paces.leve[1] * 1.08), Math.round(perfil.paces.leve[1] * 1.16)] : [ZONAS_INFO[k].pd - 10, ZONAS_INFO[k].pd + 10]);
     const mmss = (sg) => { const v = Math.round(sg); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
     const tileZ = ([k, l]) => staff
-      ? `<div class="pz-ed" style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><div class="pz-in"><input class="input mono" data-pz="${k}" data-i="0" value="${mmss(faixaDe(k)[0])}" inputmode="numeric" aria-label="${l} de"><i>–</i><input class="input mono" data-pz="${k}" data-i="1" value="${mmss(faixaDe(k)[1])}" inputmode="numeric" aria-label="${l} até"><em>/km</em></div></div>`
+      ? `<div class="pz-ed" style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><div class="pz-in"><input class="input mono" data-pz="${k}" data-i="0" data-mask="pace" value="${mmss(faixaDe(k)[0])}" inputmode="numeric" aria-label="${l} de"><i>–</i><input class="input mono" data-pz="${k}" data-i="1" data-mask="pace" value="${mmss(faixaDe(k)[1])}" inputmode="numeric" aria-label="${l} até"><em>/km</em></div></div>`
       : `<div style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><b>${paceZonaTxt(k, perfil)}</b></div>`;
     corpo = `${perfil.paces || staff ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
         ${staff ? '<p class="tiny dim" style="margin-top:8px">Edite o pace de cada zona (minutos:segundos por km) e toque em “Salvar zonas”. É o que o aluno vê nos treinos.</p>' : ''}
@@ -3573,7 +3576,7 @@ function detalheCobranca(c, aluno, depois) {
       <button class="btn ghost block" id="d-lemb" style="margin-top:10px">${I.bell} Lembrar o aluno</button>`
       : '<button class="btn ghost block" id="d-desf" style="margin-top:14px">Desfazer pagamento</button>'}
     <details class="ajuda" style="margin-top:14px"><summary>Editar valor ou vencimento</summary>
-      <div class="grid2" style="margin-top:10px"><label class="field"><span>Valor (R$)</span><input class="input" id="d-val" inputmode="decimal" value="${String(c.valor).replace('.', ',')}"></label><label class="field"><span>Vencimento</span><input class="input" type="date" id="d-ven" value="${c.vencimento}"></label></div>
+      <div class="grid2" style="margin-top:10px"><label class="field"><span>Valor (R$)</span><input class="input" id="d-val" data-mask="dec" inputmode="decimal" value="${String(c.valor).replace('.', ',')}"></label><label class="field"><span>Vencimento</span><input class="input" type="date" id="d-ven" value="${c.vencimento}"></label></div>
       <div class="row between"><button class="btn sm" id="d-salvar">Salvar</button><button class="link-btn small" id="d-canc" style="color:var(--err)">Cancelar esta cobrança</button></div></details>`, (r) => {
     const fm = r.querySelector('#formas'); if (fm) fm.onclick = (e) => { const b = e.target.closest('[data-forma]'); if (b) marcarPaga(c, b.dataset.forma, depois); };
     const lb = r.querySelector('#d-lemb'); if (lb) lb.onclick = () => lembrarCobranca(c, aluno);
@@ -3598,7 +3601,7 @@ function ajustesFinanceiro(base) {
     desenhar(r);
     const formPlano = (p) => openSheet(`<p class="eyebrow">${p ? 'Editar plano' : 'Novo plano'}</p><form id="f-pl" style="margin-top:12px">
       <label class="field"><span>Nome</span><input class="input" name="nome" value="${esc(p ? p.nome : '')}" placeholder="Ex.: Corrida mensal" required></label>
-      <div class="grid2"><label class="field"><span>Valor (R$)</span><input class="input" name="valor" inputmode="decimal" value="${p ? String(p.valor).replace('.', ',') : ''}" required></label><label class="field"><span>Cobrança</span><select class="input" name="meses">${CICLOS.map(([k, l]) => `<option value="${k}" ${p && p.meses === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+      <div class="grid2"><label class="field"><span>Valor (R$)</span><input class="input" name="valor" data-mask="dec" inputmode="decimal" value="${p ? String(p.valor).replace('.', ',') : ''}" required></label><label class="field"><span>Cobrança</span><select class="input" name="meses">${CICLOS.map(([k, l]) => `<option value="${k}" ${p && p.meses === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
       ${p ? `<label class="aceite" style="padding:4px 0 12px"><input type="checkbox" name="ativo" ${p.ativo ? 'checked' : ''}><span>Plano ativo</span></label>` : ''}
       <button class="btn block">Salvar plano</button>${p ? '<button type="button" class="link-btn small" id="pl-del" style="margin-top:10px;color:var(--err)">Excluir plano</button>' : ''}</form>`, (r2) => {
       const f = r2.querySelector('#f-pl');
@@ -3631,7 +3634,7 @@ async function planoDoAlunoHTML(m) {
   const fz = m.financeiro || {};
   return { base, cobs: cobs || [], html: `<div class="card" id="plano-card"><b>Plano e pagamento</b>
     ${base.planos.length ? `<form id="f-plano" style="margin-top:12px"><label class="field"><span>Plano</span><select class="input" name="plano"><option value="">Sem plano (não gera mensalidade)</option>${base.planos.filter((p) => p.ativo || p.id === fz.plano_id).map((p) => `<option value="${p.id}" ${fz.plano_id === p.id ? 'selected' : ''}>${esc(p.nome)} · ${brl(p.valor)}</option>`).join('')}</select></label>
-      <div class="grid3"><label class="field"><span>Valor</span><input class="input" name="valor" inputmode="decimal" value="${fz.valor != null && fz.valor !== '' ? String(fz.valor).replace('.', ',') : ''}" placeholder="do plano"></label><label class="field"><span>Vence dia</span><input class="input" name="dia" inputmode="numeric" value="${esc(fz.dia || 10)}"></label><label class="field"><span>Início</span><input class="input" type="month" name="inicio" value="${esc(fz.inicio || compDe())}"></label></div>
+      <div class="grid3"><label class="field"><span>Valor</span><input class="input" name="valor" data-mask="dec" inputmode="decimal" value="${fz.valor != null && fz.valor !== '' ? String(fz.valor).replace('.', ',') : ''}" placeholder="do plano"></label><label class="field"><span>Vence dia</span><input class="input" name="dia" data-mask="num" data-max="2" inputmode="numeric" value="${esc(fz.dia || 10)}"></label><label class="field"><span>Início</span><input class="input" type="month" name="inicio" value="${esc(fz.inicio || compDe())}"></label></div>
       <button class="btn ghost block sm">Salvar plano do aluno</button></form>` : '<p class="small muted" style="margin-top:6px">Crie os planos em Financeiro → Ajustes.</p>'}
     ${(cobs || []).length ? `<div class="stack" style="margin-top:12px">${cobs.map((c) => { const s = statusCob(c); return `<div class="cob-mini" data-cobm="${c.id}"><span>${esc(nomeMes(c.competencia))}</span><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span></div>`; }).join('')}</div>` : ''}</div>` };
 }
@@ -4041,7 +4044,7 @@ function formPessoa(tipo, pre = {}, aoCriar) {
     <form id="f-pessoa" style="margin-top:18px">
       <label class="field"><span>Nome completo</span><input class="input" name="nome" required autofocus value="${pv('nome')}"></label>
       <label class="field"><span>E-mail (será o login)</span><input class="input" type="email" name="email" required inputmode="email" value="${pv('email')}"></label>
-      ${aluno ? `<div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" inputmode="tel" placeholder="(98) 9 9999-9999" value="${pv('telefone')}"></label><label class="field"><span>Nascimento</span><input class="input" type="date" name="nascimento" value="${pv('nascimento')}"></label></div>
+      ${aluno ? `<div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999" value="${pv('telefone')}"></label><label class="field"><span>Nascimento</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${dataBR(pv('nascimento'))}"></label></div>
       <div class="field"><span>Faz com a Nexos</span>${modsHTML(pre.mods || null)}</div>
       <label class="field"><span>Objetivo</span><input class="input" name="objetivo" placeholder="Ex.: correr 10 km, emagrecer, hipertrofia" value="${pv('objetivo')}"></label>
       <label class="field"><span>Observações de saúde / restrições</span><textarea class="textarea" name="observacoes" placeholder="Ex.: dor no joelho esquerdo, hipertensão controlada">${pv('observacoes')}</textarea></label>` : ''}
@@ -4055,6 +4058,7 @@ function formPessoa(tipo, pre = {}, aoCriar) {
       const fd = new FormData(f); const mods = fd.getAll('mod'); fd.delete('mod');
       if (aluno && !mods.length) { btn.disabled = false; return toast('Marque musculação, corrida ou as duas.', true); }
       const dados = Object.fromEntries(fd.entries());
+      if (dados.nascimento) { const iso = dataISO(dados.nascimento); if (!iso) { btn.disabled = false; return toast('Confira a data de nascimento (dd/mm/aaaa).', true); } dados.nascimento = iso; }
       Object.keys(dados).forEach((k) => { if (dados[k] === '') delete dados[k]; });
       try {
         const r = await chamarFuncao({ acao: aluno ? 'criar' : 'criar_treinador', ...dados });
@@ -4197,7 +4201,7 @@ async function staffAluno(alunoId, aba, extra) {
   } else {
     corpo = `<form class="card" id="f-dados">
       <label class="field"><span>Nome</span><input class="input" name="nome" value="${esc(m.nome)}" required></label>
-      <div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" value="${esc(m.telefone || '')}"></label><label class="field"><span>Nascimento</span><input class="input" type="date" name="nascimento" value="${esc(m.nascimento || '')}"></label></div>
+      <div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999" value="${esc(MASCARA.tel(m.telefone || ''))}"></label><label class="field"><span>Nascimento</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${dataBR(m.nascimento)}"></label></div>
       <label class="field"><span>Objetivo</span><input class="input" name="objetivo" value="${esc(m.objetivo || '')}"></label>
       <label class="field"><span>Observações de saúde / restrições</span><textarea class="textarea" name="observacoes">${esc(m.observacoes || '')}</textarea></label>
       <button class="btn block">Salvar dados</button></form>
@@ -4287,7 +4291,7 @@ async function staffAluno(alunoId, aba, extra) {
     if (planoInfo) bindPlanoDoAluno(m, planoInfo, () => staffAluno(alunoId, 'dados'));
     document.getElementById('f-dados').onsubmit = async (e) => {
       e.preventDefault(); const f = e.target;
-      const upd = { nome: f.nome.value.trim(), telefone: f.telefone.value.trim() || null, nascimento: f.nascimento.value || null, objetivo: f.objetivo.value.trim() || null, observacoes: f.observacoes.value.trim() || null };
+      const upd = { nome: f.nome.value.trim(), telefone: f.telefone.value.trim() || null, nascimento: dataISO(f.nascimento.value) || null, objetivo: f.objetivo.value.trim() || null, observacoes: f.observacoes.value.trim() || null };
       const { error: er } = await sb.from('nx_membros').update(upd).eq('org_id', S.org.id).eq('user_id', alunoId);
       er ? toast('Não foi possível salvar.', true) : (toast('Dados salvos!'), staffAluno(alunoId, 'dados'));
     };
@@ -4359,13 +4363,13 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
           return `<div class="ex-li aberto card" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span><span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${esc(ex.grupo || '')}</small></span><span class="ex-chev up">${I.chev}</span></button>
             <div class="item-row" style="margin-top:10px"><div class="ex-fig-g">${exFig(ex, '')}</div>
             <div class="row" style="gap:6px;align-items:flex-start"><div class="reorder"><button type="button" data-mv="-1" aria-label="Subir">${I.up}</button><button type="button" data-mv="1" aria-label="Descer">${I.down}</button></div><button type="button" class="icon-btn" data-rm aria-label="Remover" style="width:36px;height:36px">${I.x}</button></div></div>
-            ${det ? `<div class="ser-det"><div class="sd-h"><span></span><span class="tiny dim">Reps</span><span class="tiny dim">Carga</span><span class="tiny dim">Desc. (s)</span><span></span></div>${det.map((d, k) => `<div class="sd-l" data-k="${k}"><b class="mono">${k + 1}ª</b><input class="input c" data-d="reps" value="${esc(d.reps ?? '')}" placeholder="12"><input class="input c" data-d="carga" value="${esc(d.carga ?? '')}" placeholder="20 kg"><input class="input c" inputmode="numeric" data-d="desc" value="${esc(d.desc ?? '')}" placeholder="60"><button type="button" class="sd-x" data-sdrm="${k}" aria-label="Remover série">${I.x}</button></div>`).join('')}
+            ${det ? `<div class="ser-det"><div class="sd-h"><span></span><span class="tiny dim">Reps</span><span class="tiny dim">Carga</span><span class="tiny dim">Desc. (s)</span><span></span></div>${det.map((d, k) => `<div class="sd-l" data-k="${k}"><b class="mono">${k + 1}ª</b><input class="input c" data-d="reps" value="${esc(d.reps ?? '')}" placeholder="12"><input class="input c" data-d="carga" value="${esc(d.carga ?? '')}" placeholder="20 kg"><input class="input c" inputmode="numeric" data-d="desc" data-mask="num" value="${esc(d.desc ?? '')}" placeholder="60"><button type="button" class="sd-x" data-sdrm="${k}" aria-label="Remover série">${I.x}</button></div>`).join('')}
               <div class="sd-acoes"><button type="button" class="link-btn small" data-sdadd>${I.plus} Adicionar série</button><button type="button" class="link-btn small" data-sdoff style="color:var(--mute)">Voltar para séries iguais</button></div></div>`
             : `<div class="grid4" style="margin-top:12px">
-              <label><span class="tiny dim">Séries</span><input class="input c" inputmode="numeric" data-f="series" value="${esc(it.series ?? '')}" placeholder="3"></label>
+              <label><span class="tiny dim">Séries</span><input class="input c" data-mask="num" data-max="2" inputmode="numeric" data-f="series" value="${esc(it.series ?? '')}" placeholder="3"></label>
               <label><span class="tiny dim">Reps</span><input class="input c" data-f="repeticoes" value="${esc(it.repeticoes ?? '')}" placeholder="12"></label>
               <label><span class="tiny dim">Carga</span><input class="input c" data-f="carga" value="${esc(it.carga ?? '')}" placeholder="20 kg"></label>
-              <label><span class="tiny dim">Desc. (s)</span><input class="input c" inputmode="numeric" data-f="descanso_seg" value="${esc(it.descanso_seg ?? '')}" placeholder="60"></label>
+              <label><span class="tiny dim">Desc. (s)</span><input class="input c" data-mask="num" inputmode="numeric" data-f="descanso_seg" value="${esc(it.descanso_seg ?? '')}" placeholder="60"></label>
             </div><button type="button" class="link-btn small sd-on" data-sdon>Séries com carga ou reps diferentes (pirâmide, aquecimento)</button>`}
             <input class="input" data-f="observacao" value="${esc(it.observacao ?? '')}" placeholder="Observação (opcional): ex. cadência 3-1-1" style="margin-top:8px"></div>`;
         }).join('') || '<div class="empty"><div class="h3">Nenhum exercício</div><p class="small">Adicione da sua biblioteca.</p></div>'}</div>
@@ -5029,7 +5033,7 @@ async function staffFormularios(id) {
   };
   document.getElementById('gerar').onclick = () => openSheet(`<p class="eyebrow">Ficha de entrada</p><div class="h2" style="margin-top:4px">Gerar link</div>
     <form id="f-gl" style="margin-top:14px"><label class="field"><span>Nome da pessoa (opcional)</span><input class="input" name="nome" placeholder="Já aparece preenchido para ela"></label>
-    <label class="field"><span>WhatsApp (opcional)</span><input class="input" name="telefone" inputmode="tel" placeholder="(98) 9 9999-9999"></label>
+    <label class="field"><span>WhatsApp (opcional)</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999"></label>
     <p class="tiny dim" style="margin:-4px 0 14px">Com o número, o WhatsApp já abre na conversa dela.</p><button class="btn block" type="submit">Gerar link</button></form>`, (r) => {
     r.querySelector('#f-gl').onsubmit = async (e) => {
       e.preventDefault(); const fd = new FormData(e.target); e.target.querySelector('button').disabled = true;
