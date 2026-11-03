@@ -1249,3 +1249,7 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .mail-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:#0b2352!important;color:#fff!important}
 .mail-btn svg{width:18px;height:18px}
 .mail-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.acesso-card{border-color:color-mix(in srgb,var(--acc) 40%,var(--line))}
+.acesso-mail{display:flex;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--s1);border:1px solid var(--line);min-width:0}
+.acesso-mail svg{width:20px;height:20px;flex:none;color:var(--acc)}
+.acesso-mail b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
