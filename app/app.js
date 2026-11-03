@@ -647,7 +647,7 @@ async function alunoHoje() {
     return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span>${feito ? '<span class="tag ok">✓ feita</span>' : ''}</div>
       <div class="h3" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
-      <div class="small muted">${[rs.km ? f1(rs.km) + ' km' : '', rs.seg ? fmtDur(rs.seg) : ''].filter(Boolean).join(' · ')}</div>
+      <div class="small muted">${est.length ? (() => { const t = estimaTotal(est, perfC); return `${t.soDist ? '' : '≈ '}${t.km} · ${t.soTempo ? '' : '≈ '}${t.tempo}`; })() : ''}</div>
       <p class="small" style="margin-top:6px">${esc(descreverEstrutura(est, perfC))}</p>
       ${sobreTreino(p.tipo) ? `<p class="small muted sobre-t">${esc(sobreTreino(p.tipo))}</p>` : ''}
       <div class="row" style="gap:8px;margin-top:12px">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<button class="btn sm" data-reg="${p.id}">${I.plus} Registrar corrida</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
@@ -2718,6 +2718,29 @@ function achatar(estrutura, perfil) {
   (estrutura || []).forEach((s) => { if (s.k === 'rep') { for (let i = 0; i < (s.n || 1); i++) (s.passos || []).forEach((p) => add(p, i + 1)); } else add(s); });
   return out;
 }
+/** faixa de pace (s/km, [rápido, lento]) do aluno numa zona */
+function faixaZona(z, perfil) {
+  const p = perfil && perfil.paces;
+  if (p && p[z]) { const a = Math.min(p[z][0], p[z][1]), b = Math.max(p[z][0], p[z][1]); return a === b ? [a * 0.97, a * 1.03] : [a, b]; }
+  if (z === 'rec' && p && p.leve) return [Math.max(p.leve[0], p.leve[1]) * 1.08, Math.max(p.leve[0], p.leve[1]) * 1.16];
+  const c = paceZona(z, perfil); return [c * 0.96, c * 1.04];
+}
+const kmTxt = (km) => (km < 1 ? `${Math.round(km * 100) * 10} m` : `${(Math.round(km * 10) / 10).toString().replace('.', ',')} km`);
+const faixaKmTxt = (a, b) => { const x = kmTxt(a), y = kmTxt(b); if (x === y) return x; return a < 1 && b < 1 ? `${x.replace(' m', '')}–${y}` : a >= 1 && b >= 1 ? `${x.replace(' km', '')}–${y}` : `${x}–${y}`; };
+const faixaDurTxt = (a, b) => { const x = fmtDur(a), y = fmtDur(b); return x === y ? x : `${x}–${y}`; };
+/** estimativa de um passo: por tempo → distância; por distância → tempo (pela faixa de pace do aluno) */
+function estimaPasso(s, perfil) {
+  const [a, b] = faixaZona(s.z, perfil);
+  if (s.med === 'min') { const seg = s.v * 60; return { tipo: 'dist', txt: faixaKmTxt(seg / b, seg / a) }; }
+  const km = s.med === 'km' ? s.v : s.v / 1000; return { tipo: 'tempo', txt: faixaDurTxt(km * a, km * b) };
+}
+/** total estimado do treino (faixa de km e de tempo) */
+function estimaTotal(estrutura, perfil) {
+  let k0 = 0, k1 = 0, t0 = 0, t1 = 0;
+  const add = (s, n = 1) => { const [a, b] = faixaZona(s.z, perfil); if (s.med === 'min') { const seg = s.v * 60 * n; t0 += seg; t1 += seg; k0 += seg / b; k1 += seg / a; } else { const km = (s.med === 'km' ? s.v : s.v / 1000) * n; k0 += km; k1 += km; t0 += km * a; t1 += km * b; } };
+  (estrutura || []).forEach((s) => (s.k === 'rep' ? (s.passos || []).forEach((p) => add(p, s.n || 1)) : add(s)));
+  return { km: faixaKmTxt(k0, k1), tempo: faixaDurTxt(t0, t1), soDist: k0 === k1, soTempo: t0 === t1 };
+}
 function resumoEstrutura(estrutura, perfil) {
   const l = achatar(estrutura, perfil);
   return { km: l.reduce((a, s) => a + s.metros, 0) / 1000, seg: l.reduce((a, s) => a + s.seg, 0) };
@@ -2725,9 +2748,10 @@ function resumoEstrutura(estrutura, perfil) {
 const medTxt = (s) => s.med === 'km' ? `${String(s.v).replace('.', ',')} km` : s.med === 'm' ? `${s.v} m` : `${String(s.v).replace('.', ',')} min`;
 function descreverEstrutura(estrutura, perfil) {
   const zt = (p) => { const z = ZONAS_INFO[p.z] || ZONAS_INFO.leve; return `${z.z}${perfil ? ' (' + paceZonaTxt(p.z, perfil).replace('/km', '') + ')' : ''}`; };
+  const est = (p) => (perfil && p.med === 'min' ? ` ≈${estimaPasso(p, perfil).txt}` : '');
   return (estrutura || []).map((s) => s.k === 'rep'
-    ? `${s.n}× (${(s.passos || []).map((p) => `${medTxt(p)} ${zt(p)}`).join(' + ')})`
-    : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : ''}${medTxt(s)} ${zt(s)}`).join(' · ');
+    ? `${s.n}× (${(s.passos || []).map((p) => `${medTxt(p)} ${zt(p)}${est(p)}`).join(' + ')})`
+    : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : ''}${medTxt(s)} ${zt(s)}${est(s)}`).join(' · ');
 }
 function perfilHTML(estrutura, perfil, alto = false) {
   const l = achatar(estrutura, perfil); const tot = l.reduce((a, s) => a + s.seg, 0) || 1;
@@ -2929,7 +2953,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       <select class="input ksel" data-cam="${cam}" data-f="k">${Object.entries(PASSOS).map(([k, l]) => `<option value="${k}" ${s.k === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <input class="input vin" data-cam="${cam}" data-f="v" data-mask="dec" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
       ${medSel(s.med, cam)}${zonaSel(s.z, cam)}
-      <em class="pace-dica">pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'}</em>
+      <em class="pace-dica">pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ≈ ${estimaPasso(s, perfil).txt}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
     const rs = resumoEstrutura(t.estrutura, perfil);
@@ -2938,7 +2962,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
           <div class="serie-c">${(s.passos || []).map((p, j) => linhaPasso(p, i + '.' + j)).join('')}<button type="button" class="link-btn small" data-addin="${i}">+ passo na série</button></div></div>`
       : linhaPasso(s, String(i))).join('') || '<p class="small muted">Adicione os passos do treino abaixo.</p>';
     r.querySelector('#perf').innerHTML = perfilHTML(t.estrutura, perfil, true);
-    r.querySelector('#tot').innerHTML = `<b>${f1(rs.km)} km</b> · ~${fmtDur(rs.seg)}${perfil.paces ? '' : ' <span class="tiny dim">(estimativa com paces médios)</span>'}`;
+    r.querySelector('#tot').innerHTML = `${(() => { const tt = estimaTotal(t.estrutura, perfil); return `<b>${tt.soDist ? '' : '≈ '}${tt.km}</b> · ${tt.soTempo ? '' : '≈ '}${tt.tempo}`; })()}${perfil.paces ? '' : ' <span class="tiny dim">(estimativa com paces médios)</span>'}`;
     r.querySelector('#desc-auto').textContent = descreverEstrutura(t.estrutura, perfil);
   };
   const pega = (cam) => { const [a, b] = String(cam).split('.').map(Number); return b == null ? { lista: t.estrutura, i: a } : { lista: t.estrutura[a].passos, i: b }; };
@@ -3015,10 +3039,10 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
 /* ---------- detalhe do treino para o aluno ---------- */
 function verTreinoPlanilha(p, perfil, feito) {
   const est = estruturaDe(p); const rs = resumoEstrutura(est, perfil);
-  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pz = s.z !== 'rec' && perfil.paces && perfil.paces[s.z]; const pzt = paceZonaTxt(s.z, perfil); const km = s.med === 'km' ? s.v : s.med === 'm' ? s.v / 1000 : 0; const alvoT = pz && km && km < 3 ? ` <em class="alvo-t">≈ ${fmtDur(km * pz[0])}–${fmtDur(km * pz[1])} cada</em>` : ''; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
+  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pz = s.z !== 'rec' && perfil.paces && perfil.paces[s.z]; const pzt = paceZonaTxt(s.z, perfil); const km = s.med === 'km' ? s.v : s.med === 'm' ? s.v / 1000 : 0; const e = estimaPasso(s, perfil); const alvoT = ` <em class="alvo-t">${e.tipo === 'dist' ? 'dist. est.' : 'tempo est.'} ≈ ${e.txt}</em>`; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
   openSheet(`<p class="eyebrow">${fmtDia(p.data)} · ${esc(nomeTipo(p.tipo))}</p><div class="h2" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
     ${sobreTreino(p.tipo) ? `<p class="small muted" style="margin-top:6px">${esc(sobreTreino(p.tipo))}</p>` : ''}
-    <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px"><b>${f1(rs.km)} km</b> · cerca de ${fmtDur(rs.seg)}</p></div>
+    <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px">${(() => { const t = estimaTotal(est, perfil); return `<b>${t.soDist ? '' : '≈ '}${t.km}</b> · ${t.soTempo ? '' : '≈ '}${t.tempo}`; })()}</p></div>
     <div class="stack" style="margin-top:12px">${est.map((s) => s.k === 'rep' ? `<div class="serie-v"><b>Repita ${s.n} vezes:</b>${(s.passos || []).map((x) => passoH(x)).join('')}</div>` : passoH(s)).join('')}</div>
     ${p.descricao ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Observação do treinador</span><p style="margin-top:6px;white-space:pre-line">${esc(p.descricao)}</p></div>` : ''}
     ${feito ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:14px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>` : `<button class="btn block" id="reg-agora" style="margin-top:14px">${I.plus} Registrar esta corrida</button>`}
@@ -3553,9 +3577,10 @@ function garminItem(p, perfil) {
   const conv = (s, emSerie) => {
     const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const solto = s.k === 'rc' || s.z === 'rec';
     const [pmin, pmax] = solto ? [null, null] : faixa(s.z);
-    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: zi.n };
+    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: `${zi.n} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ${estimaPasso(s, perfil).txt}`.slice(0, 100) };
   };
-  const desc = [sobreTreino(p.tipo), p.descricao ? 'Treinador: ' + p.descricao : ''].filter(Boolean).join('\n\n');
+  const tot = estimaTotal(est, perfil);
+  const desc = [sobreTreino(p.tipo), `Total est.: ${tot.soDist ? '' : '≈ '}${tot.km} · ${tot.soTempo ? '' : '≈ '}${tot.tempo}`, p.descricao ? 'Treinador: ' + p.descricao : ''].filter(Boolean).join('\n\n');
   return { plano_id: p.id, data: p.data, nome: p.titulo || nomeTipo(p.tipo), descricao: desc, passos: est.map((s) => s.k === 'rep' ? { repetir: s.n || 1, passos: (s.passos || []).map((x) => conv(x, true)) } : conv(s, false)) };
 }
 /** manda ao Garmin os treinos liberados (de hoje em diante) que ainda não estão lá — uma vez por sessão por aluno */
