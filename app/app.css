@@ -923,3 +923,21 @@ html[data-tema="escuro"] .pt.plan i,html[data-tema="escuro"] .pt-l.plan{backgrou
 /* trava a rolagem enquanto arrasta um treino */
 html.trava-scroll,html.trava-scroll body{overflow:hidden!important;overscroll-behavior:none;touch-action:none}
 html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{overflow:hidden!important;touch-action:none}
+/* formulários / ficha de entrada */
+.ficha-top{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.ficha-top img{width:46px;height:auto}
+.ficha-sec{display:flex;gap:12px;align-items:flex-start}
+.ficha-n{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:.85rem;background:var(--acc);color:var(--on-acc)}
+.ficha-sec .field{margin-bottom:10px}
+.ficha-aceite{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;padding:12px;border-radius:12px;background:var(--s1);cursor:pointer}
+.ficha-aceite input{width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--acc)}
+.ficha-tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.ficha-link{margin-top:12px;padding:12px;border-radius:12px;background:var(--s1);border:1px dashed var(--line);font-size:.8rem;word-break:break-all}
+.wa-btn{background:#25D366!important;border-color:#25D366!important;color:#06351a!important}
+.ficha-l{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-top:1px solid var(--line);font-size:.9rem}
+.ficha-l:first-of-type{margin-top:8px}
+.ficha-l span{color:var(--mute);flex:none}
+.ficha-l b{text-align:right;font-weight:700;min-width:0;overflow-wrap:anywhere}
+.ficha-alerta{margin-top:12px;border-color:color-mix(in srgb,var(--err,#ef4444) 40%,transparent);background:color-mix(in srgb,var(--err,#ef4444) 7%,var(--bg2))}
+.ficha-alerta p{margin-top:6px}
+@media (max-width:520px){.ficha-sec{flex-direction:column;gap:8px}}

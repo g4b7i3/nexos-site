@@ -55,6 +55,7 @@ if (document.querySelector('base')) {
 const loginURL = () => { try { return new URL('.', document.baseURI).href; } catch { return location.origin + location.pathname.replace(/[^/]*$/, ''); } };
 
 const I = {
+  ficha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg>',
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
   hist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
@@ -167,7 +168,7 @@ const dockStaff = () => setDock([
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo'], icon: I.cal, label: 'Treinos' },
   { href: '#/biblioteca', match: ['#/biblioteca'], icon: I.lib, label: 'Exercícios' },
-  { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil'], icon: I.grid, label: 'Mais', badge: S.cache.pagInformados || '' },
+  { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
 function layout(cls = '') { $app.className = 'app ' + cls; window.scrollTo(0, 0); }
@@ -175,6 +176,8 @@ function loading() { $app.innerHTML = '<div class="boot"><div class="boot-bar"><
 
 async function router() {
   closeSheet(); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT);
+  const fichaTk = (location.hash.match(/^#\/ficha\/([a-f0-9]{12,40})/) || [])[1];
+  if (fichaTk) return viewFicha(fichaTk);
   if (!S.user) return viewLogin();
   if (!S.me) return viewSemAcesso();
   if (!window.NX_DEMO && AREA === 'aluno' && S.staff) return viewOutraArea('treinador');
@@ -205,6 +208,7 @@ async function router() {
       if (a === 'biblioteca') return b === 'modelos' ? (location.hash = '#/treinos') : await staffBiblioteca();
       if (a === 'treinos') return await staffTreinos(b);
       if (a === 'mais') return staffMais();
+      if (a === 'formularios') return await staffFormularios(b);
       if (a === 'eventos') return await viewEventos(b);
       if (a === 'perfil') return viewPerfil();
       return await staffHoje();
@@ -3039,18 +3043,18 @@ async function staffAlunos() {
   document.getElementById('novo').onclick = () => formPessoa('aluno');
 }
 
-function formPessoa(tipo) {
+function formPessoa(tipo, pre = {}, aoCriar) {
   const senha = gerarSenha();
-  const aluno = tipo === 'aluno';
+  const aluno = tipo === 'aluno'; const pv = (k) => esc(pre[k] || '');
   openSheet(`
     <p class="eyebrow">${aluno ? 'Novo aluno' : 'Novo treinador'}</p><div class="h2" style="margin-top:4px">${aluno ? 'Cadastrar aluno' : 'Adicionar treinador'}</div>
     <form id="f-pessoa" style="margin-top:18px">
-      <label class="field"><span>Nome completo</span><input class="input" name="nome" required autofocus></label>
-      <label class="field"><span>E-mail (será o login)</span><input class="input" type="email" name="email" required inputmode="email"></label>
-      ${aluno ? `<div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" inputmode="tel" placeholder="(98) 9 9999-9999"></label><label class="field"><span>Nascimento</span><input class="input" type="date" name="nascimento"></label></div>
-      <div class="field"><span>Faz com a Nexos</span>${modsHTML(null)}</div>
-      <label class="field"><span>Objetivo</span><input class="input" name="objetivo" placeholder="Ex.: correr 10 km, emagrecer, hipertrofia"></label>
-      <label class="field"><span>Observações de saúde / restrições</span><textarea class="textarea" name="observacoes" placeholder="Ex.: dor no joelho esquerdo, hipertensão controlada"></textarea></label>` : ''}
+      <label class="field"><span>Nome completo</span><input class="input" name="nome" required autofocus value="${pv('nome')}"></label>
+      <label class="field"><span>E-mail (será o login)</span><input class="input" type="email" name="email" required inputmode="email" value="${pv('email')}"></label>
+      ${aluno ? `<div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" inputmode="tel" placeholder="(98) 9 9999-9999" value="${pv('telefone')}"></label><label class="field"><span>Nascimento</span><input class="input" type="date" name="nascimento" value="${pv('nascimento')}"></label></div>
+      <div class="field"><span>Faz com a Nexos</span>${modsHTML(pre.mods || null)}</div>
+      <label class="field"><span>Objetivo</span><input class="input" name="objetivo" placeholder="Ex.: correr 10 km, emagrecer, hipertrofia" value="${pv('objetivo')}"></label>
+      <label class="field"><span>Observações de saúde / restrições</span><textarea class="textarea" name="observacoes" placeholder="Ex.: dor no joelho esquerdo, hipertensão controlada">${pv('observacoes')}</textarea></label>` : ''}
       <label class="field"><span>Senha inicial</span><div class="row" style="gap:8px"><input class="input mono" name="senha" value="${senha}" minlength="6" required><button type="button" class="btn ghost sm" id="nova-senha">Gerar</button></div></label>
       <p class="tiny dim" style="margin:-4px 0 16px">Ele pode trocar a senha depois, no perfil.</p>
       <button class="btn block" type="submit">${aluno ? 'Cadastrar aluno' : 'Adicionar treinador'}</button>
@@ -3065,6 +3069,7 @@ function formPessoa(tipo) {
       try {
         const r = await chamarFuncao({ acao: aluno ? 'criar' : 'criar_treinador', ...dados });
         if (aluno && r.user_id && mods.length < MODS.length) await sb.from('nx_membros').update({ modalidades: mods }).eq('org_id', S.org.id).eq('user_id', r.user_id);
+        if (aoCriar) try { await aoCriar(r); } catch (e2) { console.error(e2); }
         mostrarCredenciais(dados, r.existente, aluno);
         if (aluno && location.hash === '#/alunos') staffAlunos();
       } catch (err) { btn.disabled = false; toast(err.message, true); }
@@ -3586,10 +3591,12 @@ async function staffTreinos(aba) {
 }
 function staffMais() {
   dockStaff();
+  if (S.cache.fichasNovas == null) sb.from('nx_form_respostas').select('id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('visto', false).then((r) => { S.cache.fichasNovas = r.count || 0; if (S.cache.fichasNovas && location.hash === '#/mais') staffMais(); }).catch(() => {});
   const it = (href, ic, t, d) => `<a class="list-item" href="${href}" style="color:inherit"><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Gestão da assessoria</h1>
     <div class="stack" style="margin-top:16px">
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
+      ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, treinadores e notificações' : 'Sua conta e notificações')}
     </div>`;
@@ -3691,6 +3698,192 @@ async function formExercicio(exLista, grupos) {
       closeSheet(); toast('Exercício excluído.'); S.cache.ex = null; staffBiblioteca();
     };
   });
+}
+
+/* ---------- formulários (ficha de entrada por link) ---------- */
+const FICHA_RELOGIOS = ['Garmin', 'Coros', 'Apple Watch', 'Polar', 'Amazfit', 'Samsung', 'Xiaomi', 'Outro', 'Não tenho'];
+const FICHA_EXP = [['nunca', 'Nunca corri'], ['iniciante', 'Comecei há menos de 6 meses'], ['intermediario', 'Corro de 6 meses a 2 anos'], ['experiente', 'Corro há mais de 2 anos']];
+const FICHA_HOR = [['cedo', 'Bem cedo (5h–7h)'], ['manha', 'Manhã'], ['tarde', 'Tarde'], ['noite', 'Noite']];
+const FICHA_LOCAL = [['rua', 'Rua / orla'], ['esteira', 'Esteira'], ['academia', 'Academia'], ['pista', 'Pista de atletismo'], ['trilha', 'Trilha'], ['casa', 'Em casa']];
+const FICHA_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação de amigo'], ['radar', 'Radar Corridas Maranhão'], ['evento', 'Em uma prova ou treinão'], ['outro', 'Outro']];
+const fichaLink = (tk) => loginURL() + '#/ficha/' + tk;
+const telWa = (t) => { const d = String(t || '').replace(/\D/g, ''); return d ? (d.length <= 11 ? '55' + d : d) : ''; };
+const fichaMsg = (nome, link) => `Olá${nome ? ', ' + firstName(nome) : ''}! Aqui é da Nexos Performance e Saúde 💪\n\nPara montarmos o seu treino, preencha sua ficha de entrada (leva uns 5 minutos):\n${link}`;
+
+async function chamarForm(body) {
+  const { data, error } = await sb.functions.invoke('nx-form', { body });
+  if (error) { let m = 'Não foi possível carregar. Verifique sua internet.'; try { const j = await error.context.json(); m = j.erro || m; } catch {} throw new Error(m); }
+  if (data && data.erro) throw new Error(data.erro);
+  return data;
+}
+
+async function viewFicha(token) {
+  $dock.hidden = true; layout('bare'); loading();
+  let info;
+  try { info = await chamarForm({ acao: 'abrir', token }); }
+  catch (e) { $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="empty" style="margin-top:30px"><div class="h3">Link indisponível</div><p class="small">${esc(e.message)}</p></div>`; return; }
+  if (info.respondido) { $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:26px 18px"><div style="font-size:2rem">✅</div><div class="h2" style="margin-top:6px">Ficha já enviada</div><p class="small muted" style="margin-top:6px">Recebemos suas respostas. O seu treinador vai falar com você pelo WhatsApp.</p></div>`; return; }
+  const chips = (name, ops, tipo = 'checkbox') => `<div class="chips wrap">${ops.map(([k, l]) => `<label class="chipc"><input type="${tipo}" name="${name}" value="${k}"><span>${l}</span></label>`).join('')}</div>`;
+  const sn = (name) => `<div class="radios"><label><input type="radio" name="${name}" value="nao"><span>Não</span></label><label><input type="radio" name="${name}" value="sim"><span>Sim</span></label></div>`;
+  const sec = (n, t, d, corpo) => `<section class="card ficha-sec"><div class="ficha-n">${n}</div><div class="grow" style="min-width:0"><div class="h3">${t}</div>${d ? `<p class="tiny dim" style="margin:3px 0 0">${d}</p>` : ''}<div class="stack" style="margin-top:12px;gap:2px">${corpo}</div></div></section>`;
+  $app.innerHTML = `
+    <div class="ficha-top"><img src="${LOGO.s()}" alt="">${slashes}</div>
+    <p class="eyebrow">${esc(info.org)}</p><h1 class="h1" style="margin-top:4px">Ficha de entrada</h1>
+    <p class="muted small" style="margin:8px 0 0">Leva uns 5 minutos. Com essas respostas o treinador monta um treino certo para você, com segurança.</p>
+    <form id="f-ficha" class="stack" style="margin-top:16px" novalidate>
+      ${sec(1, 'Seus dados', '', `
+        <label class="field"><span>Nome completo *</span><input class="input" name="nome" required value="${esc(info.nome)}" autocomplete="name"></label>
+        <div class="grid2"><label class="field"><span>WhatsApp *</span><input class="input" name="telefone" inputmode="tel" required placeholder="(98) 9 9999-9999" value="${esc(info.telefone)}" autocomplete="tel"></label>
+        <label class="field"><span>E-mail *</span><input class="input" type="email" name="email" required inputmode="email" autocomplete="email" placeholder="será o seu login no app"></label></div>
+        <div class="grid2"><label class="field"><span>Data de nascimento</span><input class="input" type="date" name="nascimento"></label>
+        <label class="field"><span>Sexo</span><select class="input" name="sexo"><option value="">Selecione</option><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="nao_informar">Prefiro não dizer</option></select></label></div>
+        <label class="field"><span>Bairro / cidade</span><input class="input" name="cidade" placeholder="Ex.: Cohama, São Luís"></label>`)}
+      ${sec(2, 'Seu objetivo', '', `
+        <div class="field"><span>Quer treinar *</span>${chips('modalidades', MODS)}</div>
+        <div class="field"><span>Objetivo principal</span>${chips('objetivo', OBJETIVOS, 'radio')}</div>
+        <label class="field"><span>Meta específica</span><input class="input" name="meta" placeholder="Ex.: correr meus primeiros 10 km, baixar o tempo da meia"></label>
+        <label class="field"><span>Tem alguma prova em vista?</span><input class="input" name="prova" placeholder="Nome e data, se já souber"></label>`)}
+      ${sec(3, 'Sua experiência', '', `
+        <div class="field"><span>Pratica alguma atividade física hoje?</span>${sn('ativo_hoje')}</div>
+        <label class="field"><span>Qual e quantas vezes por semana?</span><input class="input" name="atividade" placeholder="Ex.: musculação 3x, futebol 1x"></label>
+        <div class="field ficha-corr"><span>Corrida</span><select class="input" name="corrida_exp"><option value="">Selecione</option>${FICHA_EXP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+        <div class="grid2 ficha-corr"><label class="field"><span>Maior distância que já correu</span><input class="input" name="maior_dist" placeholder="Ex.: 10 km"></label>
+        <label class="field"><span>Tempo recente (5 ou 10 km)</span><input class="input" name="tempo_recente" placeholder="Ex.: 5 km em 32 min"></label></div>
+        <label class="field ficha-corr"><span>Relógio ou app que usa</span><select class="input" name="relogio"><option value="">Selecione</option>${FICHA_RELOGIOS.map((r) => `<option>${r}</option>`).join('')}</select></label>`)}
+      ${sec(4, 'Sua rotina', 'Marque tudo o que valer.', `
+        <div class="field"><span>Dias que pode treinar</span>${chips('dias', DSEM.map((d, i) => [String(i), d.slice(0, 3)]))}</div>
+        <div class="field"><span>Melhor horário</span>${chips('horario', FICHA_HOR)}</div>
+        <div class="field"><span>Onde prefere treinar</span>${chips('local', FICHA_LOCAL)}</div>`)}
+      ${sec(5, 'Sua saúde (PAR-Q)', 'Responda com sinceridade. Um "sim" não impede o treino, só pede uma conversa com o médico antes.', `
+        ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1))}</div>`).join('')}
+        <div class="field" style="margin-top:8px"><span>Tem ou já teve</span>${chips('doencas', DOENCAS.map((d) => [d, d]))}</div>
+        <label class="field"><span>Lesões, dores ou cirurgias</span><textarea class="textarea" name="lesoes" placeholder="Ex.: entorse no tornozelo em 2024, dor no joelho ao descer escada"></textarea></label>
+        <label class="field"><span>Remédios de uso contínuo</span><input class="input" name="medicamentos"></label>`)}
+      ${sec(6, 'Para terminar', '', `
+        <div class="field"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
+        <label class="field"><span>Quer contar mais alguma coisa?</span><textarea class="textarea" name="obs"></textarea></label>
+        <label class="ficha-aceite"><input type="checkbox" name="aceite"><span>Declaro que as informações são verdadeiras e autorizo a Nexos a usá-las para montar e acompanhar o meu treino.</span></label>`)}
+      <button class="btn block" type="submit">Enviar ficha</button>
+      <p class="tiny dim center">Suas respostas vão só para a equipe de treinadores da Nexos.</p>
+    </form>`;
+  const f = document.getElementById('f-ficha');
+  const corr = () => { const on = f.querySelector('[name=modalidades][value=corrida]').checked || !f.querySelectorAll('[name=modalidades]:checked').length; f.querySelectorAll('.ficha-corr').forEach((x) => (x.hidden = !on)); };
+  f.addEventListener('change', (e) => { if (e.target.name === 'modalidades') corr(); });
+  f.onsubmit = async (e) => {
+    e.preventDefault(); const fd = new FormData(f); const btn = f.querySelector('[type=submit]');
+    const d = {}; ['nome', 'telefone', 'email', 'nascimento', 'sexo', 'cidade', 'objetivo', 'meta', 'prova', 'ativo_hoje', 'atividade', 'corrida_exp', 'maior_dist', 'tempo_recente', 'relogio', 'lesoes', 'medicamentos', 'origem', 'obs'].forEach((k) => { const v = String(fd.get(k) || '').trim(); if (v) d[k] = v.slice(0, 1000); });
+    ['modalidades', 'dias', 'horario', 'local', 'doencas'].forEach((k) => { const v = fd.getAll(k); if (v.length) d[k] = k === 'dias' ? v.map(Number) : v; });
+    d.parq = {}; PARQ.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; });
+    const falta = (sel, msg) => { const el = f.querySelector(sel); toast(msg, true); if (el) el.closest('.field, .parq, .ficha-aceite, label')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    if (!d.nome || d.nome.length < 3) return falta('[name=nome]', 'Escreva seu nome completo.');
+    if (String(d.telefone || '').replace(/\D/g, '').length < 10) return falta('[name=telefone]', 'Confira o seu WhatsApp com DDD.');
+    if (!/^\S+@\S+\.\S+$/.test(d.email || '')) return falta('[name=email]', 'Confira o seu e-mail.');
+    if (!d.modalidades) return falta('[name=modalidades]', 'Marque corrida, musculação ou as duas.');
+    const iq = PARQ.findIndex((_, i) => !d.parq['q' + (i + 1)]); if (iq >= 0) return falta(`[name=q${iq + 1}]`, `Responda a pergunta ${iq + 1} da saúde.`);
+    if (!fd.get('aceite')) return falta('[name=aceite]', 'Marque a declaração no final.');
+    d.aceite = true; btn.disabled = true; btn.textContent = 'Enviando…';
+    try {
+      await chamarForm({ acao: 'enviar', token, dados: d });
+      window.scrollTo(0, 0);
+      $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:28px 18px"><div style="font-size:2.2rem">🙌</div><div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">O seu treinador da Nexos já recebeu as respostas e vai falar com você pelo WhatsApp para os próximos passos.</p></div>`;
+    } catch (err) { btn.disabled = false; btn.textContent = 'Enviar ficha'; toast(err.message, true); }
+  };
+}
+
+function fichaResumo(d) {
+  const sim = PARQ.map((q, i) => [i + 1, q]).filter(([n]) => (d.parq || {})['q' + n] === 'sim');
+  return { sim, mods: (d.modalidades || []).map((k) => (MODS.find((m) => m[0] === k) || [k, k])[1]).join(' + '), obj: (OBJETIVOS.find((o) => o[0] === d.objetivo) || [])[1] || '' };
+}
+
+async function staffFormularios(id) {
+  loading();
+  if (id) return staffFichaResposta(id);
+  const [{ data: forms }, { data: resps }] = await Promise.all([
+    sb.from('nx_formularios').select('*').eq('org_id', S.org.id).eq('ativo', true).order('criado_em', { ascending: false }).limit(200),
+    sb.from('nx_form_respostas').select('*').eq('org_id', S.org.id).order('criado_em', { ascending: false }).limit(300),
+  ]);
+  dockStaff();
+  S.cache.fichasNovas = (resps || []).filter((r) => !r.visto).length;
+  const geral = (forms || []).find((f) => f.multiplo);
+  const aguardando = (forms || []).filter((f) => !f.multiplo && !f.respondido_em);
+  const linhaResp = (r) => { const d = r.dados || {}; const rs = fichaResumo(d);
+    return `<a class="list-item ficha-it" href="#/formularios/${r.id}" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(d.nome || 'Sem nome')}</b><div class="small muted ellip">${[rs.mods, rs.obj].filter(Boolean).map(esc).join(' · ') || 'Ficha de entrada'}</div>
+      <div class="ficha-tags">${!r.visto ? '<span class="tag acc">nova</span>' : ''}${rs.sim.length ? '<span class="tag err">PAR-Q</span>' : ''}${r.aluno_id ? '<span class="tag ok">cadastrado</span>' : ''}<span class="tiny dim">${quando(r.criado_em)}</span></div></div>${I.chev}</a>`; };
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a>
+    <p class="eyebrow">Formulários</p><h1 class="h1">Ficha de entrada</h1>
+    <p class="muted small" style="margin-top:6px">Gere o link, mande no WhatsApp e a pessoa preenche pelo celular, sem precisar de login. As respostas chegam aqui.</p>
+    <div class="grid2" style="margin-top:14px"><button class="btn" id="gerar">${I.plus} Gerar link</button><button class="btn ghost" id="geral">${I.feed} Link geral</button></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Respostas</h2>${slashes}</div>
+      <div class="stack">${(resps || []).length ? resps.map(linhaResp).join('') : '<div class="empty"><div class="h3">Nenhuma ficha ainda</div><p class="small">Quando alguém preencher, aparece aqui e você recebe uma notificação.</p></div>'}</div></div>
+    ${aguardando.length ? `<div class="section"><div class="section-h"><h2 class="h2">Aguardando resposta</h2></div><div class="stack">${aguardando.map((f) => `<div class="list-item"><span class="ativ-ic">⏳</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(f.nome || 'Link sem nome')}</b><div class="small muted">${f.telefone ? esc(f.telefone) + ' · ' : ''}enviado ${quando(f.criado_em)}</div></div>
+      <button class="icon-btn sm" data-wa="${f.id}" aria-label="Mandar de novo no WhatsApp" title="WhatsApp">${I.feed}</button><button class="icon-btn sm" data-del="${f.id}" aria-label="Cancelar link" title="Cancelar link">${I.x}</button></div>`).join('')}</div></div>` : ''}`;
+  const mostrar = (f) => {
+    const link = fichaLink(f.token); const msg = fichaMsg(f.nome, link); const tel = telWa(f.telefone);
+    openSheet(`<p class="eyebrow">${f.multiplo ? 'Link geral' : 'Link pronto'}</p><div class="h2" style="margin-top:4px">${f.multiplo ? 'Use na bio do Instagram ou em grupos' : esc(f.nome ? 'Ficha de ' + firstName(f.nome) : 'Ficha de entrada')}</div>
+      <p class="small muted" style="margin-top:6px">${f.multiplo ? 'Qualquer pessoa pode preencher este link, quantas vezes for preciso.' : 'Vale para uma pessoa. Depois que ela enviar, o link fecha.'}</p>
+      <div class="ficha-link mono">${esc(link)}</div>
+      <a class="btn block wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="margin-top:12px">Enviar no WhatsApp${tel ? '' : ' (escolher contato)'}</a>
+      <div class="grid2" style="margin-top:8px"><button class="btn ghost" id="cp-link">Copiar link</button><button class="btn ghost" id="cp-msg">Copiar mensagem</button></div>`, (r) => {
+      const cp = async (t, ok) => { try { await navigator.clipboard.writeText(t); toast(ok); } catch { toast('Não foi possível copiar.', true); } };
+      r.querySelector('#cp-link').onclick = () => cp(link, 'Link copiado!');
+      r.querySelector('#cp-msg').onclick = () => cp(msg, 'Mensagem copiada!');
+    });
+  };
+  document.getElementById('gerar').onclick = () => openSheet(`<p class="eyebrow">Ficha de entrada</p><div class="h2" style="margin-top:4px">Gerar link</div>
+    <form id="f-gl" style="margin-top:14px"><label class="field"><span>Nome da pessoa (opcional)</span><input class="input" name="nome" placeholder="Já aparece preenchido para ela"></label>
+    <label class="field"><span>WhatsApp (opcional)</span><input class="input" name="telefone" inputmode="tel" placeholder="(98) 9 9999-9999"></label>
+    <p class="tiny dim" style="margin:-4px 0 14px">Com o número, o WhatsApp já abre na conversa dela.</p><button class="btn block" type="submit">Gerar link</button></form>`, (r) => {
+    r.querySelector('#f-gl').onsubmit = async (e) => {
+      e.preventDefault(); const fd = new FormData(e.target); e.target.querySelector('button').disabled = true;
+      const { data, error } = await sb.from('nx_formularios').insert({ org_id: S.org.id, tipo: 'entrada', nome: String(fd.get('nome') || '').trim() || null, telefone: String(fd.get('telefone') || '').trim() || null, criado_por: S.user.id }).select('*').single();
+      if (error) { e.target.querySelector('button').disabled = false; return toast('Não foi possível gerar o link.', true); }
+      closeSheet(); staffFormularios().then(() => mostrar(data));
+    };
+  });
+  document.getElementById('geral').onclick = async () => {
+    if (geral) return mostrar(geral);
+    const { data, error } = await sb.from('nx_formularios').insert({ org_id: S.org.id, tipo: 'entrada', multiplo: true, criado_por: S.user.id }).select('*').single();
+    if (error) return toast('Não foi possível gerar o link.', true);
+    mostrar(data);
+  };
+  $app.querySelectorAll('[data-wa]').forEach((b) => b.onclick = () => mostrar(forms.find((f) => f.id === b.dataset.wa)));
+  $app.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Cancelar este link? A pessoa não vai mais conseguir preencher.')) return;
+    await sb.from('nx_formularios').update({ ativo: false }).eq('id', b.dataset.del); staffFormularios();
+  });
+}
+
+async function staffFichaResposta(id) {
+  const { data: r } = await sb.from('nx_form_respostas').select('*').eq('id', id).maybeSingle();
+  dockStaff();
+  if (!r) { $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a><div class="empty"><div class="h3">Ficha não encontrada</div></div>`; return; }
+  if (!r.visto) { sb.from('nx_form_respostas').update({ visto: true }).eq('id', id).then(() => {}, () => {}); S.cache.fichasNovas = Math.max(0, (S.cache.fichasNovas || 1) - 1); }
+  const d = r.dados || {}; const rs = fichaResumo(d);
+  const nome = (l, k) => ((l.find((x) => x[0] === k) || [])[1]) || '';
+  const idade = d.nascimento ? Math.floor((Date.now() - dia(d.nascimento)) / 31557600000) : null;
+  const lin = (t, v) => v ? `<div class="ficha-l"><span>${t}</span><b>${v}</b></div>` : '';
+  const lista = (arr, l) => (arr || []).map((k) => esc(l ? nome(l, k) || k : k)).join(', ');
+  const tel = telWa(d.telefone);
+  $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a>
+    <div class="card plan-head"><div class="ph-id"><div class="av lg">${esc(initials(d.nome || '?'))}</div><div class="grow" style="min-width:0"><h1 class="h2">${esc(d.nome || 'Sem nome')}</h1><div class="small muted">Ficha enviada ${fmtData(r.criado_em)}${rs.mods ? ' · ' + esc(rs.mods) : ''}</div></div></div>
+      ${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div>
+    ${rs.sim.length ? `<div class="card ficha-alerta"><b>⚠️ PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
+    <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos 💪 Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
+    <div class="stack" style="margin-top:14px">
+      <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
+      <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Meta', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
+      <div class="card"><span class="eyebrow">Experiência</span>${lin('Ativo hoje', d.ativo_hoje === 'sim' ? 'Sim' : d.ativo_hoje === 'nao' ? 'Não' : '')}${lin('Atividades', esc(d.atividade || ''))}${lin('Corrida', esc(nome(FICHA_EXP, d.corrida_exp)))}${lin('Maior distância', esc(d.maior_dist || ''))}${lin('Tempo recente', esc(d.tempo_recente || ''))}${lin('Relógio', esc(d.relogio || ''))}</div>
+      <div class="card"><span class="eyebrow">Rotina</span>${lin('Dias', (d.dias || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', '))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}</div>
+      <div class="card"><span class="eyebrow">Saúde</span>${lin('PAR-Q', rs.sim.length ? `<span style="color:var(--err)">${rs.sim.length} sim</span>` : 'Tudo “não”')}${lin('Tem ou já teve', lista(d.doencas))}${lin('Lesões / cirurgias', esc(d.lesoes || ''))}${lin('Remédios', esc(d.medicamentos || ''))}</div>
+      ${d.origem || d.obs ? `<div class="card"><span class="eyebrow">Outros</span>${lin('Conheceu por', esc(nome(FICHA_ORIGEM, d.origem)))}${lin('Comentário', esc(d.obs || ''))}</div>` : ''}
+      <button class="link-btn small" id="apagar" style="color:var(--err);justify-self:start">Apagar esta ficha</button>
+    </div>`;
+  const cad = document.getElementById('cadastrar');
+  if (cad) cad.onclick = () => {
+    const saude = [d.lesoes, d.medicamentos ? 'Remédios: ' + d.medicamentos : '', (d.doencas || []).length ? 'Tem/teve: ' + d.doencas.join(', ') : '', rs.sim.length ? `PAR-Q com ${rs.sim.length} sim` : ''].filter(Boolean).join('. ');
+    formPessoa('aluno', { nome: d.nome, email: d.email, telefone: d.telefone, nascimento: d.nascimento, objetivo: [rs.obj, d.meta].filter(Boolean).join(': '), observacoes: saude, mods: d.modalidades }, async (res) => { if (res && res.user_id) await sb.from('nx_form_respostas').update({ aluno_id: res.user_id }).eq('id', id); });
+  };
+  document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };
 }
 
 iniciar();
