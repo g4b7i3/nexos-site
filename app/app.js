@@ -1441,7 +1441,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
 
 /* ================= SAÚDE: termo LGPD, anamnese e PAR-Q ================= */
 const TERMO_VERSAO = '2026-11';
-const CONTATO = { email: 'contato@nexosperformanceesaude.com.br', insta: '@nexos.perform' };
+const CONTATO = { email: 'nexosperformanceesaude@gmail.com', insta: '@nexos.perform' };
 const PARQ = [
   'Algum médico já disse que você tem algum problema de coração e que só deveria fazer atividade física com supervisão de profissionais de saúde?',
   'Você sente dor no peito quando pratica atividade física?',
