@@ -1292,3 +1292,28 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .sobre-ed:empty{display:none}
 .pend-mod{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(70,214,255,.1);border:1px solid rgba(70,214,255,.3);font-size:.95rem}
 .pend-ic{display:inline-flex;gap:4px}
+/* análise da corrida */
+.graficos{padding:12px 14px;user-select:none;-webkit-user-select:none}
+.gr-leitura{font-family:var(--f-m);font-size:.78rem;color:var(--mute);text-align:center;padding:2px 0 8px;border-bottom:1px dashed var(--line);margin-bottom:6px}
+.gr{padding:8px 0 4px}
+.gr-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:.84rem}
+.gr-h b{font-weight:800}.gr-v{font-family:var(--f-m);font-size:.78rem;color:var(--ink)}
+.gr-area{position:relative;height:84px;margin-top:4px;touch-action:pan-y;cursor:crosshair}
+.gr-area svg{width:100%;height:100%;display:block;overflow:visible}
+.gr-cur{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--ink);opacity:.55;border-radius:2px;pointer-events:none}
+.gr-eixo{display:flex;justify-content:space-between;font-family:var(--f-m);font-size:.72rem;color:var(--dim);margin-top:6px}
+.zonas-fc{display:grid;gap:9px}
+.zf{display:grid;grid-template-columns:118px 1fr 74px;gap:10px;align-items:center;font-size:.84rem}
+.zf-n b{font-family:var(--f-m)}.zf-n em,.zf-t em{display:block;font-style:normal;font-size:.72rem;color:var(--mute)}
+.zf-bar{height:12px;border-radius:7px;background:var(--line);overflow:hidden}.zf-bar i{display:block;height:100%;border-radius:7px}
+.zf-t{text-align:right;font-family:var(--f-m);font-weight:700}
+.voltas-c{padding:10px 8px;overflow-x:auto}
+.voltas-t{min-width:330px;font-size:.8rem}
+.voltas-t>div{display:grid;grid-template-columns:22px 58px 50px 1fr 34px 34px 34px;gap:6px;align-items:center;padding:6px 4px}
+.voltas-t.pot>div{grid-template-columns:22px 58px 50px 1fr 34px 34px 34px 36px}
+.vt-h{font-size:.68rem;color:var(--mute);font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
+.vt-l{border-bottom:1px solid var(--line)}.vt-l:last-child{border-bottom:0}
+.vt-l span{font-family:var(--f-m)}
+.vt-p{position:relative;display:flex;align-items:center;height:20px}
+.vt-p i{position:absolute;left:0;top:3px;bottom:3px;border-radius:6px;background:linear-gradient(90deg,rgba(47,107,255,.25),rgba(70,214,255,.35))}
+.vt-p b{position:relative;padding-left:6px}
