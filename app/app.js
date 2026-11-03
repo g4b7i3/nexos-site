@@ -4186,16 +4186,35 @@ async function staffAlunos() {
   const ini = inicioSemana(); ini.setDate(ini.getDate() + st0.off * 7);
   const dias = Array.from({ length: 7 }, (_, i) => { const d = new Date(ini); d.setDate(ini.getDate() + i); return isoDia(d); });
   const de = dias[0], ate = dias[6], hoje = hojeISO();
-  const [{ data: membros, error }, sess, , , , fimPl, plano, corrs, provas, trDias] = await Promise.all([
+  const [{ data: membros, error }, sess, , , , fimPl, plano, corrs, provas, trDias, libsF, ciclos, cicIni] = await Promise.all([
     sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 600), contarNaoVistos(), contarMsgNovas(),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => { S.cache.anam = Object.fromEntries((r.data || []).map((x) => [x.aluno_id, x])); }),
     fimPlanilhas(),
-    sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => (r.data || []).filter((p) => p.tipo !== 'folga')).catch(() => []),
+    sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo,liberado').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => (r.data || []).filter((p) => p.tipo !== 'folga')).catch(() => []),
     sb.from('nx_corridas').select('aluno_id,data,plano_id').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hoje).order('data').then((r) => r.data || []).catch(() => []),
     sb.from('nx_treinos').select('aluno_id,dias,ativo').eq('org_id', S.org.id).eq('ativo', true).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_forca_semanas').select('aluno_id').eq('org_id', S.org.id).eq('semana', de).then((r) => new Set((r.data || []).map((x) => x.aluno_id))).catch(() => new Set()),
+    sb.from('nx_ciclo').select('*').eq('org_id', S.org.id).eq('ativo', true).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_ciclo_inicios').select('aluno_id,data').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 200 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => []),
   ]);
+  // situação da semana: sem planilha · em preparação (montada, não liberada) · liberada
+  const situacao = (m) => {
+    if (st0.modo === 'forca') { if (!nTr[m.user_id]) return 'sem'; return libsF.has(m.user_id) ? 'lib' : 'prep'; }
+    const pl = plano.filter((p) => p.aluno_id === m.user_id); if (!pl.length) return 'sem';
+    return pl.every((p) => p.liberado) ? 'lib' : 'prep';
+  };
+  const SIT = { sem: ['Sem planilha', 'err'], prep: ['Em preparação', 'warn'], lib: ['Liberada', 'ok'] };
+  const cicloDe = {}; ciclos.forEach((c) => { cicloDe[c.aluno_id] = { ...c, inicios: cicIni.filter((x) => x.aluno_id === c.aluno_id).map((x) => x.data) }; });
+  const iconesAtl = (m) => {
+    const out = [];
+    const ci = cicloDe[m.user_id] && cicloInfo(cicloDe[m.user_id]);
+    if (ci && ci.fase) { const f = FASES_CICLO[ci.fase]; out.push(`<button type="button" class="atl-ic" style="--ic:${f[1]}" data-dica="${esc(`${f[0]} · dia ${ci.dia} de ${ci.ciclo}${ci.prox ? ` · próxima menstruação ~${fmtCurto(ci.prox + 'T12:00:00')}` : ''}`)}" aria-label="Ciclo menstrual"><svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" fill="currentColor"/></svg></button>`); }
+    if (faz('corrida', m) && !perfilCorrida(m).vdot && !(m.corrida && m.corrida.paces_manual && Object.keys(m.corrida.paces_manual).length)) out.push(`<button type="button" class="atl-ic" style="--ic:#e5484d" data-dica="Atleta sem zonas de treino: cadastre um teste ou prova no perfil de corrida para os paces ficarem certos." aria-label="Sem zonas de treino"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor"/><path d="M6 12h3l1.5-2.5 2 5 1.5-2.5H18" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></button>`);
+    return out.join('');
+  };
+  const sel = S.cache.atlSel || (S.cache.atlSel = new Set());
   if (error) throw error;
   dockStaff();
   const ultAtiv = {}; sess.forEach((x) => { if (!ultAtiv[x.aluno_id] || x.iniciado_em > ultAtiv[x.aluno_id]) ultAtiv[x.aluno_id] = x.iniciado_em; }); corrs.forEach((c) => { if (!ultAtiv[c.aluno_id] || c.data > ultAtiv[c.aluno_id]) ultAtiv[c.aluno_id] = c.data; });
@@ -4241,10 +4260,12 @@ async function staffAlunos() {
     </div>
     <div class="subtabs mod-tabs" id="modo" style="margin-top:12px"><button type="button" data-m="corrida" class="${st0.modo === 'corrida' ? 'on' : ''}">${I.run} Corrida</button><button type="button" data-m="forca" class="${st0.modo === 'forca' ? 'on' : ''}">${I.lib} Força</button></div>
     <div class="search" style="margin-top:12px">${I.search}<input class="input" id="q" placeholder="Buscar atleta" value="${esc(st0.q)}"></div>
+    <div class="sit-tiles" id="sit-tiles"></div>
     <div class="chips" id="filtros">${[['ativos', 'Ativos'], ['planilha', 'Planilha acabando'], ['naofez', 'Faltou treino'], ['sumidos', 'Sem treinar há 7+ dias'], ['inativos', 'Inativos']].map(([k, l]) => `<button class="chip ${st0.f === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
     <div class="atl-leg"><span><i class="pt-l feito"></i>feito</span><span><i class="pt-l plan"></i>planejado</span><span><i class="pt-l perdeu"></i>não fez</span><span><i class="pt-l extra"></i>treino extra</span><span><i class="pt-l prova"></i>prova</span></div>
     <p class="tiny dim" id="cont" style="margin-top:6px"></p>
-    <div id="lista" class="atl-lista"></div>`;
+    <div id="lista" class="atl-lista"></div>
+    <div class="bulk-bar" id="bulk" hidden><label class="bulk-all"><input type="checkbox" id="sel-todos"><span>Todos</span></label><b id="bulk-n"></b><button class="btn sm" id="bulk-lib">${I.check} Liberar semana</button><button class="link-btn small" id="bulk-x">Limpar</button></div>`;
   const draw = () => {
     const q = semAcento(st0.q);
     const modoF = st0.modo === 'forca';
@@ -4258,15 +4279,23 @@ async function staffAlunos() {
     if (st0.f === 'sumidos' && modoF) l = l.filter((m) => !ultMu[m.user_id] || diasDesde(ultMu[m.user_id]) >= 7);
     if (st0.f === 'planilha' && modoF) l = l.filter((m) => m.ativo && !(fDias[m.user_id] || new Set()).size);
     else if (st0.f === 'planilha') l = l.filter((m) => m.ativo && faz('corrida', m) && statusPlanilha(fimPl[m.user_id]).d <= 6).sort((a, b) => statusPlanilha(fimPl[a.user_id]).d - statusPlanilha(fimPl[b.user_id]).d);
+    // contadores da semana (sobre os atletas ativos visíveis no modo atual)
+    const base = membros.filter((m) => m.ativo && faz(modoF ? 'musculacao' : 'corrida', m) && (st0.dono !== 'meus' || m.treinador_id === S.user.id));
+    const cnt = { sem: 0, prep: 0, lib: 0 }; base.forEach((m) => cnt[situacao(m)]++);
+    document.getElementById('sit-tiles').innerHTML = [['ativos', base.length, 'atletas ativos', 'acc'], ['sit-prep', cnt.prep, 'em preparação', 'warn'], ['sit-sem', cnt.sem, modoF ? 'sem treino de força' : 'sem planilha', 'err'], ['sit-lib', cnt.lib, 'semanas liberadas', 'ok']]
+      .map(([k, n, t, c]) => `<button type="button" class="sit-t ${c} ${st0.f === k ? 'on' : ''}" data-f="${k}"><b>${n}</b><span>${t}</span><i></i></button>`).join('');
+    if (st0.f && st0.f.startsWith('sit-')) l = l.filter((m) => m.ativo && situacao(m) === st0.f.slice(4));
     document.getElementById('cont').textContent = `${l.length} atleta${l.length === 1 ? '' : 's'}`;
+    S.cache.atlVis = l.filter((m) => m.ativo).map((m) => m.user_id);
     document.getElementById('lista').innerHTML = l.length ? l.map((m) => {
       const dd = ultAtiv[m.user_id] ? diasDesde(ultAtiv[m.user_id]) : null;
       const stc = !m.ativo ? '' : dd == null ? '' : dd <= 3 ? 'st-ok' : dd <= 7 ? 'st-warn' : '';
       const deOutro = m.treinador_id && m.treinador_id !== S.user.id && eqNome[m.treinador_id];
       const sp = faz('corrida', m) ? statusPlanilha(fimPl[m.user_id]) : null; const pv = proxProva[m.user_id];
       const alerta = (S.cache.anam || {})[m.user_id]?.parq_positivo ? '<span class="tag err">PAR-Q</span>' : '';
-      return `<div class="atl" data-aluno="${m.user_id}">
-        <div class="atl-id">${avAluno(m, stc)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b>
+      const si = m.ativo ? SIT[situacao(m)] : null;
+      return `<div class="atl ${sel.has(m.user_id) ? 'sel' : ''}" data-aluno="${m.user_id}">
+        <div class="atl-id">${m.ativo ? `<label class="atl-chk" data-chk="${m.user_id}"><input type="checkbox" ${sel.has(m.user_id) ? 'checked' : ''}></label>` : ''}${avAluno(m, stc)}<div class="grow" style="min-width:0"><div class="atl-nome"><b class="ellip">${esc(m.nome)}</b>${iconesAtl(m)}${si ? `<span class="tag ${si[1]} sit-tag">${si[0]}</span>` : ''}</div>
           <div class="atl-sub">${deOutro ? `<span class="tag">de ${esc(eqNome[m.treinador_id])}</span>` : ''}${alerta}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${modoF ? `<span class="${nTr[m.user_id] ? '' : 'pl-err'}">${nTr[m.user_id] ? `${nTr[m.user_id]} treino${nTr[m.user_id] > 1 ? 's' : ''}${(fDias[m.user_id] || new Set()).size ? ' · ' + diasTxt([...fDias[m.user_id]]) : ' · sem dia fixo'}` : 'Sem treino de força'}</span>${ultMu[m.user_id] ? `<span class="dim">último ${diasDesde(ultMu[m.user_id]) === 0 ? 'hoje' : 'há ' + diasDesde(ultMu[m.user_id]) + 'd'}</span>` : ''}` : sp ? `<span class="pl-${sp.cls}">${esc(sp.t)}</span>` : ''}</div>
           ${pv && !modoF ? `<div class="atl-prova">🏁 ${esc(pv.titulo)} · ${fmtCurto(pv.data + 'T12:00:00')}${pv.distancia ? ' · ' + esc(pv.distancia) : ''} · <b>${faltam(pv.data)}</b></div>` : ''}</div></div>
         ${m.ativo ? pontos(m.user_id) : '<div class="atl-inativo dim small">Inativo</div>'}
@@ -4282,7 +4311,37 @@ async function staffAlunos() {
   document.getElementById('q').oninput = (e) => { st0.q = e.target.value; draw(); };
   document.getElementById('dono').onclick = (e) => { const b = e.target.closest('[data-d]'); if (!b) return; st0.dono = b.dataset.d; document.querySelectorAll('#dono button').forEach((x) => x.classList.toggle('on', x === b)); draw(); };
   document.getElementById('filtros').onclick = (e) => { const b = e.target.closest('[data-f]'); if (!b) return; st0.f = b.dataset.f; document.querySelectorAll('#filtros .chip').forEach((c) => c.classList.toggle('on', c === b)); draw(); };
-  document.getElementById('lista').onclick = (e) => { const ir = e.target.closest('[data-ir]'); if (ir) { location.hash = ir.dataset.ir; return; } const it = e.target.closest('[data-aluno]'); if (it) location.hash = '#/aluno/' + it.dataset.aluno + '/' + st0.modo; };
+  const bulk = () => { const n = sel.size; const b = document.getElementById('bulk'); b.hidden = !n; document.getElementById('bulk-n').textContent = `${n} selecionado${n > 1 ? 's' : ''}`; const vis = S.cache.atlVis || []; document.getElementById('sel-todos').checked = vis.length && vis.every((id) => sel.has(id)); };
+  document.getElementById('sit-tiles').onclick = (e) => { const b = e.target.closest('[data-f]'); if (!b) return; st0.f = st0.f === b.dataset.f ? 'ativos' : b.dataset.f; document.querySelectorAll('#filtros .chip').forEach((c) => c.classList.toggle('on', c.dataset.f === st0.f)); draw(); };
+  document.getElementById('sel-todos').onchange = (e) => { (S.cache.atlVis || []).forEach((id) => (e.target.checked ? sel.add(id) : sel.delete(id))); draw(); bulk(); };
+  document.getElementById('bulk-x').onclick = () => { sel.clear(); draw(); bulk(); };
+  document.getElementById('bulk-lib').onclick = async (e) => {
+    const ids = [...sel]; const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Liberando…';
+    try {
+      if (st0.modo === 'forca') {
+        const novos = ids.filter((id) => nTr[id] && !libsF.has(id));
+        if (novos.length) { const { error: er } = await sb.from('nx_forca_semanas').insert(novos.map((id) => ({ org_id: S.org.id, aluno_id: id, semana: de }))); if (er) throw er; }
+        novos.forEach((id) => notificarAluno('planilha', id));
+        toast(novos.length ? `Treinos de força liberados para ${novos.length} atleta${novos.length > 1 ? 's' : ''}.` : 'Nada para liberar nos selecionados.');
+      } else {
+        const comPlano = ids.filter((id) => plano.some((p) => p.aluno_id === id && !p.liberado));
+        if (comPlano.length) { const { error: er } = await sb.from('nx_plano_corrida').update({ liberado: true }).eq('org_id', S.org.id).in('aluno_id', comPlano).gte('data', de).lte('data', ate); if (er) throw er; }
+        comPlano.forEach((id) => notificarAluno('planilha', id));
+        // treinos liberados também vão para o Garmin de quem tiver
+        if (comPlano.length) sb.from('nx_plano_corrida').select('*').eq('org_id', S.org.id).in('aluno_id', comPlano).gte('data', de).lte('data', ate).then(({ data: pls }) => {
+          comPlano.forEach((id) => { const m = membros.find((x) => x.user_id === id); const lista = (pls || []).filter((p) => p.aluno_id === id); if (lista.length) enviarGarmin(id, lista, perfilCorrida(m)).catch(() => {}); });
+        }).catch(() => {});
+        const semNada = ids.length - comPlano.length;
+        toast(comPlano.length ? `Semana liberada para ${comPlano.length} atleta${comPlano.length > 1 ? 's' : ''}. Eles foram avisados.${semNada ? ` (${semNada} já estava${semNada > 1 ? 'm' : ''} liberado${semNada > 1 ? 's' : ''} ou sem planilha)` : ''}` : 'Os selecionados já estão liberados ou sem planilha nesta semana.');
+      }
+      sel.clear(); staffAlunos();
+    } catch (er) { console.error(er); btn.disabled = false; btn.innerHTML = `${I.check} Liberar semana`; toast('Não foi possível liberar agora.', true); }
+  };
+  bulk();
+  document.getElementById('lista').onclick = (e) => {
+    const ic = e.target.closest('[data-dica]'); if (ic) { e.stopPropagation(); toast(ic.dataset.dica); return; }
+    const ck = e.target.closest('[data-chk]'); if (ck) { e.stopPropagation(); if (e.target.tagName !== 'INPUT') return; const id = ck.dataset.chk; e.target.checked ? sel.add(id) : sel.delete(id); ck.closest('.atl').classList.toggle('sel', e.target.checked); bulk(); return; }
+    const ir = e.target.closest('[data-ir]'); if (ir) { location.hash = ir.dataset.ir; return; } const it = e.target.closest('[data-aluno]'); if (it) location.hash = '#/aluno/' + it.dataset.aluno + '/' + st0.modo; };
   document.getElementById('modo').onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; st0.modo = b.dataset.m; document.querySelectorAll('#modo button').forEach((x) => x.classList.toggle('on', x === b)); draw(); };
   document.getElementById('novo').onclick = () => formPessoa('aluno');
 }
