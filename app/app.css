@@ -1107,3 +1107,10 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .sheet-mods .biblio-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .sheet-mods .mes-rot{margin:14px 0 6px}
 #pick-l{display:block!important;max-height:none}#pick-l .biblio-l{flex-direction:row;overflow:visible}
+.guia-niv{margin-top:14px;border-color:color-mix(in srgb,var(--acc) 35%,var(--line));background:color-mix(in srgb,var(--acc) 5%,var(--bg2))}
+.guia-niv ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:.88rem}
+.niv-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(min-width:760px){.niv-tabs{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.niv-tabs button{min-width:0;padding:10px 12px}
+.niv-tabs button b{font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+@media(max-width:420px){.niv-tabs button b{font-size:.8rem}}
