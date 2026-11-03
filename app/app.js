@@ -647,9 +647,9 @@ async function alunoHoje() {
     return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span>${feito ? '<span class="tag ok">✓ feita</span>' : ''}</div>
       <div class="h3" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
-      <div class="small muted">${est.length ? (() => { const t = estimaTotal(est, perfC); return `${t.soDist ? '' : '≈ '}${t.km} · ${t.soTempo ? '' : '≈ '}${t.tempo}`; })() : ''}</div>
-      <p class="small" style="margin-top:6px">${esc(descreverEstrutura(est, perfC))}</p>
-      ${sobreTreino(p.tipo) ? `<p class="small muted sobre-t">${esc(sobreTreino(p.tipo))}</p>` : ''}
+      ${est.length ? (() => { const t = estimaTotal(est, perfC); return `<div class="kv-t"><div><span>Tipo</span><b>${esc(nomeTipo(p.tipo))}</b></div><div><span>Distância</span><b>${t.soDist ? '' : '≈ '}${t.km.replace('–', ' a ')}</b></div><div><span>Duração</span><b>${(() => { const tt = estimaTotalSeg(est, perfC); return tt[0] === tt[1] ? tempoAsp(tt[0]) : `${tempoAsp(tt[0])} a ${tempoAsp(tt[1])}`; })()}</b></div></div>
+      <ul class="linhas-t">${linhasTreino(est, perfC)}</ul>`; })() : ''}
+      ${p.descricao ? `<p class="obs-t"><b>Obs. do treinador:</b> ${esc(p.descricao)}</p>` : ''}
       <div class="row" style="gap:8px;margin-top:12px">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<button class="btn sm" data-reg="${p.id}">${I.plus} Registrar corrida</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
   const cardMusc = prox ? (muscHoje
@@ -2740,6 +2740,28 @@ function estimaTotal(estrutura, perfil) {
   const add = (s, n = 1) => { const [a, b] = faixaZona(s.z, perfil); if (s.med === 'min') { const seg = s.v * 60 * n; t0 += seg; t1 += seg; k0 += seg / b; k1 += seg / a; } else { const km = (s.med === 'km' ? s.v : s.v / 1000) * n; k0 += km; k1 += km; t0 += km * a; t1 += km * b; } };
   (estrutura || []).forEach((s) => (s.k === 'rep' ? (s.passos || []).forEach((p) => add(p, s.n || 1)) : add(s)));
   return { km: faixaKmTxt(k0, k1), tempo: faixaDurTxt(t0, t1), soDist: k0 === k1, soTempo: t0 === t1 };
+}
+// tempo no estilo das planilhas: 1h03'44" · 25'00"
+const tempoAsp = (sg) => { sg = Math.round(sg); const h = Math.floor(sg / 3600), m = Math.floor((sg % 3600) / 60), x = sg % 60; return h ? `${h}h${String(m).padStart(2, '0')}'${String(x).padStart(2, '0')}"` : `${m}'${String(x).padStart(2, '0')}"`; };
+const paceAsp = (a, b) => `${fmtPace(a).replace('/km', '')} a ${fmtPace(b)}`;
+/** treino escrito passo a passo, frases curtas (cartão do aluno) */
+function linhasTreino(estrutura, perfil) {
+  const verbo = { aq: 'Aquecer', co: 'Correr', rc: 'Recuperar', dq: 'Desaquecer' };
+  const frase = (s, verboOn = true) => {
+    const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const [a, b] = faixaZona(s.z, perfil); const e = estimaPasso(s, perfil);
+    const qto = s.med === 'min' ? `${String(s.v).replace('.', ',')} min` : medTxt(s);
+    const fim = s.med === 'min' ? `cerca de ${e.txt.replace('–', ' a ')}` : `completar entre ${tempoAsp(s.med === 'km' ? s.v * a : s.v / 1000 * a)} e ${tempoAsp(s.med === 'km' ? s.v * b : s.v / 1000 * b)}`;
+    return `${verboOn ? `<b>${verbo[s.k] || 'Correr'}</b> ` : ''}${qto} em <b>${z.z}</b> · ${z.d} (${paceAsp(a, b)}) <span class="lt-est">${fim}</span>`;
+  };
+  return (estrutura || []).map((s) => s.k === 'rep'
+    ? `<li><b>Repetir ${s.n}×:</b><ul>${(s.passos || []).map((p) => `<li>${frase(p)}</li>`).join('')}</ul></li>`
+    : `<li>${frase(s)}</li>`).join('');
+}
+function estimaTotalSeg(estrutura, perfil) {
+  let t0 = 0, t1 = 0;
+  const add = (s, n = 1) => { const [a, b] = faixaZona(s.z, perfil); if (s.med === 'min') { t0 += s.v * 60 * n; t1 += s.v * 60 * n; } else { const km = (s.med === 'km' ? s.v : s.v / 1000) * n; t0 += km * a; t1 += km * b; } };
+  (estrutura || []).forEach((s) => (s.k === 'rep' ? (s.passos || []).forEach((p) => add(p, s.n || 1)) : add(s)));
+  return [t0, t1];
 }
 function resumoEstrutura(estrutura, perfil) {
   const l = achatar(estrutura, perfil);

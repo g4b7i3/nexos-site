@@ -1353,3 +1353,12 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .passos-marca{margin:12px 0 14px;padding-left:20px;display:grid;gap:8px;font-size:.92rem}
 .passos-marca li::marker{font-weight:800;color:var(--acc2)}
 .aviso-dup{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,207,92,.14);border:1px solid rgba(255,207,92,.45);font-size:.85rem}
+/* cartão do treino de corrida (estilo planilha) */
+.kv-t{display:grid;grid-template-columns:.85fr 1.1fr 1.15fr;gap:6px;margin-top:4px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.kv-t>div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.kv-t span{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mute)}
+.kv-t b{font-size:.92rem;font-variant-numeric:tabular-nums}
+.linhas-t{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:7px;font-size:.9rem;line-height:1.4}
+.linhas-t ul{list-style:none;margin:5px 0 0;padding:0 0 0 12px;border-left:2px solid var(--line);display:grid;gap:5px}
+.linhas-t .lt-est{display:block;font-size:.8rem;color:var(--acc2)}
+.obs-t{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--s1);font-size:.85rem}
