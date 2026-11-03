@@ -3053,19 +3053,30 @@ function tempoAteProva(iso) {
   const s = Math.floor(d / 7), r = d % 7, sr = Math.round(d / 7);
   return { big: String(sr), un: sr === 1 ? 'semana' : 'semanas', txt: `faltam ${s} semana${s > 1 ? 's' : ''}${r ? ` e ${r} dia${r > 1 ? 's' : ''}` : ''} (${d} dias)` };
 }
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-pa-nav]'); if (!b) return;
+  const car = b.closest('.prova-alertas').querySelector('.pa-car'); car.scrollBy({ left: +b.dataset.paNav * car.clientWidth, behavior: 'smooth' });
+});
+document.addEventListener('scroll', (e) => {
+  const car = e.target; if (!car.classList || !car.classList.contains('pa-car')) return;
+  const box = car.closest('.prova-alertas'); const n = car.children.length; const i = Math.round(car.scrollLeft / Math.max(1, car.clientWidth));
+  const lab = box.querySelector('[data-pa-i]'); if (lab) lab.textContent = i + 1;
+  box.querySelectorAll('[data-pa-nav]').forEach((x) => { x.disabled = x.dataset.paNav === '-1' ? i <= 0 : i >= n - 1; });
+}, true);
 function provasBannerHTML(provas, staff, semPol) {
   if (!provas.length) return '';
-  return `<div class="stack prova-alertas">${provas.map((p, i) => {
+  const varias = provas.length > 1;
+  return `<div class="prova-alertas">${varias ? `<div class="pa-nav"><span class="pa-cont"><b data-pa-i>1</b> de ${provas.length} provas</span><button type="button" class="pa-seta" data-pa-nav="-1" aria-label="Prova anterior" disabled>${I.back}</button><button type="button" class="pa-seta" data-pa-nav="1" aria-label="Próxima prova">${I.chev}</button></div>` : ''}<div class="pa-car">${provas.map((p, i) => {
     const t = tempoAteProva(p.data); const km = kmDaProva(p.distancia); const jan = janelaPolimento(km); const d = diasAte(p.data);
     const outra = provas[i + 1] && Math.round((dia(provas[i + 1].data) - dia(p.data)) / 864e5);
     const fase = !staff || semPol ? '' : d <= jan ? '<span class="pa-fase">Janela de polimento</span>' : `<span class="pa-fase off">Janela de polimento a partir de ${fmtCurto(isoDia(dia(p.data).getTime() - jan * 864e5) + 'T12:00:00')}</span>`;
     return `<div class="prova-alerta"><div class="pa-n"><b>${t.big}</b><span>${t.un}</span></div>
       <div class="grow" style="min-width:0"><span class="pa-ey">🏁 ${staff ? 'Aluno tem prova' : 'Você tem prova'}</span><b class="pa-t">${esc(p.titulo)}</b>
         <span class="pa-s">${fmtDiaSem(p.data)}${p.distancia ? ' · ' + esc(p.distancia) : ''}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span>
-        <span class="pa-s">${t.txt}</span>
-        ${staff && outra && outra <= 14 ? `<span class="pa-s" style="color:var(--prova);font-weight:700">Outra prova ${outra} dias depois</span>` : ''}${fase}
-        ${staff && !semPol ? `<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><button class="btn sm pa-btn" data-pol="${p.id}">Ver sugestão de polimento</button></div>` : ''}</div></div>`;
-  }).join('')}
+        <span class="pa-s pa-falta">${t.txt}</span>
+        ${staff && outra && outra <= 14 ? `<span class="pa-s" style="color:var(--prova);font-weight:700">Outra prova ${outra} dia${outra > 1 ? 's' : ''} depois</span>` : ''}${fase}
+        ${staff && !semPol ? `<button class="btn sm pa-btn" data-pol="${p.id}">Ver sugestão de polimento</button>` : ''}</div></div>`;
+  }).join('')}</div>
   ${staff ? `<p class="tiny dim" style="margin-top:2px">${semPol ? 'Sugestão de polimento desligada para este aluno (compete com frequência). <button class="link-btn tiny" data-semp="0">Ligar de novo</button>' : 'O polimento é só sugestão: nada muda na planilha sem você aplicar. <button class="link-btn tiny" data-semp="1">Não sugerir para este aluno</button>'}</p>` : ''}</div>`;
 }
 function semanaPolimentoPadrao(km) {
