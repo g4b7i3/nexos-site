@@ -164,7 +164,7 @@ const dockAluno = () => setDock([
 ]);
 const dockStaff = () => setDock([
   { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.msgNovas || 0) || '' },
-  { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Alunos' },
+  { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo'], icon: I.cal, label: 'Treinos' },
   { href: '#/biblioteca', match: ['#/biblioteca'], icon: I.lib, label: 'Exercícios' },
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil'], icon: I.grid, label: 'Mais', badge: S.cache.pagInformados || '' },
@@ -2923,58 +2923,90 @@ async function contarNaoVistos() {
 }
 async function staffAlunos() {
   loading();
-  const [{ data: membros, error }, sess] = await Promise.all([
+  const st0 = S.cache.atl || (S.cache.atl = { off: 0, q: '', f: 'ativos', dono: null });
+  const ini = inicioSemana(); ini.setDate(ini.getDate() + (st0.off - 1) * 7);
+  const dias = Array.from({ length: 21 }, (_, i) => { const d = new Date(ini); d.setDate(ini.getDate() + i); return isoDia(d); });
+  const de = dias[0], ate = dias[20], hoje = hojeISO();
+  const [{ data: membros, error }, sess, , , , fimPl, plano, corrs, provas] = await Promise.all([
     sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
-    buscarSessoes(null, 400), contarNaoVistos(), contarMsgNovas(),
+    buscarSessoes(null, 600), contarNaoVistos(), contarMsgNovas(),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => { S.cache.anam = Object.fromEntries((r.data || []).map((x) => [x.aluno_id, x])); }),
+    fimPlanilhas(),
+    sb.from('nx_plano_corrida').select('id,aluno_id,data').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_corridas').select('aluno_id,data,plano_id').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hoje).order('data').then((r) => r.data || []).catch(() => []),
   ]);
-  const [fimPl, corrRec] = await Promise.all([fimPlanilhas(), sb.from('nx_corridas').select('aluno_id,data').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => [])]);
-  const ultAtiv = {}; sess.forEach((x) => { if (!ultAtiv[x.aluno_id] || x.iniciado_em > ultAtiv[x.aluno_id]) ultAtiv[x.aluno_id] = x.iniciado_em; }); corrRec.forEach((c) => { if (!ultAtiv[c.aluno_id] || c.data > ultAtiv[c.aluno_id]) ultAtiv[c.aluno_id] = c.data; });
-  const segIso = isoDia(inicioSemana()); const nSem = {}; [...sess.map((x) => [x.aluno_id, x.iniciado_em]), ...corrRec.map((c) => [c.aluno_id, c.data])].forEach(([id, d]) => { if (isoDia(d) >= segIso) nSem[id] = (nSem[id] || 0) + 1; });
   if (error) throw error;
   dockStaff();
-  const ult = {}; sess.forEach((s) => { if (!ult[s.aluno_id]) ult[s.aluno_id] = s; });
-  const sem = sess.filter((s) => diasDesde(s.iniciado_em) < 7).length;
-  const ativos = membros.filter((m) => m.ativo);
+  const ultAtiv = {}; sess.forEach((x) => { if (!ultAtiv[x.aluno_id] || x.iniciado_em > ultAtiv[x.aluno_id]) ultAtiv[x.aluno_id] = x.iniciado_em; }); corrs.forEach((c) => { if (!ultAtiv[c.aluno_id] || c.data > ultAtiv[c.aluno_id]) ultAtiv[c.aluno_id] = c.data; });
+  // mapa aluno -> dia -> estado
+  const mapa = {}; const marca = (id, k, v) => { (mapa[id] = mapa[id] || {}); mapa[id][k] = mapa[id][k] || {}; mapa[id][k][v] = (mapa[id][k][v] || 0) + 1; };
+  plano.forEach((p) => marca(p.aluno_id, p.data, 'pl'));
+  corrs.forEach((c) => { const k = isoDia(c.data); if (k >= de && k <= ate) marca(c.aluno_id, k, 'co'); });
+  sess.forEach((x) => { const k = isoDia(x.iniciado_em); if (k >= de && k <= ate) marca(x.aluno_id, k, 'mu'); });
+  provas.forEach((p) => { if (p.data >= de && p.data <= ate) marca(p.aluno_id, p.data, 'pr'); });
+  const proxProva = {}; provas.forEach((p) => { if (!proxProva[p.aluno_id]) proxProva[p.aluno_id] = p; });
   const equipe = await carregarEquipe(); const eqNome = Object.fromEntries(equipe.map((p) => [p.user_id, firstName(p.nome)]));
   const meus = membros.filter((m) => m.treinador_id === S.user.id);
-  const state = { q: '', f: 'ativos', dono: meus.length ? 'meus' : 'todos' };
+  if (!st0.dono) st0.dono = meus.length ? 'meus' : 'todos';
+  const ativos = membros.filter((m) => m.ativo);
+  const rot = (k) => { const d = dia(k); return `${d.getDate()}/${d.getMonth() + 1}`; };
+  const pontos = (id) => {
+    const md = mapa[id] || {};
+    return `<div class="sem3">${[0, 1, 2].map((w) => `<div class="sem1 ${dias[w * 7] <= hoje && hoje <= dias[w * 7 + 6] ? 'atual' : ''}">${dias.slice(w * 7, w * 7 + 7).map((k, i) => {
+      const x = md[k] || {}; let c = 'vazio', t = 'Sem treino';
+      if (x.pr) { c = 'prova'; t = 'Prova'; }
+      else if (x.pl) { const feito = (x.co || 0) >= 1; c = feito ? 'feito' : k < hoje ? 'perdeu' : 'plan'; t = feito ? 'Corrida feita' : k < hoje ? 'Treino não feito' : 'Treino planejado'; }
+      else if (x.co || x.mu) { c = 'extra'; t = x.co ? 'Corrida' : 'Musculação'; }
+      return `<span class="pt ${c} ${k === hoje ? 'hoje' : ''}" title="${rot(k)} · ${t}"><i></i><small>${'STQQSSD'[i]}</small></span>`;
+    }).join('')}</div>`).join('')}</div>`;
+  };
   $app.innerHTML = `
-    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="icon-btn" href="#/perfil" aria-label="Perfil">${I.user}</a></div>
-    <h1 class="h1">Olá, ${esc(firstName(S.me.nome))}</h1>
-    ${cartaoPushHTML()}
-    <div class="stats"><div class="stat"><b>${ativos.length}</b><span>alunos ativos</span></div><div class="stat"><b>${sem}</b><span>treinos nos últimos 7 dias</span></div><a class="stat" href="#/feed" style="color:inherit"><b style="color:${S.cache.naoVistos ? 'var(--acc)' : 'inherit'}">${S.cache.naoVistos}</b><span>retornos novos</span></a></div>
-    <div class="section">
-      <div class="section-h"><h2 class="h2">Alunos</h2>${slashes}</div>
-      <div class="seg" id="dono" style="margin-bottom:12px"><button type="button" data-d="meus" class="${state.dono === 'meus' ? 'on' : ''}">Meus alunos (${meus.filter((m) => m.ativo).length})</button><button type="button" data-d="todos" class="${state.dono === 'todos' ? 'on' : ''}">Todos (${ativos.length})</button></div>
-      <div class="search">${I.search}<input class="input" id="q" placeholder="Buscar aluno pelo nome ou e-mail"></div>
-      <div class="chips" id="filtros"><button class="chip on" data-f="ativos">Ativos</button><button class="chip" data-f="planilha">Planilha acabando</button><button class="chip" data-f="sumidos">Sem treinar há 7+ dias</button><button class="chip" data-f="inativos">Inativos</button><button class="chip" data-f="todos">Todos</button></div>
-      <div id="lista" class="cols" style="margin-top:12px"></div>
+    <div class="row between" style="gap:10px;flex-wrap:wrap"><div><p class="eyebrow">Gestão de atletas</p><h1 class="h1">Meus Atletas</h1></div><button class="btn sm" id="novo">${I.plus} Novo aluno</button></div>
+    <div class="atl-top">
+      <div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semanas anteriores">${I.back}</button><button class="btn ghost sm" id="sem-h">${rot(de)} a ${rot(ate)}</button><button class="icon-btn sm" id="sem-p" aria-label="Próximas semanas" style="transform:scaleX(-1)">${I.back}</button></div>
+      <div class="seg" id="dono"><button type="button" data-d="meus" class="${st0.dono === 'meus' ? 'on' : ''}">Meus (${meus.filter((m) => m.ativo).length})</button><button type="button" data-d="todos" class="${st0.dono === 'todos' ? 'on' : ''}">Todos (${ativos.length})</button></div>
     </div>
-    <button class="fab" id="novo" aria-label="Novo aluno">${I.plus}</button>`;
+    <div class="search" style="margin-top:12px">${I.search}<input class="input" id="q" placeholder="Buscar atleta" value="${esc(st0.q)}"></div>
+    <div class="chips" id="filtros">${[['ativos', 'Ativos'], ['planilha', 'Planilha acabando'], ['naofez', 'Faltou treino'], ['sumidos', 'Sem treinar há 7+ dias'], ['inativos', 'Inativos']].map(([k, l]) => `<button class="chip ${st0.f === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
+    <div class="atl-leg"><span><i class="pt-l feito"></i>feito</span><span><i class="pt-l plan"></i>planejado</span><span><i class="pt-l perdeu"></i>não fez</span><span><i class="pt-l extra"></i>treino extra</span><span><i class="pt-l prova"></i>prova</span></div>
+    <p class="tiny dim" id="cont" style="margin-top:6px"></p>
+    <div id="lista" class="atl-lista"></div>`;
   const draw = () => {
-    const q = state.q.toLowerCase();
-    let l = membros.filter((m) => !q || m.nome.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q));
-    if (state.dono === 'meus') l = l.filter((m) => m.treinador_id === S.user.id);
-    if (state.f === 'ativos') l = l.filter((m) => m.ativo);
-    if (state.f === 'inativos') l = l.filter((m) => !m.ativo);
-    if (state.f === 'sumidos') l = l.filter((m) => m.ativo && (!ultAtiv[m.user_id] || diasDesde(ultAtiv[m.user_id]) >= 7));
-    if (state.f === 'planilha') l = l.filter((m) => m.ativo && faz('corrida', m) && statusPlanilha(fimPl[m.user_id]).d <= 6).sort((a, b) => statusPlanilha(fimPl[a.user_id]).d - statusPlanilha(fimPl[b.user_id]).d);
+    const q = semAcento(st0.q);
+    let l = membros.filter((m) => !q || semAcento(m.nome + ' ' + (m.email || '')).includes(q));
+    if (st0.dono === 'meus') l = l.filter((m) => m.treinador_id === S.user.id);
+    if (st0.f === 'ativos') l = l.filter((m) => m.ativo);
+    if (st0.f === 'inativos') l = l.filter((m) => !m.ativo);
+    if (st0.f === 'sumidos') l = l.filter((m) => m.ativo && (!ultAtiv[m.user_id] || diasDesde(ultAtiv[m.user_id]) >= 7));
+    if (st0.f === 'naofez') l = l.filter((m) => m.ativo && Object.entries(mapa[m.user_id] || {}).some(([k, x]) => x.pl && !x.co && k < hoje));
+    if (st0.f === 'planilha') l = l.filter((m) => m.ativo && faz('corrida', m) && statusPlanilha(fimPl[m.user_id]).d <= 6).sort((a, b) => statusPlanilha(fimPl[a.user_id]).d - statusPlanilha(fimPl[b.user_id]).d);
+    document.getElementById('cont').textContent = `${l.length} atleta${l.length === 1 ? '' : 's'}`;
     document.getElementById('lista').innerHTML = l.length ? l.map((m) => {
-      const u = ult[m.user_id]; const dd = u ? diasDesde(u.iniciado_em) : null;
+      const dd = ultAtiv[m.user_id] ? diasDesde(ultAtiv[m.user_id]) : null;
       const stc = !m.ativo ? '' : dd == null ? '' : dd <= 3 ? 'st-ok' : dd <= 7 ? 'st-warn' : '';
       const deOutro = m.treinador_id && m.treinador_id !== S.user.id && eqNome[m.treinador_id];
-      return `<div class="list-item" data-aluno="${m.user_id}">${avAluno(m, stc)}<div class="grow"><b class="ellip" style="display:block">${esc(m.nome)}${deOutro ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNome[m.treinador_id])}</span>` : ''}</b><span class="small muted">${ultAtiv[m.user_id] ? `Treinou ${quando(ultAtiv[m.user_id])}` : 'Ainda não treinou pelo app'}${!m.ativo ? ' · inativo' : ''}</span>
-        ${m.ativo ? `<div class="al-st"><span class="${nSem[m.user_id] ? 'ok' : 'nao'}">${nSem[m.user_id] ? `✓ ${nSem[m.user_id]} treino${nSem[m.user_id] > 1 ? 's' : ''} na semana` : '✕ Sem treinos na semana'}</span>${faz('corrida', m) ? (() => { const sp = statusPlanilha(fimPl[m.user_id]); return `<span class="pl-${sp.cls}">${esc(sp.t)}</span>`; })() : ''}</div>` : ''}</div>${(S.cache.anam || {})[m.user_id]?.parq_positivo ? '<span class="tag warn">PAR-Q</span>' : !(S.cache.anam || {})[m.user_id] && m.ativo ? '<span class="tag">sem ficha</span>' : ''}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${u && u.dor && !u.visto_treinador ? '<span class="tag warn">dor</span>' : ''}${I.chev}</div>`;
-    }).join('') : `<div class="empty" style="grid-column:1/-1"><div class="h3">${membros.length ? 'Nenhum aluno nesse filtro' : 'Nenhum aluno ainda'}</div><p class="small">${membros.length ? '' : 'Toque no + para cadastrar o primeiro aluno.'}</p></div>`;
+      const sp = faz('corrida', m) ? statusPlanilha(fimPl[m.user_id]) : null; const pv = proxProva[m.user_id];
+      const alerta = (S.cache.anam || {})[m.user_id]?.parq_positivo ? '<span class="tag err">PAR-Q</span>' : '';
+      return `<div class="atl" data-aluno="${m.user_id}">
+        <div class="atl-id">${avAluno(m, stc)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b>
+          <div class="atl-sub">${deOutro ? `<span class="tag">de ${esc(eqNome[m.treinador_id])}</span>` : ''}${alerta}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${sp ? `<span class="pl-${sp.cls}">${esc(sp.t)}</span>` : '<span class="dim">Só musculação</span>'}</div>
+          ${pv ? `<div class="atl-prova">🏁 ${esc(pv.titulo)} · ${fmtCurto(pv.data + 'T12:00:00')}${pv.distancia ? ' · ' + esc(pv.distancia) : ''} · <b>${faltam(pv.data)}</b></div>` : ''}</div></div>
+        ${m.ativo ? pontos(m.user_id) : '<div class="atl-inativo dim small">Inativo</div>'}
+        <div class="atl-ac">${faz('corrida', m) ? `<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/corrida" aria-label="Planilha de corrida" title="Planilha de corrida">${I.run}</button>` : ''}${faz('musculacao', m) ? `<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/treinos" aria-label="Treinos de musculação" title="Treinos de musculação">${I.lib}</button>` : ''}<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/conversa" aria-label="Conversa" title="Conversa">${I.feed}</button></div>
+      </div>`;
+    }).join('') : `<div class="empty"><div class="h3">${membros.length ? 'Nenhum atleta nesse filtro' : 'Nenhum atleta ainda'}</div><p class="small">${membros.length ? '' : 'Toque em “Novo aluno” para cadastrar o primeiro.'}</p></div>`;
   };
   draw();
-  document.getElementById('q').oninput = (e) => { state.q = e.target.value; draw(); };
-  document.getElementById('dono').onclick = (e) => { const b = e.target.closest('[data-d]'); if (!b) return; state.dono = b.dataset.d; document.querySelectorAll('#dono button').forEach((x) => x.classList.toggle('on', x === b)); draw(); };
-  document.getElementById('filtros').onclick = (e) => { const b = e.target.closest('[data-f]'); if (!b) return; state.f = b.dataset.f; document.querySelectorAll('#filtros .chip').forEach((c) => c.classList.toggle('on', c === b)); draw(); };
-  document.getElementById('lista').onclick = (e) => { const it = e.target.closest('[data-aluno]'); if (it) location.hash = '#/aluno/' + it.dataset.aluno; };
+  const re = () => staffAlunos();
+  document.getElementById('sem-a').onclick = () => { st0.off -= 1; re(); };
+  document.getElementById('sem-p').onclick = () => { st0.off += 1; re(); };
+  document.getElementById('sem-h').onclick = () => { st0.off = 0; re(); };
+  document.getElementById('q').oninput = (e) => { st0.q = e.target.value; draw(); };
+  document.getElementById('dono').onclick = (e) => { const b = e.target.closest('[data-d]'); if (!b) return; st0.dono = b.dataset.d; document.querySelectorAll('#dono button').forEach((x) => x.classList.toggle('on', x === b)); draw(); };
+  document.getElementById('filtros').onclick = (e) => { const b = e.target.closest('[data-f]'); if (!b) return; st0.f = b.dataset.f; document.querySelectorAll('#filtros .chip').forEach((c) => c.classList.toggle('on', c === b)); draw(); };
+  document.getElementById('lista').onclick = (e) => { const ir = e.target.closest('[data-ir]'); if (ir) { location.hash = ir.dataset.ir; return; } const it = e.target.closest('[data-aluno]'); if (it) location.hash = '#/aluno/' + it.dataset.aluno; };
   document.getElementById('novo').onclick = () => formPessoa('aluno');
-  bindCartaoPush();
 }
 
 function formPessoa(tipo) {
@@ -3114,7 +3146,7 @@ async function staffAluno(alunoId, aba, extra) {
   }
   const secAtual = SECOES.find((x) => x[0] === aba);
   const cabecalho = `
-    <a class="back" href="#/alunos">${I.back} Alunos</a>
+    <a class="back" href="#/alunos">${I.back} Meus Atletas</a>
     <div class="row" style="gap:16px">${avAluno(m, 'lg ' + (u && diasDesde(u.iniciado_em) <= 3 ? 'st-ok' : u && diasDesde(u.iniciado_em) <= 7 ? 'st-warn' : ''))}
       <div class="grow"><h1 class="h2">${esc(m.nome)}</h1><div class="small muted">${m.objetivo ? esc(m.objetivo) : 'Sem objetivo cadastrado'}</div>
       <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${u ? `<span class="tag">Último treino ${quando(u.iniciado_em)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</div></div></div>
