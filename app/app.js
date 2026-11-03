@@ -1877,7 +1877,9 @@ async function buscarCorridas(alunoId, limit = 300) {
   if (error) throw error; return data || [];
 }
 async function buscarPlano(alunoId, de, ate) {
-  const { data, error } = await sb.from('nx_plano_corrida').select('*').eq('org_id', S.org.id).eq('aluno_id', alunoId).gte('data', de).lte('data', ate).order('data');
+  let q = sb.from('nx_plano_corrida').select('*').eq('org_id', S.org.id).eq('aluno_id', alunoId).gte('data', de).lte('data', ate).order('data');
+  if (!S.staff) q = q.eq('liberado', true); // o aluno só vê semanas liberadas pelo treinador
+  const { data, error } = await q;
   if (error) throw error; return data || [];
 }
 
@@ -2438,11 +2440,11 @@ async function polimentoSheet(alunoId, prova, perfil, aoAplicar) {
 /* ---------- calendário da planilha ---------- */
 const OFF_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" opacity=".5"><rect x="2" y="7.6" width="3.6" height="11" rx="1.7"/><rect x="2.6" y="14.8" width="14.6" height="3.8" rx="1.7"/><rect x="3.8" y="18.2" width="2.2" height="3.2" rx=".9"/><rect x="14.4" y="18.2" width="2.2" height="3.2" rx=".9"/></g><g fill="none" stroke="currentColor" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 8.8 9.7 13.4h6.2l1.6 6.6h2.4"/><path d="M8.6 10.4l4.2 2"/></g><circle cx="8" cy="4.5" r="2.5" fill="currentColor"/></svg>'; // pessoa sentada na poltrona
 function cartaoSessao(p, perfil, feito, staff) {
-  if (p.tipo === 'folga') return `<div class="ses folga" data-ses="${p.id}"><div class="ses-t"><span class="off-ic">${OFF_IC}</span><b>Day off</b></div><span class="ses-m">Descanso</span></div>`;
+  if (p.tipo === 'folga') return `<div class="ses folga ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic">${OFF_IC}</span><b>Day off</b></div><span class="ses-m">Descanso</span></div>`;
   const hoje = isoDia(new Date());
   const st = feito ? 'feito' : p.data < hoje ? 'perdido' : 'pend';
   const est = estruturaDe(p); const rs = resumoEstrutura(est, perfil);
-  return `<div class="ses ${st}" data-ses="${p.id}" ${staff ? 'draggable="false"' : ''}>
+  return `<div class="ses ${st} ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}" ${staff ? 'draggable="false"' : ''}>
     <div class="ses-t"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b>${feito ? '<span class="ses-ok">✓</span>' : st === 'perdido' ? '<span class="ses-x">!</span>' : ''}</div>
     ${perfilHTML(est, perfil)}
     <span class="ses-m">${rs.km ? f1(rs.km) + ' km' : ''}${rs.seg ? ' · ' + fmtDur(rs.seg) : ''}</span>
@@ -2457,7 +2459,10 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
     const km = doPlano.reduce((a, p) => a + resumoEstrutura(estruturaDe(p), perfil).km, 0);
     const feitoKm = corridas.filter((c) => { const k = isoDia(c.data); return k >= isoDia(dias[0]) && k <= isoDia(dias[6]); }).reduce((a, c) => a + c.distancia_m / 1000, 0);
     const prSem = provas.filter((p) => p.data >= isoDia(dias[0]) && p.data <= isoDia(dias[6]));
-    h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''}">${prSem.length ? `<div class="sem-prova-l">🏁 Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div><div class="cal-dias">`;
+    h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''}">${prSem.length ? `<div class="sem-prova-l">🏁 Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div>${staff && doPlano.length ? (() => { const nLib = doPlano.filter((p) => p.liberado !== false).length; const de = isoDia(dias[0]), ate = isoDia(dias[6]);
+      return nLib === doPlano.length
+        ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" data-desliberar="${de}|${ate}">Cancelar liberação</button></div>`
+        : `<div class="lib-bar"><span>${nLib ? `${doPlano.length - nLib} treino${doPlano.length - nLib > 1 ? 's' : ''} ainda não liberado${doPlano.length - nLib > 1 ? 's' : ''}` : 'Rascunho: o aluno ainda não vê esta semana'}</span><button type="button" class="btn sm lib-btn" data-liberar="${de}|${ate}">Liberar semana</button></div>`; })() : ''}<div class="cal-dias">`;
     dias.forEach((d) => {
       const k = isoDia(d); const itens = plano.filter((p) => p.data === k);
       const av = corridas.filter((c) => !c.plano_id && isoDia(c.data) === k);
@@ -2587,7 +2592,16 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
     const bn = q('#bib-niv'); if (bn) bn.onclick = (e) => { const b = e.target.closest('[data-niv]'); if (!b) return; store.set('nx_bib_niv', b.dataset.niv); bn.querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === b)); box.querySelectorAll('.biblio-l .mod').forEach((el) => { const md = modelos.find((x) => x.id === el.dataset.mod); el.hidden = !!md && md.tipo !== 'folga' && !passaNiv(md, b.dataset.niv); }); };
     const cal = q('.cal');
-    cal.addEventListener('click', (e) => {
+    cal.addEventListener('click', async (e) => {
+      const lb = e.target.closest('[data-liberar],[data-desliberar]');
+      if (lb) {
+        const lib = !!lb.dataset.liberar; const [de, ate] = (lb.dataset.liberar || lb.dataset.desliberar).split('|'); lb.disabled = true;
+        if (!lib && !confirm('Cancelar a liberação? O aluno deixa de ver os treinos desta semana.')) { lb.disabled = false; return; }
+        const { error } = await sb.from('nx_plano_corrida').update({ liberado: lib }).eq('org_id', S.org.id).eq('aluno_id', alunoId).gte('data', de).lte('data', ate);
+        if (error) { lb.disabled = false; return toast('Não foi possível salvar.', true); }
+        if (lib) { notificarAluno('planilha', alunoId); toast('Semana liberada! O aluno foi avisado.'); } else toast('Liberação cancelada. A semana voltou a ser rascunho.');
+        return recarregar();
+      }
       const nv = e.target.closest('[data-novo]'), se = e.target.closest('[data-ses]');
       if (nv) return escolherModelo(nv.dataset.novo);
       if (se) { const p = plano.find((x) => x.id === se.dataset.ses); if (!p) return;
@@ -2627,7 +2641,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           error ? toast('Não foi possível adicionar.', true) : (toast(`${md.nome} em ${DIAS[dia(data).getDay()]} ${dia(data).getDate()}`), recarregar());
         } else if (el.dataset.ses) {
           const p = plano.find((x) => x.id === el.dataset.ses); if (!p || p.data === data && !ev.copia) return;
-          if (ev.copia) { const { id, criado_em, ...resto } = p; const { error } = await sb.from('nx_plano_corrida').insert({ ...resto, data, criado_por: S.user.id }); error ? toast('Não foi possível copiar.', true) : (toast('Treino copiado.'), recarregar()); }
+          if (ev.copia) { const { id, criado_em, ...resto } = p; const { error } = await sb.from('nx_plano_corrida').insert({ ...resto, data, liberado: false, criado_por: S.user.id }); error ? toast('Não foi possível copiar.', true) : (toast('Treino copiado.'), recarregar()); }
           else { const { error } = await sb.from('nx_plano_corrida').update({ data }).eq('id', p.id); error ? toast('Não foi possível mover.', true) : (toast(`Movido para ${DIAS[dia(data).getDay()]} ${dia(data).getDate()}`), recarregar()); }
         }
       } });
@@ -2652,7 +2666,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             if (modo === 'limpar') { store.del('nx_clip_corr'); closeSheet(); toast('Cópia descartada.'); return recarregar(); }
             b2.disabled = true;
             if (modo === 'trocar') { const ids = plano.filter((p) => p.data >= isoDia(ini) && p.data <= isoDia(fimC)).map((p) => p.id); if (ids.length) await sb.from('nx_plano_corrida').delete().in('id', ids); }
-            const novos = clip.itens.map(({ off, ...resto }) => { const d = new Date(ini); d.setDate(ini.getDate() + off); return { ...resto, org_id: S.org.id, aluno_id: alunoId, data: isoDia(d), criado_por: S.user.id }; });
+            const novos = clip.itens.map(({ off, ...resto }) => { const d = new Date(ini); d.setDate(ini.getDate() + off); return { ...resto, org_id: S.org.id, aluno_id: alunoId, data: isoDia(d), liberado: false, criado_por: S.user.id }; });
             const { error } = await sb.from('nx_plano_corrida').insert(novos);
             closeSheet();
             if (error) return toast('Não foi possível colar.', true);
