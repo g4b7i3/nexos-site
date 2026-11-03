@@ -2368,7 +2368,7 @@ async function polimentoSheet(alunoId, prova, perfil, aoAplicar) {
 }
 
 /* ---------- calendário da planilha ---------- */
-const OFF_IC = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a.6.6 0 0 0-.8-.7A9.6 9.6 0 1 0 21.2 15.4a.6.6 0 0 0-.7-.8z"/></svg>';
+const OFF_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" opacity=".5"><rect x="2" y="7.6" width="3.6" height="11" rx="1.7"/><rect x="2.6" y="14.8" width="14.6" height="3.8" rx="1.7"/><rect x="3.8" y="18.2" width="2.2" height="3.2" rx=".9"/><rect x="14.4" y="18.2" width="2.2" height="3.2" rx=".9"/></g><g fill="none" stroke="currentColor" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 8.8 9.7 13.4h6.2l1.6 6.6h2.4"/><path d="M8.6 10.4l4.2 2"/></g><circle cx="8" cy="4.5" r="2.5" fill="currentColor"/></svg>'; // pessoa sentada na poltrona
 function cartaoSessao(p, perfil, feito, staff) {
   if (p.tipo === 'folga') return `<div class="ses folga" data-ses="${p.id}"><div class="ses-t"><span class="off-ic">${OFF_IC}</span><b>Day off</b></div><span class="ses-m">Descanso</span></div>`;
   const hoje = isoDia(new Date());
