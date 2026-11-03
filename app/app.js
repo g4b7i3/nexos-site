@@ -170,8 +170,7 @@ const dockStaff = () => setDock([
   { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: S.cache.naoVistos || '' },
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
-  { href: '#/treinos', match: ['#/treinos', '#/modelo'], icon: I.cal, label: 'Treinos' },
-  { href: '#/biblioteca', match: ['#/biblioteca'], icon: I.lib, label: 'Exercícios' },
+  { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
@@ -179,7 +178,7 @@ function layout(cls = '') { $app.className = 'app ' + cls; window.scrollTo(0, 0)
 function loading() { $app.innerHTML = '<div class="boot"><div class="boot-bar"><i></i></div></div>'; }
 
 async function router() {
-  closeSheet(); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT);
+  closeSheet(); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT); clearInterval(S.msgT);
   const fichaTk = (location.hash.match(/^#\/ficha\/([a-f0-9]{12,40})/) || [])[1];
   if (fichaTk) return viewFicha(fichaTk);
   if (!S.user) return viewLogin();
@@ -624,20 +623,20 @@ async function alunoHoje() {
     <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é descanso' : 'seu treino de hoje'}</h1></div></div>
     <div class="hoje-grid"><div class="hoje-main">
     ${cartaoCobrancaHTML(cobP)}
-    ${cartaoPushHTML()}
-    ${S.cache.msgNovas ? `<a class="card tap msg-card" href="#/conversa" style="margin-top:18px;display:flex"><span class="go">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div>${I.chev}</a>` : ''}
     <div class="stack" style="margin-top:18px">
       ${corrDoDia.map(cardCorr).join('')}
       ${cardMusc}
       ${descanso ? `<div class="card center" style="padding:22px 18px"><div style="font-size:1.8rem">🌿</div><div class="h3" style="margin-top:4px">Dia de descanso</div><p class="small muted">Recuperar também é treino. Hidrate-se e durma bem.</p></div>` : ''}
-      ${fC && !corrDoDia.length ? `<div class="card"><div class="row between" style="gap:10px"><div><b>Correu por conta própria?</b><div class="small muted">Registre para entrar na sua evolução.</div></div><button class="btn ghost sm" id="reg-home">${I.plus} Registrar</button></div></div>` : ''}
     </div>
-    ${proxCorr ? `<a class="list-item prox-l" href="#/planilha" style="margin-top:12px;color:inherit"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><span class="small muted">Próximo treino · ${dia(proxCorr.data).getTime() - dia(hoje).getTime() === 864e5 ? 'amanhã' : DIAS[dia(proxCorr.data).getDay()] + ' ' + dia(proxCorr.data).getDate()}</span><b class="ellip" style="display:block">${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</b></div>${I.chev}</a>` : ''}
+    ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
+    ${proxCorr ? `<a class="list-item prox-l" href="#/planilha" style="margin-top:10px;color:inherit"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><span class="small muted">Próximo treino · ${dia(proxCorr.data).getTime() - dia(hoje).getTime() === 864e5 ? 'amanhã' : DIAS[dia(proxCorr.data).getDay()] + ' ' + dia(proxCorr.data).getDate()}</span><b class="ellip" style="display:block">${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</b></div>${I.chev}</a>` : ''}
+    ${cartaoPushHTML()}
     </div><div class="hoje-side">
     ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex">${provaProx.data === hoje ? '<div class="pc-n"><b style="font-size:1rem">É</b><span>hoje</span></div>' : `<div class="pc-n"><b>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5)}</b><span>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5) === 1 ? 'dia' : 'dias'}</span></div>`}<div class="grow" style="min-width:0"><span class="eyebrow">🏁 Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
-    <div style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
-    <div class="atalhos">
-      <a href="#/planilha"><span>${I.cal}</span>Planilha completa</a>
+    <div class="semana-comp" style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
+    <div class="atalhos ${fC ? 'a4' : ''}">
+      ${fC ? `<button type="button" id="reg-home"><span>${I.plus}</span>Registrar corrida</button>` : ''}
+      <a href="#/planilha"><span>${I.cal}</span>Planilha</a>
       <a href="#/planilha/calendario"><span>${I.today}</span>Calendário</a>
       ${fC ? `<a href="#/eventos"><span>${I.flag}</span>Provas</a>` : `<a href="#/historico"><span>${I.hist}</span>Evolução</a>`}
     </div></div></div>`;
@@ -2089,6 +2088,27 @@ function estruturaDe(p) {
   return [];
 }
 
+/* ---------- guia rápido da planilha (primeira vez) ---------- */
+function guiaPlanilha() {
+  const toque = matchMedia('(pointer:coarse)').matches;
+  const passos = [
+    ['1', 'Arraste da Biblioteca', toque ? 'Segure um treino da Biblioteca por um instante, até ele “descolar”, e arraste até o dia. Solte e pronto.' : 'Clique num treino da Biblioteca, segure e arraste até o dia. Solte e pronto.', 'mod'],
+    ['2', 'Mude de dia ou exclua', `Arraste um treino de um dia para outro para mudar a data. Para excluir, arraste até “Solte aqui para excluir”, que aparece no topo.${toque ? '' : ' Segure Ctrl ou Alt para copiar em vez de mover.'}`, 'mov'],
+    ['3', 'Toque para editar', 'O + de cada dia cria um treino do zero. Tocando num treino você muda os passos, distâncias e zonas. No fim, use “Avisar aluno” para ele receber a notificação.', 'ed'],
+  ];
+  let i = 0;
+  const draw = (r) => {
+    const [n, t, d, k] = passos[i];
+    r.querySelector('#gp').innerHTML = `<div class="gp-ilu gp-${k}"><span class="gp-card"></span><span class="gp-dia"></span><span class="gp-mao"></span></div>
+      <p class="eyebrow" style="margin-top:14px">Passo ${n} de ${passos.length}</p><div class="h2" style="margin-top:4px">${t}</div><p class="small muted" style="margin-top:6px">${d}</p>
+      <div class="gp-dots">${passos.map((_, j) => `<i class="${j === i ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="grid2" style="margin-top:14px"><button class="btn ghost" id="gp-a">${i ? 'Voltar' : 'Pular'}</button><button class="btn" id="gp-p">${i === passos.length - 1 ? 'Entendi' : 'Próximo'}</button></div>`;
+    r.querySelector('#gp-a').onclick = () => { if (!i) { store.set('nx_guia_plan', true); return closeSheet(); } i--; draw(r); };
+    r.querySelector('#gp-p').onclick = () => { if (i === passos.length - 1) { store.set('nx_guia_plan', true); return closeSheet(); } i++; draw(r); };
+  };
+  openSheet('<div id="gp"></div>', draw);
+}
+
 /* ---------- arrastar e soltar (mouse e dedo) ---------- */
 function arrastar(root, { item, alvo, soltar, handle }) {
   let st = null; let bloqueiaClique = false;
@@ -2408,7 +2428,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
     corpo = `${provasBannerHTML(provasProx, staff, !!(m.corrida && m.corrida.sem_polimento))}${staff ? cargaHTML3(cargaCorrida(corridas, perfil)).replace('class="card carga3"', 'class="card carga3 compacto"') : ''}
       <div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${rotulo}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
-        <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>Copiar semana</button><button class="btn sm" id="avisar">${I.bell} Avisar aluno</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
+        <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="copiar-sem" ${plano.length ? '' : 'disabled'}>Copiar semana</button><button class="btn sm" id="avisar">${I.bell} Avisar aluno</button><button class="btn ghost sm" id="guia-plan" title="Como usar a planilha">?</button>` : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div></div>
       <div class="${staff ? 'pl-grid' : ''}">
         ${staff ? `<aside class="biblio"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span></div><div class="biblio-l">${modelos.map((md) => `<div class="mod" data-mod="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km${String(md.id).startsWith('p-') ? '' : ' · meu modelo'}</span></div>`).join('')}</div></aside>` : ''}
         <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
@@ -2506,6 +2526,8 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         toast(semanas > 1 ? 'Duas semanas copiadas para as seguintes!' : 'Semana copiada para a seguinte!'); st.off += semanas; recarregar();
       };
       q('#avisar').onclick = () => { notificarAluno('planilha', alunoId); toast('Aluno avisado da planilha.'); };
+      q('#guia-plan').onclick = () => guiaPlanilha();
+      if (!store.get('nx_guia_plan', false)) setTimeout(() => { if (box.isConnected) guiaPlanilha(); }, 400);
     }
   }
   if (!staff && integ && (!integ.ultima_sync || Date.now() - new Date(integ.ultima_sync) > 30 * 60000) && !st.syncTentado) {
@@ -2946,21 +2968,28 @@ function viewPerfil() {
     <a class="back" href="${S.staff ? '#/mais' : '#/'}">${I.back} Voltar</a>
     <p class="eyebrow">Perfil</p>
     <div class="row" style="margin-top:12px;gap:16px"><button class="foto-edit" id="trocar-foto" aria-label="Trocar foto">${fotoHTML(S.me, 'lg')}<i>${I.cam}</i></button><div class="grow"><div class="h2">${esc(S.me.nome)}</div><div class="small muted ellip">${esc(S.user.email)}</div><span class="tag acc" style="margin-top:6px">${papel} · ${esc(S.org.nome)}</span></div></div>
-    <div class="section"><div class="section-h"><h2 class="h2">Trocar senha</h2></div>
-      <form class="card" id="f-senha"><label class="field"><span>Nova senha</span><input class="input" type="password" name="s1" minlength="6" required autocomplete="new-password"></label><label class="field"><span>Repita a nova senha</span><input class="input" type="password" name="s2" minlength="6" required autocomplete="new-password"></label><button class="btn block">Salvar nova senha</button></form></div>
+    <div class="perfil-grid"><div>
+    <div class="section"><div class="section-h"><h2 class="h2">Minha conta</h2></div>
+      <button type="button" class="list-item" id="trocar-foto2" style="width:100%;text-align:left"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Trocar foto</b><div class="small muted">Aparece para o seu ${S.staff ? 'aluno' : 'treinador'}</div></div>${I.chev}</button>
+      <details class="list-item acc-item"><summary><span class="ativ-ic">${I.user}</span><div class="grow"><b>Trocar senha</b><div class="small muted">Toque para abrir</div></div>${I.chev}</summary>
+        <form id="f-senha" style="margin-top:12px"><label class="field"><span>Nova senha</span><input class="input" type="password" name="s1" minlength="6" required autocomplete="new-password"></label><label class="field"><span>Repita a nova senha</span><input class="input" type="password" name="s2" minlength="6" required autocomplete="new-password"></label><button class="btn block">Salvar nova senha</button></form></details></div>
+    ${S.staff ? '' : `<div class="section"><div class="section-h"><h2 class="h2">Saúde e pagamentos</h2></div>
+      <a class="list-item" href="#/saude" style="color:inherit"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Minha ficha de saúde</b><div class="small muted">Anamnese e PAR-Q</div></div>${I.chev}</a>
+      <a class="list-item" href="#/pagamentos" style="color:inherit"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Pagamentos</b><div class="small muted">Mensalidades e Pix</div></div>${I.chev}</a>
+      <a class="list-item" href="#/termo" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Termo e meus dados</b><div class="small muted">O que guardamos e seus direitos (LGPD)</div></div>${I.chev}</a></div>`}
     ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button></div></div>` : ''}
-    ${S.staff ? '' : `<div class="section"><div class="section-h"><h2 class="h2">Saúde e privacidade</h2></div>
-      <a class="list-item" href="#/saude" style="color:inherit"><div class="grow"><b>Minha ficha de saúde</b><div class="small muted">Anamnese e PAR-Q</div></div>${I.chev}</a>
-      <a class="list-item" href="#/pagamentos" style="color:inherit"><div class="grow"><b>Pagamentos</b><div class="small muted">Mensalidades e Pix</div></div>${I.chev}</a>
-      <a class="list-item" href="#/termo" style="color:inherit"><div class="grow"><b>Termo e meus dados</b><div class="small muted">O que guardamos e seus direitos (LGPD)</div></div>${I.chev}</a></div>`}
-    <div class="section"><div class="section-h"><h2 class="h2">Notificações</h2></div><div id="notif"></div></div>
-    <div class="section"><div class="section-h"><h2 class="h2">Aparência</h2></div><div class="card"><b>Cor de fundo</b><p class="small muted">O claro é melhor para ler no sol e na academia.</p>
-      <div class="tema-seg seg" id="tema">${[['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button type="button" data-tema="${k}" class="${(document.documentElement.dataset.tema || 'claro') === k ? 'on' : ''}">${l}</button>`).join('')}</div></div></div>
-    <div class="section"><div class="card"><div class="row between"><div><b>Instalar no celular</b><p class="small muted">No navegador, toque em “Compartilhar” ou no menu ⋮ e escolha “Adicionar à tela de início”.</p></div></div></div>
-      <button class="btn danger block" id="sair" style="margin-top:12px">Sair da conta</button>
-      <p class="tiny dim center" style="margin-top:18px">Nexos Performance e Saúde · app v1.8 · <a href="../privacidade.html" target="_blank" rel="noopener" class="dim">Política de Privacidade</a></p></div>`;
+    </div><div>
+    <div class="section"><div class="section-h"><h2 class="h2">Configurações</h2></div>
+      <div id="notif"></div>
+      <div class="card" style="margin-top:10px"><b>Cor de fundo</b><p class="small muted">O claro é melhor para ler no sol e na academia.</p>
+        <div class="tema-seg seg" id="tema">${[['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button type="button" data-tema="${k}" class="${(document.documentElement.dataset.tema || 'claro') === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+      <details class="list-item acc-item" style="margin-top:10px"><summary><span class="ativ-ic">${I.home}</span><div class="grow"><b>Instalar no celular</b><div class="small muted">Ter o app na tela de início</div></div>${I.chev}</summary><p class="small muted" style="margin-top:10px">No navegador, toque em “Compartilhar” ou no menu ⋮ e escolha “Adicionar à tela de início”.</p></details></div>
+    <button class="btn danger block" id="sair" style="margin-top:18px">Sair da conta</button>
+    <p class="tiny dim center" style="margin-top:18px">Nexos Performance e Saúde · app v1.9 · <a href="../privacidade.html" target="_blank" rel="noopener" class="dim">Política de Privacidade</a></p>
+    </div></div>`;
   document.getElementById('sair').onclick = async () => { await sb.auth.signOut(); location.hash = '#/'; };
   const tf = document.getElementById('trocar-foto'); if (tf) tf.onclick = trocarFoto;
+  const tf2 = document.getElementById('trocar-foto2'); if (tf2) tf2.onclick = trocarFoto;
   secaoNotificacoes(document.getElementById('notif'));
   document.getElementById('tema').onclick = (e) => { const b = e.target.closest('[data-tema]'); if (!b) return; aplicarTema(b.dataset.tema); document.querySelectorAll('#tema button').forEach((x) => x.classList.toggle('on', x === b)); };
   document.getElementById('f-senha').onsubmit = async (e) => {
@@ -3614,7 +3643,7 @@ async function staffFeed() {
 }
 
 /* ---------- montagem de treino: modelos de musculação e de corrida ---------- */
-const treinosAbas = (k) => `<div class="subtabs" style="margin-top:14px">${[['musculacao', 'Musculação'], ['corrida', 'Corrida']].map(([x, l]) => `<a class="${k === x ? 'on' : ''}" href="#/treinos${x === 'corrida' ? '/corrida' : ''}">${l}</a>`).join('')}</div>`;
+const treinosAbas = (k) => `<div class="subtabs" style="margin-top:14px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
   if (aba !== 'corrida') return staffBiblioteca('modelos');
   loading();
@@ -3677,7 +3706,7 @@ async function staffBiblioteca(aba) {
   let g = 'Todos', q = '', eq = 'Todos', n = LIM;
   const comFoto = exs.filter((e) => e.imagens && e.imagens.length).length;
   $app.innerHTML = `
-    <p class="eyebrow">Biblioteca</p><h1 class="h1">Exercícios</h1>
+    <p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('exercicios')}
     <p class="muted small" style="margin-top:6px">${exs.length} exercícios · ${comFoto} com fotos de execução. Toque em um para ver como fazer, editar ou adicionar vídeo.</p>
     <div class="search" style="margin-top:16px">${I.search}<input class="input" id="bq" placeholder="Buscar: supino, stiff, kettlebell…"></div>
     <div class="chips" id="bg">${grupos.map((x) => `<button class="chip ${x === g ? 'on' : ''}" data-g="${esc(x)}">${esc(x)}</button>`).join('')}</div>
@@ -3763,7 +3792,7 @@ async function staffMensagens(alunoId) {
   const porId = Object.fromEntries((membros || []).map((m) => [m.user_id, m]));
   const meus = (membros || []).filter((m) => m.treinador_id === S.user.id);
   if (!st.dono) st.dono = meus.length ? 'meus' : 'todos';
-  const conversas = Object.keys(ult).filter((id) => porId[id]).sort((a, b) => (ult[b].criado_em > ult[a].criado_em ? 1 : -1));
+  let conversas = Object.keys(ult).filter((id) => porId[id]).sort((a, b) => (ult[b].criado_em > ult[a].criado_em ? 1 : -1));
   S.cache.msgLista = true;
   const itemHTML = (id) => { const m = porId[id], u = ult[id], n = nl[id] || 0; const eu = u.autor_id !== id;
     return `<a class="cv ${n ? 'nova' : ''} ${id === alunoId ? 'on' : ''}" href="#/mensagens/${id}" data-cv="${id}">${avAluno(m)}<div class="cv-c"><div class="cv-l1"><b class="ellip">${esc(m.nome)}</b><span class="cv-h">${horaMsg(u.criado_em)}</span></div>
@@ -3785,6 +3814,19 @@ async function staffMensagens(alunoId) {
     $app.innerHTML = aluno ? cabChat : painelLista;
   }
   if (aluno) { await viewConversa(alunoId, document.getElementById('cv-box'), true); nl[alunoId] = 0; S.cache.msgNovas = Object.values(nl).reduce((a, b) => a + b, 0); dockStaff(); const it = document.querySelector(`[data-cv="${alunoId}"]`); if (it) { it.classList.remove('nova'); it.querySelector('.cv-n')?.remove(); } }
+  // a lista se atualiza sozinha (mensagens novas sobem para o topo)
+  const atualizar = async () => {
+    const lst = document.getElementById('cv-lista'); if (!lst || !location.hash.startsWith('#/mensagens')) return clearInterval(S.msgT);
+    const { data } = await sb.from('nx_mensagens').select('aluno_id,autor_id,texto,criado_em,lida').eq('org_id', S.org.id).order('criado_em', { ascending: false }).limit(2000);
+    if (!data) return;
+    Object.keys(ult).forEach((k) => delete ult[k]); Object.keys(nl).forEach((k) => delete nl[k]);
+    data.forEach((m) => { if (!ult[m.aluno_id]) ult[m.aluno_id] = m; if (m.autor_id === m.aluno_id && !m.lida && m.aluno_id !== alunoId) nl[m.aluno_id] = (nl[m.aluno_id] || 0) + 1; });
+    conversas = Object.keys(ult).filter((id) => porId[id]).sort((a, b) => (ult[b].criado_em > ult[a].criado_em ? 1 : -1));
+    const y = lst.scrollTop; lst.innerHTML = listaHTML(); lst.scrollTop = y;
+    S.cache.msgNovas = Object.values(nl).reduce((a, b) => a + b, 0); dockStaff();
+  };
+  clearInterval(S.msgT); S.msgT = setInterval(atualizar, 12000);
+  const fm = document.getElementById('f-msg'); if (fm) fm.addEventListener('submit', () => setTimeout(atualizar, 1200));
   const qi = document.getElementById('cv-q'); if (qi) qi.oninput = () => { st.q = qi.value; document.getElementById('cv-lista').innerHTML = listaHTML(); };
   const dn = document.getElementById('cv-dono'); if (dn) dn.onclick = (e) => { const b = e.target.closest('[data-d]'); if (!b) return; st.dono = b.dataset.d; dn.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); document.getElementById('cv-lista').innerHTML = listaHTML(); };
   const nv = document.getElementById('cv-nova'); if (nv) nv.onclick = () => {
@@ -4033,6 +4075,18 @@ async function staffFichaResposta(id) {
       if (!res || !res.user_id) return;
       await sb.from('nx_form_respostas').update({ aluno_id: res.user_id }).eq('id', id);
       if (dp.corrida || dp.forca) await sb.from('nx_membros').update({ disponibilidade: { corrida: dp.corrida || [], forca: dp.forca || [], obs: d.disp_obs || undefined } }).eq('org_id', S.org.id).eq('user_id', res.user_id);
+      // a ficha já vale como anamnese: o aluno não responde o PAR-Q de novo no primeiro acesso
+      try {
+        const h = d.hist || {}; const simH = (k) => h[k] === 'sim';
+        const parq = {}; PARQ.forEach((_, i) => { parq['q' + (i + 1)] = (d.parq || {})['q' + (i + 1)] || 'nao'; });
+        const resp = { origem: 'ficha_entrada', objetivo: d.objetivo, objetivo_txt: d.meta, experiencia: { sedentario: 'parado', iniciante: 'iniciante', intermediario: 'intermediario', avancado: 'avancado', profissional: 'avancado' }[d.nivel],
+          atividades: [lista(d.esportes, FICHA_ESPORTES), d.atividade].filter(Boolean).join(' · ') || undefined, dias: String(new Set([...(dp.corrida || []), ...(dp.forca || [])]).size || '') || undefined, prova: d.prova,
+          doencas: [], doencas_txt: [rs.histSim.map(([q, v]) => q.replace(/\?$/, '') + (v === 'naosei' ? ' (não sabe)' : '')).join('; '), d.obs_medica].filter(Boolean).join('. ') || undefined,
+          cirurgias: simH('h4') ? 'Sim (ver detalhes)' : undefined, alergias: simH('h5') ? 'Sim (ver detalhes)' : undefined, lesoes: simH('h6') ? 'Sim (ver detalhes)' : undefined, medicamentos: simH('h7') ? 'Sim (ver detalhes)' : undefined, dores: simH('h9') ? 'Sim (ver detalhes)' : undefined, fuma: h.h8 === 'sim' ? 'sim' : h.h8 === 'nao' ? 'nao' : undefined };
+        Object.keys(resp).forEach((k) => resp[k] === undefined && delete resp[k]);
+        const { data: ja } = await sb.from('nx_anamneses').select('id').eq('org_id', S.org.id).eq('aluno_id', res.user_id).maybeSingle();
+        if (!ja) await sb.from('nx_anamneses').insert({ org_id: S.org.id, aluno_id: res.user_id, parq, parq_positivo: Object.values(parq).includes('sim'), respostas: resp, visto_treinador: true });
+      } catch (e2) { console.error(e2); }
     });
   };
   document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };

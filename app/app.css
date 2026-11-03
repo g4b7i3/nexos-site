@@ -1031,3 +1031,34 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
   .dock a .badge{right:calc(50% - 20px)}
 }
 @media (max-width:899px){#cv-box .chat{min-height:calc(100vh - 300px);min-height:calc(100dvh - 300px)}}
+/* guia da planilha */
+.gp-ilu{position:relative;height:120px;border-radius:16px;background:var(--s1);overflow:hidden}
+.gp-card{position:absolute;left:18px;top:22px;width:86px;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 8px 20px rgba(47,107,255,.3);animation:gpArr 2.4s ease-in-out infinite}
+.gp-dia{position:absolute;right:18px;top:16px;width:120px;height:86px;border-radius:12px;border:2px dashed var(--acc);background:var(--bg2)}
+.gp-mao{position:absolute;left:70px;top:52px;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--ink);animation:gpArr 2.4s ease-in-out infinite}
+.gp-mov .gp-card{left:auto;right:150px}
+.gp-ed .gp-card{animation:gpPulse 1.6s ease-in-out infinite;left:calc(50% - 43px)}.gp-ed .gp-mao{left:calc(50% + 10px);animation:gpPulse 1.6s ease-in-out infinite}.gp-ed .gp-dia{display:none}
+@keyframes gpArr{0%,15%{transform:translate(0,0)}60%,80%{transform:translate(170px,8px)}100%{transform:translate(0,0)}}
+@keyframes gpPulse{0%,100%{transform:scale(1)}50%{transform:scale(.92)}}
+@media (max-width:420px){@keyframes gpArr{0%,15%{transform:translate(0,0)}60%,80%{transform:translate(120px,8px)}100%{transform:translate(0,0)}}}
+.gp-dots{display:flex;gap:6px;justify-content:center;margin-top:14px}.gp-dots i{width:7px;height:7px;border-radius:50%;background:var(--line2)}.gp-dots i.on{background:var(--acc);width:20px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){.gp-card,.gp-mao{animation:none}}
+/* Hoje do aluno mais enxuto */
+.msg-row{margin-top:12px;color:inherit;border-color:color-mix(in srgb,var(--acc) 45%,var(--line));background:color-mix(in srgb,var(--acc) 7%,var(--bg2))}
+.msg-row .ativ-ic{color:var(--acc)}
+.atalhos.a4{grid-template-columns:repeat(4,1fr)}
+.atalhos button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:16px;border:1px solid var(--line);background:var(--s1);color:var(--ink);font-size:.78rem;font-weight:800;text-align:center;cursor:pointer;font-family:inherit}
+.atalhos button span{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
+.atalhos button svg{width:19px;height:19px}
+.atalhos.a4 a,.atalhos.a4 button{font-size:.7rem;padding:10px 4px}
+.semana-comp .ov-card{padding:12px 14px}
+.semana-comp .fq{margin-top:8px}
+.semana-comp .fq-d i{width:30px;height:30px}
+/* perfil organizado */
+.acc-item{display:block;padding:0}
+.acc-item>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+.acc-item>summary::-webkit-details-marker{display:none}
+.acc-item>summary>svg:last-child{transition:transform .2s}
+.acc-item[open]>summary>svg:last-child{transform:rotate(90deg)}
+.acc-item>form,.acc-item>p{padding:0 14px 14px}
+@media (min-width:900px){.perfil-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}}
