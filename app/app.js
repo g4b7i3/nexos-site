@@ -1514,6 +1514,61 @@ function viewTermo() {
 }
 
 /** ficha de anamnese + PAR-Q. alunoId/nome quando o treinador edita. */
+/* ---------- formulários em etapas + máscaras de números ---------- */
+const soDig = (v) => String(v || '').replace(/\D/g, '');
+const MASCARA = {
+  tel: (v) => { const d = soDig(v).slice(0, 11); if (!d) return ''; if (d.length <= 2) return `(${d}`; const dd = d.slice(0, 2), r = d.slice(2);
+    if (d.length === 11) return `(${dd}) ${r[0]} ${r.slice(1, 5)}-${r.slice(5)}`; return r.length > 4 ? `(${dd}) ${r.slice(0, 4)}-${r.slice(4)}` : `(${dd}) ${r}`; },
+  data: (v) => { const d = soDig(v).slice(0, 8); return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/'); },
+  hora: (v) => { const d = soDig(v).slice(0, 4); return d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d; },
+  altura: (v) => { const d = soDig(v).slice(0, 3); return d.length > 1 ? `${d[0]},${d.slice(1)}` : d; },
+  peso: (v) => { const d = soDig(v).slice(0, 4); const n = d[0] === '1' || d[0] === '2' ? 3 : 2; return d.length > n ? `${d.slice(0, n)},${d[n]}` : d; }, // 88 · 885→88,5 · 105 · 1055→105,5
+  num: (v, el) => soDig(v).slice(0, +(el && el.dataset.max) || 3),
+};
+// "25/03/1995" -> "1995-03-25" (ou '' se não for uma data válida)
+const dataISO = (br) => { const m = String(br || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (!m) return ''; const iso = `${m[3]}-${m[2]}-${m[1]}`; const d = new Date(iso + 'T12:00:00'); return !isNaN(d) && d.getDate() === +m[1] && d.getMonth() + 1 === +m[2] ? iso : ''; };
+const dataBR = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || '')) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '');
+function aplicarMascaras(root) {
+  root.querySelectorAll('[data-mask]').forEach((el) => {
+    const fn = MASCARA[el.dataset.mask]; if (!fn) return;
+    el.setAttribute('autocomplete', el.getAttribute('autocomplete') || 'off');
+    if (el.value) el.value = fn(el.value, el);
+    el.addEventListener('input', () => { el.value = fn(el.value, el); });
+  });
+}
+// mostra uma etapa por vez; "Próximo" só avança quando validar(etapa) não devolve erro
+function etapas(form, validar) {
+  form.classList.add('wz');
+  const enviar = form.querySelector('[type=submit]');
+  const prog = document.createElement('div'); prog.className = 'wz-prog';
+  const nav = document.createElement('div'); nav.className = 'wz-nav';
+  nav.innerHTML = `<button type="button" class="btn ghost" data-wz="volta">${I.back} Voltar</button><button type="button" class="btn grow" data-wz="prox">Próximo ${I.arrow}</button>`;
+  form.prepend(prog); enviar.before(nav); nav.append(enviar); enviar.classList.add('grow'); enviar.classList.remove('block');
+  const volta = nav.querySelector('[data-wz=volta]'), prox = nav.querySelector('[data-wz=prox]');
+  let i = 0;
+  const lista = () => [...form.querySelectorAll('.wz-step')].filter((x) => !x.hidden);
+  const atual = () => { const L = lista(); i = Math.max(0, Math.min(i, L.length - 1)); return L[i]; };
+  const checar = () => { const L = lista(), el = atual(); const ok = !validar(el); (i === L.length - 1 ? enviar : prox).classList.toggle('wz-bloq', !ok); };
+  const pinta = (rolar) => {
+    const L = lista(), el = atual();
+    form.querySelectorAll('.wz-step').forEach((x) => x.classList.toggle('wz-on', x === el));
+    prog.innerHTML = `<div class="wz-txt"><b>Etapa ${i + 1} de ${L.length}</b><span>${esc(el.dataset.titulo || '')}</span></div><div class="wz-bar">${L.map((_, k) => `<i class="${k < i ? 'ok' : k === i ? 'on' : ''}"></i>`).join('')}</div>`;
+    volta.hidden = i === 0; prox.hidden = i === L.length - 1; enviar.hidden = i !== L.length - 1;
+    checar();
+    if (rolar) prog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  prox.onclick = () => {
+    const err = validar(atual());
+    if (err) { toast(err.msg, true); const alvo = err.sel && atual().querySelector(err.sel); const box = alvo && alvo.closest('.field, .parq, .ficha-aceite, label, .card'); if (box) { box.classList.add('wz-erro'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => box.classList.remove('wz-erro'), 1600); } return; }
+    i++; pinta(true);
+  };
+  volta.onclick = () => { i--; pinta(true); };
+  form.addEventListener('input', checar); form.addEventListener('change', () => setTimeout(() => pinta()));
+  form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT' && enviar.hidden) { e.preventDefault(); prox.click(); } });
+  pinta();
+  return { pinta };
+}
+
 async function viewAnamnese(opts = {}) {
   const staff = !!opts.alunoId; const alunoId = opts.alunoId || S.user.id;
   let a = opts.anamnese;
@@ -1528,20 +1583,23 @@ async function viewAnamnese(opts = {}) {
     ${opts.gate ? `<div class="row" style="gap:12px;margin-bottom:14px"><img src="${LOGO.s()}" alt="" style="width:44px">${slashes}</div><p class="eyebrow">Passo 2 de 2</p><h1 class="h1" style="margin-top:4px">Sua ficha de saúde</h1><p class="muted small" style="margin:8px 0 4px">Leva uns 3 minutos. Com isso o seu treinador monta um treino seguro pra você.</p>`
       : staff ? '' : `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Minha saúde</p><h1 class="h1">Anamnese e PAR-Q</h1><p class="muted small" style="margin-top:6px">Mudou alguma coisa? Atualize aqui e o seu treinador é avisado.</p>`}
     <form id="f-ana" class="stack" style="margin-top:16px">
-      <div class="card"><span class="eyebrow">PAR-Q · prontidão para atividade física</span>
+      <div class="card wz-step" data-k="parq" data-titulo="PAR-Q"><span class="eyebrow">PAR-Q · prontidão para atividade física</span>
         <p class="tiny dim" style="margin:6px 0 4px">Responda com sinceridade. Uma resposta "sim" não impede o treino, mas pede uma conversa com o médico antes.</p>
         ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1), pq['q' + (i + 1)])}</div>`).join('')}
       </div>
-      ${!staff && !S.me.sexo ? `<div class="card"><span class="eyebrow">Sobre você</span><div class="field" style="margin-top:12px"><span>Sexo</span><div class="radios"><label><input type="radio" name="sexo_al" value="F"><span>Feminino</span></label><label><input type="radio" name="sexo_al" value="M"><span>Masculino</span></label></div></div></div>` : ''}
+      <div class="stack wz-step" data-k="objetivo" data-titulo="Sobre você e objetivo">
+      <div class="card"><span class="eyebrow">Sobre você</span>
+        ${!staff && !S.me.sexo ? `<div class="field" style="margin-top:12px"><span>Sexo</span><div class="radios"><label><input type="radio" name="sexo_al" value="F"><span>Feminino</span></label><label><input type="radio" name="sexo_al" value="M"><span>Masculino</span></label></div></div>` : ''}
+        <div class="grid2" style="margin-top:12px"><label class="field"><span>Altura</span><div class="un-wrap"><input class="input" name="altura" data-mask="altura" inputmode="numeric" placeholder="1,75" value="${esc(r.altura || '')}"><i>m</i></div></label><label class="field"><span>Peso</span><div class="un-wrap"><input class="input" name="peso" data-mask="peso" inputmode="numeric" placeholder="70" value="${esc(r.peso || '')}"><i>kg</i></div></label></div></div>
       <div class="card"><span class="eyebrow">Objetivo e rotina</span>
         <label class="field" style="margin-top:12px"><span>Objetivo principal</span>${sel('objetivo', r.objetivo, OBJETIVOS)}</label>
         <label class="field"><span>Conte mais sobre o seu objetivo (opcional)</span><input class="input" name="objetivo_txt" value="${esc(r.objetivo_txt || '')}" placeholder="Ex.: correr 10 km abaixo de 55 min"></label>
         <label class="field"><span>Experiência com treino</span>${sel('experiencia', r.experiencia, [['nunca', 'Nunca treinei'], ['parado', 'Parado há mais de 6 meses'], ['iniciante', 'Treino há menos de 1 ano'], ['intermediario', 'Treino de 1 a 3 anos'], ['avancado', 'Treino há mais de 3 anos']])}</label>
         <label class="field"><span>Atividades que pratica hoje</span><input class="input" name="atividades" value="${esc(r.atividades || '')}" placeholder="Ex.: corrida 3x por semana, futebol no sábado"></label>
         <div class="grid2"><label class="field"><span>Dias por semana para treinar</span>${sel('dias', r.dias, [1, 2, 3, 4, 5, 6, 7].map((n) => [String(n), n + (n === 1 ? ' dia' : ' dias')]))}</label><label class="field"><span>Tempo por treino</span>${sel('tempo', r.tempo, [['30', '30 min'], ['45', '45 min'], ['60', '1 hora'], ['90', '1h30 ou mais']])}</label></div>
-        <div class="grid2"><label class="field"><span>Se corre: km por semana</span><input class="input" name="km_semana" inputmode="decimal" value="${esc(r.km_semana || '')}"></label><label class="field"><span>Prova-alvo (se tiver)</span><input class="input" name="prova" value="${esc(r.prova || '')}" placeholder="Ex.: 10 km em março"></label></div>
-      </div>
-      <div class="card"><span class="eyebrow">Histórico de saúde</span>
+        <div class="grid2"><label class="field"><span>Se corre: km por semana</span><input class="input" name="km_semana" data-mask="num" data-max="3" inputmode="numeric" value="${esc(r.km_semana || '')}"></label><label class="field"><span>Prova-alvo (se tiver)</span><input class="input" name="prova" value="${esc(r.prova || '')}" placeholder="Ex.: 10 km em março"></label></div>
+      </div></div>
+      <div class="card wz-step" data-k="saude" data-titulo="Histórico de saúde"><span class="eyebrow">Histórico de saúde</span>
         <div class="field" style="margin-top:12px"><span>Tem ou já teve alguma destas condições?</span><div class="chips wrap" id="doencas">${DOENCAS.map((d) => `<label class="chipc"><input type="checkbox" name="doencas" value="${d}" ${(r.doencas || []).includes(d) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
         <label class="field"><span>Detalhes das condições (se marcou alguma)</span><input class="input" name="doencas_txt" value="${esc(r.doencas_txt || '')}"></label>
         <label class="field"><span>Lesões atuais ou anteriores</span><input class="input" name="lesoes" value="${esc(r.lesoes || '')}" placeholder="Ex.: entorse no tornozelo direito em 2024"></label>
@@ -1549,27 +1607,27 @@ async function viewAnamnese(opts = {}) {
         <label class="field"><span>Cirurgias</span><input class="input" name="cirurgias" value="${esc(r.cirurgias || '')}"></label>
         <label class="field"><span>Medicamentos de uso contínuo</span><input class="input" name="medicamentos" value="${esc(r.medicamentos || '')}"></label>
         <label class="field"><span>Alergias</span><input class="input" name="alergias" value="${esc(r.alergias || '')}"></label>
-        <div class="field"><span>Está gestante ou teve bebê nos últimos 6 meses?</span>${sn('gestante', r.gestante)}</div>
+        <div class="field" id="gest-f" ${!staff && S.me.sexo === 'M' ? 'hidden' : ''}><span>Está gestante ou teve bebê nos últimos 6 meses?</span>${sn('gestante', r.gestante)}</div>
       </div>
-      <div class="card"><span class="eyebrow">Hábitos</span>
+      <div class="card wz-step" data-k="habitos" data-titulo="Hábitos"><span class="eyebrow">Hábitos</span>
         <div class="grid2" style="margin-top:12px"><div class="field"><span>Fuma?</span>${sn('fuma', r.fuma)}</div><label class="field"><span>Bebida alcoólica</span>${sel('alcool', r.alcool, [['nunca', 'Não bebo'], ['social', 'Às vezes'], ['frequente', 'Toda semana']])}</label></div>
         <div class="grid2"><label class="field"><span>Horas de sono por noite</span>${sel('sono_h', r.sono_h, [['5', 'Até 5 h'], ['6', '6 h'], ['7', '7 h'], ['8', '8 h ou mais']])}</label><label class="field"><span>Qualidade do sono</span>${sel('sono_q', r.sono_q, [['boa', 'Boa'], ['regular', 'Regular'], ['ruim', 'Ruim']])}</label></div>
         <label class="field"><span>Nível de estresse no dia a dia</span>${sel('estresse', r.estresse, [['baixo', 'Baixo'], ['medio', 'Médio'], ['alto', 'Alto']])}</label>
       </div>
-      ${!staff && S.me.sexo !== 'M' ? `<div class="card" id="ciclo-card" ${S.me.sexo === 'F' ? '' : 'hidden'}><span class="eyebrow">Ciclo menstrual · opcional</span>
+      ${!staff && S.me.sexo !== 'M' ? `<div class="card wz-step" data-k="ciclo" data-titulo="Ciclo menstrual" id="ciclo-card" ${S.me.sexo === 'F' ? '' : 'hidden'}><span class="eyebrow">Ciclo menstrual · opcional</span>
         <p class="tiny dim" style="margin:6px 0 10px">Ajuda o seu treinador a ajustar a intensidade de acordo com a fase do ciclo. Só você e os treinadores da Nexos veem.</p>
         <label class="aceite"><input type="checkbox" name="cic_on" ${cic && cic.ativo ? 'checked' : ''}><span>Quero acompanhar o meu ciclo no app</span></label>
         <div id="cic-campos" ${cic && cic.ativo ? '' : 'hidden'}>
           <label class="field" style="margin-top:12px"><span>Como é o seu ciclo?</span>${sel('cic_sit', cic ? cic.situacao : 'regular', SIT_CICLO)}</label>
           <div id="cic-datas">
-            <label class="field"><span>Início da última menstruação</span><input class="input" type="date" name="cic_ini" max="${hojeISO()}" value="${cic && cic.inicios && cic.inicios[0] ? cic.inicios[0] : ''}"></label>
-            <div class="grid2"><label class="field"><span>Duração média do ciclo (dias)</span><input class="input" name="cic_cl" inputmode="numeric" value="${cic ? cic.duracao_ciclo : 28}"></label><label class="field"><span>Dias de menstruação</span><input class="input" name="cic_dm" inputmode="numeric" value="${cic ? cic.duracao_menstr : 5}"></label></div>
+            <label class="field"><span>Início da última menstruação</span><input class="input" name="cic_ini" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${cic && cic.inicios && cic.inicios[0] ? dataBR(cic.inicios[0]) : ''}"></label>
+            <div class="grid2"><label class="field"><span>Duração média do ciclo (dias)</span><input class="input" name="cic_cl" data-mask="num" data-max="2" inputmode="numeric" value="${cic ? cic.duracao_ciclo : 28}"></label><label class="field"><span>Dias de menstruação</span><input class="input" name="cic_dm" data-mask="num" data-max="2" inputmode="numeric" value="${cic ? cic.duracao_menstr : 5}"></label></div>
           </div>
           <p class="tiny dim">Ao marcar, você concorda que esses dados de saúde sejam usados só para orientar o seu treino (LGPD, art. 11). Pode desativar quando quiser, e os registros são apagados.</p>
         </div>
       </div>` : ''}
-      <div class="card"><span class="eyebrow">Contato de emergência</span>
-        <div class="grid2" style="margin-top:12px"><label class="field"><span>Nome</span><input class="input" name="emerg_nome" value="${esc(r.emerg_nome || '')}"></label><label class="field"><span>Telefone</span><input class="input" name="emerg_tel" inputmode="tel" value="${esc(r.emerg_tel || '')}"></label></div>
+      <div class="card wz-step" data-k="emerg" data-titulo="Contato de emergência"><span class="eyebrow">Contato de emergência</span><p class="tiny dim" style="margin:6px 0 0">Quem a gente avisa se acontecer alguma coisa no treino.</p>
+        <div class="grid2" style="margin-top:12px"><label class="field"><span>Nome</span><input class="input" name="emerg_nome" value="${esc(r.emerg_nome || '')}"></label><label class="field"><span>Telefone</span><input class="input" name="emerg_tel" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999" value="${esc(r.emerg_tel || '')}"></label></div>
       </div>
       <button class="btn block" type="submit">${opts.gate ? 'Concluir e começar' : 'Salvar ficha'} ${I.check}</button>
     </form>`;
@@ -1580,13 +1638,33 @@ async function viewAnamnese(opts = {}) {
     f.cic_on.onchange = mostrar; f.cic_sit.onchange = mostrar; mostrar();
     f.querySelectorAll('[name=sexo_al]').forEach((x) => x.onchange = () => { cc.hidden = f.sexo_al.value !== 'F'; if (cc.hidden) f.cic_on.checked = false; mostrar(); });
   }
+  aplicarMascaras(f);
+  f.querySelectorAll('[name=sexo_al]').forEach((x) => x.addEventListener('change', () => { f.querySelector('#gest-f').hidden = f.sexo_al.value === 'M'; }));
+  if (!staff) {
+    const vz = (n) => !f.querySelector(`[name="${n}"]`) || String(new FormData(f).get(n) || '').trim();
+    etapas(f, (el) => {
+      const fd = new FormData(f), k = el.dataset.k;
+      if (k === 'parq') { const q = PARQ.findIndex((_, i) => !fd.get('q' + (i + 1))); return q >= 0 ? { msg: `Responda a pergunta ${q + 1} do PAR-Q.`, sel: `[name=q${q + 1}]` } : null; }
+      if (k === 'objetivo') {
+        if (f.querySelector('[name=sexo_al]') && !fd.get('sexo_al')) return { msg: 'Marque o seu sexo.', sel: '[name=sexo_al]' };
+        const al = String(fd.get('altura') || ''); if (al && !/^[12],\d{2}$/.test(al)) return { msg: 'Confira a altura (ex.: 1,75).', sel: '[name=altura]' };
+        for (const [n, m] of [['objetivo', 'Escolha o seu objetivo principal.'], ['experiencia', 'Escolha a sua experiência com treino.'], ['dias', 'Escolha quantos dias por semana pode treinar.'], ['tempo', 'Escolha o tempo por treino.']]) if (!vz(n)) return { msg: m, sel: `[name=${n}]` };
+        return null;
+      }
+      if (k === 'saude') { if (!fd.get('gestante') && !f.querySelector('#gest-f').hidden) return { msg: 'Responda sobre gestação.', sel: '[name=gestante]' }; return null; }
+      if (k === 'habitos') { for (const [n, m] of [['fuma', 'Responda se fuma.'], ['alcool', 'Responda sobre bebida alcoólica.'], ['sono_h', 'Escolha as horas de sono.'], ['sono_q', 'Escolha a qualidade do sono.'], ['estresse', 'Escolha o nível de estresse.']]) if (!vz(n)) return { msg: m, sel: `[name=${n}]` }; return null; }
+      if (k === 'ciclo') { if (!f.cic_on.checked) return null; const sit = f.cic_sit.value; if (sit === 'contraceptivo' || sit === 'nao_menstrua') return null; const d = dataISO(f.cic_ini.value); return !d || d > hojeISO() ? { msg: 'Confira a data do início da última menstruação (dd/mm/aaaa).', sel: '[name=cic_ini]' } : null; }
+      if (k === 'emerg') { if (String(fd.get('emerg_nome') || '').trim().length < 2) return { msg: 'Escreva o nome do contato de emergência.', sel: '[name=emerg_nome]' }; if (soDig(fd.get('emerg_tel')).length < 10) return { msg: 'Confira o telefone com DDD.', sel: '[name=emerg_tel]' }; return null; }
+      return null;
+    });
+  }
   const salvarCiclo = async () => {
     if (!cc || cc.hidden) return true;
     if (!f.cic_on.checked) { if (cic) { await sb.from('nx_ciclo_inicios').delete().eq('aluno_id', S.user.id); await sb.from('nx_ciclo').delete().eq('aluno_id', S.user.id); } return true; }
     const sit = f.cic_sit.value || 'regular', semData = sit === 'contraceptivo' || sit === 'nao_menstrua';
     const cl = Math.min(45, Math.max(20, parseInt(f.cic_cl.value, 10) || 28)), dm = Math.min(10, Math.max(2, parseInt(f.cic_dm.value, 10) || 5));
-    const ini = f.cic_ini.value;
-    if (!semData && (!ini || ini > hojeISO())) { toast('Informe o início da última menstruação.', true); return false; }
+    const ini = dataISO(f.cic_ini.value);
+    if (!semData && (!ini || ini > hojeISO())) { toast('Confira a data do início da última menstruação.', true); return false; }
     const { error } = await sb.from('nx_ciclo').upsert({ aluno_id: S.user.id, org_id: S.org.id, ativo: true, situacao: sit, duracao_ciclo: cl, duracao_menstr: dm, consentimento_em: (cic && cic.consentimento_em) || new Date().toISOString(), atualizado_em: new Date().toISOString() }, { onConflict: 'aluno_id' });
     if (error) { toast('Não foi possível salvar o ciclo.', true); return false; }
     if (!semData) await sb.from('nx_ciclo_inicios').upsert({ org_id: S.org.id, aluno_id: S.user.id, data: ini }, { onConflict: 'aluno_id,data' });
@@ -1598,7 +1676,7 @@ async function viewAnamnese(opts = {}) {
     PARQ.forEach((_, i) => { const v = fd.get('q' + (i + 1)); if (!v) falta++; parq['q' + (i + 1)] = v || null; });
     if (falta) return toast('Responda todas as perguntas do PAR-Q.', true);
     const resp = {};
-    ['objetivo', 'objetivo_txt', 'experiencia', 'atividades', 'dias', 'tempo', 'km_semana', 'prova', 'doencas_txt', 'lesoes', 'dores', 'cirurgias', 'medicamentos', 'alergias', 'gestante', 'fuma', 'alcool', 'sono_h', 'sono_q', 'estresse', 'emerg_nome', 'emerg_tel']
+    ['altura', 'peso', 'objetivo', 'objetivo_txt', 'experiencia', 'atividades', 'dias', 'tempo', 'km_semana', 'prova', 'doencas_txt', 'lesoes', 'dores', 'cirurgias', 'medicamentos', 'alergias', 'gestante', 'fuma', 'alcool', 'sono_h', 'sono_q', 'estresse', 'emerg_nome', 'emerg_tel']
       .forEach((k) => { const v = String(fd.get(k) || '').trim(); if (v) resp[k] = v; });
     resp.doencas = fd.getAll('doencas');
     const positivo = Object.values(parq).includes('sim');
@@ -1635,6 +1713,7 @@ function anamneseResumoHTML(a, termo) {
       ${a.parq_positivo ? `<p class="small" style="margin:6px 0 8px">Respondeu <b>sim</b> em:</p>${sim.map(([n, q]) => `<p class="small" style="margin-top:6px">⚠️ ${n}. ${q}</p>`).join('')}<p class="tiny dim" style="margin-top:10px">Recomendado pedir liberação médica antes de intensificar o treino.</p>` : '<p class="small muted" style="margin-top:6px">Respondeu "não" a todas as perguntas.</p>'}
     </div>
     <div class="card"><span class="eyebrow">Ficha</span><div class="kv" style="margin-top:8px">
+      ${linha('Altura e peso', [r.altura && r.altura + ' m', r.peso && r.peso + ' kg'].filter(Boolean).join(' · '))}
       ${linha('Objetivo', [nomeOp(OBJETIVOS, r.objetivo), r.objetivo_txt].filter(Boolean).join(' · '))}
       ${linha('Experiência', { nunca: 'Nunca treinou', parado: 'Parado há mais de 6 meses', iniciante: 'Menos de 1 ano', intermediario: '1 a 3 anos', avancado: 'Mais de 3 anos' }[r.experiencia])}
       ${linha('Pratica hoje', r.atividades)}
@@ -4577,18 +4656,20 @@ async function viewFicha(token) {
   const sn = (name) => `<div class="radios"><label><input type="radio" name="${name}" value="nao"><span>Não</span></label><label><input type="radio" name="${name}" value="sim"><span>Sim</span></label></div>`;
   const sn3 = (name) => `<div class="radios r3"><label><input type="radio" name="${name}" value="sim"><span>Sim</span></label><label><input type="radio" name="${name}" value="nao"><span>Não</span></label><label><input type="radio" name="${name}" value="naosei"><span>Não sei</span></label></div>`;
   const diasL = (k, ic, l) => `<div class="field disp-l" data-disp="${k}"><span>${ic} ${l}</span>${chips('d_' + k, DSEM.map((d, i) => [String(i), d.slice(0, 3)]))}</div>`;
-  const sec = (n, t, d, corpo) => `<section class="card ficha-sec"><div class="ficha-n">${n}</div><div class="grow" style="min-width:0"><div class="h3">${t}</div>${d ? `<p class="tiny dim" style="margin:3px 0 0">${d}</p>` : ''}<div class="stack" style="margin-top:12px;gap:2px">${corpo}</div></div></section>`;
+  const sec = (n, t, d, corpo) => `<section class="card ficha-sec wz-step" data-k="${n}" data-titulo="${t.split(' · ')[0]}"><div class="ficha-n">${n}</div><div class="grow" style="min-width:0"><div class="h3">${t}</div>${d ? `<p class="tiny dim" style="margin:3px 0 0">${d}</p>` : ''}<div class="stack" style="margin-top:12px;gap:2px">${corpo}</div></div></section>`;
   $app.innerHTML = `
     <div class="ficha-top"><img src="${LOGO.s()}" alt="">${slashes}</div>
     <p class="eyebrow">${esc(info.org)}</p><h1 class="h1" style="margin-top:4px">Ficha de entrada</h1>
-    <p class="muted small" style="margin:8px 0 0">Leva uns 5 minutos. Com essas respostas o treinador monta um treino certo para você, com segurança. Campos com * são obrigatórios.</p>
+    <p class="muted small" style="margin:8px 0 0">São 7 etapas rápidas, uns 5 minutos. Com essas respostas o treinador monta um treino certo para você, com segurança. Campos com * são obrigatórios.</p>
     <form id="f-ficha" class="stack" style="margin-top:16px" novalidate>
       ${sec(1, 'Seus dados', '', `
         <label class="field"><span>Nome completo *</span><input class="input" name="nome" required value="${esc(info.nome)}" autocomplete="name"></label>
-        <div class="grid2"><label class="field"><span>WhatsApp *</span><input class="input" name="telefone" inputmode="tel" required placeholder="(98) 9 9999-9999" value="${esc(info.telefone)}" autocomplete="tel"></label>
+        <div class="grid2"><label class="field"><span>WhatsApp *</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" required placeholder="(98) 9 9999-9999" value="${esc(info.telefone)}" autocomplete="tel"></label>
         <label class="field"><span>E-mail *</span><input class="input" type="email" name="email" required inputmode="email" autocomplete="email" placeholder="será o seu login no app"></label></div>
-        <div class="grid2"><label class="field"><span>Data de nascimento</span><input class="input" type="date" name="nascimento"></label>
-        <label class="field"><span>Sexo</span><select class="input" name="sexo"><option value="">Selecione</option><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="nao_informar">Prefiro não dizer</option></select></label></div>
+        <div class="grid2"><label class="field"><span>Data de nascimento *</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa"></label>
+        <label class="field"><span>Sexo *</span><select class="input" name="sexo"><option value="">Selecione</option><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="nao_informar">Prefiro não dizer</option></select></label></div>
+        <div class="grid2"><label class="field"><span>Altura</span><div class="un-wrap"><input class="input" name="altura" data-mask="altura" inputmode="numeric" placeholder="1,75"><i>m</i></div></label>
+        <label class="field"><span>Peso</span><div class="un-wrap"><input class="input" name="peso" data-mask="peso" inputmode="numeric" placeholder="70"><i>kg</i></div></label></div>
         <label class="field"><span>Bairro / cidade</span><input class="input" name="cidade" placeholder="Ex.: Cohama, São Luís"></label>`)}
       ${sec(2, 'Objetivo', '', `
         <div class="field"><span>Quer treinar com a Nexos *</span>${chips('modalidades', MODS)}</div>
@@ -4619,7 +4700,7 @@ async function viewFicha(token) {
         <label class="ficha-aceite"><input type="checkbox" name="aceite"><span>Li e aceito o termo de responsabilidade acima. *</span></label>
         <div class="field" style="margin-top:12px"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
         <label class="field"><span>Quer contar mais alguma coisa?</span><textarea class="textarea" name="obs"></textarea></label>`)}
-      <button class="btn block" type="submit">Enviar ficha</button>
+      <button class="btn block" type="submit">Enviar ficha ${I.check}</button>
       <p class="tiny dim center">Suas respostas vão só para a equipe de treinadores da Nexos.</p>
     </form>`;
   const f = document.getElementById('f-ficha');
@@ -4637,10 +4718,33 @@ async function viewFicha(token) {
     }
     ajustar();
   });
+  aplicarMascaras(f);
+  ajustar();
+  etapas(f, (el) => {
+    const fd = new FormData(f), v = (n) => String(fd.get(n) || '').trim(), k = el.dataset.k;
+    const mods = fd.getAll('modalidades');
+    if (k === '1') {
+      if (v('nome').length < 3 || !v('nome').includes(' ')) return { msg: 'Escreva o seu nome completo.', sel: '[name=nome]' };
+      if (soDig(v('telefone')).length < 10) return { msg: 'Confira o seu WhatsApp com DDD.', sel: '[name=telefone]' };
+      if (!/^\S+@\S+\.\S+$/.test(v('email'))) return { msg: 'Confira o seu e-mail.', sel: '[name=email]' };
+      const nas = dataISO(v('nascimento')); if (!nas || nas > hojeISO() || nas < '1920-01-01') return { msg: 'Confira a data de nascimento (dd/mm/aaaa).', sel: '[name=nascimento]' };
+      if (!v('sexo')) return { msg: 'Escolha uma opção em Sexo.', sel: '[name=sexo]' };
+      if (v('altura') && !/^[12],\d{2}$/.test(v('altura'))) return { msg: 'Confira a altura (ex.: 1,75).', sel: '[name=altura]' };
+      return null;
+    }
+    if (k === '2') { if (!mods.length) return { msg: 'Marque corrida, musculação ou as duas.', sel: '[name=modalidades]' }; if (!v('meta')) return { msg: 'Conte quais são os seus objetivos.', sel: '[name=meta]' }; return null; }
+    if (k === '3') { if (!fd.getAll('esportes').length) return { msg: 'Marque os esportes que já praticou (ou “Nunca pratiquei”).', sel: '[name=esportes]' }; if (!v('nivel')) return { msg: 'Escolha o seu nível de condicionamento.', sel: '[name=nivel]' }; return null; }
+    if (k === '4') { const ih = FICHA_HIST.findIndex((_, i) => !fd.get('h' + (i + 1))); return ih >= 0 ? { msg: 'Responda todas as perguntas do histórico médico.', sel: `[name=h${ih + 1}]` } : null; }
+    if (k === '5') { const iq = PARQ.findIndex((_, i) => !fd.get('q' + (i + 1))); return iq >= 0 ? { msg: `Responda a pergunta ${iq + 1} do PAR-Q.`, sel: `[name=q${iq + 1}]` } : null; }
+    if (k === '6') { const c = mods.includes('corrida') ? fd.getAll('d_corrida') : [], fo = mods.includes('musculacao') ? fd.getAll('d_forca') : []; return c.length || fo.length ? null : { msg: 'Marque os dias em que pode treinar.', sel: '.disp-l:not([hidden]) input' }; }
+    if (k === '7') return fd.get('aceite') ? null : { msg: 'Aceite o termo de responsabilidade.', sel: '[name=aceite]' };
+    return null;
+  });
   f.onsubmit = async (e) => {
     e.preventDefault(); const fd = new FormData(f); const btn = f.querySelector('[type=submit]');
-    const d = {}; ['nome', 'telefone', 'email', 'nascimento', 'sexo', 'cidade', 'objetivo', 'meta', 'prova', 'esportes_outros', 'atividade', 'nivel', 'corrida_exp', 'maior_dist', 'tempo_recente', 'relogio', 'obs_medica', 'disp_obs', 'origem', 'obs'].forEach((k) => { const v = String(fd.get(k) || '').trim(); if (v) d[k] = v.slice(0, 1500); });
+    const d = {}; ['nome', 'telefone', 'email', 'nascimento', 'sexo', 'altura', 'peso', 'cidade', 'objetivo', 'meta', 'prova', 'esportes_outros', 'atividade', 'nivel', 'corrida_exp', 'maior_dist', 'tempo_recente', 'relogio', 'obs_medica', 'disp_obs', 'origem', 'obs'].forEach((k) => { const v = String(fd.get(k) || '').trim(); if (v) d[k] = v.slice(0, 1500); });
     ['modalidades', 'esportes', 'horario', 'local'].forEach((k) => { const v = fd.getAll(k); if (v.length) d[k] = v; });
+    if (d.nascimento) d.nascimento = dataISO(d.nascimento) || undefined;
     const mods = d.modalidades || [];
     d.disponibilidade = { corrida: mods.includes('corrida') ? fd.getAll('d_corrida').map(Number) : [], forca: mods.includes('musculacao') ? fd.getAll('d_forca').map(Number) : [] };
     d.hist = {}; FICHA_HIST.forEach((_, i) => { d.hist['h' + (i + 1)] = fd.get('h' + (i + 1)) || null; });
@@ -4657,6 +4761,7 @@ async function viewFicha(token) {
     const iq = PARQ.findIndex((_, i) => !d.parq['q' + (i + 1)]); if (iq >= 0) return falta(`[name=q${iq + 1}]`, `Responda a pergunta ${iq + 1} do PAR-Q.`);
     if (!d.disponibilidade.corrida.length && !d.disponibilidade.forca.length) return falta('.disp-l:not([hidden]) input', 'Marque os dias em que pode treinar.');
     if (!fd.get('aceite')) return falta('[name=aceite]', 'Aceite o termo de responsabilidade no final.');
+    if (!d.nascimento) return falta('[name=nascimento]', 'Confira a data de nascimento.');
     d.aceite = true; btn.disabled = true; btn.textContent = 'Enviando…';
     try {
       const env = await chamarForm({ acao: 'enviar', token, dados: d });
@@ -4768,7 +4873,7 @@ async function staffFichaResposta(id) {
     ${rs.sim.length ? `<div class="card ficha-alerta"><b>⚠️ PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
     <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos 💪 Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
     <div class="stack" style="margin-top:14px">
-      <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
+      <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Altura e peso', esc([d.altura && d.altura + ' m', d.peso && d.peso + ' kg'].filter(Boolean).join(' · ')))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
       <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Objetivos pessoais', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
       <div class="card"><span class="eyebrow">Disponibilidade</span>${lin(selo('corrida', 'sm') + ' Corrida', diasT(dp.corrida))}${lin(selo('forca', 'sm') + ' Força', diasT(dp.forca))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}${lin('Comentário', esc(d.disp_obs || ''))}</div>
       <div class="card"><span class="eyebrow">Histórico esportivo</span>${lin('Esportes', lista(d.esportes, FICHA_ESPORTES) + (d.esportes_outros ? ` (${esc(d.esportes_outros)})` : ''))}${lin('Rotina', esc(d.atividade || ''))}${lin('Condicionamento', esc(nome(FICHA_NIVEL, d.nivel)))}${lin('Corrida', esc(nome(FICHA_EXP, d.corrida_exp)))}${lin('Maior distância', esc(d.maior_dist || ''))}${lin('Tempo recente', esc(d.tempo_recente || ''))}${lin('Relógio', esc(d.relogio || ''))}</div>

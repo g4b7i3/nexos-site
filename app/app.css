@@ -1253,3 +1253,21 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .acesso-mail{display:flex;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--s1);border:1px solid var(--line);min-width:0}
 .acesso-mail svg{width:20px;height:20px;flex:none;color:var(--acc)}
 .acesso-mail b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* formulários em etapas */
+.wz .wz-step:not(.wz-on){display:none}
+.wz-prog{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 12px;margin:-4px 0 2px;scroll-margin-top:0}
+.wz-txt{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:.82rem}
+.wz-txt b{font-weight:800}.wz-txt span{color:var(--mute);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wz-bar{display:flex;gap:5px;margin-top:8px}
+.wz-bar i{flex:1;height:6px;border-radius:99px;background:var(--line);transition:background .25s}
+.wz-bar i.ok{background:var(--acc)}.wz-bar i.on{background:linear-gradient(90deg,var(--acc),#46d6ff)}
+.wz-nav{display:flex;gap:10px;align-items:stretch;margin-top:4px}
+.wz-nav .btn.ghost{flex:0 0 auto}
+.wz-nav [hidden]{display:none!important}
+.btn.wz-bloq{opacity:.45;filter:saturate(.4)}
+.wz-on{animation:wzIn .28s ease}
+@keyframes wzIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.wz-erro{animation:wzErro .5s;border-radius:12px;box-shadow:0 0 0 2px var(--err)}
+@keyframes wzErro{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.un-wrap{position:relative}.un-wrap .input{padding-right:40px}
+.un-wrap i{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;font-weight:700;color:var(--mute);pointer-events:none}
