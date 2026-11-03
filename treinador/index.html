@@ -21,6 +21,12 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+<div class="nx-splash on" id="nx-splash" aria-hidden="true"><div class="splash-c"><div class="splash-logo"><span class="splash-ring"></span><img src="/img/nexos-logo.png" alt=""><span class="splash-shine"></span></div><div class="splash-t">Abrindo a área do treinador</div><div class="splash-bar"><i></i></div></div></div>
+<script>(function(){var sp=document.getElementById('nx-splash');var vindo=0;try{vindo=+sessionStorage.getItem('nx-splash')||0;sessionStorage.removeItem('nx-splash')}catch(e){}
+if(Date.now()-vindo<8000){sp.remove();return}
+var rap=matchMedia('(prefers-reduced-motion: reduce)').matches,ini=Date.now(),min=rap?400:2000,feito=false;
+function sair(){if(feito)return;feito=true;var e=Math.max(0,min-(Date.now()-ini));setTimeout(function(){sp.classList.add('saindo');setTimeout(function(){sp.remove()},420)},e)}
+if(document.readyState==='complete')sair();else addEventListener('load',sair);setTimeout(sair,6000)})();</script>
 <div id="app" class="app">
   <div class="boot"><img src="icons/simbolo.svg" alt="" class="boot-logo"><div class="boot-bar"><i></i></div></div>
 </div>

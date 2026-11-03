@@ -434,7 +434,7 @@ $('#lightbox').addEventListener('touchend', e => { const d = e.changedTouches[0]
       ['links', 'burger'].forEach((id) => { const el = document.getElementById(id); if (el) el.classList.remove('open'); });
       sp.classList.remove('saindo'); sp.classList.add('on');
       setTimeout(() => sp.classList.add('saindo'), rapido ? 300 : 1950);
-      setTimeout(() => { location.href = a.href; }, rapido ? 450 : 2300);
+      setTimeout(() => { try { sessionStorage.setItem('nx-splash', Date.now()); } catch {} location.href = a.href; }, rapido ? 450 : 2300);
     });
   });
   addEventListener('pageshow', (e) => { if (e.persisted) sp.classList.remove('on', 'saindo'); });
