@@ -637,12 +637,7 @@ async function alunoHoje() {
     </div><div class="hoje-side">
     ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex">${provaProx.data === hoje ? '<div class="pc-n"><b style="font-size:1rem">É</b><span>hoje</span></div>' : `<div class="pc-n"><b>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5)}</b><span>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5) === 1 ? 'dia' : 'dias'}</span></div>`}<div class="grow" style="min-width:0"><span class="eyebrow">🏁 Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
     <div class="semana-comp" style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
-    <div class="atalhos ${fC ? 'a4' : ''}">
-      ${fC ? `<button type="button" id="reg-home"><span>${I.plus}</span>Registrar corrida</button>` : ''}
-      <a href="#/planilha"><span>${I.cal}</span>Planilha</a>
-      <a href="#/planilha/calendario"><span>${I.today}</span>Calendário</a>
-      ${fC ? `<a href="#/eventos"><span>${I.flag}</span>Provas</a>` : `<a href="#/historico"><span>${I.hist}</span>Evolução</a>`}
-    </div></div></div>`;
+    </div></div>`;
   bindCartaoPush();
   $app.onclick = (e) => {
     const r = e.target.closest('[data-reg]'); if (r) return registrarCorrida(S.user.id, () => alunoHoje());
