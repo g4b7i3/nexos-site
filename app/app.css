@@ -1234,3 +1234,10 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .outro-rel>summary::after{content:" ›";}
 .outro-rel[open]>summary::after{content:" ⌄"}
 .garmin-card.on{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.gar-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 0;padding:8px 12px;border-radius:12px;font-size:.8rem;background:var(--s1);border:1px dashed var(--line);color:var(--mute)}
+.gar-bar span{display:flex;align-items:center;gap:6px}
+.gar-bar.ok{border-style:solid;color:var(--ok)}
+.gar-bar.err{color:var(--warn)}
+.rel-ic{width:16px;height:16px;flex:none;vertical-align:-3px}
+.gar-btn{display:flex;align-items:center;justify-content:center;gap:8px}
+.gar-btn[hidden]{display:none}

@@ -2523,11 +2523,13 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       const { error } = sessao ? await sb.from('nx_plano_corrida').update(row).eq('id', sessao.id) : await sb.from('nx_plano_corrida').insert({ ...row, org_id: S.org.id, aluno_id: alunoId, criado_por: S.user.id });
       if (error) { e.currentTarget.disabled = false; return toast('Não foi possível salvar.', true); }
       closeSheet(); toast('Treino salvo!'); aoSalvar();
+      // treino já liberado e enviado ao Garmin: manda a versão nova para o relógio
+      if (sessao && sessao.liberado && S.cache.garmOn) enviarGarmin(alunoId, [{ ...sessao, ...row, id: sessao.id, liberado: true }], perfil).then((r) => { if (r.enviados) toast('Treino atualizado também no Garmin do aluno ⌚'); }).catch(() => {});
     };
     const dup = r.querySelector('#t-dup');
     if (dup) dup.onclick = async () => { const row = linha(); const d = dia(row.data); d.setDate(d.getDate() + 1); const { error } = await sb.from('nx_plano_corrida').insert({ ...row, data: isoDia(d), org_id: S.org.id, aluno_id: alunoId, criado_por: S.user.id }); if (error) return toast('Não foi possível duplicar.', true); closeSheet(); toast('Duplicado no dia seguinte. Arraste para onde quiser.'); aoSalvar(); };
     const del = r.querySelector('#t-del');
-    if (del) del.onclick = async () => { const { error } = await sb.from('nx_plano_corrida').delete().eq('id', sessao.id); if (error) return toast('Não foi possível excluir.', true); closeSheet(); toast('Treino excluído.'); aoSalvar(); };
+    if (del) del.onclick = async () => { if (sessao.garmin_workout_id) await chamarGarmin({ acao: 'remover_treinos', aluno_id: alunoId, itens: [{ plano_id: sessao.id }] }).catch(() => {}); const { error } = await sb.from('nx_plano_corrida').delete().eq('id', sessao.id); if (error) return toast('Não foi possível excluir.', true); closeSheet(); toast('Treino excluído.'); aoSalvar(); };
     r.querySelector('#t-modelo').onclick = async () => {
       lerTopo(); const nome = t.titulo || nomeTipo(t.tipo);
       const { data: novo, error } = await sb.from('nx_modelos_corrida').insert({ org_id: S.org.id, nome, tipo: t.tipo, estrutura: t.estrutura, criado_por: S.user.id }).select('*').single();
@@ -2547,8 +2549,18 @@ function verTreinoPlanilha(p, perfil, feito) {
     <div class="stack" style="margin-top:12px">${est.map((s) => s.k === 'rep' ? `<div class="serie-v"><b>Repita ${s.n} vezes:</b>${(s.passos || []).map((x) => passoH(x)).join('')}</div>` : passoH(s)).join('')}</div>
     ${p.descricao ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Orientações</span><p style="margin-top:6px;white-space:pre-line">${esc(p.descricao)}</p></div>` : ''}
     ${feito ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:14px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>` : `<button class="btn block" id="reg-agora" style="margin-top:14px">${I.plus} Registrar esta corrida</button>`}
+    ${!feito && !S.staff && p.data >= hojeISO() && est.length ? `<button class="btn ghost block gar-btn" id="gar-env" style="margin-top:8px" hidden>${RELOGIO_IC} ${p.garmin_enviado_em ? 'Já está no seu Garmin ✓ · reenviar' : 'Enviar para o meu Garmin'}</button>` : ''}
     <button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`, (r) => {
     const b = r.querySelector('#reg-agora'); if (b) b.onclick = () => registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; });
+    const g = r.querySelector('#gar-env');
+    if (g) {
+      sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) g.hidden = false; }).catch(() => {});
+      g.onclick = async () => {
+        g.disabled = true; g.textContent = 'Enviando…';
+        try { const res = await enviarGarmin(S.user.id, [p], perfil); if (res.enviados) { p.garmin_enviado_em = new Date().toISOString(); g.innerHTML = `${RELOGIO_IC} No seu Garmin ✓`; toast('Treino enviado! Sincronize o relógio para ele aparecer.'); } else { g.disabled = false; g.textContent = 'Tentar de novo'; toast(res.sem_garmin ? 'Conecte o Garmin na aba Evolução › Corrida.' : 'Não consegui enviar agora. Tente de novo.', true); } }
+        catch (er) { g.disabled = false; g.textContent = 'Tentar de novo'; toast(er.message, true); }
+      };
+    }
   });
 }
 
@@ -2663,7 +2675,7 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
     const prSem = provas.filter((p) => p.data >= isoDia(dias[0]) && p.data <= isoDia(dias[6]));
     h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''}">${prSem.length ? `<div class="sem-prova-l">🏁 Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div>${staff && doPlano.length ? (() => { const nLib = doPlano.filter((p) => p.liberado !== false).length; const de = isoDia(dias[0]), ate = isoDia(dias[6]);
       return nLib === doPlano.length
-        ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" data-desliberar="${de}|${ate}">Cancelar liberação</button></div>`
+        ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" data-desliberar="${de}|${ate}">Cancelar liberação</button></div>${S.cache.garmOn ? (() => { const tr = doPlano.filter((p) => p.tipo !== 'folga' && estruturaDe(p).length && p.data >= hojeISO()); const env = tr.filter((p) => p.garmin_enviado_em).length; const err = tr.some((p) => p.garmin_erro); return tr.length ? `<div class="gar-bar ${env === tr.length ? 'ok' : err ? 'err' : ''}"><span>${RELOGIO_IC} ${env === tr.length ? 'No Garmin e no relógio do aluno ✓' : err ? 'Não consegui enviar ao Garmin' : `${tr.length - env} treino${tr.length - env > 1 ? 's' : ''} ainda não enviado${tr.length - env > 1 ? 's' : ''} ao Garmin`}</span><button type="button" class="link-btn small" data-garmin="${de}|${ate}">${env ? 'Reenviar' : 'Enviar ao Garmin'}</button></div>` : ''; })() : ''}`
         : `<div class="lib-bar"><span>${nLib ? `${doPlano.length - nLib} treino${doPlano.length - nLib > 1 ? 's' : ''} ainda não liberado${doPlano.length - nLib > 1 ? 's' : ''}` : 'Rascunho: o aluno ainda não vê esta semana'}</span><button type="button" class="btn sm lib-btn" data-liberar="${de}|${ate}">Liberar semana</button></div>`; })() : ''}<div class="cal-dias">`;
     dias.forEach((d) => {
       const k = isoDia(d); const itens = plano.filter((p) => p.data === k);
@@ -2701,6 +2713,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', hojeISO()).order('data').limit(3).then((r) => r.data || []).catch(() => []),
   ]);
   const integ = integs.find((x) => x.provedor === 'intervals') || null, garm = integs.find((x) => x.provedor === 'garmin') || null;
+  S.cache.garmOn = !!garm;
   const perfil = perfilCorrida(m);
   const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
   const sub = st.sub;
@@ -2805,8 +2818,22 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         if (!lib && !confirm('Cancelar a liberação? O aluno deixa de ver os treinos desta semana.')) { lb.disabled = false; return; }
         const { error } = await sb.from('nx_plano_corrida').update({ liberado: lib }).eq('org_id', S.org.id).eq('aluno_id', alunoId).gte('data', de).lte('data', ate);
         if (error) { lb.disabled = false; return toast('Não foi possível salvar.', true); }
-        if (lib) { notificarAluno('planilha', alunoId); toast('Semana liberada! O aluno foi avisado.'); } else toast('Liberação cancelada. A semana voltou a ser rascunho.');
+        const daSemana = plano.filter((p) => p.data >= de && p.data <= ate).map((p) => ({ ...p, liberado: lib }));
+        if (lib) {
+          notificarAluno('planilha', alunoId); toast('Semana liberada! O aluno foi avisado.');
+          if (S.cache.garmOn) enviarGarmin(alunoId, daSemana, perfil).then((r) => { if (r.enviados) toast(`${r.enviados} treino${r.enviados > 1 ? 's' : ''} enviado${r.enviados > 1 ? 's' : ''} ao Garmin do aluno ⌚`); else if (r.erros) toast('Semana liberada, mas não consegui enviar ao Garmin.', true); silencioso(recarregar); }).catch(() => {});
+        } else {
+          toast('Liberação cancelada. A semana voltou a ser rascunho.');
+          const noG = daSemana.filter((p) => p.garmin_workout_id); if (noG.length) chamarGarmin({ acao: 'remover_treinos', aluno_id: alunoId, itens: noG.map((p) => ({ plano_id: p.id })) }).catch(() => {});
+        }
         return recarregar();
+      }
+      const gb = e.target.closest('[data-garmin]');
+      if (gb) {
+        const [de, ate] = gb.dataset.garmin.split('|'); gb.disabled = true; gb.textContent = 'Enviando…';
+        try { const r = await enviarGarmin(alunoId, plano.filter((p) => p.data >= de && p.data <= ate), perfil); toast(r.sem_garmin ? 'O aluno não está com o Garmin conectado.' : r.enviados ? `${r.enviados} treino${r.enviados > 1 ? 's' : ''} no Garmin do aluno ⌚` : r.erros ? 'Não consegui enviar ao Garmin. Tente de novo em instantes.' : 'Nada para enviar nesta semana.', !r.enviados); }
+        catch (er) { toast(er.message, true); }
+        return silencioso(recarregar);
       }
       const nv = e.target.closest('[data-novo]'), se = e.target.closest('[data-ses]');
       if (nv) return escolherModelo(nv.dataset.novo);
@@ -2836,6 +2863,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         else { const c = alvoEl.querySelector('.cal-dia-c'); if (c) { c.querySelector('.cal-vazio')?.remove(); const nv = el.dataset.mod ? Object.assign(document.createElement('div'), { className: 'ses salvando', innerHTML: `<div class="ses-t"><b>${esc(el.querySelector('b')?.textContent || 'Treino')}</b></div>${el.querySelector('.perfil-int')?.outerHTML || ''}<span class="ses-m">salvando…</span>` }) : ev.copia ? Object.assign(el.cloneNode(true), { className: el.className + ' salvando' }) : el; c.appendChild(nv); } }
         if (alvoEl.id === 'lixeira') {
           if (!el.dataset.ses) return;
+          const pg = plano.find((x) => x.id === el.dataset.ses); if (pg && pg.garmin_workout_id) await chamarGarmin({ acao: 'remover_treinos', aluno_id: alunoId, itens: [{ plano_id: pg.id }] }).catch(() => {});
           const { error } = await sb.from('nx_plano_corrida').delete().eq('id', el.dataset.ses);
           error ? toast('Não foi possível excluir.', true) : (toast('Treino excluído.'), recarregar()); return;
         }
@@ -2847,15 +2875,15 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           error ? toast('Não foi possível adicionar.', true) : (toast(`${md.nome} em ${DIAS[dia(data).getDay()]} ${dia(data).getDate()}`), recarregar());
         } else if (el.dataset.ses) {
           const p = plano.find((x) => x.id === el.dataset.ses); if (!p || p.data === data && !ev.copia) return;
-          if (ev.copia) { const { id, criado_em, ...resto } = p; const { error } = await sb.from('nx_plano_corrida').insert({ ...resto, data, liberado: false, criado_por: S.user.id }); error ? toast('Não foi possível copiar.', true) : (toast('Treino copiado.'), recarregar()); }
-          else { const { error } = await sb.from('nx_plano_corrida').update({ data }).eq('id', p.id); error ? toast('Não foi possível mover.', true) : (toast(`Movido para ${DIAS[dia(data).getDay()]} ${dia(data).getDate()}`), recarregar()); }
+          if (ev.copia) { const { id, criado_em, garmin_workout_id, garmin_schedule_id, garmin_enviado_em, garmin_erro, ...resto } = p; const { error } = await sb.from('nx_plano_corrida').insert({ ...resto, data, liberado: false, criado_por: S.user.id }); error ? toast('Não foi possível copiar.', true) : (toast('Treino copiado.'), recarregar()); }
+          else { const { error } = await sb.from('nx_plano_corrida').update({ data }).eq('id', p.id); error ? toast('Não foi possível mover.', true) : (toast(`Movido para ${DIAS[dia(data).getDay()]} ${dia(data).getDate()}`), recarregar()); if (!error && p.garmin_workout_id && p.liberado && S.cache.garmOn) enviarGarmin(alunoId, [{ ...p, data }], perfil).catch(() => {}); }
         }
       } });
       // copiar/colar semana: a cópia fica guardada e dá para colar em outra semana ou em outro aluno
       q('#copiar-sem').onclick = () => {
         if (!plano.length) return;
         const base = isoDia(ini);
-        const itens = plano.map((p) => { const { id, criado_em, aluno_id, org_id, data, criado_por, ...resto } = p; return { ...resto, off: Math.round((dia(data) - dia(base)) / 864e5) }; });
+        const itens = plano.map((p) => { const { id, criado_em, aluno_id, org_id, data, criado_por, garmin_workout_id, garmin_schedule_id, garmin_enviado_em, garmin_erro, ...resto } = p; return { ...resto, off: Math.round((dia(data) - dia(base)) / 864e5) }; });
         store.set('nx_clip_corr', { origem: `${firstName(m.nome || 'aluno')} · ${ini.getDate()}/${ini.getMonth() + 1}`, semanas, itens });
         toast(`${itens.length} treino${itens.length > 1 ? 's' : ''} copiado${itens.length > 1 ? 's' : ''}. Vá até a semana (ou outro aluno) e toque em “Colar”.`); recarregar();
       };
@@ -2871,8 +2899,8 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             const b2 = e.target.closest('[data-modo]'); if (!b2) return; const modo = b2.dataset.modo;
             if (modo === 'limpar') { store.del('nx_clip_corr'); closeSheet(); toast('Cópia descartada.'); return recarregar(); }
             b2.disabled = true;
-            if (modo === 'trocar') { const ids = plano.filter((p) => p.data >= isoDia(ini) && p.data <= isoDia(fimC)).map((p) => p.id); if (ids.length) await sb.from('nx_plano_corrida').delete().in('id', ids); }
-            const novos = clip.itens.map(({ off, ...resto }) => { const d = new Date(ini); d.setDate(ini.getDate() + off); return { ...resto, org_id: S.org.id, aluno_id: alunoId, data: isoDia(d), liberado: false, criado_por: S.user.id }; });
+            if (modo === 'trocar') { const velhos = plano.filter((p) => p.data >= isoDia(ini) && p.data <= isoDia(fimC)); const ids = velhos.map((p) => p.id); const noG = velhos.filter((p) => p.garmin_workout_id); if (noG.length) await chamarGarmin({ acao: 'remover_treinos', aluno_id: alunoId, itens: noG.map((p) => ({ plano_id: p.id })) }).catch(() => {}); if (ids.length) await sb.from('nx_plano_corrida').delete().in('id', ids); }
+            const novos = clip.itens.map(({ off, garmin_workout_id, garmin_schedule_id, garmin_enviado_em, garmin_erro, ...resto }) => { const d = new Date(ini); d.setDate(ini.getDate() + off); return { ...resto, org_id: S.org.id, aluno_id: alunoId, data: isoDia(d), liberado: false, criado_por: S.user.id }; });
             const { error } = await sb.from('nx_plano_corrida').insert(novos);
             closeSheet();
             if (error) return toast('Não foi possível colar.', true);
@@ -2904,6 +2932,25 @@ function intervalsCardHTML(integ, staff) {
     <p class="tiny dim" style="margin-top:8px">Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.</p></div>`;
 }
 /* ---------- Garmin Connect (conexão oficial) ---------- */
+const RELOGIO_IC = '<svg class="rel-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg>';
+/** converte um treino da planilha para o formato de passos enviado ao Garmin */
+function garminItem(p, perfil) {
+  const est = estruturaDe(p); if (!est.length) return null;
+  const faixa = (z) => { const pz = perfil && perfil.paces && perfil.paces[z]; if (pz) { const a = Math.min(pz[0], pz[1]), b = Math.max(pz[0], pz[1]); return a === b ? [a * 0.97, a * 1.03] : [a, b]; } const c = paceZona(z, perfil); return [c * 0.96, c * 1.04]; };
+  const INT = { aq: 'WARMUP', dq: 'COOLDOWN', rc: 'RECOVERY', co: 'INTERVAL' };
+  const conv = (s, emSerie) => {
+    const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const solto = s.k === 'rc' || s.z === 'rec';
+    const [pmin, pmax] = solto ? [null, null] : faixa(s.z);
+    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: zi.n };
+  };
+  const desc = [descreverEstrutura(est, perfil), p.descricao || ''].filter(Boolean).join('\n');
+  return { plano_id: p.id, data: p.data, nome: p.titulo || nomeTipo(p.tipo), descricao: desc, passos: est.map((s) => s.k === 'rep' ? { repetir: s.n || 1, passos: (s.passos || []).map((x) => conv(x, true)) } : conv(s, false)) };
+}
+async function enviarGarmin(alunoId, planos, perfil) {
+  const itens = planos.filter((p) => p.tipo !== 'folga' && p.liberado !== false && p.data >= hojeISO()).map((p) => garminItem(p, perfil)).filter(Boolean);
+  if (!itens.length) return { enviados: 0 };
+  return chamarGarmin({ acao: 'enviar_treinos', aluno_id: alunoId, itens });
+}
 function garminCardHTML(g, staff) {
   if (g) return `<div class="card garmin-card on"><div class="row between" style="gap:12px"><div style="min-width:0"><b>Garmin conectado ✓</b><p class="small muted">${g.erro ? `<span style="color:var(--warn)">${esc(g.erro)}</span>` : g.ultima_sync ? 'Última corrida recebida ' + quando(g.ultima_sync) + ' às ' + fmtHora(g.ultima_sync) : 'As próximas corridas do relógio chegam aqui sozinhas.'}</p></div>${staff ? '' : '<button class="link-btn small" id="gar-off">Desconectar</button>'}</div></div>`;
   if (staff) return '<div class="card"><p class="small muted">O aluno ainda não conectou o Garmin. Ele faz isso na aba de corrida dele, com um toque.</p></div>';
@@ -2927,7 +2974,7 @@ function bindGarmin(el, recarregar) {
       location.href = r.url;
     } catch (e) { on.disabled = false; toast(e.message, true); }
   };
-  if (off) off.onclick = async () => { if (!confirm('Desconectar o Garmin? As corridas que já chegaram continuam no app.')) return; try { await chamarGarmin({ acao: 'desconectar' }); toast('Garmin desconectado.'); recarregar(); } catch (e) { toast(e.message, true); } };
+  if (off) off.onclick = async () => { if (!confirm('Desconectar o Garmin? As corridas que já chegaram continuam no app e os treinos param de ir para o relógio.')) return; try { await chamarGarmin({ acao: 'desconectar' }); toast('Garmin desconectado.'); recarregar(); } catch (e) { toast(e.message, true); } };
 }
 async function chamarIntervals(body) {
   const { data, error } = await sb.functions.invoke('nx-intervals', { body: { org_id: S.org.id, ...body } });
