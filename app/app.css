@@ -1074,3 +1074,15 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .wletter.off{background:linear-gradient(135deg,#1b2c55,#0b1630);color:#fff;border:0;height:74px;-webkit-text-stroke:0}
 .wletter.off svg{width:42px;height:42px}
 .wcard.dayoff{align-items:center}
+/* zonas editáveis */
+.pz-ed{background:var(--s1);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.pz-ed>span{font-size:.74rem;color:var(--mute)}
+.pz-in{display:flex;align-items:center;gap:6px}
+.pz-in .input{width:72px;padding:7px 8px;text-align:center;font-size:.95rem;border-radius:9px}
+.pz-in i{font-style:normal;color:var(--dim)}
+.pz-in em{font-style:normal;font-size:.78rem;color:var(--mute)}
+.paces .pz-in{flex-direction:row;align-items:center;padding:0;background:none}
+.paces .pz-ed{padding:10px 12px}
+.pz-in .input{flex:1;min-width:0;width:auto}
+@media (max-width:600px){.paces:has(.pz-ed){grid-template-columns:1fr}.pz-ed{flex-direction:row!important;align-items:center;justify-content:space-between}.pz-ed>span{flex:1}.paces .pz-in{flex:none;width:190px}}
+.pz-in .input{padding:7px 4px;font-size:.92rem}

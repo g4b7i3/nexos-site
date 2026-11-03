@@ -1851,7 +1851,10 @@ function perfilCorrida(m) {
   const vdot = vdotDe((c.teste_km || 0) * 1000, c.teste_seg);
   const idade = m && m.nascimento ? idadeEm(m.nascimento) : null;
   const fcMax = c.fc_max || (idade ? 208 - 0.7 * idade : null);
-  return { ...c, vdot, paces: pacesDe(vdot), fcMax, fcRep: c.fc_rep || null };
+  // zonas automáticas (VDOT) + ajustes manuais do treinador, que têm prioridade
+  let paces = pacesDe(vdot); const man = c.paces_manual && Object.keys(c.paces_manual).length ? c.paces_manual : null;
+  if (man) paces = { ...(paces || {}), ...man };
+  return { ...c, vdot, paces, manual: !!man, fcMax, fcRep: c.fc_rep || null };
 }
 function inicioSemana(d = new Date()) { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 const isoDia = (d) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
@@ -2052,7 +2055,7 @@ const MODELOS_PADRAO = [
 const clone = (x) => JSON.parse(JSON.stringify(x));
 function paceZona(z, perfil) {
   const p = perfil && perfil.paces;
-  if (z === 'rec') return p ? p.leve[1] * 1.12 : ZONAS_INFO.rec.pd;
+  if (z === 'rec') return p && p.rec ? (p.rec[0] + p.rec[1]) / 2 : p && p.leve ? p.leve[1] * 1.12 : ZONAS_INFO.rec.pd;
   return p && p[z] ? (p[z][0] + p[z][1]) / 2 : (ZONAS_INFO[z] || ZONAS_INFO.leve).pd;
 }
 /** lista achatada de passos com metros e segundos estimados */
@@ -2462,12 +2465,20 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         : `<div class="empty" style="margin-top:12px"><div class="h3">Nenhuma corrida registrada</div><p class="small">${staff ? 'As corridas do aluno aparecem aqui.' : 'Depois de correr, toque em “Registrar corrida”. Dá para enviar o arquivo do relógio.'}</p></div>`}
       <div class="section"><div class="section-h"><h2 class="h2">Relógio conectado</h2>${slashes}</div><div id="intervals-box">${intervalsCardHTML(integ, staff)}</div></div>`;
   } else {
-    corpo = `${perfil.paces ? `<div class="card"><div class="row between"><span class="small muted">Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}</span><span class="tag acc">VDOT ${f1(perfil.vdot)}</span></div>
-        <div class="paces"><div style="border-left:4px solid ${ZONAS_INFO.rec.c}"><span>Z1 · Recuperação (trote)</span><b>${paceZonaTxt('rec', perfil)}</b></div>${ZONAS_PACE.map(([k, l]) => `<div style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><b>${faixaPace(perfil.paces[k])}</b></div>`).join('')}</div>
-        <span class="small muted" style="display:block;margin-top:14px;font-weight:700">Previsão de provas</span>
+    const ZT = [['rec', 'Z1 · Recuperação (trote)'], ...ZONAS_PACE];
+    const faixaDe = (k) => (perfil.paces && perfil.paces[k]) || (k === 'rec' && perfil.paces && perfil.paces.leve ? [Math.round(perfil.paces.leve[1] * 1.08), Math.round(perfil.paces.leve[1] * 1.16)] : [ZONAS_INFO[k].pd - 10, ZONAS_INFO[k].pd + 10]);
+    const mmss = (sg) => { const v = Math.round(sg); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
+    const tileZ = ([k, l]) => staff
+      ? `<div class="pz-ed" style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><div class="pz-in"><input class="input mono" data-pz="${k}" data-i="0" value="${mmss(faixaDe(k)[0])}" inputmode="numeric" aria-label="${l} de"><i>–</i><input class="input mono" data-pz="${k}" data-i="1" value="${mmss(faixaDe(k)[1])}" inputmode="numeric" aria-label="${l} até"><em>/km</em></div></div>`
+      : `<div style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><b>${paceZonaTxt(k, perfil)}</b></div>`;
+    corpo = `${perfil.paces || staff ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
+        ${staff ? '<p class="tiny dim" style="margin-top:8px">Edite o pace de cada zona (minutos:segundos por km) e toque em “Salvar zonas”. É o que o aluno vê nos treinos.</p>' : ''}
+        <div class="paces">${ZT.map(tileZ).join('')}</div>
+        ${staff ? `<div class="${perfil.manual ? 'grid2' : ''}" style="margin-top:12px"><button class="btn block" id="pz-salvar">${I.check} Salvar zonas</button>${perfil.manual ? '<button class="btn ghost" id="pz-auto">Voltar ao automático</button>' : ''}</div>` : ''}
+        ${perfil.vdot ? `<span class="small muted" style="display:block;margin-top:14px;font-weight:700">Previsão de provas</span>
         <div class="prev-prova">${[[5000, '5 km'], [10000, '10 km'], [21097, '21 km'], [42195, '42 km']].map(([d, l]) => `<div><span>${l}</span><b>${fmtDurLongo(prever(perfil.teste_km * 1000, perfil.teste_seg, d))}</b></div>`).join('')}</div>
-        <p class="tiny dim" style="margin-top:8px">Paces pelo VDOT de Jack Daniels; previsões pela fórmula de Riegel. São estimativas para provas no plano e com treino específico.</p></div>`
-      : `<div class="empty"><div class="h3">Ritmos ainda não calculados</div><p class="small">${staff ? 'Cadastre uma prova ou teste recente (3 a 10 km) e o app calcula paces, zonas e previsões.' : 'Seu treinador vai cadastrar um teste para calcular os seus paces.'}</p></div>`}
+        <p class="tiny dim" style="margin-top:8px">Paces automáticos pelo VDOT de Jack Daniels; previsões pela fórmula de Riegel. São estimativas para provas no plano e com treino específico.</p>` : ''}</div>`
+      : `<div class="empty"><div class="h3">Ritmos ainda não calculados</div><p class="small">Seu treinador vai cadastrar um teste para calcular os seus paces.</p></div>`}
       ${staff ? `<button class="btn ${perfil.paces ? 'ghost' : ''} sm" id="ed-perfil" style="margin-top:12px">${perfil.paces ? 'Atualizar teste' : 'Cadastrar teste'}</button>` : ''}
       ${perfil.fcMax ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}</span><div class="zonas" style="margin-top:10px">${zonasFC(perfil.fcMax, perfil.fcRep).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
   }
@@ -2477,6 +2488,22 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   const q = (s) => box.querySelector(s);
   if (q('#reg-c')) q('#reg-c').onclick = () => registrarCorrida(alunoId, (id) => { location.hash = '#/corrida/' + id; });
   if (q('#ver-todas')) q('#ver-todas').onclick = () => { st.todas = true; recarregar(); };
+  if (q('#pz-salvar')) q('#pz-salvar').onclick = async () => {
+    const lerS = (v) => { const m2 = String(v || '').trim().match(/^(\d{1,2})[:.,](\d{1,2})$/) || String(v || '').trim().match(/^(\d{1,2})$/); if (!m2) return null; const sg = (+m2[1]) * 60 + (+(m2[2] || 0)); return m2[2] && +m2[2] > 59 ? null : sg; };
+    const man = {}; let erro = '';
+    [['rec'], ...ZONAS_PACE].forEach(([k]) => { const a2 = lerS(box.querySelector(`[data-pz="${k}"][data-i="0"]`).value), b2 = lerS(box.querySelector(`[data-pz="${k}"][data-i="1"]`).value); if (a2 == null || b2 == null || a2 < 150 || b2 > 1200) erro = ZONAS_INFO[k].z; else man[k] = [Math.min(a2, b2), Math.max(a2, b2)]; });
+    if (erro) return toast(`Confira o pace da ${erro} (use minutos:segundos, ex.: 5:30).`, true);
+    const corrida = { ...(m.corrida || {}), paces_manual: man };
+    const { error } = await sb.from('nx_membros').update({ corrida }).eq('org_id', S.org.id).eq('user_id', alunoId);
+    if (error) return toast('Não foi possível salvar.', true);
+    m.corrida = corrida; toast('Zonas salvas! O aluno já vê esses paces.'); recarregar();
+  };
+  if (q('#pz-auto')) q('#pz-auto').onclick = async () => {
+    const corrida = { ...(m.corrida || {}) }; delete corrida.paces_manual;
+    const { error } = await sb.from('nx_membros').update({ corrida }).eq('org_id', S.org.id).eq('user_id', alunoId);
+    if (error) return toast('Não foi possível salvar.', true);
+    m.corrida = corrida; toast('Zonas voltaram ao cálculo automático.'); recarregar();
+  };
   if (q('#ed-perfil')) q('#ed-perfil').onclick = () => formPerfilCorrida(m, async () => { const { data } = await sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); m = data || m; recarregar(); });
   if (q('#intervals-box')) bindIntervals(q('#intervals-box'), integ, staff, alunoId, recarregar);
   if (sub === 'planilha') {
