@@ -2057,10 +2057,13 @@ function arrastar(root, { item, alvo, soltar, handle }) {
     if (st.ghost) st.ghost.remove();
     if (st.alvoEl) st.alvoEl.classList.remove('alvo-on');
     if (st.el) st.el.classList.remove('arrastando-origem');
-    document.body.classList.remove('arrastando'); cancelAnimationFrame(st.raf); st = null;
+    document.body.classList.remove('arrastando'); document.documentElement.classList.remove('trava-scroll'); removeEventListener('scroll', segura); cancelAnimationFrame(st.raf); st = null;
   };
+  // trava a página enquanto arrasta (no celular o dedo não pode rolar a tela)
+  const segura = () => { if (st && st.ativo && Math.abs(scrollY - st.sy) > 1) scrollTo(scrollX, st.sy); };
   const comecar = () => {
-    st.ativo = true; bloqueiaClique = true;
+    st.ativo = true; bloqueiaClique = true; st.sy = scrollY;
+    document.documentElement.classList.add('trava-scroll'); addEventListener('scroll', segura, { passive: true });
     const r = st.el.getBoundingClientRect();
     const g = st.el.cloneNode(true); g.classList.add('fantasma');
     g.style.width = Math.min(r.width, 260) + 'px'; g.style.left = '0px'; g.style.top = '0px';
@@ -2068,7 +2071,7 @@ function arrastar(root, { item, alvo, soltar, handle }) {
     st.el.classList.add('arrastando-origem'); document.body.classList.add('arrastando');
     try { navigator.vibrate && navigator.vibrate(15); } catch {}
     mover(st.x, st.y);
-    const sc = root.closest('.sheet'); const auto = () => { if (!st) return; const dv = st.y < 70 ? -12 : st.y > innerHeight - 60 ? 12 : 0; if (dv) { if (sc) sc.scrollTop += dv; else window.scrollBy(0, dv); } st.raf = requestAnimationFrame(auto); };
+    const sc = root.closest('.sheet'); const auto = () => { if (!st) return; const dv = st.y < 70 ? -12 : st.y > innerHeight - 60 ? 12 : 0; if (dv) { if (sc) sc.scrollTop += dv; else { window.scrollBy(0, dv); st.sy = scrollY; } } st.raf = requestAnimationFrame(auto); };
     st.raf = requestAnimationFrame(auto);
   };
   const mover = (x, y) => {
@@ -2098,7 +2101,7 @@ function arrastar(root, { item, alvo, soltar, handle }) {
     const mv = (ev) => {
       if (!st) return; const tt = ev.touches[0];
       if (!st.ativo) { if (Math.hypot(tt.clientX - st.x0, tt.clientY - st.y0) > 10) { limpar(); off(); } return; }
-      ev.preventDefault(); mover(tt.clientX, tt.clientY);
+      if (ev.cancelable) ev.preventDefault(); mover(tt.clientX, tt.clientY);
     };
     const end = () => { off(); terminar(); };
     const off = () => { document.removeEventListener('touchmove', mv); document.removeEventListener('touchend', end); document.removeEventListener('touchcancel', end); };

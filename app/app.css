@@ -918,3 +918,6 @@ html[data-tema="escuro"] .pt.plan i,html[data-tema="escuro"] .pt-l.plan{backgrou
 .ftr.extra{border-left-color:var(--mute);opacity:.9}
 .ftr .sd-x{flex:none}
 @media (max-width:520px){.fdia{grid-template-columns:1fr}.fdia-h{border-right:0;border-bottom:1px dashed var(--line);padding:8px 10px}}
+/* trava a rolagem enquanto arrasta um treino */
+html.trava-scroll,html.trava-scroll body{overflow:hidden!important;overscroll-behavior:none;touch-action:none}
+html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{overflow:hidden!important;touch-action:none}
