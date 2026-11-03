@@ -2051,18 +2051,13 @@ const TIPOS_CORRIDA = [
 ];
 const ZONAS_PACE = [['leve', 'Z2 · Leve (conversando)'], ['maratona', 'Z3 · Moderado (ritmo de maratona)'], ['limiar', 'Z4 · Limiar (forte e contínuo)'], ['intervalado', 'Z5 · Forte (VO₂máx)'], ['tiros', 'Z6 · Máximo (velocidade)']];
 const TIPOS_ATIV = [['corrida', 'Corrida de rua'], ['trail', 'Trail'], ['esteira', 'Esteira'], ['caminhada', 'Caminhada']];
-// explicação curta de cada tipo de treino (aparece para o aluno no app e no Garmin Connect)
+// explicação curta só dos treinos que o aluno pode não conhecer (app e Garmin Connect)
 const SOBRE_TREINO = {
-  rodagem: 'Corrida contínua em ritmo leve, dá para conversar. Serve para construir base aeróbica sem desgastar.',
-  regenerativo: 'Trote bem leve para soltar as pernas e recuperar do treino anterior. Na dúvida, vá mais devagar.',
-  longao: 'Corrida longa em ritmo confortável. O objetivo é terminar bem, não rápido. Leve água se passar de 1 hora.',
-  ritmo: 'Trecho contínuo forte, no limite do confortável: só dá para falar frases curtas. Segure o mesmo pace do início ao fim.',
-  intervalado: 'Blocos fortes com recuperação entre eles. Faça todos no mesmo ritmo, sem queimar o primeiro. A recuperação também é treino.',
-  tiros: 'Tiros curtos e rápidos, perto do máximo. Aqueça bem antes e recupere direito entre um tiro e outro.',
-  fartlek: 'Corrida com trocas de ritmo: trechos mais fortes alternados com trechos leves, sem parar de correr.',
-  prova: 'Dia de prova. Aqueça, largue controlado e vá soltando aos poucos. Confie no que você treinou.',
-  teste: 'Teste no seu máximo sustentável, para medir sua evolução e ajustar seus paces. Aqueça bem antes de começar.',
-  folga: 'Dia de descanso da corrida. É no descanso que o corpo assimila o treino.',
+  ritmo: 'Forte e contínuo, sem parar. Ritmo em que você só consegue falar poucas palavras.',
+  intervalado: 'Trechos fortes com recuperação entre eles. Tente fazer todos no mesmo ritmo.',
+  tiros: 'Trechos curtos e bem rápidos, com recuperação entre um e outro.',
+  fartlek: 'Corrida sem parar, alternando trechos mais fortes e trechos leves.',
+  teste: 'Corra no seu máximo para essa distância. O resultado ajusta os seus paces.',
 };
 const sobreTreino = (k) => SOBRE_TREINO[k] || '';
 const nomeTipo = (k) => (TIPOS_CORRIDA.find((t) => t[0] === k) || [, k || 'Corrida'])[1];
