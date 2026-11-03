@@ -1191,3 +1191,17 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .rm-pe{margin-top:18px;padding-top:10px;border-top:1px solid #dde5f1;font-size:.7rem;color:#5b6b88;text-align:center}
 @media (max-width:520px){.rm-folha{padding:18px 16px 14px;border-radius:14px}.rm-nums b{font-size:1.3rem}}
 .rm-folha.rm-print{width:760px;max-width:none;box-shadow:none;border-radius:0;padding:28px 28px 20px}
+.corpo{display:flex;flex-direction:column;gap:12px;margin:18px 0 16px}
+.corpo-l>span{display:block;font-size:.8rem;font-weight:700;color:var(--mute);margin-bottom:6px;letter-spacing:.02em}
+.seg.sm{grid-template-columns:repeat(3,1fr);gap:6px}.seg.sm button{padding:9px 6px;font-size:.82rem;border-radius:12px}
+.rs-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.rs-t{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px 10px;text-align:left;color:inherit;font:inherit;cursor:pointer;min-width:0}
+.rs-t b{display:block;font-family:var(--f-h);font-size:1.35rem;line-height:1.1}
+.rs-t span{display:block;font-size:.72rem;color:var(--mute);margin-top:3px;line-height:1.25}
+.rs-t.ok b{color:var(--ok,#3ddc97)}.rs-t.warn b{color:var(--warn)}.rs-t.err b{color:var(--err,#ff8a8a)}
+.rs-t:disabled{opacity:.55;cursor:default}
+.rs-t.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.rs-lista{margin-top:8px;padding:6px 12px}
+@media (max-width:420px){.rs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.av.sm{width:34px;height:34px;border-radius:12px;font-size:.72rem}
+.rs-lista .ativ-l .grow{display:block}

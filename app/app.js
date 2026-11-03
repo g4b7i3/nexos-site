@@ -600,11 +600,13 @@ function letraTreino(t, i) {
 async function alunoHoje() {
   loading();
   const hoje = isoDia(new Date());
-  const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx] = await Promise.all([
+  const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx, semNota] = await Promise.all([
     buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 40), contarMsgNovas(),
     buscarPlano(S.user.id, hoje, isoDia(Date.now() + 13 * 864e5)).catch(() => []), minhaCobrancaPendente().catch(() => null),
     sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,plano_id').eq('aluno_id', S.user.id).gte('data', isoDia(inicioSemana())).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', S.user.id).gte('data', hoje).order('data').limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
+    // corridas que chegaram do relógio sem o check-in (esforço/dor)
+    sb.from('nx_corridas').select('id,data,distancia_m').eq('aluno_id', S.user.id).is('rpe', null).gte('data', isoDia(Date.now() - 3 * 864e5)).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
   ]);
   const corrHoje = corrSem.filter((c) => isoDia(c.data) === hoje);
   const perfC = perfilCorrida(S.me);
@@ -653,6 +655,7 @@ async function alunoHoje() {
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
+    ${semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi a corrida de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${fmtKm(semNota.distancia_m, 1)} · leva 10 segundos responder</div></div>${I.chev}</button>` : ''}
     ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
     ${cartaoPushHTML()}
     </div><div class="hoje-side">
@@ -665,7 +668,33 @@ async function alunoHoje() {
     const v = e.target.closest('[data-ver]'); if (v) { const p = corrDoDia.find((x) => x.id === v.dataset.ver); return verTreinoPlanilha(p, perfC, corrHoje.find((c) => c.plano_id === p.id)); }
   };
   const rh = document.getElementById('reg-home'); if (rh) rh.onclick = () => registrarCorrida(S.user.id, () => alunoHoje());
+  const tc = document.getElementById('termo-corr'); if (tc) tc.onclick = () => termometroCorrida(semNota, () => alunoHoje());
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
+}
+
+/* check-in rápido de uma corrida que veio do relógio */
+function termometroCorrida(c, depois) {
+  let rpe = null, dor = false; const corpo = {};
+  openSheet(`<p class="eyebrow">Check-in · ${fmtKm(c.distancia_m, 1)}</p><div class="h2" style="margin-top:4px">Como foi a corrida?</div>
+    <div style="margin-top:18px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
+      <div class="effort" id="eff">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div>
+      <div class="effort-lbl"><span>Repouso</span><span id="eff-txt"></span><span>Máximo</span></div></div>
+    <div style="margin-top:18px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
+      <div class="seg" style="margin-top:8px"><button type="button" class="on" data-dor="0">Não</button><button type="button" data-dor="1">Sim</button></div>
+      <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:10px" hidden></div>
+    ${corpoHTML()}
+    <button class="btn block" id="t-salvar" style="margin-top:20px">Enviar ${I.check}</button>`, (root) => {
+    root.querySelector('#eff').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; rpe = +b.dataset.n; root.querySelectorAll('#eff button').forEach((x) => { const on = +x.dataset.n === rpe; x.classList.toggle('on', on); x.style.background = on ? rpeCor(rpe) : ''; }); root.querySelector('#eff-txt').textContent = rpeTxt(rpe); };
+    root.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => { dor = b.dataset.dor === '1'; root.querySelectorAll('[data-dor]').forEach((x) => { x.classList.toggle('on', x === b); x.classList.toggle('alert', x === b && dor); }); root.querySelector('#dor-local').hidden = !dor; });
+    bindCorpo(root, corpo);
+    root.querySelector('#t-salvar').onclick = async (e) => {
+      if (rpe == null) return toast('Escolha o esforço de 0 a 10.', true);
+      e.currentTarget.disabled = true;
+      const { error } = await sb.from('nx_corridas').update({ rpe, dor, dor_local: dor ? (root.querySelector('#dor-local').value.trim() || null) : null, cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null, visto_treinador: false }).eq('id', c.id);
+      if (error) { e.currentTarget.disabled = false; return toast('Não foi possível salvar. Verifique a internet.', true); }
+      closeSheet(); toast('Valeu! Seu treinador já vê como você está.'); depois && depois();
+    };
+  });
 }
 
 function sessaoCard(s, nome) {
@@ -680,6 +709,7 @@ function sessaoCard(s, nome) {
         ${s.finalizado_em ? `<span class="tag">${minutos(s.iniciado_em, s.finalizado_em)} min</span>` : ''}
         ${s.total_itens ? `<span class="tag">${s.itens_feitos.length}/${s.total_itens} exercícios</span>` : ''}
         ${s.dor ? `<span class="tag warn">Dor${s.dor_local ? ': ' + esc(s.dor_local) : ''}</span>` : ''}
+        ${corpoTags(s)}
         <span class="tag">${quando(s.iniciado_em)} · ${fmtHora(s.iniciado_em)}</span>
       </div>
       ${s.comentario ? `<p class="small muted" style="margin-top:8px">“${esc(s.comentario)}”</p>` : ''}
@@ -906,8 +936,21 @@ async function viewExecucao(treinoId, preview) {
   };
 }
 
+/* termômetro: cansaço e sono (0 bom · 1 médio · 2 ruim) */
+const CORPO = { cansaco: ['Cansaço', ['Normal', 'Cansado', 'Muito cansado']], sono: ['Sono da última noite', ['Bom', 'Regular', 'Ruim']] };
+const corpoTags = (x) => [x.cansaco ? `<span class="tag ${x.cansaco === 2 ? 'warn' : ''}">${CORPO.cansaco[1][x.cansaco]}</span>` : '', x.sono ? `<span class="tag ${x.sono === 2 ? 'warn' : ''}">Sono ${CORPO.sono[1][x.sono].toLowerCase()}</span>` : ''].join('');
+function corpoHTML(v = {}) {
+  return `<div class="corpo">${Object.entries(CORPO).map(([k, [t, ops]]) => `<div class="corpo-l"><span>${t}</span><div class="seg sm" data-corpo="${k}">${ops.map((o, i) => `<button type="button" data-v="${i}" class="${v[k] === i ? 'on' + (i === 2 ? ' alert' : '') : ''}">${o}</button>`).join('')}</div></div>`).join('')}</div>`;
+}
+function bindCorpo(root, v) {
+  root.querySelectorAll('[data-corpo]').forEach((g) => g.onclick = (e) => {
+    const b = e.target.closest('[data-v]'); if (!b) return; const k = g.dataset.corpo, n = +b.dataset.v;
+    v[k] = v[k] === n ? null : n;
+    g.querySelectorAll('button').forEach((x) => { const on = +x.dataset.v === v[k]; x.classList.toggle('on', on); x.classList.toggle('alert', on && v[k] === 2); });
+  });
+}
 function abrirCheckin(t, itens, st, key) {
-  let esforco = null, dor = false;
+  let esforco = null, dor = false; const corpo = {};
   openSheet(`
     <p class="eyebrow">Check-in</p><div class="h2" style="margin-top:4px">Como foi o treino?</div>
     <div style="margin-top:18px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
@@ -916,6 +959,7 @@ function abrirCheckin(t, itens, st, key) {
     <div style="margin-top:20px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
       <div class="seg" style="margin-top:8px"><button type="button" class="on" data-dor="0">Não</button><button type="button" data-dor="1">Sim</button></div>
       <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:10px" hidden></div>
+    ${corpoHTML()}
     <label class="field" style="margin-top:18px"><span>Quer deixar um recado pro treinador? (opcional)</span><textarea class="textarea" id="coment" placeholder="Ex.: senti o ombro no supino"></textarea></label>
     <button class="btn block" id="salvar-sessao">Salvar treino ${I.check}</button>
     <button class="btn ghost block" data-close style="margin-top:8px">Voltar ao treino</button>`, (root) => {
@@ -931,6 +975,7 @@ function abrirCheckin(t, itens, st, key) {
       b.classList.toggle('alert', dor);
       root.querySelector('#dor-local').hidden = !dor;
     });
+    bindCorpo(root, corpo);
     root.querySelector('#salvar-sessao').onclick = async (e) => {
       if (esforco == null) return toast('Escolha o esforço de 0 a 10.', true);
       const btn = e.currentTarget; btn.disabled = true;
@@ -940,6 +985,7 @@ function abrirCheckin(t, itens, st, key) {
         iniciado_em: st.ini || new Date().toISOString(), finalizado_em: new Date().toISOString(),
         itens_feitos: st.feitos, total_itens: itens.length, esforco, dor,
         dor_local: dor ? (root.querySelector('#dor-local').value.trim() || null) : null, comentario,
+        cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null,
       }).select('id').single();
       if (error || !ses) { btn.disabled = false; return toast('Não foi possível salvar. Verifique a internet.', true); }
       const regs = itens.map((it) => ({
@@ -1941,7 +1987,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
   const diaD = isoDia(d.data);
   const prox = [...plano].sort((a, b) => Math.abs(dia(a.data) - dia(diaD)) - Math.abs(dia(b.data) - dia(diaD)));
   const sugerido = prox.find((p) => p.data === diaD);
-  let rpe = d.rpe ?? null, dor = !!d.dor;
+  let rpe = d.rpe ?? null, dor = !!d.dor; const corpo = { cansaco: d.cansaco ?? null, sono: d.sono ?? null };
   openSheet(`<p class="eyebrow">${d.fonte === 'arquivo' ? 'Arquivo lido ✓' : 'Nova corrida'}</p><div class="h2" style="margin-top:4px">Confira e salve</div>
     ${d.fonte === 'arquivo' ? `<div class="mini-stats"><div><b>${fmtKm(d.distancia_m)}</b><span>distância</span></div><div><b>${fmtDur(d.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(d))}</b><span>pace</span></div></div>${d.rota ? `<div class="rota-box">${rotaSVG(d.rota, 150)}</div>` : ''}` : ''}
     <form id="f-corr" style="margin-top:14px">
@@ -1951,7 +1997,9 @@ function formCorrida(alunoId, d, plano, onSalvo) {
       <div class="grid2"><label class="field"><span>FC média (bpm)</span><input class="input" name="fc_media" inputmode="numeric" value="${esc(d.fc_media ?? '')}"></label><label class="field"><span>FC máxima (bpm)</span><input class="input" name="fc_max" inputmode="numeric" value="${esc(d.fc_max ?? '')}"></label></div>
       ${plano.length ? `<label class="field"><span>É de qual treino da planilha?</span><select class="input" name="plano"><option value="">Corrida avulsa</option>${prox.slice(0, 8).map((p) => `<option value="${p.id}" ${(d.plano_id || sugerido?.id) === p.id ? 'selected' : ''}>${fmtData(p.data + 'T12:00:00')} · ${esc(p.titulo || nomeTipo(p.tipo))}${p.distancia_km ? ' · ' + String(p.distancia_km).replace('.', ',') + ' km' : ''}</option>`).join('')}</select></label>` : ''}
       <div class="field"><span>Esforço percebido (0 a 10)</span><div class="effort" id="rpe">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}" class="${rpe === n ? 'on' : ''}" style="${rpe === n ? 'background:' + rpeCor(n) : ''}">${n}</button>`).join('')}</div></div>
-      <div class="field"><span>Sentiu alguma dor?</span><div class="seg"><button type="button" class="${dor ? '' : 'on'}" data-dor="0">Não</button><button type="button" class="${dor ? 'on alert' : ''}" data-dor="1">Sim</button></div></div>
+      <div class="field"><span>Sentiu alguma dor?</span><div class="seg"><button type="button" class="${dor ? '' : 'on'}" data-dor="0">Não</button><button type="button" class="${dor ? 'on alert' : ''}" data-dor="1">Sim</button></div>
+        <input class="input" id="dor-local" placeholder="Onde? Ex.: panturrilha esquerda" style="margin-top:10px" value="${esc(d.dor_local || '')}" ${dor ? '' : 'hidden'}></div>
+      ${corpoHTML(corpo)}
       <label class="field"><span>Como foi? (opcional)</span><textarea class="textarea" name="comentario" placeholder="Ex.: calor forte, segurei o pace no fim">${esc(d.comentario || '')}</textarea></label>
       <button class="btn block" type="submit">Salvar corrida ${I.check}</button>
     </form>`, (r) => {
@@ -1959,7 +2007,8 @@ function formCorrida(alunoId, d, plano, onSalvo) {
     const atual = () => { const km = num(f.km.value), s = lerTempo(f.tempo.value); r.querySelector('#pace-calc').textContent = km && s ? `Pace médio: ${fmtPace(s / km)}` : ''; };
     f.oninput = atual; atual();
     r.querySelector('#rpe').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; rpe = +b.dataset.n; r.querySelectorAll('#rpe button').forEach((x) => { const on = +x.dataset.n === rpe; x.classList.toggle('on', on); x.style.background = on ? rpeCor(rpe) : ''; }); };
-    r.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => { dor = b.dataset.dor === '1'; r.querySelectorAll('[data-dor]').forEach((x) => { x.classList.toggle('on', x === b); x.classList.toggle('alert', x === b && dor); }); });
+    r.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => { dor = b.dataset.dor === '1'; r.querySelectorAll('[data-dor]').forEach((x) => { x.classList.toggle('on', x === b); x.classList.toggle('alert', x === b && dor); }); r.querySelector('#dor-local').hidden = !dor; });
+    bindCorpo(r, corpo);
     f.onsubmit = async (e) => {
       e.preventDefault(); const km = num(f.km.value), seg = lerTempo(f.tempo.value);
       if (!km || km <= 0) return toast('Informe a distância em km.', true);
@@ -1970,7 +2019,8 @@ function formCorrida(alunoId, d, plano, onSalvo) {
         org_id: S.org.id, aluno_id: alunoId, data: new Date(f.data.value).toISOString(), tipo: f.tipo.value,
         titulo: d.titulo || null, distancia_m: Math.round(km * 1000), duracao_s: seg,
         fc_media: num(f.fc_media.value), fc_max: num(f.fc_max.value), elevacao_m: d.elevacao_m ?? null, cadencia: d.cadencia ?? null,
-        rpe, dor, comentario: f.comentario.value.trim() || null, plano_id: f.plano ? (f.plano.value || null) : null,
+        rpe, dor, dor_local: dor ? (r.querySelector('#dor-local').value.trim() || null) : null, cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null,
+        comentario: f.comentario.value.trim() || null, plano_id: f.plano ? (f.plano.value || null) : null,
         parciais: reaproveitaArquivo ? d.parciais : null, rota: d.rota || null, fonte: d.fonte || 'manual', ext_id: d.ext_id || null,
       };
       const { data: novo, error } = await sb.from('nx_corridas').insert(row).select('id').single();
@@ -2010,7 +2060,8 @@ async function viewCorrida(id) {
       ${c.cadencia ? `<div class="metric"><span>Cadência</span><b>${c.cadencia}<small>ppm</small></b></div>` : ''}
       ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
     </div>
-    ${c.dor ? `<div class="card" style="margin-top:12px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor</span></div>` : ''}
+    ${c.dor ? `<div class="card" style="margin-top:12px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor${c.dor_local ? ': ' + esc(c.dor_local) : ''}</span></div>` : ''}
+    ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
     ${c.comentario ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Como foi</span><p style="margin-top:6px">“${esc(c.comentario)}”</p></div>` : ''}
     ${plano ? `<div class="card plan-vs"><span class="eyebrow">Previsto × realizado</span><div class="h3" style="margin-top:4px">${esc(plano.titulo || nomeTipo(plano.tipo))}</div>
       <div class="pv"><div><span>Previsto</span><b>${plano.distancia_km ? String(plano.distancia_km).replace('.', ',') + ' km' : plano.duracao_min ? plano.duracao_min + ' min' : '–'}</b></div><div><span>Feito</span><b>${fmtKm(c.distancia_m)}</b></div>
@@ -3118,14 +3169,18 @@ async function viewPagamentos() {
 async function staffHoje() {
   loading();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
-  const [{ data: membros }, sess, corr, anams, avs, cobs, provasEq] = await Promise.all([
-    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
+  const segAtual = isoDia(inicioSemana()), segPass = somaDias(segAtual, -7), segProx = somaDias(segAtual, 7);
+  const [{ data: membros }, sess, corr, anams, avs, cobs, provasEq, planoRes, treinosRes, libsRes] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,ativo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
-    sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,visto_treinador').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
+    sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,dor_local,cansaco,sono,visto_treinador,plano_id').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => r.data || []),
     sb.from('nx_avaliacoes').select('aluno_id,data,proxima').eq('org_id', S.org.id).order('data', { ascending: false }).then((r) => r.data || []),
     sb.from('nx_cobrancas').select('id,aluno_id,valor,vencimento,status,competencia').eq('org_id', S.org.id).in('status', ['aberta', 'informada']).then((r) => r.data || []),
     sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hojeISO()).lte('data', isoDia(Date.now() + 21 * 864e5)).order('data').then((r) => r.data || []).catch(() => []),
+    sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo,liberado').eq('org_id', S.org.id).gte('data', segPass).lte('data', somaDias(segProx, 6)).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_treinos').select('aluno_id,dias,ativo').eq('org_id', S.org.id).eq('ativo', true).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_forca_semanas').select('aluno_id,semana').eq('org_id', S.org.id).gte('semana', segPass).then((r) => r.data || []).catch(() => []),
     contarNaoVistos(), contarMsgNovas(),
   ]);
   dockStaff();
@@ -3141,6 +3196,15 @@ async function staffHoje() {
     const dorS = sess.find((s) => s.aluno_id === id && s.dor && !s.visto_treinador && s.iniciado_em > seteDias);
     const dorC = corr.find((c) => c.aluno_id === id && c.dor && !c.visto_treinador && c.data > seteDias);
     if (dorS || dorC) l.push({ p: 1, t: dorS && dorS.dor_local ? `Dor: ${dorS.dor_local}` : 'Relatou dor', cls: 'err', ir: dorS ? `#/aluno/${id}/historico` : `#/corrida/${dorC.id}` });
+    // termômetro dos últimos 7 dias (check-ins de força e corrida)
+    const ck = [...sess.filter((s) => s.aluno_id === id && s.iniciado_em > seteDias).map((s) => ({ e: s.esforco, dor: s.dor, c: s.cansaco, so: s.sono })),
+      ...corr.filter((c) => c.aluno_id === id && c.data > seteDias).map((c) => ({ e: c.rpe, dor: c.dor, c: c.cansaco, so: c.sono }))];
+    const esf = ck.filter((x) => x.e != null).map((x) => x.e);
+    const ir = `#/aluno/${id}/historico`;
+    if (!dorS && !dorC && ck.filter((x) => x.dor).length >= 2) l.push({ p: 1, t: 'Dor repetida na semana', cls: 'err', ir });
+    if (esf.filter((e) => e >= 8).length >= 3 || (esf.length >= 3 && esf.reduce((a, b) => a + b, 0) / esf.length >= 7.5)) l.push({ p: 1, t: 'Sobrecarga: esforço alto', cls: 'err', ir });
+    if (ck.filter((x) => x.c === 2).length >= 2) l.push({ p: 2, t: 'Muito cansado', cls: 'warn', ir });
+    if (ck.filter((x) => x.so === 2).length >= 2) l.push({ p: 2, t: 'Dormindo mal', cls: 'warn', ir });
     const an = anams.find((a) => a.aluno_id === id);
     if (an && an.parq_positivo && !an.visto_treinador) l.push({ p: 1, t: 'PAR-Q com “sim”', cls: 'err', ir: `#/aluno/${id}/saude` });
     const pv = provasEq.find((x) => x.aluno_id === id);
@@ -3168,6 +3232,31 @@ async function staffHoje() {
     ...corr.filter((c) => c.data > seteDias).map((c) => ({ t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}`, dor: c.dor, ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)) })),
   ].sort((a, b) => (a.t < b.t ? 1 : -1));
   const treinosSemana = recentes.length;
+  // ---- resumo da semana (alunos do treinador) ----
+  const meus = ativos.filter(ehMeu);
+  const naSem = (d, s0) => { const x = isoDia(d); return x >= s0 && x <= somaDias(s0, 6); };
+  const alvoLib = new Date().getDay() >= 1 && new Date().getDay() <= 4 ? segAtual : segProx; // seg–qui: esta semana · sex–dom: a próxima
+  const rs = { treinaram: [], faltaram: [], provas: [], semLib: [] };
+  meus.forEach((m) => {
+    const id = m.user_id;
+    const sP = sess.filter((s) => s.aluno_id === id && naSem(s.iniciado_em, segPass)), cP = corr.filter((c) => c.aluno_id === id && naSem(c.data, segPass));
+    if (sP.length || cP.length) rs.treinaram.push({ m, d: [cP.length ? `${cP.length} corrida${cP.length > 1 ? 's' : ''}` : '', sP.length ? `${sP.length} força` : ''].filter(Boolean).join(' · ') });
+    let prev = 0, fez = 0;
+    if (faz('corrida', m)) { const pl = planoRes.filter((p) => p.aluno_id === id && p.tipo !== 'folga' && p.liberado && naSem(p.data, segPass)); prev += pl.length; fez += pl.filter((p) => cP.some((c) => c.plano_id === p.id || isoDia(c.data) === p.data)).length; }
+    if (faz('musculacao', m) && libsRes.some((l) => l.aluno_id === id && l.semana === segPass)) { const off = dispDe(m).off_forca || []; const pf = treinosRes.filter((t) => t.aluno_id === id).reduce((a, t) => a + (t.dias || []).filter((d) => !off.includes(d)).length, 0); prev += pf; fez += Math.min(pf, sP.length); }
+    if (prev && fez < prev) rs.faltaram.push({ m, d: `fez ${fez} de ${prev}`, f: prev - fez });
+    const pv = provasEq.find((x) => x.aluno_id === id && diasAte(x.data) <= 14);
+    if (pv) { const dd = diasAte(pv.data); rs.provas.push({ m, d: `${esc(pv.titulo)} · ${dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : `em ${dd} dias`}`, h: `#/aluno/${id}/corrida` }); }
+    const falta = [];
+    if (faz('corrida', m)) { const pl = planoRes.filter((p) => p.aluno_id === id && naSem(p.data, alvoLib)); if (!pl.length) falta.push('corrida vazia'); else if (pl.some((p) => !p.liberado)) falta.push('corrida'); }
+    if (faz('musculacao', m) && treinosRes.some((t) => t.aluno_id === id && (t.dias || []).length) && !libsRes.some((l) => l.aluno_id === id && l.semana === alvoLib)) falta.push('força');
+    if (falta.length) rs.semLib.push({ m, d: falta.join(' · '), h: `#/aluno/${id}/${falta[0] === 'força' ? 'forca' : 'corrida'}` });
+  });
+  rs.faltaram.sort((a, b) => b.f - a.f);
+  const ehSeg = new Date().getDay() === 1;
+  const resumoHTML = meus.length ? `<div class="section"><div class="section-h"><h2 class="h2">${ehSeg ? 'Resumo da semana' : 'Semana passada'}</h2><span class="small muted">${fmtCurto(segPass)} a ${fmtCurto(somaDias(segPass, 6))}</span></div>
+    <div class="rs-grid">${[['treinaram', rs.treinaram.length, `de ${meus.length} treinaram`, 'ok'], ['faltaram', rs.faltaram.length, 'faltaram treino', rs.faltaram.length ? 'warn' : ''], ['provas', rs.provas.length, 'provas em 14 dias', ''], ['semLib', rs.semLib.length, `sem liberar ${alvoLib === segAtual ? 'esta semana' : 'a próxima'}`, rs.semLib.length ? 'err' : '']].map(([k, n, t, c]) => `<button class="rs-t ${c}" data-rs="${k}" ${n ? '' : 'disabled'}><b>${n}</b><span>${t}</span></button>`).join('')}</div>
+    ${Object.entries(rs).filter(([, l]) => l.length).map(([k, l]) => `<div class="card rs-lista" data-rsl="${k}" hidden>${l.map((x) => `<a class="ativ-l" href="${x.h || `#/aluno/${x.m.user_id}/historico`}">${avAluno(x.m, 'sm')}<b class="grow ellip">${esc(x.m.nome)}</b><span class="small muted">${x.d}</span></a>`).join('')}</div>`).join('')}</div>` : '';
   const comp = compDe(); const aReceber = cobs.filter((c) => c.competencia === comp).reduce((a, c) => a + +c.valor, 0);
   const h = new Date().getHours(); const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const st = S.cache.hoje || (S.cache.hoje = { tudo: false });
@@ -3177,6 +3266,7 @@ async function staffHoje() {
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : alOutros.length ? 'Seus alunos estão em dia. 🎉' : 'Tudo em dia por aqui. 🎉'}</p>
     ${cartaoPushHTML()}
     <div class="stats"><a class="stat" href="#/alunos" style="color:inherit"><b>${ativos.length}</b><span>alunos ativos</span></a><div class="stat"><b>${treinosSemana}</b><span>treinos em 7 dias</span></div><a class="stat" href="#/financeiro" style="color:inherit"><b>${aReceber ? brl(aReceber).replace(',00', '') : 'R$ 0'}</b><span>a receber no mês</span></a></div>
+    ${ehSeg ? resumoHTML : ''}
     ${(() => { const aniv = ativos.filter((m) => ehAniversario(m.nascimento)); const prox = ativos.filter((m) => !ehAniversario(m.nascimento) && [1, 2, 3, 4, 5, 6].some((d) => ehAniversario(m.nascimento, d)));
       if (!aniv.length && !prox.length) return '';
       const msg = (m) => encodeURIComponent(`Parabéns, ${firstName(m.nome)}! 🎉 Toda a equipe Nexos deseja um novo ano cheio de saúde, treinos e conquistas. Bora pra cima! 💪`);
@@ -3185,12 +3275,18 @@ async function staffHoje() {
     ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}${m.treinador_id && m.treinador_id !== S.user.id && eqNomeH[m.treinador_id] ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNomeH[m.treinador_id])}</span>` : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : '')
         + (alOutros.length ? `<div class="section"><details class="outros-al"${alMeus.length ? '' : ' open'}><summary><span class="h2" style="font-size:1rem">Alunos dos outros treinadores</span><span class="tag">${alOutros.length} · opcional</span></summary><div class="stack" style="margin-top:10px">${alOutros.map(card).join('')}</div></details></div>` : ''); })()}
+    ${ehSeg ? '' : resumoHTML}
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><a class="link-btn" href="#/feed">Ver retornos</a></div>
       ${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}${x.novo ? '<i class="alert-dot"></i>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>`).join('')}
         ${recentes.length > 6 && !st.tudo ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">Mostrar mais ${recentes.length - 6}</button>` : ''}</div>` : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'}
     </div>`;
   bindCartaoPush();
   const ma = document.getElementById('mais-ativ'); if (ma) ma.onclick = () => { st.tudo = true; staffHoje(); };
+  $app.querySelectorAll('[data-rs]').forEach((b) => b.onclick = () => {
+    const abrir = !b.classList.contains('on');
+    $app.querySelectorAll('[data-rs]').forEach((x) => x.classList.toggle('on', abrir && x === b));
+    $app.querySelectorAll('[data-rsl]').forEach((x) => { x.hidden = !(abrir && x.dataset.rsl === b.dataset.rs); });
+  });
 }
 
 /* ================= PERFIL (todos) ================= */
