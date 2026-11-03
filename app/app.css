@@ -887,3 +887,34 @@ html[data-tema="escuro"] .pt.plan i,html[data-tema="escuro"] .pt-l.plan{backgrou
   .atl{grid-template-columns:minmax(220px,1.1fr) minmax(330px,1.3fr) auto;align-items:center}
   .pt i{width:12px;height:12px}
 }
+
+/* Corrida | Força (Meus Atletas e planilha do atleta) */
+.mod-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--bg2);margin-bottom:0}
+.mod-tabs a,.mod-tabs button{display:flex;align-items:center;justify-content:center;gap:7px;border:0!important;border-radius:10px!important;padding:10px 12px!important;background:transparent!important;color:var(--mute)}
+.mod-tabs a.on,.mod-tabs button.on{background:var(--acc)!important;color:var(--on-acc)!important}
+.mod-tabs svg{width:17px;height:17px}
+.plan-head{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:10px}
+.ph-id{display:flex;gap:12px;align-items:center;min-width:0;flex:1 1 260px}
+.ph-id .h2{margin:0}
+.ph-ev{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--warn,#f59e0b) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn,#f59e0b) 35%,transparent);flex:0 1 auto;min-width:0}
+.ph-ev b{font-size:.92rem}
+/* semana de força */
+.fsem{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg2)}
+.fdia{display:grid;grid-template-columns:150px 1fr;border-top:1px solid var(--line);min-height:54px}
+.fdia:first-child{border-top:0}
+.fdia.hoje{background:color-mix(in srgb,var(--acc) 7%,transparent)}
+.fdia.hoje .fdia-n{background:var(--acc);color:var(--on-acc)}
+.fdia-h{display:flex;align-items:center;gap:8px;padding:10px;border-right:1px solid var(--line)}
+.fdia-h span{font-weight:700;font-size:.86rem}
+.fdia.passado .fdia-h span{color:var(--mute)}
+.fdia-n{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:.8rem;background:var(--s1);flex:none}
+.fdia-h .cal-add{margin-left:auto}
+.fdia-c{display:flex;flex-direction:column;gap:6px;padding:8px 10px;justify-content:center;min-width:0}
+.ftr{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--s1);border-left:3px solid var(--acc);min-width:0}
+.ftr small{display:block;color:var(--mute);font-size:.74rem;margin-top:1px}
+.ftr.feito{border-left-color:var(--ok,#22c55e)}
+.ftr.feito small{color:var(--ok,#22c55e)}
+.ftr.perdeu{border-left-color:var(--err,#ef4444)}
+.ftr.extra{border-left-color:var(--mute);opacity:.9}
+.ftr .sd-x{flex:none}
+@media (max-width:520px){.fdia{grid-template-columns:1fr}.fdia-h{border-right:0;border-bottom:1px dashed var(--line);padding:8px 10px}}
