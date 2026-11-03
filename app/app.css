@@ -1276,3 +1276,12 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .inst-passos{margin:12px 0 8px;padding-left:22px;display:grid;gap:9px;font-size:.92rem;line-height:1.45}
 .inst-passos li::marker{font-weight:800;color:var(--acc2)}
 .inst-ic{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--s1);border:1px solid var(--line);color:var(--acc2);vertical-align:-8px}
+/* card da corrida */
+.card-cta{display:flex;align-items:center;gap:12px;width:100%;margin-top:14px;padding:14px 16px;border-radius:18px;border:1px solid rgba(70,214,255,.35);background:linear-gradient(120deg,rgba(47,107,255,.14),rgba(70,214,255,.08));color:inherit;cursor:pointer}
+.card-cta b{display:block}.card-cta .small{color:var(--mute)}
+.card-cta-ic{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#1e7bd6,#2f6bff);color:#fff}
+.card-prev{margin:14px auto 12px;width:min(62%,250px);aspect-ratio:9/16;border-radius:16px;overflow:hidden;background:#0b1834;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.card-prev.post{aspect-ratio:4/5;width:min(70%,290px)}
+.card-prev.xadrez{background:repeating-conic-gradient(#3a4660 0 25%,#2a3550 0 50%) 0 0/22px 22px}
+.card-prev canvas{width:100%;height:100%;display:block}
+.card-seg{display:flex;flex-wrap:nowrap}.card-seg button{flex:1 1 0;min-width:0;padding-left:6px;padding-right:6px;font-size:.86rem;white-space:nowrap}

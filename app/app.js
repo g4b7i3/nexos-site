@@ -612,11 +612,13 @@ async function alunoHoje() {
   const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx, semNota] = await Promise.all([
     buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 40), contarMsgNovas(),
     buscarPlano(S.user.id, hoje, isoDia(Date.now() + 13 * 864e5)).catch(() => []), minhaCobrancaPendente().catch(() => null),
-    sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,plano_id').eq('aluno_id', S.user.id).gte('data', isoDia(inicioSemana())).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,plano_id,titulo,elevacao_m,fc_media,cadencia,rota').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 8 * 864e5)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', S.user.id).gte('data', hoje).order('data').limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
     // corridas que chegaram do relógio sem o check-in (esforço/dor)
     sb.from('nx_corridas').select('id,data,distancia_m').eq('aluno_id', S.user.id).is('rpe', null).gte('data', isoDia(Date.now() - 3 * 864e5)).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
   ]);
+  const corrNova = corrSem.filter((c) => c.distancia_m && Date.now() - new Date(c.data) < 864e5 && !(() => { try { return localStorage.getItem('nx-card-' + c.id); } catch { return 1; } })()).sort((a, b) => (a.data < b.data ? 1 : -1))[0];
+  corrSem.splice(0, corrSem.length, ...corrSem.filter((c) => isoDia(c.data) >= isoDia(inicioSemana())));
   const corrHoje = corrSem.filter((c) => isoDia(c.data) === hoje);
   const perfC = perfilCorrida(S.me);
   dockAluno();
@@ -664,6 +666,7 @@ async function alunoHoje() {
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
+    ${corrNova ? `<button class="card-cta" id="card-nova" style="margin-top:12px"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Corrida de ${fmtKm(corrNova.distancia_m, 1)} registrada! 🔥</b><span class="small">Gere o card e poste no seu story</span></div>${I.chev}</button>` : ''}
     ${semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi a corrida de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${fmtKm(semNota.distancia_m, 1)} · leva 10 segundos responder</div></div>${I.chev}</button>` : ''}
     <div id="ciclo-box"></div>
     ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
@@ -678,6 +681,7 @@ async function alunoHoje() {
     const v = e.target.closest('[data-ver]'); if (v) { const p = corrDoDia.find((x) => x.id === v.dataset.ver); return verTreinoPlanilha(p, perfC, corrHoje.find((c) => c.plano_id === p.id)); }
   };
   const rh = document.getElementById('reg-home'); if (rh) rh.onclick = () => registrarCorrida(S.user.id, () => alunoHoje());
+  const cn = document.getElementById('card-nova'); if (cn) cn.onclick = () => abrirCardCorrida(corrNova);
   const tc = document.getElementById('termo-corr'); if (tc) tc.onclick = () => termometroCorrida(semNota, () => alunoHoje());
   if (S.me.sexo === 'F') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx || !c) return; bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
@@ -2221,6 +2225,163 @@ function formCorrida(alunoId, d, plano, onSalvo) {
 }
 
 /* ---------- detalhe de uma corrida ---------- */
+/* ---------- card da corrida para compartilhar (minimalista, estilo Strava/Garmin) ---------- */
+const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo'], ['fc', 'FC média'], ['elev', 'Subida'], ['cad', 'Cadência'], ['rota', 'Percurso'], ['data', 'Data'], ['logo', 'Logo Nexos']];
+const CARD_LAYOUTS = [['classico', 'Clássico'], ['destaque', 'Destaque'], ['linha', 'Linha'], ['percurso', 'Percurso']];
+const cardCarregarImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+function cardValores(c) {
+  const pace = paceDe(c);
+  return {
+    dist: c.distancia_m ? { l: 'Distância', v: (c.distancia_m / 1000).toFixed(2).replace('.', ','), u: 'km' } : null,
+    pace: pace ? { l: 'Pace', v: fmtPace(pace).replace('/km', ''), u: '/km' } : null,
+    tempo: c.duracao_s ? { l: 'Tempo', v: fmtDurLongo(c.duracao_s), u: '' } : null,
+    fc: c.fc_media ? { l: 'FC média', v: String(c.fc_media), u: 'bpm' } : null,
+    elev: c.elevacao_m ? { l: 'Subida', v: String(Math.round(c.elevacao_m)), u: 'm' } : null,
+    cad: c.cadencia ? { l: 'Cadência', v: String(c.cadencia), u: 'ppm' } : null,
+  };
+}
+function cardRota(ctx, rota, x, y, w, h, cor, lw) {
+  if (!rota || rota.length < 2) return false;
+  const lats = rota.map((p) => p[0]), lons = rota.map((p) => p[1]);
+  const la0 = Math.min(...lats), la1 = Math.max(...lats), lo0 = Math.min(...lons), lo1 = Math.max(...lons);
+  const k = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
+  const rw = Math.max((lo1 - lo0) * k, 1e-6), rh = Math.max(la1 - la0, 1e-6);
+  const s = Math.min(w / rw, h / rh), ox = x + (w - rw * s) / 2, oy = y + (h - rh * s) / 2;
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = cor; ctx.lineWidth = lw;
+  ctx.beginPath(); rota.forEach((p, i) => { const px = ox + (p[1] - lo0) * k * s, py = oy + rh * s - (p[0] - la0) * s; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
+  ctx.restore(); return true;
+}
+async function desenharCard(cv, c, o) {
+  const W = 1080, H = o.formato === 'post' ? 1350 : 1920; cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+  const branco = o.cor === 'branco';
+  const tx = branco ? '#ffffff' : '#0b1834', sub = branco ? 'rgba(255,255,255,.78)' : 'rgba(11,24,52,.62)';
+  if (o.fundo === 'foto' && o.img) {
+    const im = o.img, sc = Math.max(W / im.width, H / im.height);
+    ctx.drawImage(im, (W - im.width * sc) / 2, (H - im.height * sc) / 2, im.width * sc, im.height * sc);
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(0,0,0,.18)'); g.addColorStop(.5, 'rgba(0,0,0,.05)'); g.addColorStop(1, 'rgba(0,0,0,.5)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  } else if (o.fundo === 'nexos') {
+    const g = ctx.createLinearGradient(0, 0, W * .4, H); g.addColorStop(0, '#0d2a5e'); g.addColorStop(1, '#040a18'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  const sombra = branco && o.fundo !== 'nexos';
+  const FB = "'Manrope', system-ui, sans-serif";
+  const txt = (t, x, y, font, cor, al = 'center', esp = 0) => {
+    ctx.save(); ctx.font = font; ctx.fillStyle = cor; ctx.textAlign = al; ctx.textBaseline = 'alphabetic';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = esp + 'px';
+    if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 2; }
+    ctx.fillText(t, x, y); ctx.restore();
+  };
+  const larg = (t, font, esp = 0) => { ctx.save(); ctx.font = font; if ('letterSpacing' in ctx) ctx.letterSpacing = esp + 'px'; const w = ctx.measureText(t).width; ctx.restore(); return w; };
+  const V = cardValores(c);
+  const sel = ['dist', 'pace', 'tempo', 'fc', 'elev', 'cad'].filter((k) => o.stats[k] && V[k]).map((k) => V[k]);
+  const VAL = (px) => `800 ${px}px ${FB}`, LBL = (px) => `600 ${px}px ${FB}`;
+  // rótulo pequeno em caixa alta + número grande (unidade menor ao lado)
+  const stat = (s, x, y, px, al = 'center') => {
+    const fu = `700 ${Math.round(px * .4)}px ${FB}`, ev = -px * .02;
+    const wv = larg(s.v, VAL(px), ev), wu = s.u ? larg(s.u, fu) + px * .12 : 0, tot = wv + wu;
+    const x0 = al === 'center' ? x - tot / 2 : al === 'right' ? x - tot : x;
+    txt(s.l.toUpperCase(), al === 'center' ? x : al === 'right' ? x : x0, y, LBL(Math.max(26, Math.round(px * .3))), sub, al, px * .05);
+    txt(s.v, x0, y + px * 1.02, VAL(px), tx, 'left', ev);
+    if (s.u) txt(s.u, x0 + wv + px * .12, y + px * 1.02, fu, sub, 'left');
+  };
+  const linha = (lista, y, px, x0 = 90, x1 = W - 90) => {
+    const n = lista.length; if (!n) return y; const porLinha = n === 4 ? 2 : Math.min(3, n); let yy = y;
+    for (let i = 0; i < n; i += porLinha) { const parte = lista.slice(i, i + porLinha), cw = (x1 - x0) / parte.length; parte.forEach((s, j) => stat(s, x0 + cw * j + cw / 2, yy, px)); yy += px * 1.75; }
+    return yy;
+  };
+  const wm = o.stats.logo ? await cardCarregarImg(branco ? 'icons/wordmark.svg' : 'icons/wordmark-escuro.svg') : null;
+  const logo = (cx, y, w = 240) => { if (!wm) return; const h = w * (937.1 / 5645); ctx.save(); ctx.globalAlpha = .95; if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 12; } ctx.drawImage(wm, cx - w / 2, y, w, h); ctx.restore(); };
+  const dataTxt = o.stats.data ? `${fmtDia(c.data)} · ${fmtHora(c.data)}`.toUpperCase() : '';
+  const temRota = o.stats.rota && c.rota && c.rota.length > 1;
+  const post = o.formato === 'post';
+
+  if (o.layout === 'classico') { // coluna centrada: percurso, números e logo (o sticker clássico do Strava)
+    const px = post ? 90 : 104, passo = px * 1.85, hR = temRota ? (post ? 260 : 340) : 0;
+    const tot = (hR ? hR + 70 : 0) + sel.length * passo + (dataTxt ? 70 : 0) + (wm ? 90 : 0);
+    let y = (H - tot) / 2;
+    if (temRota) { cardRota(ctx, c.rota, W / 2 - 230, y, 460, hR, tx, 7); y += hR + 70; }
+    if (dataTxt) { txt(dataTxt, W / 2, y + 26, LBL(28), sub, 'center', 3); y += 70; }
+    sel.forEach((s) => { stat(s, W / 2, y + 30, px); y += passo; });
+    logo(W / 2, y + 20);
+  } else if (o.layout === 'destaque') { // um número gigante e o resto pequeno embaixo
+    const prim = sel[0], resto = sel.slice(1);
+    let y = H * (post ? .3 : .34);
+    if (dataTxt) txt(dataTxt, W / 2, y - 40, LBL(28), sub, 'center', 3);
+    if (prim) {
+      txt(prim.l.toUpperCase(), W / 2, y + 40, LBL(34), sub, 'center', 5);
+      const px = post ? 230 : 270; txt(prim.v, W / 2, y + 40 + px * .98, VAL(px), tx, 'center', -px * .03);
+      if (prim.u) txt(prim.u.replace('/', '').toUpperCase(), W / 2, y + 40 + px * .98 + 80, `800 46px ${FB}`, sub, 'center', 10);
+      y += 40 + px * .98 + 190;
+    }
+    y = linha(resto.slice(0, 3), y, post ? 70 : 78);
+    if (temRota) { const hr = post ? 0 : 300; if (hr) { cardRota(ctx, c.rota, W / 2 - 160, y + 10, 320, hr - 60, tx, 6); y += hr; } }
+    logo(W / 2, H - (post ? 110 : 150));
+  } else if (o.layout === 'linha') { // tudo numa faixa embaixo, a foto fica livre
+    if (o.fundo === 'foto') { const g = ctx.createLinearGradient(0, H * .55, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = g; ctx.fillRect(0, H * .55, W, H * .45); }
+    const lista = sel.slice(0, 3), px = 74;
+    let y = H - (post ? 120 : 170) - px * 1.4;
+    if (temRota) cardRota(ctx, c.rota, 90, y - 300, 260, 220, tx, 6);
+    if (wm) logo(W - 90 - 105, y - 150, 210);
+    if (dataTxt) txt(dataTxt, temRota ? 380 : 90, y - 120, LBL(26), sub, 'left', 3);
+    ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.35)' : 'rgba(11,24,52,.2)'; ctx.fillRect(90, y - 50, W - 180, 2); ctx.restore();
+    linha(lista, y + 10, px);
+  } else { // percurso grande no centro
+    const hr = post ? 600 : 900, yr = post ? 170 : 250;
+    if (temRota) cardRota(ctx, c.rota, 140, yr, W - 280, hr, tx, 9);
+    let y = yr + hr + (post ? 70 : 110);
+    if (dataTxt) { txt(dataTxt, W / 2, y, LBL(28), sub, 'center', 3); y += 70; }
+    y = linha(sel.slice(0, 3), y, post ? 72 : 80);
+    logo(W / 2, H - (post ? 100 : 150));
+  }
+}
+async function abrirCardCorrida(c) {
+  try { await Promise.all(["800 100px 'Unbounded'", "700 40px 'Manrope'"].map((f) => document.fonts.load(f))); } catch {}
+  let st = {}; try { st = JSON.parse(localStorage.getItem('nx-card') || '{}'); } catch {}
+  const V = cardValores(c);
+  const o = { layout: st.layout || 'classico', fundo: st.fundo || 'transparente', cor: st.cor || 'branco', formato: st.formato || 'story', img: null,
+    stats: Object.assign({ dist: true, pace: true, tempo: true, fc: false, elev: false, cad: false, rota: true, data: false, logo: true }, st.stats || {}) };
+  const seg = (k, ops, val) => `<div class="seg card-seg" data-o="${k}">${ops.map(([v, l]) => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  const disponivel = (k) => k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
+  openSheet(`<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">Card da corrida</div>
+    <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
+    <div class="field"><span>Fundo</span>${seg('fundo', [['transparente', 'Sem fundo'], ['foto', 'Foto'], ['nexos', 'Azul Nexos']], o.fundo)}</div>
+    <input type="file" accept="image/*" id="cd-foto" hidden>
+    <div class="field"><span>Layout</span>${seg('layout', CARD_LAYOUTS, o.layout)}</div>
+    <div class="grid2"><div class="field"><span>Formato</span>${seg('formato', [['story', 'Story'], ['post', 'Post']], o.formato)}</div><div class="field"><span>Cor do texto</span>${seg('cor', [['branco', 'Branco'], ['preto', 'Preto']], o.cor)}</div></div>
+    <div class="field"><span>O que aparece</span><div class="chips wrap" id="cd-stats">${CARD_STATS.filter(([k]) => disponivel(k)).map(([k, l]) => `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="row" style="gap:8px;margin-top:6px"><button class="btn grow" id="cd-share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> Compartilhar</button><button class="btn ghost" id="cd-down">Baixar</button></div>
+    <p class="tiny dim" style="margin-top:8px" id="cd-dica"></p>`, (r) => {
+    const cv = r.querySelector('#cd-cv'), prev = r.querySelector('#cd-prev'), inp = r.querySelector('#cd-foto'), dica = r.querySelector('#cd-dica');
+    const salvar = () => { try { localStorage.setItem('nx-card', JSON.stringify({ layout: o.layout, fundo: o.fundo === 'foto' ? 'transparente' : o.fundo, cor: o.cor, formato: o.formato, stats: o.stats })); } catch {} };
+    const pinta = async () => {
+      prev.classList.toggle('xadrez', o.fundo === 'transparente'); prev.classList.toggle('post', o.formato === 'post');
+      dica.textContent = o.fundo === 'transparente' ? 'Sem fundo: a imagem sai transparente. No story do Instagram, cole por cima da sua foto (sticker).' : o.fundo === 'foto' && !o.img ? 'Toque em “Foto” para escolher a imagem de fundo.' : '';
+      await desenharCard(cv, c, o);
+    };
+    r.querySelectorAll('.card-seg').forEach((sg) => sg.onclick = (e) => {
+      const b = e.target.closest('button'); if (!b) return; const k = sg.dataset.o;
+      if (k === 'fundo' && b.dataset.v === 'foto') { inp.click(); if (!o.img) return; }
+      o[k] = b.dataset.v; if (k === 'fundo' && o.fundo === 'foto') o.cor = 'branco';
+      if (k === 'fundo' && o.fundo === 'nexos') o.cor = 'branco';
+      r.querySelectorAll('.card-seg').forEach((x) => x.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y.dataset.v === o[x.dataset.o])));
+      salvar(); pinta();
+    });
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const url = URL.createObjectURL(f); cardCarregarImg(url).then((im) => { if (!im) return toast('Não foi possível abrir a foto.', true); o.img = im; o.fundo = 'foto'; o.cor = 'branco'; r.querySelectorAll('.card-seg').forEach((x) => x.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y.dataset.v === o[x.dataset.o]))); pinta(); }); };
+    r.querySelector('#cd-stats').onchange = (e) => { o.stats[e.target.value] = e.target.checked; salvar(); pinta(); };
+    const blob = () => new Promise((res) => cv.toBlob(res, 'image/png'));
+    const nomeArq = `nexos-corrida-${isoDia(c.data)}.png`;
+    const marcar = () => { try { localStorage.setItem('nx-card-' + c.id, '1'); } catch {} };
+    r.querySelector('#cd-down').onclick = async () => { const b = await blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = nomeArq; document.body.append(a); a.click(); a.remove(); marcar(); toast('Imagem salva!'); };
+    r.querySelector('#cd-share').onclick = async () => {
+      const b = await blob(); const file = new File([b], nomeArq, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); marcar(); } catch (e) { if (e.name !== 'AbortError') toast('Não foi possível compartilhar. Use “Baixar”.', true); } }
+      else r.querySelector('#cd-down').click();
+    };
+    pinta();
+  });
+}
+
 async function viewCorrida(id) {
   loading();
   const { data: c } = await sb.from('nx_corridas').select('*').eq('id', id).maybeSingle();
@@ -2239,6 +2400,7 @@ async function viewCorrida(id) {
     <div class="row between"><a class="back" href="${voltar}" style="margin:0">${I.back} ${S.staff ? esc(nome) : 'Corridas'}</a>${S.staff ? `<a class="btn ghost sm" href="#/aluno/${c.aluno_id}/conversa">${I.feed} Comentar</a>` : ''}</div>
     <p class="eyebrow" style="margin-top:16px">${esc((TIPOS_ATIV.find((t) => t[0] === c.tipo) || [, 'Corrida'])[1])} · ${fmtDia(c.data)} · ${fmtHora(c.data)}${c.fonte === 'garmin' ? ' · Garmin' : ''}</p>
     <h1 class="h1">${esc(c.titulo && !/^\d/.test(c.titulo) ? c.titulo : fmtKm(c.distancia_m))}</h1>
+    ${!S.staff && c.distancia_m ? `<button class="card-cta" id="gerar-card"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Gerar card para o story</b><span class="small">Com foto de fundo ou sem fundo, do jeito do Strava</span></div>${I.chev}</button>` : ''}
     <div class="metrics">
       <div class="metric"><span>Distância</span><b>${fmtKm(c.distancia_m).replace(' km', '')}<small>km</small></b></div>
       <div class="metric"><span>Tempo</span><b>${fmtDurLongo(c.duracao_s)}</b></div>
@@ -2258,6 +2420,7 @@ async function viewCorrida(id) {
     ${c.rota ? `<div class="section"><div class="section-h"><h2 class="h2">Percurso</h2>${slashes}</div><div class="card rota-box">${rotaSVG(c.rota)}</div></div>` : ''}
     ${parc.length ? `<div class="section"><div class="section-h"><h2 class="h2">Parciais</h2>${slashes}</div><div class="card"><div class="splits">${parc.map((p) => { const v = pk(p); const w = pMax > pMin ? 35 + (65 * (pMax - v)) / (pMax - pMin) : 100; return `<div><span>${p.parcial ? String(p.km).replace('.', ',') : 'km ' + p.km}</span><i style="width:${w.toFixed(0)}%"></i><b>${fmtPace(v).replace('/km', '')}</b><em>${p.fc ? p.fc + ' bpm' : ''}</em></div>`; }).join('')}</div></div></div>` : ''}
     <p class="tiny dim" style="margin-top:18px">Fonte: ${c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
+  const gc = document.getElementById('gerar-card'); if (gc) gc.onclick = () => abrirCardCorrida(c);
   document.getElementById('apagar-c').onclick = async () => {
     if (!confirm('Apagar esta corrida?')) return;
     const { error } = await sb.from('nx_corridas').delete().eq('id', c.id);
