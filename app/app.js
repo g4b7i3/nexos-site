@@ -649,6 +649,7 @@ async function alunoHoje() {
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
       <div class="small muted">${[rs.km ? f1(rs.km) + ' km' : '', rs.seg ? fmtDur(rs.seg) : ''].filter(Boolean).join(' · ')}</div>
       <p class="small" style="margin-top:6px">${esc(descreverEstrutura(est, perfC))}</p>
+      ${sobreTreino(p.tipo) ? `<p class="small muted sobre-t">${esc(sobreTreino(p.tipo))}</p>` : ''}
       <div class="row" style="gap:8px;margin-top:12px">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<button class="btn sm" data-reg="${p.id}">${I.plus} Registrar corrida</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
   const cardMusc = prox ? (muscHoje
@@ -2050,6 +2051,20 @@ const TIPOS_CORRIDA = [
 ];
 const ZONAS_PACE = [['leve', 'Z2 · Leve (conversando)'], ['maratona', 'Z3 · Moderado (ritmo de maratona)'], ['limiar', 'Z4 · Limiar (forte e contínuo)'], ['intervalado', 'Z5 · Forte (VO₂máx)'], ['tiros', 'Z6 · Máximo (velocidade)']];
 const TIPOS_ATIV = [['corrida', 'Corrida de rua'], ['trail', 'Trail'], ['esteira', 'Esteira'], ['caminhada', 'Caminhada']];
+// explicação curta de cada tipo de treino (aparece para o aluno no app e no Garmin Connect)
+const SOBRE_TREINO = {
+  rodagem: 'Corrida contínua em ritmo leve, dá para conversar. Serve para construir base aeróbica sem desgastar.',
+  regenerativo: 'Trote bem leve para soltar as pernas e recuperar do treino anterior. Na dúvida, vá mais devagar.',
+  longao: 'Corrida longa em ritmo confortável. O objetivo é terminar bem, não rápido. Leve água se passar de 1 hora.',
+  ritmo: 'Trecho contínuo forte, no limite do confortável: só dá para falar frases curtas. Segure o mesmo pace do início ao fim.',
+  intervalado: 'Blocos fortes com recuperação entre eles. Faça todos no mesmo ritmo, sem queimar o primeiro. A recuperação também é treino.',
+  tiros: 'Tiros curtos e rápidos, perto do máximo. Aqueça bem antes e recupere direito entre um tiro e outro.',
+  fartlek: 'Corrida com trocas de ritmo: trechos mais fortes alternados com trechos leves, sem parar de correr.',
+  prova: 'Dia de prova. Aqueça, largue controlado e vá soltando aos poucos. Confie no que você treinou.',
+  teste: 'Teste no seu máximo sustentável, para medir sua evolução e ajustar seus paces. Aqueça bem antes de começar.',
+  folga: 'Dia de descanso da corrida. É no descanso que o corpo assimila o treino.',
+};
+const sobreTreino = (k) => SOBRE_TREINO[k] || '';
 const nomeTipo = (k) => (TIPOS_CORRIDA.find((t) => t[0] === k) || [, k || 'Corrida'])[1];
 const fmtKm = (m, d = 2) => m == null ? '–' : (m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: d }) + ' km';
 const fmtDur = (s) => { if (s == null) return '–'; s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${h}h${String(m).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
@@ -2797,10 +2812,11 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
   const pega = (cam) => { const [a, b] = String(cam).split('.').map(Number); return b == null ? { lista: t.estrutura, i: a } : { lista: t.estrutura[a].passos, i: b }; };
   openSheet(`<p class="eyebrow">${sessao ? 'Editar treino' : 'Novo treino'} · ${fmtDia(base.data)}</p>
     <div class="grid2" style="margin-top:10px"><label class="field"><span>Nome do treino</span><input class="input" id="t-nome" value="${esc(t.titulo || '')}" placeholder="Ex.: 6 × 800 m"></label><label class="field"><span>Tipo</span><select class="input" id="t-tipo">${TIPOS_CORRIDA.map(([k, l]) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    <p class="small muted sobre-ed" id="t-sobre">${esc(sobreTreino(t.tipo))}</p>
     <div class="card perf-card"><div id="perf"></div><div class="row between" style="margin-top:8px"><span class="small" id="tot"></span><span class="legenda">${Object.entries(ZONAS_INFO).map(([, z]) => `<i style="background:${z.c}" title="${z.n}"></i>`).join('')}</span></div><p class="tiny dim" id="desc-auto" style="margin-top:6px"></p></div>
     <div id="passos" class="passos"></div>
     <div class="add-passos">${Object.entries(PASSOS).map(([k, l]) => `<button type="button" class="chip" data-add="${k}">+ ${l}</button>`).join('')}<button type="button" class="chip" data-add="rep">+ Série (repetir)</button></div>
-    <label class="field" style="margin-top:14px"><span>Orientações para o aluno (opcional)</span><textarea class="textarea" id="t-desc" placeholder="Ex.: terreno plano, hidrate a cada 20 min">${esc(t.descricao || '')}</textarea></label>
+    <label class="field" style="margin-top:14px"><span>Sua observação para o aluno (opcional)</span><textarea class="textarea" id="t-desc" placeholder="Ex.: terreno plano, hidrate a cada 20 min">${esc(t.descricao || '')}</textarea></label>
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn grow" id="t-salvar">Salvar treino ${I.check}</button>${sessao ? '<button class="btn ghost" id="t-dup">Duplicar</button>' : ''}</div>
     <div class="row between" style="margin-top:10px"><button class="link-btn small" id="t-modelo">Salvar como modelo</button>${sessao ? '<button class="link-btn small" id="t-del" style="color:var(--err)">Excluir treino</button>' : ''}</div>`, (r) => {
     desenhar(r);
@@ -2839,6 +2855,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       d.lista.splice(desce ? idx + 1 : idx, 0, mov); desenhar(r);
     } });
     const lerTopo = () => { t.titulo = r.querySelector('#t-nome').value.trim(); t.tipo = r.querySelector('#t-tipo').value; t.descricao = r.querySelector('#t-desc').value.trim(); };
+    r.querySelector('#t-tipo').addEventListener('change', (e) => { r.querySelector('#t-sobre').textContent = sobreTreino(e.target.value); });
     const linha = () => { lerTopo(); const rs = resumoEstrutura(t.estrutura, perfil); const zs = achatar(t.estrutura, perfil).filter((s) => s.k === 'co').sort((a, b) => b.seg - a.seg); return { data: t.data, tipo: t.tipo, titulo: t.titulo || null, estrutura: t.estrutura, distancia_km: Math.round(rs.km * 10) / 10, duracao_min: Math.round(rs.seg / 60), zona: zs[0] ? (zs[0].z === 'rec' ? 'leve' : zs[0].z) : null, descricao: t.descricao || null }; };
     r.querySelector('#t-salvar').onclick = async (e) => {
       if (!t.estrutura.length) return toast('Adicione pelo menos um passo.', true);
@@ -2868,9 +2885,10 @@ function verTreinoPlanilha(p, perfil, feito) {
   const est = estruturaDe(p); const rs = resumoEstrutura(est, perfil);
   const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pz = s.z !== 'rec' && perfil.paces && perfil.paces[s.z]; const pzt = paceZonaTxt(s.z, perfil); const km = s.med === 'km' ? s.v : s.med === 'm' ? s.v / 1000 : 0; const alvoT = pz && km && km < 3 ? ` <em class="alvo-t">≈ ${fmtDur(km * pz[0])}–${fmtDur(km * pz[1])} cada</em>` : ''; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
   openSheet(`<p class="eyebrow">${fmtDia(p.data)} · ${esc(nomeTipo(p.tipo))}</p><div class="h2" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
+    ${sobreTreino(p.tipo) ? `<p class="small muted" style="margin-top:6px">${esc(sobreTreino(p.tipo))}</p>` : ''}
     <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px"><b>${f1(rs.km)} km</b> · cerca de ${fmtDur(rs.seg)}</p></div>
     <div class="stack" style="margin-top:12px">${est.map((s) => s.k === 'rep' ? `<div class="serie-v"><b>Repita ${s.n} vezes:</b>${(s.passos || []).map((x) => passoH(x)).join('')}</div>` : passoH(s)).join('')}</div>
-    ${p.descricao ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Orientações</span><p style="margin-top:6px;white-space:pre-line">${esc(p.descricao)}</p></div>` : ''}
+    ${p.descricao ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Observação do treinador</span><p style="margin-top:6px;white-space:pre-line">${esc(p.descricao)}</p></div>` : ''}
     ${feito ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:14px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>` : `<button class="btn block" id="reg-agora" style="margin-top:14px">${I.plus} Registrar esta corrida</button>`}
     ${!feito && !S.staff && p.data >= hojeISO() && est.length ? `<button class="btn ghost block gar-btn" id="gar-env" style="margin-top:8px" hidden>${RELOGIO_IC} ${p.garmin_enviado_em ? 'Já está no seu Garmin ✓ · reenviar' : 'Enviar para o meu Garmin'}</button>` : ''}
     <button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`, (r) => {
@@ -3352,7 +3370,7 @@ function garminItem(p, perfil) {
     const [pmin, pmax] = solto ? [null, null] : faixa(s.z);
     return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: zi.n };
   };
-  const desc = [descreverEstrutura(est, perfil), p.descricao || ''].filter(Boolean).join('\n');
+  const desc = [sobreTreino(p.tipo), p.descricao ? 'Treinador: ' + p.descricao : ''].filter(Boolean).join('\n\n');
   return { plano_id: p.id, data: p.data, nome: p.titulo || nomeTipo(p.tipo), descricao: desc, passos: est.map((s) => s.k === 'rep' ? { repetir: s.n || 1, passos: (s.passos || []).map((x) => conv(x, true)) } : conv(s, false)) };
 }
 /** manda ao Garmin os treinos liberados (de hoje em diante) que ainda não estão lá — uma vez por sessão por aluno */
