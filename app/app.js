@@ -3480,6 +3480,8 @@ async function viewConexoes(ret) {
   loading(); dockAluno();
   const integs = await sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em').eq('user_id', S.user.id).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []);
   const integ = integs.find((x) => x.provedor === 'intervals') || null, garm = integs.find((x) => x.provedor === 'garmin') || null;
+  let marcaInt = null; try { marcaInt = localStorage.getItem('nx-marca'); } catch {}
+  if (!MARCA_NOME[marcaInt] || marcaInt === 'garmin' || marcaInt === 'outro') marcaInt = null;
   if (ret) {
     const ok = /ok$/.test(ret), g = ret.startsWith('garmin');
     toast(g ? (ok ? 'Garmin conectado! Suas corridas chegam sozinhas e os treinos vão para o relógio.' : 'Não foi possível conectar o Garmin. Tente de novo.') : (ok ? 'Intervals.icu conectado! Buscando suas corridas…' : 'Não foi possível conectar o Intervals.icu.'), !ok);
@@ -3489,16 +3491,56 @@ async function viewConexoes(ret) {
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
     <p class="eyebrow">Conexões</p><h1 class="h1">Seus aparelhos</h1>
     <p class="muted" style="margin-top:6px">Conecte o seu relógio uma vez: as corridas entram sozinhas no app${garm ? ' e os treinos da planilha vão para o relógio' : ''}.</p>
-    <div class="section"><div class="section-h"><h2 class="h2">Garmin</h2>${slashes}</div><div id="garmin-box">${garminCardHTML(garm, false)}</div></div>
-    <div class="section"><div class="section-h"><h2 class="h2">Outros relógios</h2>${slashes}</div><p class="small muted" style="margin:-4px 0 10px">Coros, Polar, Suunto, Wahoo e outros, pelo Intervals.icu (gratuito).</p><div id="intervals-box">${intervalsCardHTML(integ, false).replace('Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.', 'Tem Garmin? Use a conexão Garmin acima, que é direta e oficial.')}</div></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Seu relógio</h2>${slashes}</div><p class="small muted" style="margin:-4px 0 12px">Toque na marca do seu relógio.</p>
+      <div class="marcas">${MARCAS.map(([k, nome]) => { const on = (k === 'garmin' && garm) || (k !== 'garmin' && k !== 'outro' && integ && marcaInt === k); return `<button type="button" class="marca${on ? ' on' : ''}" data-marca="${k}">${marcaLogo(k, nome)}${on ? '<span class="marca-ok">Conectado ✓</span>' : ''}</button>`; }).join('')}</div>
+      ${garm || integ ? `<div class="stack" style="margin-top:12px">${garm ? `<div id="garmin-box">${garminCardHTML(garm, false)}</div>` : ''}${integ ? `<div id="intervals-box">${intervalsCardHTML(integ, false).replace('Intervals.icu conectado ✓', `${esc(MARCA_NOME[marcaInt] || 'Relógio')} conectado ✓ <span class="tiny dim">pelo Intervals.icu</span>`)}</div>` : ''}</div>` : ''}
+    </div>
     <div class="section"><div class="section-h"><h2 class="h2">Sem conexão?</h2>${slashes}</div><button class="list-item" id="cx-arq" style="width:100%;text-align:left"><span class="ativ-ic">${I.plus}</span><div class="grow"><b>Enviar o arquivo do relógio</b><div class="small muted">.FIT, .GPX ou .TCX, ou digite distância e tempo</div></div>${I.chev}</button></div>
     <div class="section"><div class="section-h"><h2 class="h2">Instalar o aplicativo</h2>${slashes}</div><p class="small muted" style="margin:-4px 0 10px">Tenha a Nexos na tela de início do celular, abrindo como um aplicativo e recebendo notificações.</p><div id="inst-box">${instalarHTML()}</div></div>`;
   bindInstalar($app);
   const recarregar = () => viewConexoes();
-  bindGarmin(document.getElementById('garmin-box'), recarregar);
-  bindIntervals(document.getElementById('intervals-box'), integ, false, S.user.id, recarregar);
+  if (document.getElementById('garmin-box')) bindGarmin(document.getElementById('garmin-box'), recarregar);
+  if (document.getElementById('intervals-box')) bindIntervals(document.getElementById('intervals-box'), integ, false, S.user.id, recarregar);
+  $app.querySelectorAll('[data-marca]').forEach((b) => b.onclick = () => abrirMarca(b.dataset.marca, garm, integ, marcaInt, recarregar));
   document.getElementById('cx-arq').onclick = () => registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; });
   if (integ && (!integ.ultima_sync || Date.now() - new Date(integ.ultima_sync) > 30 * 60000)) sincronizarIntervals(S.user.id).then((n) => { if (n > 0) toast(`${n} corrida${n > 1 ? 's' : ''} nova${n > 1 ? 's' : ''} do relógio`); }).catch(() => {});
+}
+
+/* ---------- marcas de relógio: Garmin pela API oficial; as outras pelo Intervals.icu ---------- */
+const MARCAS = [['garmin', 'Garmin'], ['coros', 'Coros'], ['polar', 'Polar'], ['suunto', 'Suunto'], ['wahoo', 'Wahoo'], ['outro', 'Outro relógio']];
+const MARCA_NOME = Object.fromEntries(MARCAS);
+// logo oficial se o arquivo existir em icons/marcas/<marca>.png; senão, o nome da marca
+const marcaLogo = (k, nome) => k === 'outro' ? `<span class="marca-txt outro">${I.plus}<small>${nome}</small></span>` : `<img class="marca-img" src="icons/marcas/${k}.png" alt="${nome}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'marca-txt',textContent:'${nome}'}))">`;
+function abrirMarca(k, garm, integ, marcaInt, recarregar) {
+  const nome = MARCA_NOME[k];
+  const fechar = () => { closeSheet(); recarregar(); };
+  if (k === 'garmin') {
+    openSheet(`<div class="marca-topo">${marcaLogo(k, nome)}</div><div class="h2" style="margin-top:10px">Garmin</div>
+      ${integ && !garm ? `<p class="aviso-dup">Você já conectou um relógio pelo Intervals.icu. Se esse relógio também for Garmin, use só uma das conexões para as corridas não entrarem duas vezes.</p>` : ''}
+      <div id="m-box" style="margin-top:12px">${garminCardHTML(garm, false)}</div>`, (r) => bindGarmin(r.querySelector('#m-box'), fechar));
+    return;
+  }
+  if (k === 'outro') {
+    openSheet(`<div class="h2">Outro relógio</div><p class="small muted" style="margin-top:6px">Amazfit, Apple Watch, Samsung, Xiaomi ou app de celular: envie o arquivo da corrida ou digite os dados.</p>
+      <button class="btn block" id="m-arq" style="margin-top:14px">${I.plus} Registrar uma corrida</button>
+      <p class="tiny dim" style="margin-top:10px"><b>Apple Watch:</b> o app HealthFit (iPhone) exporta a corrida em .FIT. <b>Amazfit/Zepp:</b> exporte pelo Strava ou pelo próprio app em .GPX.</p>`, (r) => { r.querySelector('#m-arq').onclick = () => { closeSheet(); registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; }); }; });
+    return;
+  }
+  const ligado = integ && (!marcaInt || marcaInt === k);
+  openSheet(`<div class="marca-topo">${marcaLogo(k, nome)}</div><div class="h2" style="margin-top:10px">${nome}</div>
+    ${garm ? `<p class="aviso-dup">Você já conectou um Garmin. Se for usar o ${nome}, desconecte o Garmin para as corridas não entrarem duas vezes.</p>` : ''}
+    ${ligado ? `<div id="m-box" style="margin-top:12px">${intervalsCardHTML(integ, false).replace('Intervals.icu conectado ✓', `${nome} conectado ✓ <span class="tiny dim">pelo Intervals.icu</span>`)}</div>`
+      : integ ? `<p class="aviso-dup">Você já tem um relógio conectado pelo Intervals.icu. Para trocar para o ${nome}, conecte o ${nome} lá no Intervals (Configurações → Conexões). As corridas dele já vão chegar por esta mesma conexão.</p>`
+      : `<p class="small muted" style="margin-top:6px">O ${nome} chega ao app pelo <b>Intervals.icu</b>, um site gratuito que recebe as corridas do seu relógio. É só fazer uma vez:</p>
+      <ol class="passos-marca">
+        <li>Crie uma conta grátis no <a href="https://intervals.icu" target="_blank" rel="noopener">intervals.icu</a> (pode entrar com o Google).</li>
+        <li>Lá, abra <b>Configurações → Conexões</b> e conecte o seu <b>${nome}</b>.</li>
+        <li>Volte aqui e toque no botão abaixo para autorizar.</li></ol>
+      <div id="m-box"><button class="btn block" id="int-on">Conectar ${nome}</button></div>
+      <p class="tiny dim" style="margin-top:8px">Depois de conectado, cada corrida nova entra no app com gráficos, voltas, zonas e mapa.</p>`}`, (r) => {
+    const on = r.querySelector('#int-on'); if (on) on.addEventListener('click', () => { try { localStorage.setItem('nx-marca', k); } catch {} }, true);
+    const box = r.querySelector('#m-box'); if (box) bindIntervals(box, integ, false, S.user.id, fechar);
+  });
 }
 
 /* ---------- Garmin Connect (conexão oficial) ---------- */
