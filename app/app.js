@@ -2456,8 +2456,8 @@ function cardRota(ctx, rota, x, y, w, h, cor, lw, brilho = false) {
 }
 const ret = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
 async function desenharCard(cv, c, o) {
-  const W = 1080, H = o.formato === 'post' ? 1350 : 1920; cv.width = W; cv.height = H;
-  const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+  const W = 1080, H = o.formato === 'post' ? 1350 : 1920; const esc = o.escala || 1; cv.width = W * esc; cv.height = H * esc;
+  const ctx = cv.getContext('2d'); ctx.setTransform(esc, 0, 0, esc, 0, 0); ctx.imageSmoothingQuality = 'high'; ctx.clearRect(0, 0, W, H);
   const branco = o.cor === 'branco', post = o.formato === 'post';
   const tx = branco ? '#ffffff' : '#0b1834', sub = branco ? 'rgba(255,255,255,.74)' : 'rgba(11,24,52,.6)';
   const AC = branco ? '#46d6ff' : '#0b62d6'; // ciano da marca (no texto preto, o azul Nexos)
@@ -2821,7 +2821,8 @@ async function abrirCardCorrida(c, plano) {
     r.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => { o.zoom *= Number(b.dataset.z) > 0 ? 1.12 : 1 / 1.12; limita(); redesenha(); });
     r.querySelector('#cd-reset').onclick = () => { o.zoom = 1; o.dx = 0; o.dy = 0; redesenha(); };
     r.querySelector('#cd-stats').onchange = (e) => { o.stats[e.target.value] = e.target.checked; salvar(); pinta(); };
-    const blob = () => new Promise((res) => cv.toBlob(res, 'image/png'));
+    // a imagem salva sai em alta definição (2160 × 3840 no story), mesmo a prévia sendo menor
+    const blob = async () => { const hd = document.createElement('canvas'); await desenharCard(hd, c, { ...o, escala: 2 }); return await new Promise((res) => hd.toBlob(res, 'image/png')); };
     const nomeArq = `nexos-corrida-${isoDia(c.data)}.png`;
     const marcar = () => { try { localStorage.setItem('nx-card-' + c.id, '1'); } catch {} };
     r.querySelector('#cd-down').onclick = async () => { const b = await blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = nomeArq; document.body.append(a); a.click(); a.remove(); marcar(); toast('Imagem salva!'); };
