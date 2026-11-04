@@ -2372,7 +2372,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
 const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo'], ['fc', 'FC média'], ['elev', 'Subida'], ['cad', 'Cadência'], ['kcal', 'Calorias'], ['passos', 'Passos'], ['rota', 'Percurso'], ['data', 'Data'], ['logo', 'Logo Nexos']];
 // modelos do card (inspirados nos stickers de corrida, com a cara da Nexos)
 const CARD_LAYOUTS = [
-  ['icones', 'Com ícones'], ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
+  ['icones', 'Com ícones'], ['clima', 'Clima'], ['clima_faixa', 'Clima + números'], ['tiros', 'Tiros'], ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
   ['sobre', 'Mapa + números'], ['tabela', 'Ficha'], ['ficha_mapa', 'Ficha + mapa'], ['lateral', 'Diagonal'], ['pilulas', 'Número de peito'],
   ['parciais', 'Parciais'], ['recibo', 'Medalha'], ['destaque', 'Destaque'], ['linha', 'Na foto'],
 ];
@@ -2393,6 +2393,38 @@ function cardValores(c) {
     passos: E.passos ? { l: 'Passos', v: Math.round(E.passos).toLocaleString('pt-BR'), u: '' } : null,
   };
 }
+// voltas fortes (tiros): separa as voltas rápidas das de recuperação pelo pace
+function tirosDe(c) {
+  const vs = ((c.analise && c.analise.voltas) || []).filter((v) => v && v.d >= 100 && v.seg > 0).map((v, i) => ({ ...v, i, p: v.seg / (v.d / 1000) }));
+  if (vs.length < 3) return [];
+  const ord = vs.map((v) => v.p).sort((a, b) => a - b);
+  let corte = null, maior = 1;
+  for (let i = 1; i < ord.length; i++) { const r = ord[i] / ord[i - 1]; if (r > maior) { maior = r; corte = (ord[i] + ord[i - 1]) / 2; } }
+  if (maior < 1.12 || corte == null) return [];
+  const fortes = vs.filter((v) => v.p < corte);
+  return fortes.length >= 2 && fortes.length < vs.length ? fortes.slice(0, 10) : [];
+}
+// clima da hora e do lugar da corrida (Open-Meteo, sem chave); se não der, a temperatura do relógio
+const CLIMA_CACHE = {};
+async function climaDe(c) {
+  if (CLIMA_CACHE[c.id] !== undefined) return CLIMA_CACHE[c.id];
+  const E = (c.analise && c.analise.extras) || {};
+  const doRelogio = E.temp_med != null ? { temp: Math.round(E.temp_med), fonte: 'relogio' } : null;
+  let res = doRelogio;
+  try {
+    const p0 = c.rota && c.rota[0]; if (!p0) throw 0;
+    const dt = new Date(c.data), dia = isoDia(dt), antigo = Date.now() - dt.getTime() > 80 * 864e5;
+    const base = antigo ? 'https://archive-api.open-meteo.com/v1/archive' : 'https://api.open-meteo.com/v1/forecast';
+    const url = `${base}?latitude=${p0[0]}&longitude=${p0[1]}&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&start_date=${dia}&end_date=${dia}&timezone=auto`;
+    const r = await fetch(url); if (!r.ok) throw 0; const j = await r.json();
+    const meio = new Date(dt.getTime() + (c.duracao_s || 0) * 500); const hh = meio.getHours();
+    const k = Math.max(0, Math.min(23, (j.hourly.time || []).findIndex((t) => +t.slice(11, 13) === hh)));
+    const h = j.hourly;
+    if (h.temperature_2m[k] != null) res = { temp: Math.round(h.temperature_2m[k]), sens: Math.round(h.apparent_temperature[k]), umid: Math.round(h.relative_humidity_2m[k]), vento: Math.round(h.wind_speed_10m[k]), cod: h.weather_code[k], dia: h.is_day[k] !== 0, fonte: 'clima' };
+  } catch {}
+  CLIMA_CACHE[c.id] = res; return res;
+}
+const climaTxt = (cod) => cod == null ? '' : cod === 0 ? 'Céu limpo' : cod <= 2 ? 'Poucas nuvens' : cod === 3 ? 'Nublado' : cod <= 48 ? 'Neblina' : cod <= 57 ? 'Garoa' : cod <= 67 ? 'Chuva' : cod <= 77 ? 'Neve' : cod <= 82 ? 'Pancadas de chuva' : 'Trovoada';
 function cardRota(ctx, rota, x, y, w, h, cor, lw, brilho = false) {
   if (!rota || rota.length < 2) return false;
   const lats = rota.map((p) => p[0]), lons = rota.map((p) => p[1]);
@@ -2480,7 +2512,68 @@ async function desenharCard(cv, c, o) {
     if (L === 'icones' || L === 'mapa') txt('NEXOS · PERFORMANCE E SAÚDE', W / 2, H - (post ? 44 : 64), `500 22px ${FM}`, sub, 'center', 6);
   };
 
-  if (L === 'icones') { // grade 2 colunas com ícone em cima de cada número
+  const clima = o.clima;
+  const iconeClima = (cx, cy, r) => { // sol, lua, nuvem e chuva desenhados
+    const cod = clima && clima.cod, dia = !clima || clima.dia !== false;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const sol = cod == null || cod <= 2;
+    if (sol) {
+      if (dia) { ctx.fillStyle = '#ffcf5c'; ctx.beginPath(); ctx.arc(cx, cy, r * .42, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#ffcf5c'; ctx.lineWidth = r * .09; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r * .6, cy + Math.sin(a) * r * .6); ctx.lineTo(cx + Math.cos(a) * r * .82, cy + Math.sin(a) * r * .82); ctx.stroke(); } }
+      else { ctx.fillStyle = '#dfe8ff'; ctx.beginPath(); ctx.arc(cx, cy, r * .5, 0, Math.PI * 2); ctx.fill(); ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.arc(cx + r * .25, cy - r * .18, r * .45, 0, Math.PI * 2); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+    }
+    if (cod == null || cod >= 1) { // nuvem
+      const nx = sol ? cx + r * .25 : cx, ny = sol ? cy + r * .28 : cy; ctx.fillStyle = branco ? '#ffffff' : '#c9d6ea';
+      ctx.beginPath(); ctx.arc(nx - r * .3, ny, r * .26, 0, Math.PI * 2); ctx.arc(nx, ny - r * .14, r * .34, 0, Math.PI * 2); ctx.arc(nx + r * .32, ny + r * .02, r * .24, 0, Math.PI * 2); ctx.rect(nx - r * .3, ny, r * .62, r * .26); ctx.fill();
+      if (cod != null && cod >= 51) { ctx.strokeStyle = AC; ctx.lineWidth = r * .08; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(nx + k * r * .25, ny + r * .42); ctx.lineTo(nx + k * r * .25 - r * .08, ny + r * .66); ctx.stroke(); } }
+    }
+    ctx.restore();
+  };
+  if (L === 'clima') { // temperatura em destaque, com sensação, umidade e vento
+    let y = post ? 120 : 330;
+    simbolo(W / 2, y, 220); y += 170;
+    if (clima) {
+      iconeClima(W / 2, y + 120, 130); y += 290;
+      const tt = `${clima.temp}°`; txt(tt, W / 2 + 30, y + 190, `800 ${post ? 220 : 260}px ${FH}`, tx, 'center', -10); y += 240;
+      txt(clima.fonte === 'clima' ? (climaTxt(clima.cod) || 'Temperatura').toUpperCase() : 'TEMPERATURA (RELÓGIO)', W / 2, y, LBL(30), AC, 'center', 6); y += 70;
+      const det = [clima.sens != null ? { l: 'Sensação', v: `${clima.sens}°`, u: '' } : null, clima.umid != null ? { l: 'Umidade', v: `${clima.umid}`, u: '%' } : null, clima.vento != null ? { l: 'Vento', v: `${clima.vento}`, u: 'km/h' } : null].filter(Boolean);
+      if (det.length) y = grade(det, y + 10, 60, 90, W - 90, 3, 'center');
+    } else { txt('Buscando o clima…', W / 2, y + 200, LBL(34), sub, 'center'); y += 400; }
+    ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.25)' : 'rgba(11,24,52,.15)'; ctx.fillRect(140, y + 10, W - 280, 2); ctx.restore();
+    grade(sel.slice(0, 3), y + 60, 64, 70, W - 70, 3, 'center');
+  } else if (L === 'clima_faixa') { // números da corrida com uma etiqueta do clima
+    const lista = sel.slice(0, 3); let y = (H - 620) / 2;
+    simbolo(80, y, 200, 'left'); y += 150;
+    if (clima) {
+      const t = `${clima.temp}°C`, extra = [clima.fonte === 'clima' ? climaTxt(clima.cod) : 'relógio', clima.umid != null ? `${clima.umid}% umidade` : '', clima.vento != null ? `vento ${clima.vento} km/h` : ''].filter(Boolean).join(' · ');
+      const fs = 36, wT = larg(t, `800 46px ${FH}`) + larg(extra, `600 ${fs}px ${FB}`) + 200;
+      ctx.save(); ctx.strokeStyle = tx; ctx.globalAlpha = .55; ctx.lineWidth = 3; ret(ctx, 80, y, Math.min(W - 160, wT), 110, 55); ctx.stroke(); ctx.restore();
+      iconeClima(140, y + 55, 70);
+      txt(t, 200, y + 72, `800 46px ${FH}`, tx, 'left', -1);
+      txt(extra, 200 + larg(t, `800 46px ${FH}`) + 26, y + 68, `600 ${fs}px ${FB}`, sub, 'left');
+    }
+    y += 190;
+    grade(lista, y, 76, 80, W - 80, 3, 'left');
+  } else if (L === 'tiros') { // só as voltas fortes (sem recuperação)
+    const tr = tirosDe(c), pk = tr.map((v) => v.p), mn = Math.min(...pk), mx = Math.max(...pk);
+    const dists = tr.map((v) => Math.round(v.d / 100) * 100), iguais = dists.every((d) => Math.abs(d - dists[0]) <= 100);
+    const lh = Math.min(post ? 74 : 92, (H - (post ? 560 : 760)) / Math.max(1, tr.length));
+    let y = (H - (190 + tr.length * lh + 260)) / 2;
+    txt('Tiros', 100, y + 70, `800 84px ${FH}`, tx, 'left', -2);
+    txt(iguais ? `${tr.length} × ${dists[0] >= 1000 ? (dists[0] / 1000).toString().replace('.', ',') + ' km' : dists[0] + ' m'}` : `${tr.length} tiros`, W - 100, y + 66, `700 40px ${FB}`, AC, 'right'); y += 150;
+    txt('#', 100, y + 10, LBL(24), sub, 'left', 3); txt('PACE', W - 100, y + 10, LBL(24), sub, 'right', 3); y += 30;
+    tr.forEach((v, i) => {
+      const yy = y + i * lh, w = mx > mn ? 120 + 200 * (mx - v.p) / (mx - mn) : 260, top = v.p === mn;
+      ctx.save(); ctx.fillStyle = top ? AC : (branco ? 'rgba(255,255,255,.14)' : 'rgba(11,24,52,.1)'); ctx.beginPath(); ctx.arc(126, yy + lh * .5, lh * .32, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      txt(String(i + 1), 126, yy + lh * .5 + lh * .13, `800 ${Math.round(lh * .34)}px ${FB}`, top ? '#04122b' : tx, 'center');
+      ctx.save(); ctx.fillStyle = top ? AC : (branco ? 'rgba(255,255,255,.85)' : 'rgba(11,24,52,.82)'); ret(ctx, 190, yy + lh * .3, w, lh * .4, lh * .2); ctx.fill(); ctx.restore();
+      txt(`${iguais ? '' : (v.d >= 1000 ? (v.d / 1000).toFixed(1).replace('.', ',') + ' km · ' : Math.round(v.d) + ' m · ')}${fmtDur(v.seg)}${v.fc ? ' · ' + v.fc + ' bpm' : ''}`, 540, yy + lh * .5 + 12, `600 ${Math.round(lh * .3)}px ${FB}`, sub, 'left');
+      txt(fmtPace(v.p).replace('/km', ''), W - 100, yy + lh * .5 + 14, `800 ${Math.round(lh * .4)}px ${FH}`, top ? AC : tx, 'right', -1);
+    });
+    y += tr.length * lh + 50;
+    const med = tr.reduce((a, v) => a + v.seg, 0) / tr.reduce((a, v) => a + v.d / 1000, 0);
+    grade([{ l: 'Pace médio dos tiros', v: fmtPace(med).replace('/km', ''), u: '/km' }, { l: 'Melhor', v: fmtPace(mn).replace('/km', ''), u: '/km' }], y, 64, 100, W - 100, 2, 'left');
+    simbolo(W / 2, H - (post ? 150 : 230), 170);
+  } else if (L === 'icones') { // grade 2 colunas com ícone em cima de cada número
     const IC = { dist: 'M6 21s-4-4.5-4-7.5A4 4 0 0 1 10 13.5C10 16.5 6 21 6 21zM6 13.5h.01M18 11s-3-3.4-3-5.6a3 3 0 0 1 6 0C21 7.6 18 11 18 11zM18 5.4h.01M9 19.5c3 0 4-1.5 5.5-4s2.5-3 3.5-3', tempo: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2.5 1.5M10 2h4M12 2v3M19 6l1.5-1.5', pace: 'M3.5 17a9 9 0 1 1 17 0M12 13l4-4M12 13.5a1 1 0 1 0 0-.01M6.5 13H5M19 13h-1.5M12 6.5V5M7.6 8.6 6.6 7.6M16.4 8.6l1-1', elev: 'M2 20 9 8l4 6 3-4 6 10zM9 8l2 3', fc: 'M12 20s-7-4.4-9-9a4.7 4.7 0 0 1 9-3 4.7 4.7 0 0 1 9 3c-2 4.6-9 9-9 9zM3.5 12h4l2-3 2.5 6 2-3h6.5', passos: 'M7 4c1.7 0 2.5 1.8 2.5 4S8.7 12 7 12s-2.5-1.8-2.5-4S5.3 4 7 4zM5 14.5h4.5v2a2.3 2.3 0 0 1-4.5 0zM17 8c1.7 0 2.5 1.8 2.5 4s-.8 4-2.5 4-2.5-1.8-2.5-4S15.3 8 17 8zM15 18.5h4.5v.5a2.3 2.3 0 0 1-4.5 0z', cad: 'M7 4c1.7 0 2.5 1.8 2.5 4S8.7 12 7 12s-2.5-1.8-2.5-4S5.3 4 7 4zM5 14.5h4.5v2a2.3 2.3 0 0 1-4.5 0zM17 8c1.7 0 2.5 1.8 2.5 4s-.8 4-2.5 4-2.5-1.8-2.5-4S15.3 8 17 8zM15 18.5h4.5v.5a2.3 2.3 0 0 1-4.5 0z', kcal: 'M12 21c-4 0-6.5-2.6-6.5-6 0-4 3.5-5.5 4-10 2.5 1.5 4 4 4 6 1-1 1.5-2 1.5-3 2 1.7 3.5 4.4 3.5 7 0 3.4-2.5 6-6.5 6z' };
     // usa o que estiver marcado e completa com os outros números da corrida até 6
     const ordem = ['dist', 'tempo', 'pace', 'elev', 'fc', 'passos', 'cad', 'kcal'];
@@ -2648,7 +2741,8 @@ async function abrirCardCorrida(c) {
     stats: Object.assign({ dist: true, pace: true, tempo: true, fc: false, elev: false, cad: false, kcal: false, rota: true, data: false, logo: true }, st.stats || {}) };
   if (!CARD_LAYOUTS.some(([k]) => k === o.layout)) o.layout = 'classico';
   const temParc = (c.parciais || []).length >= 2;
-  const modelos = CARD_LAYOUTS.filter(([k]) => (k !== 'parciais' || temParc) && (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)));
+  const temTiros = tirosDe(c).length >= 2, temClima = !!((c.rota && c.rota.length) || (c.analise && c.analise.extras && c.analise.extras.temp_med != null));
+  const modelos = CARD_LAYOUTS.filter(([k]) => (k !== 'parciais' || temParc) && (k !== 'tiros' || temTiros) && (!k.startsWith('clima') || temClima) && (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)));
   const seg = (k, ops, val) => `<div class="seg card-seg" data-o="${k}">${ops.map(([v, l]) => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const disponivel0 = (k) => k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
   openSheet(`<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">Card da corrida</div>
@@ -2721,6 +2815,7 @@ async function abrirCardCorrida(c) {
       if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); marcar(); } catch (e) { if (e.name !== 'AbortError') toast('Não foi possível compartilhar. Use “Baixar”.', true); } }
       else r.querySelector('#cd-down').click();
     };
+    if (temClima) climaDe(c).then((cl) => { o.clima = cl; pinta(); });
     pinta();
   });
 }
