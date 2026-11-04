@@ -823,7 +823,9 @@ async function alunoHoje() {
       r.querySelector('#pop-nao').onclick = () => { try { localStorage.setItem('nx-pop-' + c.id, '1'); } catch {} closeSheet(); };
     });
   }, 500);
-  if (S.me.sexo === 'F') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx || !c) return; bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
+  if (S.me.sexo === 'F') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx) return;
+    if (!c) { if (store.get('nx_ciclo_conv', false)) return; bx.innerHTML = `<div class="ciclo-l ciclo-conv" style="--cf:#e85d75"><i></i><span class="grow"><b>Ciclo menstrual</b> · ajuste o treino a cada fase</span><button type="button" class="link-btn small" id="cic-at">Ativar</button><button type="button" class="link-btn small" id="cic-nao" style="color:var(--dim)">Agora não</button></div>`;
+      bx.querySelector('#cic-at').onclick = () => ativarCiclo(() => alunoHoje()); bx.querySelector('#cic-nao').onclick = () => { store.set('nx_ciclo_conv', true); bx.innerHTML = ''; }; return; } bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
 }
@@ -4144,6 +4146,37 @@ function cicloLinhaHTML(c, staff) {
     : `<button type="button" class="ciclo-l btn-ciclo" style="--cf:${f[1]}"><i></i><span><b>${f[0]}</b> · ${txt}</span>${I.chev}</button>`;
 }
 /** folha para a aluna registrar a menstruação e ver a fase */
+// ativar o acompanhamento do ciclo sem precisar abrir a ficha de saúde inteira
+function ativarCiclo(depois) {
+  const sel = (ops, v) => ops.map(([k, l]) => `<option value="${k}" ${v === k ? 'selected' : ''}>${l}</option>`).join('');
+  openSheet(`<p class="eyebrow">Ciclo menstrual · opcional</p><div class="h2" style="margin-top:4px">Acompanhar o meu ciclo</div>
+    <p class="muted small" style="margin-top:6px">O seu treinador ajusta a intensidade dos treinos de acordo com a fase do ciclo. Só você e os treinadores da Nexos veem.</p>
+    <form id="f-cic" style="margin-top:14px">
+      <label class="field"><span>Como é o seu ciclo?</span><select class="input" name="sit">${sel(SIT_CICLO, 'regular')}</select></label>
+      <div id="cic-d">
+        <label class="field"><span>Início da última menstruação</span><input class="input" type="date" name="ini" max="${hojeISO()}" required></label>
+        <div class="grid2"><label class="field"><span>Duração média do ciclo (dias)</span><input class="input" name="cl" inputmode="numeric" value="28" maxlength="2"></label><label class="field"><span>Dias de menstruação</span><input class="input" name="dm" inputmode="numeric" value="5" maxlength="2"></label></div>
+      </div>
+      <p class="tiny dim">Ao ativar, você concorda que esses dados de saúde sejam usados só para orientar o seu treino (LGPD, art. 11). Pode desativar quando quiser em Perfil > Minha ficha de saúde, e os registros são apagados.</p>
+      <button class="btn block" type="submit" style="margin-top:12px">Ativar acompanhamento</button>
+    </form>`, (r) => {
+    const f = r.querySelector('#f-cic'), d = r.querySelector('#cic-d');
+    const ver = () => { const sem = f.sit.value === 'contraceptivo' || f.sit.value === 'nao_menstrua'; d.hidden = sem; f.ini.required = !sem; };
+    f.sit.onchange = ver; ver();
+    f.onsubmit = async (e) => {
+      e.preventDefault(); const b = f.querySelector('[type=submit]'); b.disabled = true;
+      const sit = f.sit.value, sem = sit === 'contraceptivo' || sit === 'nao_menstrua';
+      const cl = Math.min(45, Math.max(20, parseInt(f.cl.value, 10) || 28)), dm = Math.min(10, Math.max(2, parseInt(f.dm.value, 10) || 5));
+      if (!sem && (!f.ini.value || f.ini.value > hojeISO())) { b.disabled = false; return toast('Confira a data do início da última menstruação.', true); }
+      const agora = new Date().toISOString();
+      const { error } = await sb.from('nx_ciclo').upsert({ aluno_id: S.user.id, org_id: S.org.id, ativo: true, situacao: sit, duracao_ciclo: cl, duracao_menstr: dm, consentimento_em: agora, atualizado_em: agora }, { onConflict: 'aluno_id' });
+      if (error) { b.disabled = false; return toast('Não foi possível ativar agora.', true); }
+      if (!sem) await sb.from('nx_ciclo_inicios').upsert({ org_id: S.org.id, aluno_id: S.user.id, data: f.ini.value }, { onConflict: 'aluno_id,data' });
+      if (S.me.sexo !== 'F') { await sb.from('nx_membros').update({ sexo: 'F' }).eq('org_id', S.org.id).eq('user_id', S.user.id); S.me.sexo = 'F'; }
+      closeSheet(); toast('Acompanhamento do ciclo ativado.'); depois && depois();
+    };
+  });
+}
 function abrirCiclo(c, depois) {
   const inf = cicloInfo(c) || {};
   const f = inf.fase ? FASES_CICLO[inf.fase] : null;
@@ -5089,6 +5122,7 @@ function viewPerfil() {
         <form id="f-senha" style="margin-top:12px"><label class="field"><span>Nova senha</span><input class="input" type="password" name="s1" minlength="6" required autocomplete="new-password"></label><label class="field"><span>Repita a nova senha</span><input class="input" type="password" name="s2" minlength="6" required autocomplete="new-password"></label><button class="btn block">Salvar nova senha</button></form></details></div>
     ${S.staff ? '' : `<div class="section"><div class="section-h"><h2 class="h2">Saúde e pagamentos</h2></div>
       <a class="list-item" href="#/saude" style="color:inherit"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Minha ficha de saúde</b><div class="small muted">Anamnese e PAR-Q</div></div>${I.chev}</a>
+      ${S.me.sexo !== 'M' ? `<button type="button" class="list-item" id="perf-ciclo" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Registrar a menstruação ou ativar o acompanhamento</div></div>${I.chev}</button>` : ''}
       <a class="list-item" href="#/pagamentos" style="color:inherit"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Pagamentos</b><div class="small muted">Mensalidades e Pix</div></div>${I.chev}</a>
       <a class="list-item" href="#/termo" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Termo e meus dados</b><div class="small muted">O que guardamos e seus direitos (LGPD)</div></div>${I.chev}</a></div>`}
     ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button></div></div>` : ''}
@@ -5106,6 +5140,8 @@ function viewPerfil() {
   const tf2 = document.getElementById('trocar-foto2'); if (tf2) tf2.onclick = trocarFoto;
   secaoNotificacoes(document.getElementById('notif'));
   document.getElementById('tema').onclick = (e) => { const b = e.target.closest('[data-tema]'); if (!b) return; aplicarTema(b.dataset.tema); document.querySelectorAll('#tema button').forEach((x) => x.classList.toggle('on', x === b)); };
+  const pc = document.getElementById('perf-ciclo');
+  if (pc) pc.onclick = async () => { pc.disabled = true; const c = await buscarCiclo(S.user.id).catch(() => null); pc.disabled = false; c ? abrirCiclo(c, () => viewPerfil()) : ativarCiclo(() => viewPerfil()); };
   document.getElementById('f-senha').onsubmit = async (e) => {
     e.preventDefault(); const f = e.target;
     if (f.s1.value !== f.s2.value) return toast('As senhas não conferem.', true);
