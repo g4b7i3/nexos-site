@@ -330,6 +330,7 @@ async function router() {
     if (a === 'relatorio' && b) return await viewRelatorio(b);
     if (a === 'conversa') return await viewConversa(S.user.id, $app, false);
     if (a === 'conexoes') return await viewConexoes(b);
+    if (a === 'gps' && faz('corrida')) return b ? await viewGps(b) : await viewGpsLista();
     if (a === 'postural' && b) return await viewPostural(b);
     if (a === 'corrida' && b) return await viewCorrida(b);
     if (a === 'saude') return await viewAnamnese({});
@@ -2349,8 +2350,9 @@ function formCorrida(alunoId, d, plano, onSalvo) {
   const prox = [...plano].sort((a, b) => Math.abs(dia(a.data) - dia(diaD)) - Math.abs(dia(b.data) - dia(diaD)));
   const sugerido = prox.find((p) => p.data === diaD);
   let rpe = d.rpe ?? null, dor = !!d.dor; const corpo = { cansaco: d.cansaco ?? null, sono: d.sono ?? null };
-  openSheet(`<p class="eyebrow">${d.fonte === 'arquivo' ? 'Arquivo lido ✓' : 'Nova corrida'}</p><div class="h2" style="margin-top:4px">Confira e salve</div>
-    ${d.fonte === 'arquivo' ? `<div class="mini-stats"><div><b>${fmtKm(d.distancia_m)}</b><span>distância</span></div><div><b>${fmtDur(d.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(d))}</b><span>pace</span></div></div>${d.rota ? `<div class="rota-box">${rotaSVG(d.rota, 150)}</div>` : ''}` : ''}
+  const lido = d.fonte === 'arquivo' || d.fonte === 'celular';
+  openSheet(`<p class="eyebrow">${d.fonte === 'arquivo' ? 'Arquivo lido ✓' : d.fonte === 'celular' ? 'Treino gravado ✓' : 'Nova corrida'}</p><div class="h2" style="margin-top:4px">Confira e salve</div>
+    ${lido ? `<div class="mini-stats"><div><b>${fmtKm(d.distancia_m)}</b><span>distância</span></div><div><b>${fmtDur(d.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(d))}</b><span>pace</span></div></div>${d.rota ? `<div class="rota-box">${rotaSVG(d.rota, 150)}</div>` : ''}` : ''}
     <form id="f-corr" style="margin-top:16px">
       <div class="grid2"><label class="field"><span>Data e hora</span><input class="input" type="datetime-local" name="data" value="${dt.toISOString().slice(0, 16)}" required></label><label class="field"><span>Tipo</span><select class="input" name="tipo">${TIPOS_ATIV.map(([k, l]) => `<option value="${k}" ${d.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
       <div class="grid2"><label class="field"><span>Distância (km)</span><input class="input" name="km" data-mask="dec" inputmode="decimal" value="${d.distancia_m ? String(+(d.distancia_m / 1000).toFixed(2)).replace('.', ',') : ''}" placeholder="Ex.: 8,2" required></label><label class="field"><span>Tempo (h:mm:ss)</span><input class="input" name="tempo" data-mask="tempo" inputmode="numeric" value="${d.duracao_s ? fmtDurLongo(d.duracao_s) : ''}" placeholder="Ex.: 45:30" required></label></div>
@@ -2375,7 +2377,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
       if (!km || km <= 0) return toast('Informe a distância em km.', true);
       if (!seg) return toast('Informe o tempo, por exemplo 45:30.', true);
       const btn = f.querySelector('[type=submit]'); btn.disabled = true;
-      const reaproveitaArquivo = d.fonte === 'arquivo' && Math.abs(km * 1000 - d.distancia_m) < 5;
+      const reaproveitaArquivo = lido && Math.abs(km * 1000 - d.distancia_m) < 5;
       const row = {
         org_id: S.org.id, aluno_id: alunoId, data: new Date(f.data.value).toISOString(), tipo: f.tipo.value,
         titulo: d.titulo || null, distancia_m: Math.round(km * 1000), duracao_s: seg,
@@ -3061,7 +3063,7 @@ async function viewCorrida(id) {
     ${analiseBlocos.slice(0, analiseBlocos.length - (c.analise && analiseBlocos.length && analiseBlocos[analiseBlocos.length - 1].includes('Todos os números') ? 1 : 0)).join('')}
     ${parc.length ? `<div class="section"><div class="section-h"><h2 class="h2">Parciais</h2>${slashes}</div><div class="card"><div class="splits">${parc.map((p) => { const v = pk(p); const w = pMax > pMin ? 35 + (65 * (pMax - v)) / (pMax - pMin) : 100; return `<div><span>${p.parcial ? String(p.km).replace('.', ',') : 'km ' + p.km}</span><i style="width:${w.toFixed(0)}%"></i><b>${fmtPace(v).replace('/km', '')}</b><em>${p.fc ? p.fc + ' bpm' : ''}</em></div>`; }).join('')}</div></div></div>` : ''}
     ${analiseBlocos.length && analiseBlocos[analiseBlocos.length - 1].includes('Todos os números') ? analiseBlocos[analiseBlocos.length - 1] : ''}
-    <p class="tiny dim" style="margin-top:16px">Fonte: ${c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
+    <p class="tiny dim" style="margin-top:16px">Fonte: ${c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'celular' ? 'GPS do celular' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
   const gc = document.getElementById('gerar-card'); if (gc) gc.onclick = () => abrirCardCorrida(c, plano);
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = () => marcarVisto(b));
   ['coment-tr', 'coment-tr-ed'].forEach((k) => { const e = document.getElementById(k); if (e) e.onclick = () => comentarTreino(c, nome); });
@@ -4061,6 +4063,7 @@ async function viewConexoes(ret) {
       <div class="marcas">${MARCAS.map(([k, nome]) => { const on = (k === 'garmin' && garm) || (k !== 'garmin' && k !== 'outro' && integ && marcaInt === k); return `<button type="button" class="marca${on ? ' on' : ''}" data-marca="${k}">${marcaLogo(k, nome)}${on ? '<span class="marca-ok">Conectado ✓</span>' : ''}</button>`; }).join('')}</div>
       ${garm || integ ? `<div class="stack" style="margin-top:12px">${garm ? `<div id="garmin-box">${garminCardHTML(garm, false)}</div>` : ''}${integ ? `<div id="intervals-box">${intervalsCardHTML(integ, false).replace('Intervals.icu conectado ✓', `${esc(MARCA_NOME[marcaInt] || 'Relógio')} conectado ✓ <span class="tiny dim">pelo Intervals.icu</span>`)}</div>` : ''}</div>` : ''}
     </div>
+    <div class="section"><a class="gps-cta" href="#/gps"><span class="gps-cta-ic">${I.run}</span><div class="grow"><b>Não tem relógio compatível com a Nexos?</b><span>Faça o treino da sua planilha pelo celular, com GPS, aviso de cada parte e registro automático.</span></div>${I.chev}</a></div>
     <div class="section"><div class="section-h"><h2 class="h2">Sem conexão?</h2>${slashes}</div><button class="list-item" id="cx-arq" style="width:100%;text-align:left"><span class="ativ-ic">${I.plus}</span><div class="grow"><b>Enviar o arquivo do relógio</b><div class="small muted">.FIT, .GPX ou .TCX, ou digite distância e tempo</div></div>${I.chev}</button></div>
     <div class="section"><div class="section-h"><h2 class="h2">Instalar o aplicativo</h2>${slashes}</div><p class="small muted" style="margin:-4px 0 10px">Tenha a Nexos na tela de início do celular, abrindo como um aplicativo e recebendo notificações.</p><div id="inst-box">${instalarHTML()}</div></div>`;
   bindInstalar($app);
@@ -4070,6 +4073,254 @@ async function viewConexoes(ret) {
   $app.querySelectorAll('[data-marca]').forEach((b) => b.onclick = () => abrirMarca(b.dataset.marca, garm, integ, marcaInt, recarregar));
   document.getElementById('cx-arq').onclick = () => registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; });
   if (integ && (!integ.ultima_sync || Date.now() - new Date(integ.ultima_sync) > 30 * 60000)) sincronizarIntervals(S.user.id).then((n) => { if (n > 0) toast(`${n} corrida${n > 1 ? 's' : ''} nova${n > 1 ? 's' : ''} do relógio`); }).catch(() => {});
+}
+
+/* ---------- treino pelo celular (GPS do aparelho, para quem não tem relógio compatível) ----------
+   App web: o GPS só funciona com a tela ligada. Por isso a tela fica acesa durante o treino (Wake Lock),
+   o progresso é guardado no aparelho a cada poucos segundos e, se a tela apagar, o treino continua de onde parou. */
+const GPS_KEY = 'nx-gps';
+const gpsSalvo = () => { const s = store.get(GPS_KEY, null); return s && s.inicio && Date.now() - s.salvoEm < 8 * 3600e3 ? s : null; };
+// passos do treino em ordem, com o número da repetição (ex.: Tiro 3 de 6)
+function gpsPassos(p, perfil) {
+  const out = [];
+  const add = (s, rep, nrep) => {
+    const alvo = s.med === 'min' ? { t: s.v * 60 } : { d: s.med === 'km' ? s.v * 1000 : s.v };
+    const [a, b] = faixaZona(s.z, perfil);
+    out.push({ k: s.k, z: s.z, med: s.med, v: s.v, rep, nrep, ...alvo, pa: a, pb: b });
+  };
+  (estruturaDe(p) || []).forEach((s) => { if (s.k === 'rep') { for (let i = 0; i < (s.n || 1); i++) (s.passos || []).forEach((x) => add(x, i + 1, s.n || 1)); } else add(s); });
+  return out;
+}
+const gpsNomePasso = (s, curto) => { const n = s.k === 'co' ? (s.nrep ? 'Tiro' : 'Corrida') : PASSOS[s.k] || 'Corrida'; return s.nrep && !curto ? `${n} ${s.rep} de ${s.nrep}` : n; };
+const gpsAlvoTxt = (s) => s.t ? `${String(s.v).replace('.', ',')} min` : s.d >= 1000 ? `${String(+(s.d / 1000).toFixed(2)).replace('.', ',')} km` : `${Math.round(s.d)} m`;
+const gpsDist = (a, b) => { const R = 6371000, r = Math.PI / 180, dLa = (b[0] - a[0]) * r, dLo = (b[1] - a[1]) * r; const x = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+
+// lista: os treinos da semana para escolher e fazer pelo celular
+async function viewGpsLista() {
+  loading(); dockAluno(); layout('aluno');
+  const ini = inicioSemana(), fim = new Date(ini); fim.setDate(ini.getDate() + 6);
+  const [plano, feitas] = await Promise.all([
+    buscarPlano(S.user.id, isoDia(ini), isoDia(fim)).catch(() => []),
+    sb.from('nx_corridas').select('id,plano_id').eq('aluno_id', S.user.id).gte('data', isoDia(ini)).then((r) => r.data || [], () => []),
+  ]);
+  const perfil = perfilCorrida(S.me), hoje = hojeISO(), salvo = gpsSalvo();
+  const treinos = plano.filter((p) => !semCorrida(p) && estruturaDe(p).length);
+  const cartao = (p) => {
+    const feito = feitas.some((c) => c.plano_id === p.id), tot = estimaTotal(estruturaDe(p), perfil);
+    return `<div class="card gps-tr ${p.data === hoje ? 'hoje' : ''} ${p.data < hoje && !feito ? 'passado' : ''}">
+      <div class="row" style="justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0"><span class="eyebrow">${p.data === hoje ? 'Hoje' : fmtDiaSem(p.data)}</span><div class="h3" style="margin-top:2px">${esc(p.titulo || nomeTipo(p.tipo))}</div></div>${feito ? '<span class="tag ok">Feito ✓</span>' : ''}</div>
+      ${perfilHTML(estruturaDe(p), perfil)}
+      <p class="small muted" style="margin-top:8px">${esc(descreverEstrutura(estruturaDe(p), perfil))}</p>
+      <p class="tiny dim" style="margin-top:4px">Total estimado: ${tot.km} · ${tot.tempo}</p>
+      <a class="btn ${p.data === hoje ? '' : 'ghost'} sm" style="margin-top:12px" href="#/gps/${p.id}">${I.play} ${feito ? 'Fazer de novo' : 'Fazer este treino'}</a></div>`;
+  };
+  $app.innerHTML = `<a class="back" href="#/conexoes">${I.back} Conexões</a>
+    <p class="eyebrow">Treinar pelo celular</p><h1 class="h1">Seus treinos da semana</h1>
+    <p class="muted" style="margin-top:6px">Escolha o treino e faça com o GPS do celular. O app mostra cada parte do treino, avisa com som e voz quando trocar e registra a corrida sozinho no final.</p>
+    <div class="gps-aviso">${I.raio}<div><b>Deixe a tela ligada durante o treino.</b> O app mantém a tela acesa. Se o celular bloquear, o GPS para até você desbloquear, e o treino continua de onde parou.</div></div>
+    ${salvo ? `<div class="card gps-rec"><b>Você tem um treino em andamento</b><p class="small muted" style="margin-top:4px">${esc(salvo.titulo)} · ${fmtKm(salvo.dist, 2)} · ${fmtDurLongo(salvo.mov / 1000)}</p><div class="row" style="gap:8px;margin-top:10px"><a class="btn sm" href="#/gps/${salvo.id}">Continuar</a><button class="btn ghost sm" id="gps-desc">Descartar</button></div></div>` : ''}
+    <div class="section"><div class="section-h"><h2 class="h2">Esta semana</h2>${slashes}</div>
+      ${treinos.length ? `<div class="stack">${treinos.map(cartao).join('')}</div>` : '<div class="empty"><div class="h3">Nenhum treino liberado nesta semana</div><p class="small">Quando o treinador liberar a sua semana, os treinos aparecem aqui. Você pode fazer uma corrida livre.</p></div>'}
+    </div>
+    <div class="section"><a class="list-item" href="#/gps/livre" style="color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><b>Corrida livre</b><div class="small muted">Sem treino definido: só tempo, distância e pace, com volta a cada 1 km.</div></div>${I.chev}</a></div>`;
+  const d = document.getElementById('gps-desc'); if (d) d.onclick = () => { if (!confirm('Descartar o treino em andamento?')) return; store.del(GPS_KEY); viewGpsLista(); };
+}
+
+// tela do treino
+async function viewGps(id) {
+  loading(); $dock.hidden = true; layout('gps-app');
+  let p = null;
+  if (id !== 'livre') {
+    const { data } = await sb.from('nx_plano_corrida').select('*').eq('id', id).maybeSingle();
+    p = data; if (!p) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Treino não encontrado</div><a class="btn sm" href="#/gps" style="margin-top:12px">Voltar</a></div>'; return; }
+  }
+  const perfil = perfilCorrida(S.me);
+  const passos = p ? gpsPassos(p, perfil) : [];
+  const titulo = p ? (p.titulo || nomeTipo(p.tipo)) : 'Corrida livre';
+  // estado (guardado no aparelho)
+  const ant = gpsSalvo();
+  const st = ant && ant.id === id ? ant : { id, titulo, inicio: null, estado: 'pronto', mov: 0, dist: 0, passo: 0, pIni: { t: 0, d: 0 }, voltas: [], parciais: [], rota: [], serie: { t: [], d: [], vel: [] }, lacunas: 0, voz: true };
+  if (st.estado === 'correndo') st.estado = 'pausado'; // voltou depois de fechar: espera o aluno continuar
+  const recuperado = !!(ant && ant.id === id && ant.inicio);
+  let btsChave = '', nTick = 0, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = false, prec = null;
+  const salvar = () => { st.salvoEm = Date.now(); store.set(GPS_KEY, st); };
+  const movAgora = () => st.mov + (st.estado === 'correndo' && marcaMov ? Date.now() - marcaMov : 0);
+
+  $app.innerHTML = `<div class="gps">
+    <div class="gps-top"><button class="icon-btn sm" id="g-sair" aria-label="Sair">${I.back}</button><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(titulo)}</b><span class="tiny" id="g-sinal">Procurando GPS…</span></div><button class="icon-btn sm" id="g-voz" aria-label="Voz">${st.voz ? '🔊' : '🔇'}</button></div>
+    <div class="gps-passo" id="g-passo"></div>
+    <div class="gps-num"><div><span>Tempo</span><b id="g-tempo">0:00</b></div><div><span>Distância</span><b id="g-dist">0,00<small> km</small></b></div><div><span>Pace agora</span><b id="g-pace">–</b></div><div><span>Pace médio</span><b id="g-pm">–</b></div></div>
+    <div class="gps-prox" id="g-prox"></div>
+    <div class="gps-bts" id="g-bts"></div>
+    <p class="tiny dim center" id="g-dica" style="margin-top:10px"></p>
+    <div class="gps-trava" id="g-trava" hidden><div class="gps-trava-c"><div class="h3">Tela travada</div><p class="small" style="margin:6px 0 18px">Os toques estão desligados para não atrapalhar a corrida.</p><button class="btn ghost" id="g-dest">Segure para destravar</button></div></div>
+  </div>`;
+  const $ = (s) => document.getElementById(s);
+
+  // som, vibração e voz nas trocas
+  const beep = (n = 1) => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); for (let i = 0; i < n; i++) { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(actx.destination); const t0 = actx.currentTime + i * 0.28; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2); o.start(t0); o.stop(t0 + 0.22); } } catch {} };
+  const falar = (t) => { if (!st.voz || !window.speechSynthesis) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'pt-BR'; u.rate = 1.05; speechSynthesis.speak(u); } catch {} };
+  const paceFala = (s) => { const x = Math.round(s); return `${Math.floor(x / 60)} e ${String(x % 60).padStart(2, '0')}`; };
+  const anunciar = (s) => { if (!s) return; const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; falar(`${gpsNomePasso(s)}. ${gpsAlvoTxt(s).replace(',', ' vírgula ').replace(/ km$/, ' quilômetros').replace(/ m$/, ' metros').replace(/ min$/, ' minutos')}. ${z.d.replace(/\s*\(.*\)/, '')}, pace de ${paceFala(s.pa)} a ${paceFala(s.pb)}.`); };
+  const vibrar = (p2) => { try { navigator.vibrate && navigator.vibrate(p2); } catch {} };
+
+  // tela acesa
+  const pedirTela = async () => { try { if ('wakeLock' in navigator && !lock) { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => { lock = null; }); } } catch {} };
+  const soltarTela = () => { try { lock && lock.release(); } catch {} lock = null; };
+
+  const passoAtual = () => passos[st.passo] || null;
+  const desenha = () => {
+    const mov = movAgora() / 1000, s = passoAtual();
+    $('g-tempo').textContent = fmtDurLongo(mov);
+    $('g-dist').innerHTML = `${(st.dist / 1000).toFixed(2).replace('.', ',')}<small> km</small>`;
+    $('g-pm').textContent = st.dist > 50 ? fmtPace(mov / (st.dist / 1000)).replace('/km', '') : '–';
+    // pace dos últimos ~20 s
+    const j = janela.filter((x) => Date.now() - x.t < 20000); const pa = j.length > 1 ? (j[j.length - 1].t - j[0].t) / 1000 / ((j[j.length - 1].d - j[0].d) / 1000) : null;
+    $('g-pace').textContent = pa && isFinite(pa) && pa < 1200 && pa > 120 ? fmtPace(pa).replace('/km', '') : '–';
+    if (s) {
+      const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve, fT = mov - st.pIni.t, fD = st.dist - st.pIni.d;
+      const falta = s.t ? Math.max(0, s.t - fT) : Math.max(0, s.d - fD), pr = s.t ? fT / s.t : fD / s.d;
+      const noRitmo = pa && isFinite(pa) ? (pa < s.pa * 0.97 ? 'rapido' : pa > s.pb * 1.03 ? 'lento' : 'ok') : '';
+      $('g-passo').style.setProperty('--zc', z.c);
+      $('g-passo').innerHTML = `<div class="gps-p-h"><span class="gps-z">${z.z} · ${z.d}</span><span class="tiny">Parte ${st.passo + 1} de ${passos.length}</span></div>
+        <div class="gps-p-n">${gpsNomePasso(s)}</div>
+        <div class="gps-p-f">${s.t ? fmtDurLongo(falta) : falta >= 1000 ? (falta / 1000).toFixed(2).replace('.', ',') + ' km' : Math.round(falta) + ' m'}<small>${s.t ? ' faltando' : ' faltando'}</small></div>
+        <div class="gps-bar"><i style="width:${Math.min(100, pr * 100).toFixed(1)}%"></i></div>
+        <div class="gps-p-alvo">Pace alvo <b>${fmtPace(s.pa).replace('/km', '')} a ${fmtPace(s.pb)}</b>${noRitmo === 'rapido' ? '<span class="gps-r r">Rápido demais</span>' : noRitmo === 'lento' ? '<span class="gps-r l">Acelere</span>' : noRitmo === 'ok' ? '<span class="gps-r ok">No ritmo</span>' : ''}</div>`;
+      const nx = passos[st.passo + 1];
+      $('g-prox').innerHTML = nx ? `Depois: <b>${gpsNomePasso(nx)}</b> · ${gpsAlvoTxt(nx)} · ${(ZONAS_INFO[nx.z] || ZONAS_INFO.leve).z}` : 'Última parte do treino';
+    } else if (passos.length) {
+      $('g-passo').style.setProperty('--zc', 'var(--ok)');
+      $('g-passo').innerHTML = '<div class="gps-p-n">Treino completo ✓</div><p class="small" style="margin-top:6px">Pode desacelerar e tocar em Terminar para salvar.</p>';
+      $('g-prox').innerHTML = '';
+    } else {
+      const v = st.voltas.length + 1, fD = st.dist - st.pIni.d;
+      $('g-passo').style.setProperty('--zc', 'var(--acc)');
+      $('g-passo').innerHTML = `<div class="gps-p-h"><span class="gps-z">Corrida livre</span><span class="tiny">Volta ${v}</span></div><div class="gps-p-f">${(fD / 1000).toFixed(2).replace('.', ',')}<small> km nesta volta</small></div><div class="gps-bar"><i style="width:${Math.min(100, fD / 10).toFixed(1)}%"></i></div>`;
+      $('g-prox').innerHTML = '';
+    }
+    const E = st.estado, chave = E + gpsOk + !!passoAtual();
+    if (chave === btsChave) return; btsChave = chave; // botões só mudam quando o estado muda (não some no meio do toque)
+    $('g-bts').innerHTML = E === 'pronto'
+      ? `<button class="btn block gps-go" id="g-ini" ${gpsOk ? '' : 'disabled'}>${I.play} ${gpsOk ? 'Começar' : 'Esperando o GPS…'}</button>`
+      : E === 'correndo'
+        ? `<button class="btn ghost" id="g-trv" aria-label="Travar a tela">🔒</button><button class="btn grow gps-pausa" id="g-pau">Pausar</button>${passos.length && passoAtual() ? `<button class="btn ghost" id="g-pul">Pular ›</button>` : ''}`
+        : `<button class="btn grow gps-go" id="g-con">${I.play} Continuar</button><button class="btn ghost grow" id="g-fim">Terminar</button>`;
+    $('g-dica').textContent = E === 'pronto' ? (gpsOk ? 'Fique em um lugar aberto. Toque em Começar quando for sair.' : 'Ao ar livre o GPS acha o sinal mais rápido.') : E === 'pausado' ? (recuperado && !marcaMov ? 'Treino recuperado. Toque em Continuar para seguir.' : 'Treino pausado.') : 'Mantenha a tela ligada.';
+    liga();
+  };
+  const liga = () => {
+    const b = (i, f) => { const el = $(i); if (el) el.onclick = f; };
+    b('g-ini', comecar); b('g-pau', pausar); b('g-con', continuar); b('g-fim', terminar); b('g-pul', () => fecharPasso(true)); b('g-trv', () => { $('g-trava').hidden = false; });
+  };
+
+  // fecha a parte atual (volta) e passa para a próxima
+  const fecharPasso = (pulou) => {
+    const mov = movAgora() / 1000, s = passoAtual();
+    const v = { d: Math.round(st.dist - st.pIni.d), seg: Math.round(mov - st.pIni.t) };
+    if (v.seg > 0) st.voltas.push(v);
+    st.pIni = { t: mov, d: st.dist };
+    if (passos.length) {
+      st.passo++; const nx = passoAtual();
+      vibrar([300, 120, 300]); beep(nx && nx.k === 'co' ? 3 : 2);
+      if (nx) anunciar(nx); else falar('Treino completo. Muito bem! Toque em terminar para salvar.');
+    } else { vibrar(200); beep(1); falar(`${st.voltas.length} quilômetro${st.voltas.length > 1 ? 's' : ''}. Pace ${paceFala(v.seg / (v.d / 1000))}.`); }
+    salvar(); desenha();
+  };
+  const verificaPasso = () => {
+    if (st.estado !== 'correndo') return;
+    const s = passoAtual(), mov = movAgora() / 1000;
+    if (s) { if ((s.t && mov - st.pIni.t >= s.t) || (s.d && st.dist - st.pIni.d >= s.d)) fecharPasso(false); }
+    else if (!passos.length && st.dist - st.pIni.d >= 1000) fecharPasso(false);
+  };
+
+  // GPS
+  const onPos = (pos) => {
+    if (!document.getElementById('g-sinal')) return; // já saiu da tela do treino
+    const c = pos.coords, pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6)], t = pos.timestamp || Date.now();
+    prec = c.accuracy; gpsOk = c.accuracy <= 35;
+    $('g-sinal').textContent = c.accuracy <= 15 ? 'GPS ótimo' : c.accuracy <= 35 ? 'GPS bom' : `GPS fraco (±${Math.round(c.accuracy)} m)`;
+    $('g-sinal').className = 'tiny ' + (c.accuracy <= 35 ? 'gps-ok' : 'gps-fraco');
+    if (st.estado === 'pronto') desenha();
+    if (st.estado !== 'correndo') { ultimo = null; return; }
+    if (c.accuracy > 35) return;
+    if (ultimo) {
+      const inc = gpsDist(ultimo, pt), dt = (t - ultimoT) / 1000;
+      if (dt <= 0) return;
+      if (inc / dt > 9) return; // salto do GPS (mais rápido que 9 m/s): ignora
+      if (inc < 2 || (c.speed != null && c.speed < 0.4 && inc < 6)) return; // parado: não soma o tremor do sinal
+      if (dt > 30) st.lacunas++; // ficou um tempo sem sinal (tela apagada): liga em linha reta
+      st.dist += inc;
+    }
+    ultimo = pt; ultimoT = t;
+    st.rota.push(pt);
+    const mov = movAgora() / 1000;
+    janela.push({ t: Date.now(), d: st.dist }); if (janela.length > 40) janela.shift();
+    const sr = st.serie, ul = sr.t[sr.t.length - 1];
+    if (ul == null || mov - ul >= 5) { const j = janela.filter((x) => Date.now() - x.t < 15000); const vel = j.length > 1 ? (j[j.length - 1].d - j[0].d) / ((j[j.length - 1].t - j[0].t) / 1000) : 0; sr.t.push(Math.round(mov)); sr.d.push(Math.round(st.dist)); sr.vel.push(+(isFinite(vel) ? vel : 0).toFixed(2)); }
+    const km = Math.floor(st.dist / 1000); if (km > st.parciais.length) { const antT = st.parciais.reduce((a, x) => a + x.seg, 0); st.parciais.push({ km: st.parciais.length + 1, seg: Math.round(mov - antT) }); }
+    verificaPasso(); desenha();
+  };
+  const onErro = (e) => { $('g-sinal').textContent = e.code === 1 ? 'Sem permissão de localização' : 'GPS sem sinal'; $('g-sinal').className = 'tiny gps-fraco'; if (e.code === 1) toast('Permita o acesso à localização para treinar pelo celular (configurações do navegador).', true); };
+  const ligarGPS = () => { if (!navigator.geolocation) { toast('Este celular não tem GPS disponível no navegador.', true); return; } if (watch == null) watch = navigator.geolocation.watchPosition(onPos, onErro, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }); };
+  const desligarGPS = () => { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; };
+
+  const comecar = () => {
+    actx = actx || (() => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } })();
+    st.inicio = new Date().toISOString(); st.estado = 'correndo'; marcaMov = Date.now(); ultimo = null;
+    pedirTela(); beep(1); vibrar(200);
+    const s = passoAtual(); if (s) anunciar(s); else falar('Corrida iniciada.');
+    salvar(); desenha();
+  };
+  const pausar = () => { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; ultimo = null; salvar(); falar('Pausado.'); desenha(); };
+  const continuar = () => { ligarGPS(); st.estado = 'correndo'; marcaMov = Date.now(); ultimo = null; pedirTela(); recuperado && falar('Continuando.'); salvar(); desenha(); };
+  const terminar = () => {
+    openSheet(`<div class="h2">Terminar o treino?</div><p class="small muted" style="margin-top:6px">${fmtKm(st.dist, 2)} em ${fmtDurLongo(movAgora() / 1000)}.</p>
+      <div class="stack" style="margin-top:16px"><button class="btn block" id="t-sal">${I.check} Terminar e salvar</button><button class="btn ghost block" id="t-vol">Voltar ao treino</button><button class="link-btn small" id="t-desc" style="margin-top:6px;color:var(--err)">Descartar este treino</button></div>`, (r) => {
+      r.querySelector('#t-vol').onclick = () => closeSheet();
+      r.querySelector('#t-desc').onclick = () => { if (!confirm('Descartar? A corrida não será salva.')) return; closeSheet(true); encerrar(); store.del(GPS_KEY); location.hash = '#/gps'; };
+      r.querySelector('#t-sal').onclick = () => finalizar(); // abre a ficha de salvar no mesmo painel
+    });
+  };
+  const encerrar = () => { clearInterval(tickRef); desligarGPS(); soltarTela(); document.removeEventListener('visibilitychange', onVis); try { speechSynthesis.cancel(); } catch {} };
+  const finalizar = () => {
+    const mov = Math.round(movAgora() / 1000);
+    if (st.dist < 100 || mov < 30) return toast('O treino ficou curto demais para salvar (menos de 100 m).', true);
+    // última parte em andamento entra como volta
+    const resto = { d: Math.round(st.dist - st.pIni.d), seg: Math.round(mov - st.pIni.t) }, voltas = resto.seg > 5 && resto.d > 0 ? [...st.voltas, resto] : st.voltas;
+    const passo = Math.max(1, Math.ceil(st.rota.length / 400)), rota = st.rota.filter((_, i) => i % passo === 0 || i === st.rota.length - 1);
+    const d = {
+      data: st.inicio, tipo: 'corrida', distancia_m: Math.round(st.dist), duracao_s: mov, rota: rota.length > 1 ? rota : null,
+      parciais: st.parciais.length ? st.parciais : null, plano_id: p ? p.id : null, titulo: titulo, fonte: 'celular',
+      ext_id: 'cel-' + new Date(st.inicio).getTime(),
+      analise: { v: 1, serie: st.serie, voltas, extras: { dispositivo: 'Celular (GPS)', total_s: Math.round((Date.now() - new Date(st.inicio)) / 1000), lacunas: st.lacunas } },
+    };
+    st.estado = 'pausado'; salvar();
+    const plano = p ? [p] : [];
+    formCorrida(S.user.id, d, plano, (novo) => { encerrar(); store.del(GPS_KEY); setTimeout(() => { location.hash = '#/corrida/' + novo; }, 150); });
+  };
+  // tela apagou e voltou: GPS e tela acesa de novo; o tempo corre certo porque é pelo relógio do aparelho
+  const onVis = () => { if (document.visibilityState === 'visible') { ultimo = null; if (st.estado === 'correndo') pedirTela(); desenha(); } else salvar(); };
+  document.addEventListener('visibilitychange', onVis);
+  $('g-voz').onclick = () => { st.voz = !st.voz; $('g-voz').textContent = st.voz ? '🔊' : '🔇'; salvar(); };
+  $('g-sair').onclick = () => {
+    if (st.estado === 'pronto') { encerrar(); location.hash = '#/gps'; return; }
+    if (st.estado === 'correndo' && !confirm('Sair da tela do treino? Ele fica pausado e você pode continuar depois em Conexões → Treinar pelo celular.')) return;
+    if (st.estado === 'correndo') { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; }
+    salvar(); encerrar(); location.hash = '#/gps';
+  };
+  // destravar: segurar 1 s
+  let segura = 0; const dest = $('g-dest');
+  const ini = (e) => { e.preventDefault(); dest.classList.add('segurando'); segura = setTimeout(() => { $('g-trava').hidden = true; dest.classList.remove('segurando'); vibrar(60); }, 900); };
+  const sol = () => { clearTimeout(segura); dest.classList.remove('segurando'); };
+  dest.addEventListener('pointerdown', ini); dest.addEventListener('pointerup', sol); dest.addEventListener('pointerleave', sol); dest.addEventListener('contextmenu', (e) => e.preventDefault());
+  // relógio da tela + checagem das partes por tempo
+  const tick = () => { if (!document.getElementById('g-tempo')) return encerrar(); verificaPasso(); if (st.estado === 'correndo') { desenha(); if (++nTick % 5 === 0) salvar(); } };
+  tickRef = setInterval(tick, 1000);
+  ligarGPS(); desenha();
+  // saiu da tela por navegação: libera GPS e tela
+  const sairRota = () => { if (!location.hash.startsWith('#/gps/' + id)) { if (st.estado === 'correndo') { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; salvar(); } encerrar(); window.removeEventListener('hashchange', sairRota); } };
+  window.addEventListener('hashchange', sairRota);
 }
 
 /* ---------- marcas de relógio: Garmin pela API oficial; as outras pelo Intervals.icu ---------- */

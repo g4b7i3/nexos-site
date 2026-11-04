@@ -1778,3 +1778,53 @@ html{touch-action:manipulation}
 .ocultar-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);background:var(--s1);color:var(--ink);cursor:pointer;flex:none}
 .ocultar-btn svg{transition:transform .2s}
 .ocultar-btn.fechado svg{transform:rotate(180deg)}
+/* ===== treino pelo celular (GPS) ===== */
+.gps-cta{display:flex;align-items:center;gap:14px;padding:16px;border-radius:var(--r);color:var(--ink);text-decoration:none;background:linear-gradient(135deg,var(--run-1,#0d2654),var(--run-2,#143a7c));color:#eef3ff;box-shadow:0 8px 24px rgba(13,38,84,.18)}
+.gps-cta b{display:block;font-size:1rem}
+.gps-cta span{display:block;font-size:.84rem;opacity:.82;margin-top:3px;line-height:1.4}
+.gps-cta .chev{flex:none;opacity:.8}
+.gps-cta-ic{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:rgba(70,214,255,.16);color:#46d6ff}
+.gps-cta-ic svg{width:24px;height:24px}
+.gps-aviso{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);font-size:.86rem;line-height:1.45}
+.gps-aviso svg{flex:none;width:18px;height:18px;color:var(--warn);margin-top:2px}
+.gps-rec{margin-top:14px;border:1.5px solid var(--acc)}
+.gps-tr.hoje{border:1.5px solid var(--acc)}
+.gps-tr.passado{opacity:.6}
+.gps-tr .perfil-int{margin-top:12px}
+/* tela do treino: sempre escura para gastar menos bateria */
+.app.gps-app{max-width:560px;padding:0}
+.gps{min-height:100dvh;background:#03070f;color:#eef3ff;padding:calc(12px + var(--safe-t)) 16px calc(20px + var(--safe-b));display:flex;flex-direction:column;gap:14px}
+.gps .icon-btn{background:rgba(255,255,255,.08);color:#eef3ff;border-color:rgba(255,255,255,.12)}
+.gps-top{display:flex;align-items:center;gap:10px}
+.gps-top b{font-size:.98rem}
+.gps-ok{color:#3ddc97}.gps-fraco{color:#ffcf5c}
+.gps-passo{--zc:#46d6ff;border-radius:22px;padding:18px;background:linear-gradient(160deg,color-mix(in srgb,var(--zc) 22%,#0b1834),#081022);border:1.5px solid color-mix(in srgb,var(--zc) 55%,transparent)}
+.gps-p-h{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#b9c6e0}
+.gps-z{font-weight:800;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--zc)}
+.gps-p-n{font-family:var(--f-h);font-weight:800;font-size:1.7rem;margin-top:8px;line-height:1.1}
+.gps-p-f{font-family:var(--f-h);font-weight:800;font-size:3.1rem;letter-spacing:-.02em;margin-top:6px;line-height:1}
+.gps-p-f small{font-family:var(--f-b);font-size:.95rem;font-weight:600;color:#b9c6e0;letter-spacing:0}
+.gps-bar{height:8px;border-radius:8px;background:rgba(255,255,255,.1);margin-top:14px;overflow:hidden}
+.gps-bar i{display:block;height:100%;background:var(--zc);border-radius:8px;transition:width .5s}
+.gps-p-alvo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;font-size:.9rem;color:#b9c6e0}
+.gps-p-alvo b{color:#eef3ff}
+.gps-r{padding:3px 9px;border-radius:20px;font-size:.75rem;font-weight:800}
+.gps-r.ok{background:rgba(61,220,151,.18);color:#3ddc97}.gps-r.r{background:rgba(255,107,107,.18);color:#ff8a8a}.gps-r.l{background:rgba(255,207,92,.18);color:#ffcf5c}
+.gps-num{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gps-num div{background:#0b1426;border:1px solid rgba(140,180,255,.12);border-radius:16px;padding:12px 14px}
+.gps-num span{display:block;font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8fa1c4}
+.gps-num b{display:block;font-family:var(--f-h);font-size:1.6rem;font-weight:800;margin-top:4px;letter-spacing:-.01em}
+.gps-num small{font-family:var(--f-b);font-size:.8rem;color:#8fa1c4;font-weight:600}
+.gps-prox{font-size:.88rem;color:#b9c6e0;text-align:center;min-height:1.2em}
+.gps-prox b{color:#eef3ff}
+.gps-bts{display:flex;gap:10px;margin-top:auto}
+.gps-bts .btn{min-height:58px;font-size:1.05rem}
+.gps .btn.ghost,html[data-tema] .gps .btn.ghost{background:rgba(255,255,255,.08)!important;color:#eef3ff!important;border:1px solid rgba(255,255,255,.16)!important;box-shadow:none!important}
+.gps-go{background:linear-gradient(90deg,#1fbf7a,#3ddc97);color:#04122b}
+.gps-go:disabled{opacity:.5}
+.gps-pausa{background:#ffcf5c;color:#04122b}
+.gps-trava{position:fixed;inset:0;z-index:80;background:rgba(3,7,15,.86);display:grid;place-items:center;padding:24px;touch-action:none}
+.gps-trava-c{text-align:center;color:#eef3ff}
+.gps-trava .btn{min-height:60px;padding:0 28px;position:relative;overflow:hidden;background:rgba(255,255,255,.1);color:#eef3ff}
+.gps-trava .btn.segurando::after{content:'';position:absolute;inset:0;background:rgba(70,214,255,.35);transform-origin:left;animation:gps-seg .9s linear forwards}
+@keyframes gps-seg{from{transform:scaleX(0)}to{transform:scaleX(1)}}
