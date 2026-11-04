@@ -1602,7 +1602,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
 }
 
 /* ================= SAÚDE: termo LGPD, anamnese e PAR-Q ================= */
-const TERMO_VERSAO = '2026-11';
+const TERMO_VERSAO = '2026-11.2'; // 2026-11.2: entra o termo de responsabilidade e assunção de riscos
 const CONTATO = { email: 'nexosperformanceesaude@gmail.com', insta: '@nexos.perform' };
 const PARQ = [
   'Algum médico já disse que você tem algum problema de coração e que só deveria fazer atividade física com supervisão de profissionais de saúde?',
@@ -1627,6 +1627,16 @@ function termoTexto() {
   <p><b>Seus direitos.</b> Você pode, a qualquer momento, pedir acesso, correção, cópia ou exclusão dos seus dados e revogar este consentimento (art. 18 da LGPD), pelo e-mail ${esc(CONTATO.email)} ou pelo Instagram ${esc(CONTATO.insta)}. Sem o consentimento para dados de saúde não é possível acompanhar o seu treino pelo app.</p>
   <p>Detalhes completos na <a href="../privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</p>`;
 }
+// termo de responsabilidade e assunção de riscos (aceito por todo aluno, com versão e data)
+function termoRiscosTexto() {
+  return `
+  <p><b>Termo de responsabilidade e assunção de riscos</b> · versão ${TERMO_VERSAO}</p>
+  <p><b>Riscos da atividade.</b> Declaro que conheço os riscos próprios da prática de corrida, musculação e outros exercícios físicos, em treinos e em provas, como lesões musculares, articulares e ósseas, mal-estar, desidratação, alterações da pressão arterial, problemas cardíacos, quedas e acidentes e, em casos extremos, morte súbita. Pratico a atividade por livre escolha e assumo esses riscos.</p>
+  <p><b>Saúde.</b> Declaro estar apto para a atividade física e que as informações da minha anamnese e do PAR-Q são verdadeiras e completas. Comprometo-me a informar à Nexos, antes do treino seguinte, qualquer mudança na minha saúde, lesão, dor, medicação ou sintoma, e a apresentar atestado médico de aptidão sempre que for recomendado ou solicitado.</p>
+  <p><b>Orientações.</b> Comprometo-me a seguir as orientações dos treinadores, a respeitar os meus limites e a interromper o exercício e procurar atendimento médico diante de dor no peito, falta de ar fora do normal, tontura, desmaio ou qualquer sinal de alerta.</p>
+  <p><b>Limites da responsabilidade.</b> A Nexos Performance e Saúde, seus sócios e treinadores não se responsabilizam por lesões, doenças, acidentes, danos materiais ou morte decorrentes: dos riscos próprios da atividade; de condições de saúde existentes ou não informadas; do descumprimento das orientações ou da alteração do treino por conta própria; de treinos feitos sem a supervisão presencial da Nexos; de provas e eventos organizados por terceiros; de trânsito, clima, terreno ou equipamentos; de alimentação, suplementação ou uso de medicamentos e substâncias sem orientação; ou de qualquer outro fato fora do controle da Nexos.</p>
+  <p><b>Menores de idade.</b> Se o aluno tiver menos de 18 anos, este termo é aceito pelo seu responsável legal, que assume as declarações acima em nome dele.</p>`;
+}
 async function carregarSaude(force) {
   if (S.cache.saude && !force) return S.cache.saude;
   const [{ data: c }, { data: a }] = await Promise.all([
@@ -1638,15 +1648,21 @@ async function carregarSaude(force) {
 }
 function viewTermo() {
   $dock.hidden = true; layout('bare');
+  const idade = S.me && S.me.nascimento ? idadeEm(S.me.nascimento) : null, menor = idade != null && idade < 18;
   $app.innerHTML = `
     <section class="login" style="justify-content:flex-start;padding-top:10px">
       <div class="row" style="gap:12px;margin-bottom:14px"><img src="${LOGO.s()}" alt="" style="width:44px">${slashes}</div>
       <p class="eyebrow">Antes de começar</p><h1 class="h1" style="margin-top:4px">Seus dados, suas regras</h1>
-      <p class="muted small" style="margin:8px 0 14px">Para acompanhar seu treino com segurança precisamos guardar alguns dados de saúde. Leia com calma:</p>
+      <p class="muted small" style="margin:8px 0 14px">Para acompanhar seu treino com segurança precisamos guardar alguns dados de saúde e combinar algumas responsabilidades. Leia com calma:</p>
       <div class="card termo">${termoTexto()}</div>
+      <div class="card termo" style="margin-top:12px">${termoRiscosTexto()}</div>
       <form id="f-termo" style="margin-top:16px">
+        ${menor ? `<div class="card" style="margin-bottom:12px"><span class="eyebrow">Responsável legal</span><p class="small muted" style="margin:6px 0 10px">Como o aluno tem menos de 18 anos, os termos são aceitos pelo responsável.</p>
+          <label class="field"><span>Nome completo do responsável</span><input class="input" name="resp_nome" required autocomplete="name"></label>
+          <label class="field"><span>CPF do responsável</span><input class="input" name="resp_cpf" required inputmode="numeric" placeholder="000.000.000-00" maxlength="14"></label></div>` : ''}
         <label class="aceite"><input type="checkbox" name="a" required><span>Li e concordo com o termo e com a Política de Privacidade.</span></label>
         <label class="aceite"><input type="checkbox" name="b" required><span>Autorizo, de forma específica e destacada, o tratamento dos meus dados de saúde e das minhas fotos para o acompanhamento do treino (art. 11, I, da LGPD).</span></label>
+        <label class="aceite"><input type="checkbox" name="c" required><span>Li e aceito o termo de responsabilidade e assunção de riscos${menor ? ', como responsável legal do aluno' : ''}.</span></label>
         <button class="btn block" type="submit" style="margin-top:8px">Aceitar e continuar ${I.arrow}</button>
         <button class="btn ghost block" type="button" id="recusar" style="margin-top:8px">Não aceito</button>
       </form>
@@ -1654,7 +1670,10 @@ function viewTermo() {
   const f = document.getElementById('f-termo');
   f.onsubmit = async (e) => {
     e.preventDefault(); const b = f.querySelector('[type=submit]'); b.disabled = true;
-    const { error } = await sb.from('nx_consentimentos').insert({ org_id: S.org.id, aluno_id: S.user.id, versao: TERMO_VERSAO, dispositivo: navigator.userAgent.slice(0, 180) });
+    const cpf = menor ? soDig(f.resp_cpf.value) : null;
+    if (menor && cpf.length !== 11) { b.disabled = false; return toast('Confira o CPF do responsável (11 números).', true); }
+    const { error } = await sb.from('nx_consentimentos').insert({ org_id: S.org.id, aluno_id: S.user.id, versao: TERMO_VERSAO, dispositivo: navigator.userAgent.slice(0, 180), termo_riscos: true,
+      responsavel_nome: menor ? f.resp_nome.value.trim() : null, responsavel_cpf: menor ? cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : null });
     if (error && !/duplicate|unique/i.test(error.message || '')) { b.disabled = false; return toast('Não foi possível registrar. Tente de novo.', true); }
     await carregarSaude(true); router();
   };
@@ -1732,7 +1751,7 @@ async function viewAnamnese(opts = {}) {
   const sn = (name, val) => `<div class="radios"><label><input type="radio" name="${name}" value="nao" ${val === 'nao' ? 'checked' : ''}><span>Não</span></label><label><input type="radio" name="${name}" value="sim" ${val === 'sim' ? 'checked' : ''}><span>Sim</span></label></div>`;
   box.innerHTML = `
     ${opts.gate ? `<div class="row" style="gap:12px;margin-bottom:14px"><img src="${LOGO.s()}" alt="" style="width:44px">${slashes}</div><p class="eyebrow">Passo 2 de 2</p><h1 class="h1" style="margin-top:4px">Sua ficha de saúde</h1><p class="muted small" style="margin:8px 0 4px">Leva uns 3 minutos. Com isso o seu treinador monta um treino seguro pra você.</p>`
-      : staff ? '' : `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Minha saúde</p><h1 class="h1">Anamnese e PAR-Q</h1><p class="muted small" style="margin-top:6px">Mudou alguma coisa? Atualize aqui e o seu treinador é avisado.</p>`}
+      : staff ? '' : `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Minha saúde</p><h1 class="h1">Anamnese e PAR-Q</h1><p class="muted small" style="margin-top:6px">Mudou alguma coisa? Atualize aqui e o seu treinador é avisado.</p><div style="margin-top:14px">${atestadoHTML(a, false)}</div>`}
     <form id="f-ana" class="stack" style="margin-top:16px">
       <div class="card wz-step" data-k="parq" data-titulo="PAR-Q"><span class="eyebrow">PAR-Q · prontidão para atividade física</span>
         <p class="tiny dim" style="margin:6px 0 4px">Responda com sinceridade. Uma resposta "sim" não impede o treino, mas pede uma conversa com o médico antes.</p>
@@ -1783,6 +1802,7 @@ async function viewAnamnese(opts = {}) {
       <button class="btn block" type="submit">${opts.gate ? 'Concluir e começar' : 'Salvar ficha'} ${I.check}</button>
     </form>`;
   const f = box.querySelector('#f-ana');
+  if (!staff && !opts.gate && a) bindAtestado(box, a, alunoId, () => { const el = box.querySelector('#atestado-box'); if (el) { el.outerHTML = atestadoHTML(a, false); bindAtestado(box, a, alunoId); } });
   const cc = box.querySelector('#ciclo-card');
   if (cc) {
     const mostrar = () => { cc.querySelector('#cic-campos').hidden = !f.cic_on.checked; const sit = f.cic_sit.value; cc.querySelector('#cic-datas').hidden = sit === 'contraceptivo' || sit === 'nao_menstrua'; };
@@ -1846,15 +1866,53 @@ async function viewAnamnese(opts = {}) {
     const seguir = () => { const alvo = opts.gate ? '#/' : '#/perfil'; if (location.hash === alvo || (alvo === '#/' && !location.hash)) router(); else location.hash = alvo; };
     if (positivo) {
       box.innerHTML = `<section class="login center">${estIc(I.saude)}<h1 class="h1" style="margin-top:8px">Converse com um médico</h1>
-        <p class="muted" style="margin:12px 0 22px">Você respondeu "sim" em pelo menos uma pergunta do PAR-Q. Antes de começar ou aumentar a intensidade dos treinos, procure um médico para uma avaliação. Seu treinador já foi avisado e vai ajustar o treino com você.</p>
-        <button class="btn" id="seguir">Entendi, continuar</button></section>`;
+        <p class="muted" style="margin:12px 0 18px">Você respondeu "sim" em pelo menos uma pergunta do PAR-Q. Antes de começar ou aumentar a intensidade dos treinos, procure um médico para uma avaliação. Seu treinador já foi avisado e vai ajustar o treino com você.</p>
+        <div style="text-align:left;width:100%">${atestadoHTML({ id, parq_positivo: true, atestado_path: a && a.atestado_path, atestado_em: a && a.atestado_em }, false)}</div>
+        <button class="btn" id="seguir" style="margin-top:16px">${a && a.atestado_path ? 'Continuar' : 'Enviar depois e continuar'}</button></section>`;
+      bindAtestado(box, { id, parq_positivo: true, atestado_path: a && a.atestado_path, atestado_em: a && a.atestado_em }, alunoId, seguir);
       box.querySelector('#seguir').onclick = seguir; window.scrollTo(0, 0); return;
     }
     seguir();
   };
 }
+// atestado médico (quando o PAR-Q tem "sim"): foto ou PDF guardado na área privada
+function atestadoHTML(a, staff) {
+  if (!a || !a.parq_positivo) return '';
+  const ok = !!a.atestado_path;
+  return `<div class="card atestado ${ok ? 'ok' : ''}" id="atestado-box"><div><div>
+    <span class="eyebrow">Atestado médico</span>
+    <b style="display:block;margin-top:2px">${ok ? `Enviado em ${fmtDia(a.atestado_em)}` : staff ? 'Ainda não enviado' : 'Envie o seu atestado de aptidão'}</b>
+    <p class="small muted" style="margin-top:4px">${ok ? (staff ? 'Liberação médica guardada na área privada do aluno.' : 'Obrigado. O seu treinador já pode ver a liberação.') : staff ? 'O PAR-Q teve “sim”. Peça a liberação médica antes de intensificar o treino.' : 'Como o PAR-Q teve “sim”, envie o atestado do seu médico liberando a atividade física (foto ou PDF).'}</p>
+    <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">${ok ? '<button type="button" class="btn ghost sm" data-at="ver">Ver atestado</button>' : ''}${!staff ? `<label class="btn ${ok ? 'ghost' : ''} sm" style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg> ${ok ? 'Trocar' : 'Enviar atestado'}<input type="file" accept="image/*,application/pdf" data-at="arq" hidden></label>` : ''}</div>
+  </div></div></div>`;
+}
+function bindAtestado(box, a, alunoId, aoMudar) {
+  const el = box && box.querySelector('#atestado-box'); if (!el) return;
+  const ver = el.querySelector('[data-at="ver"]');
+  if (ver) ver.onclick = async () => { const { data, error } = await sb.storage.from('nx-fotos').createSignedUrl(a.atestado_path, 600); if (error || !data) return toast('Não foi possível abrir o atestado.', true); window.open(data.signedUrl, '_blank', 'noopener'); };
+  const inp = el.querySelector('[data-at="arq"]');
+  if (inp) inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    const pdf = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name);
+    if (pdf && f.size > 5 * 1024 * 1024) return toast('O PDF passa de 5 MB. Envie uma foto do atestado.', true);
+    const lb = inp.closest('label'); lb.classList.add('carregando'); lb.firstChild && (lb.childNodes[1].textContent = ' Enviando…');
+    try {
+      const corpo = pdf ? f : await comprimirImagem(f, 2000);
+      const caminho = `${S.org.id}/${alunoId}/atestado-${Date.now()}.${pdf ? 'pdf' : 'jpg'}`;
+      const { error } = await sb.storage.from('nx-fotos').upload(caminho, corpo, { contentType: pdf ? 'application/pdf' : 'image/jpeg', upsert: false });
+      if (error) throw error;
+      const quando = new Date().toISOString();
+      const { error: e2 } = await sb.from('nx_anamneses').update({ atestado_path: caminho, atestado_em: quando, visto_treinador: false }).eq('id', a.id);
+      if (e2) throw e2;
+      a.atestado_path = caminho; a.atestado_em = quando;
+      notificar('anamnese', a.id); toast('Atestado enviado! O seu treinador foi avisado.');
+      aoMudar ? aoMudar() : (el.outerHTML = atestadoHTML(a, false), bindAtestado(box, a, alunoId));
+    } catch (e) { console.error(e); toast('Não foi possível enviar. Verifique a internet e tente de novo.', true); lb.classList.remove('carregando'); }
+  };
+}
 function anamneseResumoHTML(a, termo) {
-  const termoH = termo ? `<span class="tag ok">Termo aceito em ${fmtDia(termo.aceito_em)} · v${esc(termo.versao)}</span>` : '<span class="tag warn">Termo ainda não aceito</span>';
+  const termoH = (termo ? `<span class="tag ok">Termo aceito em ${fmtDia(termo.aceito_em)} · v${esc(termo.versao)}</span>${termo.termo_riscos ? '<span class="tag ok">Assunção de riscos aceita</span>' : '<span class="tag warn">Falta aceitar o termo de riscos</span>'}${termo.responsavel_nome ? `<span class="tag">Responsável: ${esc(termo.responsavel_nome)}</span>` : ''}` : '<span class="tag warn">Termo ainda não aceito</span>')
+    + (a && a.parq_positivo ? (a.atestado_path ? '<span class="tag ok">Atestado enviado</span>' : '<span class="tag err">Sem atestado médico</span>') : '');
   if (!a) return `<div class="row" style="gap:6px;flex-wrap:wrap">${termoH}</div><div class="empty" style="margin-top:12px"><div class="h3">Ficha ainda não preenchida</div><p class="small">O aluno preenche a anamnese no primeiro acesso ao app. Você também pode preencher junto com ele.</p></div>`;
   const r = a.respostas || {}; const nomeOp = (lista, v) => (lista.find((x) => x[0] === v) || [, v])[1];
   const linha = (l, v) => v ? `<div><span>${l}</span><b>${esc(v)}</b></div>` : '';
@@ -1863,6 +1921,7 @@ function anamneseResumoHTML(a, termo) {
     <div class="card" style="margin-top:12px;${a.parq_positivo ? 'border-color:rgba(255,207,92,.45)' : ''}"><span class="eyebrow" style="${a.parq_positivo ? 'color:var(--warn)' : ''}">PAR-Q ${a.parq_positivo ? '· atenção' : '· sem alterações'}</span>
       ${a.parq_positivo ? `<p class="small" style="margin:6px 0 8px">Respondeu <b>sim</b> em:</p>${sim.map(([n, q]) => `<p class="small" style="margin-top:6px">${icT(I.alerta, 'warn')}${n}. ${q}</p>`).join('')}<p class="tiny dim" style="margin-top:12px">Recomendado pedir liberação médica antes de intensificar o treino.</p>` : '<p class="small muted" style="margin-top:6px">Respondeu "não" a todas as perguntas.</p>'}
     </div>
+    ${atestadoHTML(a, true)}
     <div class="card"><span class="eyebrow">Ficha</span><div class="kv" style="margin-top:8px">
       ${linha('Altura e peso', [r.altura && r.altura + ' m', r.peso && r.peso + ' kg'].filter(Boolean).join(' · '))}
       ${linha('Objetivo', [nomeOp(OBJETIVOS, r.objetivo), r.objetivo_txt].filter(Boolean).join(' · '))}
@@ -4831,7 +4890,7 @@ async function staffHoje() {
     sb.from('nx_membros').select('user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
     sb.from('nx_corridas').select('id,aluno_id,data,tipo,distancia_m,duracao_s,rpe,dor,dor_local,cansaco,sono,visto_treinador,plano_id').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
-    sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => r.data || []),
+    sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador,atestado_path').eq('org_id', S.org.id).then((r) => r.data || []),
     sb.from('nx_avaliacoes').select('aluno_id,data,proxima').eq('org_id', S.org.id).order('data', { ascending: false }).then((r) => r.data || []),
     sb.from('nx_cobrancas').select('id,aluno_id,valor,vencimento,status,competencia').eq('org_id', S.org.id).in('status', ['aberta', 'informada']).then((r) => r.data || []),
     sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hojeISO()).lte('data', isoDia(Date.now() + 21 * 864e5)).order('data').then((r) => r.data || []).catch(() => []),
@@ -4866,6 +4925,7 @@ async function staffHoje() {
     if (ck.filter((x) => x.so === 2).length >= 2) l.push({ p: 2, t: 'Dormindo mal', cls: 'warn', ir });
     const an = anams.find((a) => a.aluno_id === id);
     if (an && an.parq_positivo && !an.visto_treinador) l.push({ p: 1, t: 'PAR-Q com “sim”', cls: 'err', ir: `#/aluno/${id}/saude` });
+    else if (an && an.parq_positivo && !an.atestado_path) l.push({ p: 3, t: 'Sem atestado médico', cls: 'warn', ir: `#/aluno/${id}/saude` });
     const pv = provasEq.find((x) => x.aluno_id === id);
     if (pv) { const dd = diasAte(pv.data); l.push({ p: 2, t: `Prova ${dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : dd < 7 ? `em ${dd} dias` : `em ${dd} dias`}`, cls: 'prova', ir: `#/aluno/${id}/corrida` }); }
     const msgs = (S.cache.msgPorAluno || {})[id];
@@ -5390,7 +5450,7 @@ async function staffAluno(alunoId, aba, extra) {
   } else if (aba === 'fotos') {
     corpo = '<div id="fotos"></div>';
   } else if (aba === 'saude') {
-    termo = (await sb.from('nx_consentimentos').select('versao,aceito_em').eq('org_id', S.org.id).eq('aluno_id', alunoId).order('aceito_em', { ascending: false }).limit(1)).data?.[0] || null;
+    termo = (await sb.from('nx_consentimentos').select('versao,aceito_em,termo_riscos,responsavel_nome').eq('org_id', S.org.id).eq('aluno_id', alunoId).order('aceito_em', { ascending: false }).limit(1)).data?.[0] || null;
     corpo = `<div id="saude">${anamneseResumoHTML(anamnese, termo)}</div>`;
   } else {
     corpo = `<form class="card" id="f-dados">
@@ -5465,6 +5525,7 @@ async function staffAluno(alunoId, aba, extra) {
     if (anamnese && !anamnese.visto_treinador) sb.from('nx_anamneses').update({ visto_treinador: true }).eq('id', anamnese.id).then(() => {});
     const ed = document.getElementById('editar-ana');
     const abrirEd = () => viewAnamnese({ alunoId, anamnese, box: document.getElementById('saude'), onSave: () => staffAluno(alunoId, 'saude') });
+    bindAtestado(document.getElementById('saude'), anamnese, alunoId);
     if (ed) ed.onclick = abrirEd;
     else { const sd = document.getElementById('saude'); sd.insertAdjacentHTML('beforeend', '<button class="btn ghost block" id="preencher-ana" style="margin-top:12px">Preencher a ficha com o aluno</button>'); sd.querySelector('#preencher-ana').onclick = abrirEd; }
   }
@@ -7081,7 +7142,7 @@ const FICHA_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação de 
 const FICHA_ESPORTES = [['nunca', 'Nunca pratiquei'], ['corrida', 'Corrida'], ['natacao', 'Natação'], ['ciclismo', 'Ciclismo'], ['musculacao', 'Musculação'], ['triathlon', 'Triathlon'], ['futebol', 'Futebol'], ['voleibol', 'Voleibol'], ['basquete', 'Basquetebol'], ['judo', 'Judô'], ['lutas', 'Artes marciais'], ['outros', 'Outros esportes']];
 const FICHA_NIVEL = [['sedentario', 'Sedentário'], ['iniciante', 'Iniciante'], ['intermediario', 'Intermediário'], ['avancado', 'Avançado'], ['profissional', 'Profissional']];
 const FICHA_HIST = ['Alguma doença na família nos últimos anos?', 'Alguma doença pessoal nos últimos anos?', 'Possui alguma restrição à prática de atividade física?', 'Já fez alguma cirurgia?', 'Possui algum tipo de alergia?', 'Já sofreu algum acidente ou lesão nos ossos, músculos ou articulações?', 'Usa algum medicamento?', 'Fuma ou já teve o hábito de fumar?', 'Tem sentido dores no corpo?', 'Está em dieta para perder ou ganhar peso?', 'Fez algum exame do coração nos últimos 6 meses?'];
-const FICHA_TERMO = 'Declaro que, como atleta interessado em receber orientação de treino da Nexos Performance e Saúde, conheço os riscos que a prática esportiva pode trazer, como lesões musculares e outros problemas causados por treinar acima das minhas condições físicas reais. Declaro que as informações desta ficha são verdadeiras, que estou em condições de praticar a atividade proposta e que vou avisar o treinador sobre qualquer mudança na minha saúde, me responsabilizando pelo que eu informar nos acompanhamentos dos treinos. Autorizo a Nexos a usar estes dados, inclusive os de saúde, somente para montar e acompanhar o meu treino, conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).';
+const FICHA_TERMO = 'Declaro que conheço os riscos próprios da prática de corrida, musculação e outros exercícios físicos, em treinos e em provas, como lesões musculares, articulares e ósseas, mal-estar, desidratação, problemas cardíacos, quedas e acidentes e, em casos extremos, morte súbita, e que pratico a atividade por livre escolha, assumindo esses riscos. Declaro que estou apto para a atividade física, que as informações desta ficha são verdadeiras e completas e que vou informar à Nexos Performance e Saúde qualquer mudança na minha saúde, apresentando atestado médico sempre que for recomendado ou solicitado. A Nexos, seus sócios e treinadores não se responsabilizam por lesões, doenças, acidentes ou morte decorrentes dos riscos próprios da atividade, de condições de saúde não informadas, do descumprimento das orientações, de treinos sem a supervisão presencial da Nexos, de provas organizadas por terceiros ou de qualquer outro fato fora do seu controle. Autorizo a Nexos a usar estes dados, inclusive os de saúde, somente para montar e acompanhar o meu treino, conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).';
 const fichaLink = (tk) => loginURL() + '#/ficha/' + tk;
 const telWa = (t) => { const d = String(t || '').replace(/\D/g, ''); return d ? (d.length <= 11 ? '55' + d : d) : ''; };
 const fichaMsg = (nome, link) => `Olá${nome ? ', ' + firstName(nome) : ''}! Aqui é da Nexos Performance e Saúde 💪\n\nPara montarmos o seu treino, preencha sua ficha de entrada (leva uns 5 minutos):\n${link}`;

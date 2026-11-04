@@ -1837,3 +1837,8 @@ html{touch-action:manipulation}
 .loc-res:empty{display:none}
 .loc-it{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:10px 12px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);color:var(--ink);font:inherit;font-size:.9rem;cursor:pointer}
 .loc-it svg{flex:none;color:var(--acc)}
+/* atestado médico */
+.card.atestado{border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.card.atestado.ok{border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.card.atestado .go{flex:none}
+label.btn.carregando{opacity:.6;pointer-events:none}
