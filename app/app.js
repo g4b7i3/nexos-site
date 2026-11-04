@@ -104,6 +104,7 @@ const selo = (k, extra = '') => `<span class="selo ${k === 'corrida' ? 'selo-c' 
 const imgURL = (p) => (/^https?:/.test(p) ? p : 'ex/' + p);
 function exFig(ex, cls = '') {
   const im = (ex && ex.imagens) || [];
+  if (!im.length && ex && ehVideoArquivo(ex.video_url)) return `<div class="exfig ${cls}"><video src="${esc(ex.video_url)}#t=0.5" muted playsinline preload="metadata" aria-hidden="true"></video></div>`;
   if (!im.length) return `<div class="exfig empty ${cls}" aria-hidden="true"><span>${esc((ex && ex.grupo) || '')}</span></div>`;
   return `<div class="exfig ${im.length > 1 ? 'anim' : ''} ${cls}">${im.slice(0, 2).map((p, k) => `<img src="${esc(imgURL(p))}" alt="${k ? '' : esc(ex.nome)}" loading="lazy" decoding="async">`).join('')}</div>`;
 }
@@ -122,7 +123,7 @@ async function hidratarInstrucoes(root = document) {
 // vídeo em arquivo (mp4/mov/webm ou do armazenamento) toca dentro do app; link de YouTube etc. abre fora
 const ehVideoArquivo = (u) => /\.(mp4|mov|m4v|webm)(\?|$)/i.test(u || '') || /\/storage\/v1\/object\//.test(u || '');
 const exVideoHTML = (ex) => ex && ex.video_url && ehVideoArquivo(ex.video_url)
-  ? `<div class="ex-vid"><video src="${esc(ex.video_url)}" controls playsinline muted loop preload="none"></video>${ex.video_credito ? `<p class="tiny dim">Vídeo: ${esc(ex.video_credito).replace('CC BY-SA 4.0', '<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" target="_blank" rel="noopener" class="dim">CC BY-SA 4.0</a>')}</p>` : ''}</div>` : '';
+  ? `<div class="ex-vid"><video src="${esc(ex.video_url)}" controls playsinline ${ex.com_audio ? '' : 'muted'} loop preload="none"></video>${ex.video_credito ? `<p class="tiny dim">Vídeo: ${esc(ex.video_credito).replace('CC BY-SA 4.0', '<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" target="_blank" rel="noopener" class="dim">CC BY-SA 4.0</a>')}</p>` : ''}</div>` : '';
 function exDetalhe(ex) {
   const passos = (ex.instrucoes && ex.instrucoes.length) ? passosHTML(ex.instrucoes)
     : ex.ref_externa ? `<div data-instr-ref="${esc(ex.ref_externa)}"><p class="dim small">Carregando instruções…</p></div>`
@@ -972,7 +973,7 @@ async function ultimasCargas(alunoId, exIds) {
 
 async function viewExecucao(treinoId, preview) {
   loading();
-  const { data: t, error } = await sb.from('nx_treinos').select('*, nx_treino_itens(*, nx_exercicios(nome,grupo,equipamento,descricao,video_url,video_credito,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa))').eq('id', treinoId).maybeSingle();
+  const { data: t, error } = await sb.from('nx_treinos').select('*, nx_treino_itens(*, nx_exercicios(nome,grupo,equipamento,descricao,video_url,video_credito,com_audio,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa))').eq('id', treinoId).maybeSingle();
   if (error) throw error;
   if (!t) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Treino não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
   const itens = (t.nx_treino_itens || []).sort((a, b) => a.ordem - b.ordem);
@@ -5617,7 +5618,7 @@ async function staffAluno(alunoId, aba, extra) {
 /* ---------- montar / editar treino ---------- */
 async function carregarExercicios(force) {
   if (!S.cache.ex || force) {
-    const cols = 'id,nome,nome_en,grupo,equipamento,imagens,video_url,video_credito,nivel,fonte,ref_externa';
+    const cols = 'id,nome,nome_en,grupo,categoria,equipamento,imagens,video_url,video_credito,com_audio,nivel,fonte,ref_externa,criado_por';
     let all = [], from = 0;
     for (;;) {
       const { data, error } = await sb.from('nx_exercicios').select(cols).eq('org_id', S.org.id).order('nome').range(from, from + 999);
@@ -5710,7 +5711,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
     if (e.target.closest('#exp-todos')) { syncCampos(); const abrir = !t.itens.every((x) => x._aberto); t.itens.forEach((x) => (x._aberto = abrir)); draw(); return; }
     if (e.target.closest('#add-ex')) {
       syncCampos();
-      escolherExercicio(exs, (ex) => { t.itens.push({ exercicio_id: ex.id, series: 3, repeticoes: '12', carga: '', descanso_seg: 60, observacao: '', _aberto: true }); draw(); toast(`${ex.nome} adicionado`); });
+      escolherExercicio(exs, (ex) => { exMap[ex.id] = ex; t.itens.push({ exercicio_id: ex.id, series: 3, repeticoes: '12', carga: '', descanso_seg: 60, observacao: '', _aberto: true }); draw(); toast(`${ex.nome} adicionado`); });
       return;
     }
     if (e.target.closest('#usar-modelo')) {
@@ -5850,30 +5851,174 @@ function filtrarEx(exs, g, q, eq) {
     (!nq.length || nq.every((w) => semAcento(e.nome + ' ' + (e.nome_en || '') + ' ' + (e.equipamento || '')).includes(w))));
 }
 const LIM = 60;
-function exLinha(e, extra = '') {
-  return `<div class="list-item ex-li" data-ex="${e.id}">${exFig(e, 'thumb')}<div class="grow"><b class="ellip2">${esc(e.nome)}</b><div class="tiny muted ellip">${esc(e.grupo)}${e.equipamento ? ' · ' + esc(e.equipamento) : ''}</div></div>${extra}</div>`;
+/* ---------- biblioteca de exercícios: buscar, favoritar, criar (com foto, vídeo ou YouTube) ---------- */
+const GRUPOS_MUSC = ['Abdômen', 'Antebraço', 'Bíceps', 'Cardio', 'Core', 'Corrida/Educativo', 'Costas', 'Funcional', 'Glúteos', 'Mobilidade', 'Alongamento', 'Ombros', 'Panturrilha', 'Peito', 'Pernas', 'Pescoço', 'Pliometria', 'Posterior', 'Tríceps'];
+const CATS_EX = ['Musculação', 'Funcional', 'Mobilidade', 'Alongamento', 'Aquecimento', 'Pliometria', 'Cardio', 'Educativo de corrida'];
+const STAR = (on) => `<svg viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>`;
+const ordenaPt = (l) => [...new Set(l.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'));
+async function carregarFavoritos() {
+  if (!S.cache.fav) {
+    const { data } = await sb.from('nx_ex_favoritos').select('exercicio_id').eq('user_id', S.user.id).then((r) => r, () => ({ data: [] }));
+    S.cache.fav = new Set((data || []).map((x) => x.exercicio_id));
+  }
+  return S.cache.fav;
 }
-function escolherExercicio(exs, onPick) {
-  const grupos = ['Todos', ...[...new Set(exs.map((e) => e.grupo))].sort((a, b) => a.localeCompare(b, 'pt'))];
-  let g = 'Todos', q = '', n = LIM;
+async function alternarFavorito(id) {
+  const fav = await carregarFavoritos(); const on = !fav.has(id);
+  on ? fav.add(id) : fav.delete(id);
+  const { error } = on ? await sb.from('nx_ex_favoritos').insert({ exercicio_id: id, org_id: S.org.id })
+    : await sb.from('nx_ex_favoritos').delete().eq('user_id', S.user.id).eq('exercicio_id', id);
+  if (error) { on ? fav.delete(id) : fav.add(id); toast('Não foi possível salvar o favorito.', true); }
+  return fav.has(id);
+}
+const exMidia = (e) => e.video_url ? (ehVideoArquivo(e.video_url) ? 'video' : 'youtube') : (e.imagens || []).some((p) => /nx-exvideos/.test(p)) ? 'foto' : 'nenhuma';
+function exItemBib(e, fav, acao) {
+  const md = exMidia(e);
+  const tags = [e.grupo, e.categoria].filter(Boolean).map((t) => `<span class="pill">${esc(t)}</span>`).join('');
+  return `<div class="bib-it" data-ex="${e.id}">${exFig(e, 'thumb')}
+    <div class="grow" style="min-width:0"><b class="ellip2">${esc(e.nome)}</b><div class="bib-tags">${tags}${md === 'video' || md === 'youtube' ? `<span class="pill acc">${I.play} vídeo</span>` : ''}</div></div>
+    <button type="button" class="bib-star ${fav.has(e.id) ? 'on' : ''}" data-fav="${e.id}" aria-label="${fav.has(e.id) ? 'Tirar dos favoritos' : 'Adicionar aos favoritos'}">${STAR(fav.has(e.id))}</button>${acao}</div>`;
+}
+/** lista com abas (Todos, Favoritos, Meus), busca, grupo muscular e categoria. Usada na biblioteca e na hora de prescrever. */
+function bibliotecaUI(box, exs, fav, { aoTocar, aoCriar, acao = '' }) {
+  const st = S.cache.bibSt || (S.cache.bibSt = { aba: 'todos', g: '', c: '', q: '' });
+  let n = LIM;
+  const grupos = ordenaPt(exs.map((e) => e.grupo)), cats = ordenaPt([...CATS_EX, ...exs.map((e) => e.categoria)]);
+  box.innerHTML = `<button type="button" class="bib-criar" data-criar>${I.plus} Criar exercício</button>
+    <div class="search" style="margin-top:12px">${I.search}<input class="input" data-q placeholder="Buscar exercícios…" value="${esc(st.q)}"></div>
+    <div class="bib-abas">${[['todos', 'Todos'], ['fav', 'Favoritos'], ['meus', 'Meus exercícios']].map(([k, l]) => `<button type="button" data-aba="${k}" class="${st.aba === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    <div class="bib-filtros"><select class="select" data-g><option value="">Grupo muscular</option>${grupos.map((x) => `<option ${st.g === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+      <select class="select" data-c><option value="">Categoria</option>${cats.map((x) => `<option ${st.c === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+      <button type="button" class="link-btn small" data-limpar>Limpar</button></div>
+    <p class="tiny dim" data-n style="margin-top:10px"></p><div class="bib-lista" data-l></div>`;
+  const draw = () => {
+    let l = filtrarEx(exs, st.g || 'Todos', st.q);
+    if (st.c) l = l.filter((e) => e.categoria === st.c);
+    if (st.aba === 'fav') l = l.filter((e) => fav.has(e.id)); else if (st.aba === 'meus') l = l.filter((e) => e.criado_por === S.user.id);
+    box.querySelector('[data-n]').textContent = `${l.length} exercício${l.length === 1 ? '' : 's'}`;
+    const vazio = st.aba === 'fav' ? 'Toque na estrela de um exercício para ele aparecer aqui.' : st.aba === 'meus' ? 'Os exercícios que você criar aparecem aqui.' : 'Nada encontrado. Tente outro termo ou crie o exercício.';
+    box.querySelector('[data-l]').innerHTML = (l.slice(0, n).map((e) => exItemBib(e, fav, acao)).join('') || `<div class="empty"><p class="small">${vazio}</p></div>`)
+      + (l.length > n ? `<button type="button" class="btn ghost block" data-mais style="margin-top:10px">Mostrar mais (${l.length - n})</button>` : '');
+  };
+  draw();
+  box.querySelector('[data-q]').oninput = (e) => { st.q = e.target.value; n = LIM; draw(); };
+  box.querySelector('[data-g]').onchange = (e) => { st.g = e.target.value; n = LIM; draw(); };
+  box.querySelector('[data-c]').onchange = (e) => { st.c = e.target.value; n = LIM; draw(); };
+  box.onclick = async (e) => {
+    if (e.target.closest('[data-criar]')) return aoCriar();
+    if (e.target.closest('[data-limpar]')) { Object.assign(st, { g: '', c: '', q: '' }); box.querySelector('[data-q]').value = ''; box.querySelector('[data-g]').value = ''; box.querySelector('[data-c]').value = ''; n = LIM; return draw(); }
+    if (e.target.closest('[data-mais]')) { n += LIM; return draw(); }
+    const ab = e.target.closest('[data-aba]');
+    if (ab) { st.aba = ab.dataset.aba; box.querySelectorAll('[data-aba]').forEach((b) => b.classList.toggle('on', b === ab)); n = LIM; return draw(); }
+    const fb = e.target.closest('[data-fav]');
+    if (fb) { const on = await alternarFavorito(fb.dataset.fav); fb.classList.toggle('on', on); fb.innerHTML = STAR(on); if (st.aba === 'fav') draw(); return; }
+    const it = e.target.closest('[data-ex]'); if (it) aoTocar(exs.find((x) => x.id === it.dataset.ex));
+  };
+}
+async function escolherExercicio(exs, onPick) {
+  const fav = await carregarFavoritos();
+  const abrir = () => openSheet(`<div class="h2" style="padding-right:44px">Biblioteca de exercícios</div><div id="bib-box" style="margin-top:14px"></div>`, (root) => {
+    bibliotecaUI(root.querySelector('#bib-box'), exs, fav, {
+      acao: `<span class="icon-btn" style="width:36px;height:36px;flex:none">${I.plus}</span>`,
+      aoTocar: (ex) => { closeSheet(); onPick(ex); },
+      aoCriar: () => formExercicio(null, { voltar: abrir, aoSalvar: (ex) => { exs.push(ex); exs.sort((a, b) => a.nome.localeCompare(b.nome, 'pt')); closeSheet(); onPick(ex); } }),
+    });
+  });
+  abrir();
+}
+async function enviarMidiaEx(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '') || (file.type.split('/')[1] || 'bin');
+  const path = `${S.org.id}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await sb.storage.from('nx-exvideos').upload(path, file, { contentType: file.type || undefined, cacheControl: '31536000' });
+  if (error) throw error;
+  return sb.storage.from('nx-exvideos').getPublicUrl(path).data.publicUrl;
+}
+/** criar ou editar exercício. opts.aoSalvar recebe o exercício salvo; opts.voltar volta para a lista de onde veio */
+async function formExercicio(exLista, opts = {}) {
+  const novo = !exLista;
+  let ex = { nome: '', grupo: '', categoria: '', equipamento: '', descricao: '', video_url: '', imagens: [], instrucoes: [], com_audio: false };
+  if (!novo) {
+    const { data } = await sb.from('nx_exercicios').select('*').eq('id', exLista.id).maybeSingle();
+    ex = data || exLista;
+    if ((!ex.instrucoes || !ex.instrucoes.length) && ex.ref_externa) {
+      try { const r = await fetch(imgURL(ex.ref_externa + '/info.json')); if (r.ok) ex.instrucoes = (await r.json()).instrucoes || []; } catch {}
+    }
+  }
+  const fav = await carregarFavoritos();
+  const passos = (ex.instrucoes && ex.instrucoes.length ? ex.instrucoes : (ex.descricao ? [ex.descricao] : [])).join('\n');
+  const grupos = ordenaPt([...GRUPOS_MUSC, ...(S.cache.ex || []).map((e) => e.grupo), ex.grupo]);
+  const cats = ordenaPt([...CATS_EX, ...(S.cache.ex || []).map((e) => e.categoria), ex.categoria]);
+  const md0 = exMidia(ex);
+  const MIDIAS = [['nenhuma', 'Sem mídia'], ['foto', 'Foto ou GIF'], ['video', 'Vídeo do celular'], ['youtube', 'Link do YouTube']];
   openSheet(`
-    <div class="row between"><div class="h2">Biblioteca</div><button class="icon-btn" data-close aria-label="Fechar">${I.x}</button></div>
-    <div class="search" style="margin-top:16px">${I.search}<input class="input" id="pq" placeholder="Buscar: agachamento, remada, halter…" autofocus></div>
-    <div class="chips" id="pg">${grupos.map((x) => `<button class="chip ${x === g ? 'on' : ''}" data-g="${esc(x)}">${esc(x)}</button>`).join('')}</div>
-    <p class="tiny dim" id="pc" style="margin-top:12px"></p>
-    <div id="pl" style="margin-top:8px"></div>`, (root) => {
-    const draw = () => {
-      const l = filtrarEx(exs, g, q);
-      root.querySelector('#pc').textContent = `${l.length} exercício${l.length === 1 ? '' : 's'}`;
-      root.querySelector('#pl').innerHTML = (l.slice(0, n).map((e) => exLinha(e, `<span class="icon-btn" style="width:36px;height:36px;flex:none">${I.plus}</span>`)).join('') || '<p class="small muted center">Nada encontrado. Tente outro termo.</p>')
-        + (l.length > n ? `<button class="btn ghost block" id="pmais" style="margin-top:12px">Mostrar mais (${l.length - n})</button>` : '');
+    ${opts.voltar ? `<button type="button" class="ex-voltar" id="ex-voltar">${I.back} Biblioteca</button>` : `<p class="eyebrow">${novo ? 'Biblioteca' : esc(ex.grupo || '')}</p>`}
+    <div class="h2" style="margin-top:6px;padding-right:44px">${novo ? 'Criar exercício' : esc(ex.nome)}</div>
+    ${novo ? '' : `${ex.imagens && ex.imagens.length ? exFig(ex, 'big') : ''}<div class="ex-detail">${exDetalhe(ex)}</div><div class="tabs" style="margin-top:16px"><button class="on" type="button">Editar</button></div>`}
+    <form id="f-ex" style="margin-top:14px" novalidate>
+      <label class="field"><span>Nome</span><input class="input" name="nome" value="${esc(ex.nome)}" ${novo ? 'autofocus' : ''} placeholder="Ex.: Agachamento búlgaro"></label>
+      <label class="field"><span>Mídia</span><select class="select" name="midia">${MIDIAS.map(([k, l]) => `<option value="${k}" ${k === md0 ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <div class="ex-midia" data-m="foto" hidden><div class="field"><span>Foto ou GIF</span><label class="arq-btn"><input type="file" name="foto" accept="image/jpeg,image/png,image/webp,image/gif"><b>Escolher arquivo</b><i>nenhum arquivo selecionado</i></label></div>
+        ${md0 === 'foto' ? '<p class="tiny dim" style="margin-top:-6px">Já tem uma foto. Escolha outra só se quiser trocar.</p>' : ''}</div>
+      <div class="ex-midia" data-m="video" hidden><div class="field"><span>Vídeo do celular (até 50 MB)</span><label class="arq-btn"><input type="file" name="video" accept="video/mp4,video/quicktime,video/webm"><b>Escolher arquivo</b><i>nenhum arquivo selecionado</i></label></div>
+        ${md0 === 'video' ? '<p class="tiny dim" style="margin-top:-6px">Já tem um vídeo. Escolha outro só se quiser trocar.</p>' : ''}
+        <label class="aceite" style="margin-top:4px"><input type="checkbox" name="sem_audio" ${ex.com_audio ? '' : 'checked'}><span>Remover áudio (o vídeo toca sem som para o aluno)</span></label></div>
+      <div class="ex-midia" data-m="youtube" hidden><label class="field"><span>Link do YouTube</span><input class="input" type="url" name="yt" value="${md0 === 'youtube' ? esc(ex.video_url) : ''}" placeholder="https://youtube.com/…"></label></div>
+      <label class="field"><span>Grupo muscular</span><select class="select" name="grupo"><option value="">Selecione o grupo muscular</option>${grupos.map((x) => `<option ${x === ex.grupo ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select><small class="campo-erro" data-err="grupo" hidden>Campo obrigatório</small></label>
+      <label class="field"><span>Categoria</span><select class="select" name="categoria"><option value="">Selecione a categoria</option>${cats.map((x) => `<option ${x === ex.categoria ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+      <div class="field"><span>Adicionar aos favoritos</span><div class="radios"><label><input type="radio" name="fav" value="1" ${!novo && fav.has(ex.id) ? 'checked' : ''}><span>Sim</span></label><label><input type="radio" name="fav" value="0" ${novo || !fav.has(ex.id) ? 'checked' : ''}><span>Não</span></label></div></div>
+      <details class="ex-mais"${!novo && (passos || ex.equipamento) ? ' open' : ''}><summary>Mais detalhes (opcional)</summary>
+        <label class="field" style="margin-top:10px"><span>Equipamento</span><input class="input" name="equipamento" value="${esc(ex.equipamento || '')}" placeholder="Halteres, elástico, peso do corpo…"></label>
+        <label class="field"><span>Como executar (um passo por linha)</span><textarea class="textarea" name="instrucoes" rows="4" placeholder="Pés na largura dos ombros&#10;Desça com o quadril para trás">${esc(passos)}</textarea></label></details>
+      <button class="btn block" id="ex-salvar">Salvar</button>
+      ${novo ? '' : '<button type="button" class="btn danger block" id="del-ex" style="margin-top:8px">Excluir exercício</button>'}
+    </form>`, (root) => {
+    const f = root.querySelector('#f-ex');
+    const mostrar = () => root.querySelectorAll('.ex-midia').forEach((d) => { d.hidden = d.dataset.m !== f.midia.value; });
+    mostrar(); f.midia.onchange = mostrar;
+    root.querySelectorAll('.arq-btn input').forEach((inp) => { inp.onchange = () => { inp.parentNode.querySelector('i').textContent = inp.files[0] ? inp.files[0].name : 'nenhum arquivo selecionado'; inp.parentNode.classList.toggle('ok', !!inp.files[0]); }; });
+    f.grupo.onchange = () => { root.querySelector('[data-err="grupo"]').hidden = !!f.grupo.value; };
+    const vt = root.querySelector('#ex-voltar'); if (vt) vt.onclick = opts.voltar;
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const nome = f.nome.value.trim(), midia = f.midia.value;
+      if (nome.length < 2) { f.nome.focus(); return toast('Digite o nome do exercício.', true); }
+      if (!f.grupo.value) { root.querySelector('[data-err="grupo"]').hidden = false; f.grupo.focus(); return toast('Escolha o grupo muscular.', true); }
+      const arq = midia === 'foto' ? f.foto.files[0] : midia === 'video' ? f.video.files[0] : null;
+      if (midia === 'foto' && !arq && md0 !== 'foto') return toast('Escolha a foto ou o GIF.', true);
+      if (midia === 'video' && !arq && md0 !== 'video') return toast('Escolha o vídeo.', true);
+      if (arq && arq.size > 50 * 1024 * 1024) return toast('O arquivo passa de 50 MB. Grave um vídeo mais curto.', true);
+      const yt = f.yt.value.trim();
+      if (midia === 'youtube' && !/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i.test(yt)) return toast('Cole um link do YouTube válido.', true);
+      const btn = root.querySelector('#ex-salvar'); btn.disabled = true; btn.textContent = arq ? 'Enviando a mídia…' : 'Salvando…';
+      try {
+        const linhas = f.instrucoes.value.split('\n').map((x) => x.trim()).filter(Boolean);
+        const proprias = (ex.imagens || []).filter((p) => /nx-exvideos/.test(p)), daBib = (ex.imagens || []).filter((p) => !/nx-exvideos/.test(p));
+        const d = { nome, grupo: f.grupo.value, categoria: f.categoria.value || null, equipamento: f.equipamento.value.trim() || null, instrucoes: linhas, descricao: linhas[0] || null };
+        const url = arq ? await enviarMidiaEx(arq) : null;
+        if (midia === 'nenhuma') Object.assign(d, { video_url: null, imagens: daBib });
+        else if (midia === 'foto') Object.assign(d, { video_url: null, imagens: url ? [url] : proprias.length ? proprias : daBib });
+        else if (midia === 'video') Object.assign(d, { video_url: url || ex.video_url, imagens: proprias.length ? [] : daBib, com_audio: !f.sem_audio.checked });
+        else Object.assign(d, { video_url: yt, imagens: proprias.length ? [] : daBib });
+        if (!d.video_url || midia !== 'video') d.com_audio = false;
+        const r = novo ? await sb.from('nx_exercicios').insert({ ...d, org_id: S.org.id, criado_por: S.user.id }).select('*').single()
+          : await sb.from('nx_exercicios').update(d).eq('id', ex.id).select('*').single();
+        if (r.error) throw r.error;
+        const querFav = f.fav.value === '1';
+        if (querFav !== fav.has(r.data.id)) await alternarFavorito(r.data.id);
+        S.cache.ex = null; toast(novo ? 'Exercício criado!' : 'Exercício atualizado!');
+        if (opts.aoSalvar) return opts.aoSalvar(r.data);
+        closeSheet(); staffBiblioteca();
+      } catch (err) {
+        console.error(err); btn.disabled = false; btn.textContent = 'Salvar';
+        toast(arq ? 'Não foi possível enviar a mídia. Confira a internet e tente de novo.' : 'Não foi possível salvar.', true);
+      }
     };
-    draw();
-    root.querySelector('#pq').oninput = (e) => { q = e.target.value; n = LIM; draw(); };
-    root.querySelector('#pg').onclick = (e) => { const b = e.target.closest('[data-g]'); if (!b) return; g = b.dataset.g; n = LIM; root.querySelectorAll('#pg .chip').forEach((c) => c.classList.toggle('on', c === b)); draw(); };
-    root.querySelector('#pl').onclick = (e) => {
-      if (e.target.closest('#pmais')) { n += LIM; draw(); return; }
-      const it = e.target.closest('[data-ex]'); if (!it) return; const ex = exs.find((x) => x.id === it.dataset.ex); closeSheet(); onPick(ex);
+    const del = root.querySelector('#del-ex');
+    if (del) del.onclick = async () => {
+      if (!confirm(`Excluir “${ex.nome}”?`)) return;
+      const { error } = await sb.from('nx_exercicios').delete().eq('id', ex.id);
+      if (error) return toast('Esse exercício está em algum treino. Remova dos treinos antes de excluir.', true);
+      closeSheet(); toast('Exercício excluído.'); S.cache.ex = null; staffBiblioteca();
     };
   });
 }
@@ -7047,79 +7192,13 @@ async function staffBiblioteca(aba) {
     };
     return;
   }
-  const exs = await carregarExercicios(true);
-  const grupos = ['Todos', ...[...new Set(exs.map((e) => e.grupo))].sort((a, b) => a.localeCompare(b, 'pt'))];
-  const equips = ['Todos', ...[...new Set(exs.map((e) => e.equipamento).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'))];
-  let g = 'Todos', q = '', eq = 'Todos', n = LIM;
-  const comFoto = exs.filter((e) => e.imagens && e.imagens.length).length;
+  const [exs, fav] = await Promise.all([carregarExercicios(true), carregarFavoritos()]);
+  const comMidia = exs.filter((e) => (e.imagens && e.imagens.length) || e.video_url).length;
   $app.innerHTML = `
     <p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('exercicios')}
-    <p class="muted small" style="margin-top:6px">${exs.length} exercícios · ${comFoto} com fotos de execução. Toque em um para ver como fazer, editar ou adicionar vídeo.</p>
-    <div class="search" style="margin-top:16px">${I.search}<input class="input" id="bq" placeholder="Buscar: supino, stiff, kettlebell…"></div>
-    <div class="chips" id="bg">${grupos.map((x) => `<button class="chip ${x === g ? 'on' : ''}" data-g="${esc(x)}">${esc(x)}</button>`).join('')}</div>
-    <div class="row" style="margin-top:10px;gap:8px"><span class="tiny dim">Equipamento</span><select class="select" id="beq" style="padding:8px 10px;width:auto;flex:1">${equips.map((x) => `<option>${esc(x)}</option>`).join('')}</select></div>
-    <p class="tiny dim" id="bc" style="margin-top:12px"></p>
-    <div id="bl" class="cols" style="margin-top:8px"></div>
-    <button class="fab" id="novo-ex" aria-label="Novo exercício">${I.plus}</button>`;
-  const draw = () => {
-    const l = filtrarEx(exs, g, q, eq);
-    document.getElementById('bc').textContent = `${l.length} exercício${l.length === 1 ? '' : 's'}`;
-    document.getElementById('bl').innerHTML = (l.slice(0, n).map((e) => exLinha(e, `${e.video_url ? '<span class="tag acc">vídeo</span>' : ''}${I.chev}`)).join('') || '<div class="empty" style="grid-column:1/-1"><div class="h3">Nada encontrado</div><p class="small">Tente outro termo ou cadastre um exercício novo no +.</p></div>')
-      + (l.length > n ? `<button class="btn ghost block" id="bmais" style="grid-column:1/-1;margin-top:10px">Mostrar mais (${l.length - n})</button>` : '');
-  };
-  draw();
-  document.getElementById('bq').oninput = (e) => { q = e.target.value; n = LIM; draw(); };
-  document.getElementById('beq').onchange = (e) => { eq = e.target.value; n = LIM; draw(); };
-  document.getElementById('bg').onclick = (e) => { const b = e.target.closest('[data-g]'); if (!b) return; g = b.dataset.g; n = LIM; document.querySelectorAll('#bg .chip').forEach((c) => c.classList.toggle('on', c === b)); draw(); };
-  document.getElementById('bl').onclick = (e) => {
-    if (e.target.closest('#bmais')) { n += LIM; draw(); return; }
-    const it = e.target.closest('[data-ex]'); if (it) formExercicio(exs.find((x) => x.id === it.dataset.ex), grupos);
-  };
-  document.getElementById('novo-ex').onclick = () => formExercicio(null, grupos);
-}
-
-async function formExercicio(exLista, grupos) {
-  const novo = !exLista;
-  let ex = { nome: '', grupo: '', equipamento: '', descricao: '', video_url: '', instrucoes: [] };
-  if (!novo) {
-    const { data } = await sb.from('nx_exercicios').select('*').eq('id', exLista.id).maybeSingle();
-    ex = data || exLista;
-    if ((!ex.instrucoes || !ex.instrucoes.length) && ex.ref_externa) {
-      try { const r = await fetch(imgURL(ex.ref_externa + '/info.json')); if (r.ok) ex.instrucoes = (await r.json()).instrucoes || []; } catch {}
-    }
-  }
-  const passos = (ex.instrucoes && ex.instrucoes.length ? ex.instrucoes : (ex.descricao ? [ex.descricao] : [])).join('\n');
-  openSheet(`
-    <div class="row between"><p class="eyebrow">${novo ? 'Novo exercício' : esc(ex.grupo)}</p><button class="icon-btn" data-close aria-label="Fechar">${I.x}</button></div>
-    ${novo ? '' : `<div class="h2" style="margin-top:4px">${esc(ex.nome)}</div>${ex.nome_en ? `<p class="tiny dim">${esc(ex.nome_en)}</p>` : ''}
-      ${ex.imagens && ex.imagens.length ? exFig(ex, 'big') : ''}
-      <div class="ex-detail">${exDetalhe(ex)}</div>
-      <div class="tabs" style="margin-top:16px"><button class="on" type="button">Editar</button></div>`}
-    <form id="f-ex" style="margin-top:${novo ? 14 : 4}px">
-      <label class="field"><span>Nome</span><input class="input" name="nome" value="${esc(ex.nome)}" required ${novo ? 'autofocus' : ''}></label>
-      <div class="grid2"><label class="field"><span>Grupo</span><input class="input" name="grupo" value="${esc(ex.grupo)}" list="grupos-l" required placeholder="Pernas"><datalist id="grupos-l">${grupos.filter((x) => x !== 'Todos').map((x) => `<option value="${esc(x)}">`).join('')}</datalist></label>
-      <label class="field"><span>Equipamento</span><input class="input" name="equipamento" value="${esc(ex.equipamento || '')}" placeholder="Halteres"></label></div>
-      <label class="field"><span>Como executar (um passo por linha)</span><textarea class="textarea" name="instrucoes" rows="5" placeholder="Pés na largura dos ombros&#10;Desça com o quadril para trás">${esc(passos)}</textarea></label>
-      <label class="field"><span>Link de vídeo próprio (YouTube, Instagram, Drive…)</span><input class="input" type="url" name="video_url" value="${esc(ex.video_url || '')}" placeholder="https://"></label>
-      <button class="btn block">${novo ? 'Cadastrar exercício' : 'Salvar alterações'}</button>
-      ${novo ? '' : '<button type="button" class="btn danger block" id="del-ex" style="margin-top:8px">Excluir exercício</button>'}
-    </form>`, (root) => {
-    root.querySelector('#f-ex').onsubmit = async (e) => {
-      e.preventDefault(); const f = e.target;
-      const linhas = f.instrucoes.value.split('\n').map((x) => x.trim()).filter(Boolean);
-      const d = { nome: f.nome.value.trim(), grupo: f.grupo.value.trim() || 'Geral', equipamento: f.equipamento.value.trim() || null, instrucoes: linhas, descricao: linhas[0] || null, video_url: f.video_url.value.trim() || null };
-      const r = novo ? await sb.from('nx_exercicios').insert({ ...d, org_id: S.org.id, criado_por: S.user.id }) : await sb.from('nx_exercicios').update(d).eq('id', ex.id);
-      if (r.error) return toast('Não foi possível salvar.', true);
-      closeSheet(); toast(novo ? 'Exercício cadastrado!' : 'Exercício atualizado!'); S.cache.ex = null; staffBiblioteca();
-    };
-    const del = root.querySelector('#del-ex');
-    if (del) del.onclick = async () => {
-      if (!confirm(`Excluir “${ex.nome}”?`)) return;
-      const { error } = await sb.from('nx_exercicios').delete().eq('id', ex.id);
-      if (error) return toast('Esse exercício está em algum treino. Remova dos treinos antes de excluir.', true);
-      closeSheet(); toast('Exercício excluído.'); S.cache.ex = null; staffBiblioteca();
-    };
-  });
+    <p class="muted small" style="margin-top:6px">${exs.length} exercícios · ${comMidia} com foto ou vídeo. Toque em um para ver como fazer, editar ou trocar a mídia.</p>
+    <div id="bib-box" style="margin-top:14px"></div>`;
+  bibliotecaUI(document.getElementById('bib-box'), exs, fav, { acao: I.chev, aoTocar: (ex) => formExercicio(ex), aoCriar: () => formExercicio(null) });
 }
 
 /* ---------- mensagens (caixa de entrada do treinador, estilo WhatsApp) ---------- */

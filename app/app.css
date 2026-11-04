@@ -1808,3 +1808,34 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .cic-selo.prev:not(.gota){background:transparent;border:2px solid var(--cf);width:10px;height:10px}
 .cic-leg{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:.76rem;color:var(--mute);margin:0 0 -6px}
 .cic-leg span{display:inline-flex;align-items:center;gap:6px}
+/* biblioteca de exercícios (buscar, favoritar e criar na hora de prescrever) */
+.exfig video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.bib-criar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:18px;border-radius:18px;border:1.5px dashed var(--acc);background:rgba(47,107,255,.06);color:var(--acc);font:inherit;font-weight:800;font-size:1.02rem;cursor:pointer}
+.bib-criar svg{width:20px;height:20px}
+.bib-abas{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.bib-abas button{padding:10px 6px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);font:inherit;font-weight:800;font-size:.84rem;color:var(--mute);cursor:pointer}
+.bib-abas button.on{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.bib-filtros{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;margin-top:10px}
+.bib-filtros .select{padding:9px 10px;font-size:.86rem;min-width:0}
+.bib-lista{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+@media (min-width:900px){.app.wide .bib-lista{display:grid;grid-template-columns:1fr 1fr}}
+.bib-it{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--s1);cursor:pointer}
+.bib-it .exfig.thumb{width:76px}
+.bib-it b{display:block;line-height:1.25}
+.bib-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.bib-tags .pill{font-size:.7rem;padding:2px 8px}
+.bib-tags .pill.acc{color:var(--acc);border-color:rgba(47,107,255,.35)}
+.bib-tags .pill svg{width:11px;height:11px;margin-right:3px}
+.bib-star{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;border:0;background:none;color:var(--dim);cursor:pointer}
+.bib-star svg{width:22px;height:22px}
+.bib-star.on{color:#f5b301}
+.campo-erro{display:block;color:var(--err,#e5484d);font-size:.8rem;font-weight:700;margin-top:6px}
+.ex-mais{margin:4px 0 14px;border:1px solid var(--line);border-radius:14px;padding:10px 14px;background:var(--bg2)}
+.ex-mais summary{cursor:pointer;font-weight:800;font-size:.9rem;color:var(--mute)}
+.ex-voltar{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:4px 0;font:inherit;font-weight:800;font-size:.9rem;color:var(--acc);cursor:pointer}
+.ex-voltar svg{width:18px;height:18px}
+.arq-btn{display:flex;align-items:center;border:1px solid var(--line);border-radius:14px;background:var(--s1);overflow:hidden;cursor:pointer;min-height:50px}
+.arq-btn input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.arq-btn b{flex:none;padding:14px 16px;background:var(--bg2);border-right:1px solid var(--line);font-weight:800;font-size:.9rem}
+.arq-btn i{flex:1;min-width:0;padding:0 14px;font-style:normal;color:var(--mute);font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arq-btn.ok{border-color:var(--acc)}.arq-btn.ok i{color:var(--ink);font-weight:700}
