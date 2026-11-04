@@ -619,36 +619,37 @@ async function viewCalendarioMes(alunoId, box) {
   const de = isoDia(ini), ate = isoDia(fim);
   const [plano, corrs, sess, provas] = await Promise.all([
     buscarPlano(alunoId, de, ate),
-    sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,plano_id').eq('aluno_id', alunoId).gte('data', de).lte('data', ate + 'T23:59:59').then((r) => r.data || []),
+    sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,plano_id,fc_media').eq('aluno_id', alunoId).gte('data', de).lte('data', ate + 'T23:59:59').then((r) => r.data || []),
     sb.from('nx_sessoes').select('id,iniciado_em,treino_titulo').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', de).lte('iniciado_em', ate + 'T23:59:59').then((r) => r.data || []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', de).lte('data', ate).then((r) => r.data || []),
   ]);
   const perfil = perfilCorrida(S.staff ? {} : S.me);
   const hoje = hojeISO(); const off = (ini.getDay() + 6) % 7; const nd = fim.getDate();
-  const doDia = (k) => ({ pl: plano.filter((p) => p.data === k), co: corrs.filter((c) => isoDia(c.data) === k), se: sess.filter((s) => isoDia(s.iniciado_em) === k), pr: provas.filter((p) => p.data === k) });
+  const doDia = (k) => ({ pl: plano.filter((p) => p.data === k), co: corrs.filter((c) => ehCorr(c) && isoDia(c.data) === k), ou: corrs.filter((c) => !ehCorr(c) && isoDia(c.data) === k), se: sess.filter((s) => isoDia(s.iniciado_em) === k), pr: provas.filter((p) => p.data === k) });
   let cells = '';
   for (let i = 0; i < off; i++) cells += '<div class="cm-d vazio"></div>';
   for (let d = 1; d <= nd; d++) {
     const k = `${st.comp}-${String(d).padStart(2, '0')}`; const x = doDia(k);
     const corPl = x.pl.map((p) => { if (p.tipo === 'forca') return 'var(--fpc-ac)'; const z = achatar(estruturaDe(p), perfil).filter((s) => s.k === 'co').sort((a, b) => b.seg - a.seg)[0]; return (ZONAS_INFO[(z && z.z) || 'leve'] || ZONAS_INFO.leve).c; });
     const lbl = [...x.pr.map((p) => `<i class="cm-t pr">${icT(I.flag)}${esc(p.titulo)}</i>`), ...x.pl.map((p, j) => `<i class="cm-t ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}">${esc(p.titulo || nomeTipo(p.tipo))}</i>`), ...x.co.filter((c) => !c.plano_id).map((c) => `<i class="cm-t ok" style="--c:var(--ok)">${f1(c.distancia_m / 1000)} km</i>`), ...x.se.map((s2) => `<i class="cm-t tmu">${esc(s2.treino_titulo || 'Musculação')}</i>`)].join('');
-    cells += `<button class="cm-d ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''} ${x.co.length ? 'co-ok' : ''} ${x.se.length ? 'fo-ok' : ''}" data-k="${k}"><span>${d}</span>${x.co.length || x.se.length ? `<div class="cm-faixas">${x.co.length ? '<i class="fx-co"></i>' : ''}${x.se.length ? '<i class="fx-fo"></i>' : ''}</div>` : ''}<div class="cm-txt">${lbl}</div><div class="cm-ic">${x.pr.length ? `<i class="pr">${icT(I.flag)}</i>` : ''}${x.pl.map((p, j) => `<i class="dot ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}"></i>`).join('')}${x.co.filter((c) => !c.plano_id).map(() => '<i class="dot ok" style="--c:var(--ok)"></i>').join('')}${x.se.length ? '<i class="mu"></i>' : ''}</div></button>`;
+    cells += `<button class="cm-d ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''} ${x.co.length ? 'co-ok' : ''} ${x.se.length || x.ou.some((c) => c.tipo === 'forca') ? 'fo-ok' : ''}" data-k="${k}"><span>${d}</span>${x.co.length || x.se.length || x.ou.length ? `<div class="cm-faixas">${x.co.length ? '<i class="fx-co"></i>' : ''}${x.se.length || x.ou.some((c) => c.tipo === 'forca') ? '<i class="fx-fo"></i>' : ''}${x.ou.some((c) => c.tipo !== 'forca') ? '<i class="fx-ou"></i>' : ''}</div>` : ''}<div class="cm-txt">${lbl}</div><div class="cm-ic">${x.pr.length ? `<i class="pr">${icT(I.flag)}</i>` : ''}${x.pl.map((p, j) => `<i class="dot ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}"></i>`).join('')}${x.co.filter((c) => !c.plano_id).map(() => '<i class="dot ok" style="--c:var(--ok)"></i>').join('')}${x.se.length ? '<i class="mu"></i>' : ''}</div></button>`;
   }
   const totKm = plano.reduce((a, p) => a + resumoEstrutura(estruturaDe(p), perfil).km, 0), feitoKm = corrs.reduce((a, c) => a + c.distancia_m / 1000, 0);
   box.innerHTML = `<div class="mes-nav" style="margin-top:4px"><button class="icon-btn sm" id="cm-a" aria-label="Mês anterior">${I.back}</button><b>${nomeMes(st.comp)}</b><button class="icon-btn sm" id="cm-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
     <p class="small muted center">${totKm ? `previsto ${f1(totKm)} km · ` : ''}feito ${f1(feitoKm)} km${sess.length ? ` · ${sess.length} treino${sess.length > 1 ? 's' : ''} de musculação` : ''}</p>
     <div class="cal-mes"><div class="cm-sem">${['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cm-grade">${cells}</div></div>
-    <div class="cm-leg"><span><i class="dot" style="--c:var(--acc)"></i>corrida planejada</span><span><i class="lg-co"></i>corrida concluída</span><span><i class="lg-fo"></i>força concluída</span><span>${icT(I.flag, 'pr')}prova</span></div>
+    <div class="cm-leg"><span><i class="dot" style="--c:var(--acc)"></i>corrida planejada</span><span><i class="lg-co"></i>corrida concluída</span><span><i class="lg-fo"></i>força concluída</span><span><i class="lg-ou"></i>outras atividades</span><span>${icT(I.flag, 'pr')}prova</span></div>
     ${provas.length ? `<div class="section"><div class="section-h"><h2 class="h2">Provas do mês</h2>${slashes}</div><div class="stack">${provas.map((p) => `<a class="list-item" href="#/eventos/minhas" style="color:inherit"><span class="li-ic pr">${I.flag}</span><div class="grow"><b>${esc(p.titulo)}</b><div class="small muted">${fmtData(p.data + 'T12:00:00')}${p.distancia ? ' · ' + esc(p.distancia) : ''} · ${faltam(p.data)}</div></div>${I.chev}</a>`).join('')}</div></div>` : ''}`;
   box.querySelector('#cm-a').onclick = () => { st.comp = somaMes(st.comp, -1); viewCalendarioMes(alunoId, box); };
   box.querySelector('#cm-p').onclick = () => { st.comp = somaMes(st.comp, 1); viewCalendarioMes(alunoId, box); };
   box.querySelector('.cm-grade').onclick = (e) => {
     const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; const x = doDia(k);
-    if (!x.pl.length && !x.co.length && !x.se.length && !x.pr.length) return toast('Dia livre: descanso.');
+    if (!x.pl.length && !x.co.length && !x.se.length && !x.pr.length && !x.ou.length) return toast('Dia livre: descanso.');
     openSheet(`<p class="eyebrow">${fmtDiaSem(k)}</p><div class="stack" style="margin-top:12px">
       ${x.pr.map((p) => `<a class="list-item" href="#/eventos/minhas" style="color:inherit"><span class="li-ic pr">${I.flag}</span><div class="grow"><b>${esc(p.titulo)}</b><div class="small muted">${esc(p.distancia || '')} ${p.meta ? '· meta ' + esc(p.meta) : ''}</div></div></a>`).join('')}
       ${x.pl.map((p) => cartaoSessao(p, perfil, x.co.find((c) => c.plano_id === p.id), false)).join('')}
       ${x.co.filter((c) => !c.plano_id).map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><span class="ativ-ic">${icCorr(S.staff ? null : S.me)}</span><div class="grow"><b>Corrida · ${fmtKm(c.distancia_m, 1)}</b><div class="small muted">${fmtPace(paceDe(c))}</div></div>${I.chev}</a>`).join('')}
+      ${x.ou.map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><span class="ativ-ic">${c.tipo === 'forca' ? HALTER_S : I.watch}</span><div class="grow"><b>${esc(nomeAtiv(c))}</b><div class="small muted">${resumoAtiv(c)} · do relógio</div></div>${I.chev}</a>`).join('')}
       ${x.se.map((s) => `<div class="list-item"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(s.treino_titulo || 'Musculação')}</b><div class="small muted">feito às ${fmtHora(s.iniciado_em)}</div></div></div>`).join('')}</div>`, (r) => {
       r.querySelectorAll('[data-ses]').forEach((el) => el.onclick = () => { const p = x.pl.find((q) => q.id === el.dataset.ses); verTreinoPlanilha(p, perfil, x.co.find((c) => c.plano_id === p.id)); });
     });
@@ -688,10 +689,10 @@ async function alunoHoje() {
   const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx, semNota] = await Promise.all([
     buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 40), contarMsgNovas(),
     buscarPlano(S.user.id, hoje, isoDia(Date.now() + 13 * 864e5)).catch(() => []), minhaCobrancaPendente().catch(() => null),
-    sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,plano_id,titulo,elevacao_m,fc_media,cadencia,rota').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 8 * 864e5)).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,plano_id,titulo,elevacao_m,fc_media,cadencia,rota').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 8 * 864e5)).then((r) => (r.data || []).filter(ehCorr)).catch(() => []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', S.user.id).gte('data', hoje).order('data').limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
     // corridas que chegaram do relógio sem o check-in (esforço/dor)
-    sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,fonte,titulo,comentario').eq('aluno_id', S.user.id).is('rpe', null).gte('data', isoDia(Date.now() - 3 * 864e5)).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
+    sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fonte,titulo,comentario').eq('aluno_id', S.user.id).is('rpe', null).gte('data', isoDia(Date.now() - 3 * 864e5)).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
   ]);
   const corrNova = corrSem.filter((c) => c.distancia_m && Date.now() - new Date(c.data) < 864e5 && !(() => { try { return localStorage.getItem('nx-card-' + c.id); } catch { return 1; } })()).sort((a, b) => (a.data < b.data ? 1 : -1))[0];
   corrSem.splice(0, corrSem.length, ...corrSem.filter((c) => isoDia(c.data) >= isoDia(inicioSemana())));
@@ -746,7 +747,7 @@ async function alunoHoje() {
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
     ${corrNova ? `<button class="card-cta" id="card-nova" style="margin-top:12px"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Corrida de ${fmtKm(corrNova.distancia_m, 1)} registrada!</b><span class="small">Gere o card e poste no seu story</span></div>${I.chev}</button>` : ''}
-    ${semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi a corrida de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${fmtKm(semNota.distancia_m, 1)} · leva 10 segundos responder</div></div>${I.chev}</button>` : ''}
+    ${semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi ${comArtigo(semNota)} de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${resumoAtiv(semNota)} · leva 10 segundos responder</div></div>${I.chev}</button>` : ''}
     <div id="ciclo-box"></div>
     ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
     ${cartaoPushHTML()}
@@ -769,8 +770,8 @@ async function alunoHoje() {
     const c = semNota; const quandoC = isoDia(c.data) === hoje ? 'hoje' : isoDia(c.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(c.data)).split(',')[0].toLowerCase();
     openSheet(`<div class="center"><div class="chegou-ic">${I.check}</div>
       <p class="eyebrow" style="margin-top:12px">${c.fonte === 'garmin' ? 'Treino carregado do Garmin' : 'Treino registrado'}</p>
-      <div class="h2" style="margin-top:4px">Sua corrida de ${quandoC} foi concluída</div></div>
-      <div class="mini-stats" style="margin-top:16px"><div><b>${fmtKm(c.distancia_m, 1)}</b><span>distância</span></div>${c.duracao_s ? `<div><b>${fmtDur(c.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(c))}</b><span>pace</span></div>` : ''}</div>
+      <div class="h2" style="margin-top:4px">${ehCorr(c) && c.tipo !== 'caminhada' ? 'Sua corrida' : c.tipo === 'caminhada' ? 'Sua caminhada' : c.tipo === 'forca' ? 'Seu treino de força' : c.tipo === 'bike' ? 'Seu pedal' : c.tipo === 'natacao' ? 'Sua natação' : 'Sua atividade'} de ${quandoC} foi concluída</div></div>
+      <div class="mini-stats" style="margin-top:16px">${comDist(c) ? `<div><b>${fmtKm(c.distancia_m, 1)}</b><span>distância</span></div>` : ''}${c.duracao_s ? `<div><b>${fmtDur(c.duracao_s)}</b><span>tempo</span></div>` : ''}${comDist(c) && ehCorr(c) && c.duracao_s ? `<div><b>${fmtPace(paceDe(c))}</b><span>pace</span></div>` : ''}</div>
       <p class="small muted center" style="margin-top:16px">Quer comentar como foi o treino? Seu treinador usa isso para ajustar os próximos.</p>
       <button class="btn block" id="pop-sim" style="margin-top:16px">Comentar o treino</button>
       <button class="btn ghost block" id="pop-nao" style="margin-top:8px">Agora não</button>`, (r) => {
@@ -786,7 +787,7 @@ async function alunoHoje() {
 /* check-in rápido de uma corrida que veio do relógio */
 function termometroCorrida(c, depois) {
   let rpe = null, dor = false; const corpo = {};
-  openSheet(`<p class="eyebrow">Check-in · ${fmtKm(c.distancia_m, 1)}</p><div class="h2" style="margin-top:4px">Como foi a corrida?</div>
+  openSheet(`<p class="eyebrow">Check-in · ${resumoAtiv(c)}</p><div class="h2" style="margin-top:4px">Como foi ${comArtigo(c)}?</div>
     <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
       <div class="effort" id="eff">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div>
       <div class="effort-lbl"><span>Repouso</span><span id="eff-txt"></span><span>Máximo</span></div></div>
@@ -2147,6 +2148,15 @@ const TIPOS_CORRIDA = [
 ];
 const ZONAS_PACE = [['leve', 'Z2 · Leve (conversando)'], ['maratona', 'Z3 · Moderado (ritmo de maratona)'], ['limiar', 'Z4 · Limiar (forte e contínuo)'], ['intervalado', 'Z5 · Forte (VO₂máx)'], ['tiros', 'Z6 · Máximo (velocidade)']];
 const TIPOS_ATIV = [['corrida', 'Corrida de rua'], ['trail', 'Trail'], ['esteira', 'Esteira'], ['caminhada', 'Caminhada']];
+// tudo que chega do relógio: corrida e também força, pedal, natação e outras atividades
+const NOMES_ATIV = { corrida: 'Corrida', trail: 'Trail', esteira: 'Esteira', caminhada: 'Caminhada', forca: 'Treino de força', bike: 'Pedal', natacao: 'Natação', outro: 'Atividade' };
+const ehCorr = (c) => !c || !c.tipo || ['corrida', 'trail', 'esteira', 'caminhada'].includes(c.tipo);
+const nomeAtiv = (c) => NOMES_ATIV[c && c.tipo] || 'Corrida';
+const ARTIGO_ATIV = { caminhada: 'a caminhada', forca: 'o treino de força', bike: 'o pedal', natacao: 'a natação', outro: 'a atividade' };
+const comArtigo = (c) => ARTIGO_ATIV[c && c.tipo] || 'a corrida';
+const comDist = (c) => !!c && c.distancia_m >= 50 && c.tipo !== 'forca' && c.tipo !== 'outro';
+/** resumo curto de qualquer atividade: corrida com km e pace, força e outras com o tempo */
+const resumoAtiv = (c) => comDist(c) ? `${fmtKm(c.distancia_m, 1)} · ${ehCorr(c) ? fmtPace(paceDe(c)) : fmtDur(c.duracao_s)}` : fmtDur(c.duracao_s);
 // explicação curta só dos treinos que o aluno pode não conhecer (app e Garmin Connect)
 const SOBRE_TREINO = {
   ritmo: 'Forte e contínuo, sem parar. Ritmo em que você só consegue falar poucas palavras.',
@@ -2628,13 +2638,13 @@ async function viewCorrida(id) {
   const voltar = S.staff ? `#/aluno/${c.aluno_id}/corrida` : '#/historico/corrida';
   $app.innerHTML = `
     <div class="row between"><a class="back" href="${voltar}" style="margin:0">${I.back} ${S.staff ? esc(nome.nome || 'Aluno') : 'Corridas'}</a>${S.staff ? `<div class="row" style="gap:6px">${c.visto_treinador ? `<span class="tag ok">${I.check} Visto</span>` : `<button class="btn sm visto-btn grande" data-visto="corrida|${c.id}">${I.check} Visto</button>`}<button class="btn ghost sm" id="coment-tr">${I.feed} Comentar</button></div>` : c.visto_treinador ? `<span class="tag ok">${I.check} Visto pelo treinador</span>` : ''}</div>
-    <p class="eyebrow" style="margin-top:16px">${esc((TIPOS_ATIV.find((t) => t[0] === c.tipo) || [, 'Corrida'])[1])} · ${fmtDia(c.data)} · ${fmtHora(c.data)}${c.fonte === 'garmin' ? ' · Garmin' : ''}</p>
-    <h1 class="h1">${esc(c.titulo && !/^\d/.test(c.titulo) ? c.titulo : fmtKm(c.distancia_m))}</h1>
-    ${!S.staff && c.distancia_m ? `<button class="card-cta" id="gerar-card"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Gerar card para o story</b><span class="small">Com foto de fundo ou sem fundo, do jeito do Strava</span></div>${I.chev}</button>` : ''}
+    <p class="eyebrow" style="margin-top:16px">${esc((TIPOS_ATIV.find((t) => t[0] === c.tipo) || [, nomeAtiv(c)])[1])} · ${fmtDia(c.data)} · ${fmtHora(c.data)}${c.fonte === 'garmin' ? ' · Garmin' : ''}</p>
+    <h1 class="h1">${esc(c.titulo && !/^\d/.test(c.titulo) ? c.titulo : comDist(c) ? fmtKm(c.distancia_m) : nomeAtiv(c))}</h1>
+    ${!S.staff && comDist(c) ? `<button class="card-cta" id="gerar-card"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Gerar card para o story</b><span class="small">Com foto de fundo ou sem fundo, do jeito do Strava</span></div>${I.chev}</button>` : ''}
     <div class="metrics">
-      <div class="metric"><span>Distância</span><b>${fmtKm(c.distancia_m).replace(' km', '')}<small>km</small></b></div>
-      <div class="metric"><span>Tempo</span><b>${fmtDurLongo(c.duracao_s)}</b></div>
-      <div class="metric"><span>Pace médio</span><b>${fmtPace(pace).replace('/km', '')}<small>/km</small></b></div>
+      ${comDist(c) ? `<div class="metric"><span>Distância</span><b>${fmtKm(c.distancia_m).replace(' km', '')}<small>km</small></b></div>` : ''}
+      <div class="metric"><span>${comDist(c) ? 'Tempo' : 'Duração'}</span><b>${fmtDurLongo(c.duracao_s)}</b></div>
+      ${ehCorr(c) && comDist(c) ? `<div class="metric"><span>Pace médio</span><b>${fmtPace(pace).replace('/km', '')}<small>/km</small></b></div>` : comDist(c) ? `<div class="metric"><span>Velocidade</span><b>${(c.distancia_m / 1000 / (c.duracao_s / 3600)).toFixed(1).replace('.', ',')}<small>km/h</small></b></div>` : ''}
       ${c.fc_media ? `<div class="metric"><span>FC média</span><b>${c.fc_media}<small>bpm</small></b>${c.fc_max ? `<em>máx ${c.fc_max}</em>` : ''}</div>` : ''}
       ${c.elevacao_m ? `<div class="metric"><span>Subida</span><b>${Math.round(c.elevacao_m)}<small>m</small></b></div>` : ''}
       ${c.cadencia ? `<div class="metric"><span>Cadência</span><b>${c.cadencia}<small>ppm</small></b></div>` : ''}
@@ -2879,8 +2889,8 @@ async function relatorioMes(alunoId, box, staff, m) {
   box.innerHTML = esqBloco();
   const ate = (d) => d + 'T23:59:59';
   const [corrs, corrsAnt, sess, sessAnt, plano, regs, provas] = await Promise.all([
-    sb.from('nx_corridas').select('data,distancia_m,duracao_s,plano_id').eq('aluno_id', alunoId).gte('data', ini).lte('data', ate(fim)).order('data').then((r) => r.data || []).catch(() => []),
-    sb.from('nx_corridas').select('data,distancia_m').eq('aluno_id', alunoId).gte('data', iniAnt).lte('data', ate(fimAnt)).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_corridas').select('data,tipo,distancia_m,duracao_s,plano_id').eq('aluno_id', alunoId).gte('data', ini).lte('data', ate(fim)).order('data').then((r) => (r.data || []).filter(ehCorr)).catch(() => []),
+    sb.from('nx_corridas').select('data,tipo,distancia_m').eq('aluno_id', alunoId).gte('data', iniAnt).lte('data', ate(fimAnt)).then((r) => (r.data || []).filter(ehCorr)).catch(() => []),
     sb.from('nx_sessoes').select('iniciado_em,treino_titulo').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', ini).lte('iniciado_em', ate(fim)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_sessoes').select('iniciado_em').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', iniAnt).lte('iniciado_em', ate(fimAnt)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_plano_corrida').select('id,data,tipo,liberado').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => (r.data || []).filter((p) => !semCorrida(p) && p.liberado !== false)).catch(() => []),
@@ -3281,7 +3291,8 @@ function cartaoSessao(p, perfil, feito, staff) {
     ${feito ? `<div class="ses-res"><div><small>Distância</small><b>${fmtKm(feito.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(feito)).replace('/km', '')}<em>/km</em></b></div></div>` : ''}
     <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km ? f1(rs.km) + ' km' : ''}${rs.seg ? ' · ' + fmtDur(rs.seg) : ''}</span></div>`;
 }
-function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [], m = null) {
+function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null) {
+  const corridas = ativs.filter(ehCorr), outras = ativs.filter((c) => !ehCorr(c));
   const hoje = isoDia(new Date()); let h = '';
   for (let w = 0; w < semanas; w++) {
     const s0 = new Date(ini); s0.setDate(ini.getDate() + w * 7);
@@ -3297,12 +3308,14 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
     dias.forEach((d) => {
       const k = isoDia(d); const itens = plano.filter((p) => p.data === k);
       const av = corridas.filter((c) => !c.plano_id && isoDia(c.data) === k);
+      const ou = outras.filter((c) => isoDia(c.data) === k);
       const pr = provas.filter((p) => p.data === k);
       h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${staff ? `<span class="disp-cal">${dispIcones(m, (d.getDay() + 6) % 7)}</span>` : ''}${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
         ${pr.map((p) => `<a class="ses prova" href="${staff ? '#/eventos/equipe' : '#/eventos/minhas'}"><div class="ses-t"><b>${icT(I.flag)}${esc(p.titulo)}</b></div><span class="ses-m">${esc(p.distancia || 'Prova')}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span></a>`).join('')}
         ${itens.map((p) => cartaoSessao(p, perfil, corridas.find((c) => c.plano_id === p.id), staff)).join('')}
-        ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-conc"><i>${I.check}</i>Treino extra</div><div class="ses-t"><b>Corrida avulsa</b></div><div class="ses-res"><div><small>Distância</small><b>${fmtKm(c.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(c)).replace('/km', '')}<em>/km</em></b></div></div></a>`).join('')}
-        ${!itens.length && !av.length && !pr.length ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
+        ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-conc"><i>${I.check}</i>Treino extra</div><div class="ses-t"><b>${c.tipo === 'caminhada' ? 'Caminhada' : 'Corrida avulsa'}</b></div><div class="ses-res"><div><small>Distância</small><b>${fmtKm(c.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(c)).replace('/km', '')}<em>/km</em></b></div></div></a>`).join('')}
+        ${ou.map((c) => `<a class="ses feito ${c.tipo === 'forca' ? 'ativ-fo' : 'ativ-ou'}" href="#/corrida/${c.id}"><div class="ses-conc ${c.tipo === 'forca' ? 'fo' : ''}"><i>${I.check}</i>Do relógio</div><div class="ses-t"><b>${esc(nomeAtiv(c))}</b></div><div class="ses-res"><div><small>${comDist(c) ? 'Distância' : 'Duração'}</small><b>${comDist(c) ? fmtKm(c.distancia_m, 1) : fmtDur(c.duracao_s)}</b></div>${c.fc_media ? `<div><small>FC média</small><b>${c.fc_media}<em>bpm</em></b></div>` : ''}</div></a>`).join('')}
+        ${!itens.length && !av.length && !pr.length && !ou.length ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
     });
     h += '</div></div>';
   }
@@ -3322,19 +3335,20 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   const semanas = innerWidth >= 900 ? 2 : 1;
   const ini = inicioSemana(); ini.setDate(ini.getDate() + st.off * 7);
   const fim = new Date(ini); fim.setDate(ini.getDate() + semanas * 7 - 1);
-  const [corridas, plano, integs, modelosOrg, provas, provasProx] = await Promise.all([
+  const [ativsTodas, plano, integs, modelosOrg, provas, provasProx] = await Promise.all([
     buscarCorridas(alunoId), buscarPlano(alunoId, isoDia(ini), isoDia(fim)),
     sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em').eq('user_id', alunoId).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []),
     staff ? sb.from('nx_modelos_corrida').select('*').eq('org_id', S.org.id).order('criado_em').then((r) => r.data || []).catch(() => []) : Promise.resolve([]),
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', isoDia(ini)).lte('data', isoDia(fim)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', hojeISO()).order('data').limit(3).then((r) => r.data || []).catch(() => []),
   ]);
+  const corridas = ativsTodas.filter(ehCorr); // força, pedal etc. do relógio aparecem na planilha e na lista, mas não entram nos km
   const integ = integs.find((x) => x.provedor === 'intervals') || null, garm = integs.find((x) => x.provedor === 'garmin') || null;
   S.cache.garmOn = !!garm;
   const perfil = perfilCorrida(m);
   const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
   const sub = st.sub;
-  const subTabs = `<div class="subtabs">${[['planilha', 'Planilha'], ['evolucao', 'Evolução'], ['corridas', `Corridas${corridas.length ? ' (' + corridas.length + ')' : ''}`], ['ritmos', 'Ritmos e zonas']].filter(([k]) => SUBS.includes(k)).map(([k, l]) => `<button class="${sub === k ? 'on' : ''}" data-sub="${k}">${l}</button>`).join('')}</div>`;
+  const subTabs = `<div class="subtabs">${[['planilha', 'Planilha'], ['evolucao', 'Evolução'], ['corridas', `Atividades${ativsTodas.length ? ' (' + ativsTodas.length + ')' : ''}`], ['ritmos', 'Ritmos e zonas']].filter(([k]) => SUBS.includes(k)).map(([k, l]) => `<button class="${sub === k ? 'on' : ''}" data-sub="${k}">${l}</button>`).join('')}</div>`;
   const rotulo = st.off === 0 ? (semanas > 1 ? 'Esta semana e a próxima' : 'Esta semana') : st.off === 1 ? 'Próxima semana' : st.off === -1 ? 'Semana passada' : `${ini.getDate()}/${ini.getMonth() + 1} a ${fim.getDate()}/${fim.getMonth() + 1}`;
   let corpo = '';
   if (sub === 'planilha') {
@@ -3346,7 +3360,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           <button type="button" class="tool-ic" id="avisar" title="Avisar aluno da planilha" aria-label="Avisar aluno">${I.bell}</button><button type="button" class="tool-ic" id="guia-plan" title="Como usar a planilha" aria-label="Como usar a planilha">?</button></div>`; })() : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div>
       <div class="${staff ? 'pl-grid' : ''}">
         ${staff ? `<aside class="biblio ${store.get('nx_bib_aberta', false) ? 'aberta' : ''}"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span><button type="button" class="bib-tog" id="bib-tog" aria-label="Mostrar ou esconder a biblioteca"><span class="bt-abrir">Abrir</span><span class="bt-fechar">Fechar</span>${I.chev}</button></div><p class="bib-dica">Toque em <b>+</b> no dia para escolher um treino, ou abra a biblioteca para arrastar.</p>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : md.tipo === 'forca' ? `<div class="mod mod-forca" data-mod="${md.id}"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
-        <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
+        <div class="cal">${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:12px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
       ${!staff && !plano.length ? '<p class="small muted" style="margin-top:12px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
@@ -3368,7 +3382,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       ${!corridas.length ? '<div class="empty" style="margin-top:12px"><div class="h3">Sem corridas ainda</div><p class="small">A evolução aparece conforme as corridas forem registradas.</p></div>' : ''}`;
   } else if (sub === 'corridas') {
     corpo = `${staff ? '' : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}
-      ${corridas.length ? `<div class="stack" style="margin-top:12px">${corridas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span></div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${corridas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:12px">Ver todas as ${corridas.length} corridas</button>` : ''}`
+      ${ativsTodas.length ? `<div class="stack" style="margin-top:12px">${ativsTodas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}${ehCorr(c) ? `<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span>` : `<b>${esc(nomeAtiv(c))}</b><span class="muted">· ${resumoAtiv(c)}</span>`}</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${ativsTodas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:12px">Ver todas as ${corridas.length} corridas</button>` : ''}`
         : `<div class="empty" style="margin-top:12px"><div class="h3">Nenhuma corrida registrada</div><p class="small">${staff ? 'As corridas do aluno aparecem aqui.' : 'Depois de correr, toque em “Registrar corrida”. Dá para enviar o arquivo do relógio.'}</p></div>`}
       ${staff ? `<p class="small muted" style="margin-top:16px">${I.watch.replace('<svg', '<svg class="rel-ic"')} ${garm ? 'Garmin conectado: as corridas chegam sozinhas e os treinos liberados vão para o relógio.' : integ ? 'Relógio conectado pelo Intervals.icu.' : 'O aluno ainda não conectou um relógio (ele faz isso na aba Conexões).'}</p>` : `<a class="list-item" href="#/conexoes" style="margin-top:16px">${I.watch}<div class="grow"><b>${garm || integ ? 'Relógio conectado ✓' : 'Conectar o seu relógio'}</b><div class="small muted">${garm || integ ? 'Gerencie na aba Conexões' : 'Garmin, Coros, Polar e outros: as corridas chegam sozinhas'}</div></div>${I.chev}</a>`}`;
   } else {
@@ -4074,7 +4088,7 @@ async function staffHoje() {
   const [{ data: membros }, sess, corr, anams, avs, cobs, provasEq, planoRes, treinosRes, libsRes] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
-    sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,dor_local,cansaco,sono,visto_treinador,plano_id').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
+    sb.from('nx_corridas').select('id,aluno_id,data,tipo,distancia_m,duracao_s,rpe,dor,dor_local,cansaco,sono,visto_treinador,plano_id').eq('org_id', S.org.id).order('data', { ascending: false }).limit(300).then((r) => r.data || []),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => r.data || []),
     sb.from('nx_avaliacoes').select('aluno_id,data,proxima').eq('org_id', S.org.id).order('data', { ascending: false }).then((r) => r.data || []),
     sb.from('nx_cobrancas').select('id,aluno_id,valor,vencimento,status,competencia').eq('org_id', S.org.id).in('status', ['aberta', 'informada']).then((r) => r.data || []),
@@ -4132,7 +4146,7 @@ async function staffHoje() {
   const alMeus = alertas.filter(({ m }) => ehMeu(m)), alOutros = alertas.filter(({ m }) => !ehMeu(m));
   const recentes = [
     ...sess.filter((s) => s.iniciado_em > seteDias).map((s) => ({ id: s.id, tp: 'sessao', t: s.iniciado_em, novo: !s.visto_treinador, h: `#/aluno/${s.aluno_id}/historico`, n: nomes[s.aluno_id], d: `${esc(s.treino_titulo || 'Treino')}${s.esforco != null ? ` · esforço ${s.esforco}` : ''}`, dor: s.dor, ic: I.lib })),
-    ...corr.filter((c) => c.data > seteDias).map((c) => ({ id: c.id, tp: 'corrida', t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}`, dor: c.dor, ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)) })),
+    ...corr.filter((c) => c.data > seteDias).map((c) => ({ id: c.id, tp: 'corrida', t: c.data, novo: !c.visto_treinador, h: `#/corrida/${c.id}`, n: nomes[c.aluno_id], d: ehCorr(c) ? `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}` : `${nomeAtiv(c)} · ${resumoAtiv(c)}`, dor: c.dor, ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)) })),
   ].sort((a, b) => (a.t < b.t ? 1 : -1));
   const treinosSemana = recentes.length;
   // ---- resumo da semana (alunos do treinador) ----
@@ -4145,7 +4159,7 @@ async function staffHoje() {
     const sP = sess.filter((s) => s.aluno_id === id && naSem(s.iniciado_em, segPass)), cP = corr.filter((c) => c.aluno_id === id && naSem(c.data, segPass));
     if (sP.length || cP.length) rs.treinaram.push({ m, d: [cP.length ? `${cP.length} corrida${cP.length > 1 ? 's' : ''}` : '', sP.length ? `${sP.length} força` : ''].filter(Boolean).join(' · ') });
     let prev = 0, fez = 0;
-    if (faz('corrida', m)) { const pl = planoRes.filter((p) => p.aluno_id === id && !semCorrida(p) && p.liberado && naSem(p.data, segPass)); prev += pl.length; fez += pl.filter((p) => cP.some((c) => c.plano_id === p.id || isoDia(c.data) === p.data)).length; }
+    if (faz('corrida', m)) { const pl = planoRes.filter((p) => p.aluno_id === id && !semCorrida(p) && p.liberado && naSem(p.data, segPass)); prev += pl.length; fez += pl.filter((p) => cP.some((c) => c.plano_id === p.id || (ehCorr(c) && isoDia(c.data) === p.data))).length; }
     if (faz('musculacao', m) && libsRes.some((l) => l.aluno_id === id && l.semana === segPass)) { const off = dispDe(m).off_forca || []; const pf = treinosRes.filter((t) => t.aluno_id === id).reduce((a, t) => a + (t.dias || []).filter((d) => !off.includes(d)).length, 0); prev += pf; fez += Math.min(pf, sP.length); }
     if (prev && fez < prev) rs.faltaram.push({ m, d: `fez ${fez} de ${prev}`, f: prev - fez });
     const pv = provasEq.find((x) => x.aluno_id === id && diasAte(x.data) <= 14);
@@ -4312,7 +4326,7 @@ async function staffAlunos() {
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => { S.cache.anam = Object.fromEntries((r.data || []).map((x) => [x.aluno_id, x])); }),
     fimPlanilhas(),
     sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo,liberado').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => (r.data || []).filter((p) => !semCorrida(p))).catch(() => []),
-    sb.from('nx_corridas').select('aluno_id,data,plano_id').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_corridas').select('aluno_id,data,tipo,plano_id').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hoje).order('data').then((r) => r.data || []).catch(() => []),
     sb.from('nx_treinos').select('aluno_id,dias,ativo').eq('org_id', S.org.id).eq('ativo', true).then((r) => r.data || []).catch(() => []),
     sb.from('nx_forca_semanas').select('aluno_id').eq('org_id', S.org.id).eq('semana', de).then((r) => new Set((r.data || []).map((x) => x.aluno_id))).catch(() => new Set()),
@@ -4341,7 +4355,7 @@ async function staffAlunos() {
   // mapa aluno -> dia -> estado
   const mapa = {}; const marca = (id, k, v) => { (mapa[id] = mapa[id] || {}); mapa[id][k] = mapa[id][k] || {}; mapa[id][k][v] = (mapa[id][k][v] || 0) + 1; };
   plano.forEach((p) => marca(p.aluno_id, p.data, 'pl'));
-  corrs.forEach((c) => { const k = isoDia(c.data); if (k >= de && k <= ate) marca(c.aluno_id, k, 'co'); });
+  corrs.forEach((c) => { const k = isoDia(c.data); if (k >= de && k <= ate && (ehCorr(c) || c.tipo === 'forca')) marca(c.aluno_id, k, ehCorr(c) ? 'co' : 'mu'); });
   sess.forEach((x) => { const k = isoDia(x.iniciado_em); if (k >= de && k <= ate) marca(x.aluno_id, k, 'mu'); });
   provas.forEach((p) => { if (p.data >= de && p.data <= ate) marca(p.aluno_id, p.data, 'pr'); });
   // força: dias da semana com treino fixo
@@ -5006,7 +5020,7 @@ function escolherExercicio(exs, onPick) {
 async function staffFeed() {
   loading();
   const [sess, { data: membros }, , , corrNovas] = await Promise.all([buscarSessoes(null, 80), sb.from('nx_membros').select('user_id,nome').eq('org_id', S.org.id), contarNaoVistos(), contarMsgNovas(),
-    sb.from('nx_corridas').select('id,aluno_id,data,distancia_m,duracao_s,rpe,dor,comentario').eq('org_id', S.org.id).eq('visto_treinador', false).order('data', { ascending: false }).limit(30).then((r) => r.data || [])]);
+    sb.from('nx_corridas').select('id,aluno_id,data,tipo,distancia_m,duracao_s,rpe,dor,comentario').eq('org_id', S.org.id).eq('visto_treinador', false).order('data', { ascending: false }).limit(30).then((r) => r.data || [])]);
   const nomes = Object.fromEntries((membros || []).map((m) => [m.user_id, m.nome]));
   dockStaff();
   const novos = sess.filter((s) => !s.visto_treinador);
@@ -5015,7 +5029,7 @@ async function staffFeed() {
     <p class="eyebrow">Retornos</p><h1 class="h1">Retornos dos alunos</h1>
     <p class="muted small" style="margin-top:6px">${novos.length || porAluno.length ? [novos.length ? `${novos.length} check-in${novos.length > 1 ? 's' : ''} novo${novos.length > 1 ? 's' : ''}` : '', S.cache.msgNovas ? `${S.cache.msgNovas} mensage${S.cache.msgNovas > 1 ? 'ns' : 'm'} sem resposta` : ''].filter(Boolean).join(' · ') : 'Tudo em dia por aqui.'}</p>
     ${porAluno.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Mensagens</h2>${slashes}</div>${porAluno.map(([id, n]) => `<a class="list-item" href="#/aluno/${id}/conversa" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[id] || 'Aluno')}</b><span class="small muted">${n} mensage${n > 1 ? 'ns' : 'm'} nova${n > 1 ? 's' : ''}</span></div><span class="tag acc">Responder</span></a>`).join('')}</div>` : ''}
-    ${corrNovas.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Corridas novas</h2>${slashes}</div>${corrNovas.map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[c.aluno_id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[c.aluno_id] || 'Aluno')}</b><span class="small muted">${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))} · ${quando(c.data)}</span></div>${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">${c.rpe}</span>` : ''}${I.chev}</a>`).join('')}</div>` : ''}
+    ${corrNovas.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Atividades novas</h2>${slashes}</div>${corrNovas.map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[c.aluno_id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[c.aluno_id] || 'Aluno')}</b><span class="small muted">${ehCorr(c) ? `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}` : `${nomeAtiv(c)} · ${resumoAtiv(c)}`} · ${quando(c.data)}</span></div>${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">${c.rpe}</span>` : ''}${I.chev}</a>`).join('')}</div>` : ''}
     <div class="section" style="margin-top:22px"><div class="section-h"><h2 class="h2">Check-ins</h2>${novos.length ? '<button class="link-btn" id="todos-vistos">Marcar todos como vistos</button>' : slashes}</div>
     <div class="stack" id="feed">${sess.length ? sess.map((s) => sessaoCard(s, nomes[s.aluno_id] || 'Aluno').replace(/<\/div><\/div>$/, `<div class="row" style="gap:8px;margin-top:10px"><button class="btn ghost sm" data-resp="${s.id}">${I.feed} Responder</button><button class="link-btn small" data-ver="${s.id}">Ver aluno</button></div></div></div>`)).join('') : '<div class="empty"><div class="h3">Nenhum treino registrado ainda</div><p class="small">Quando os alunos finalizarem treinos, os check-ins aparecem aqui.</p></div>'}</div></div>`;
   document.getElementById('feed').onclick = async (e) => {
