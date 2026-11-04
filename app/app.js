@@ -4608,9 +4608,10 @@ async function staffHoje() {
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : '')
         + (alOutros.length ? `<div class="section"><details class="outros-al"${alMeus.length ? '' : ' open'}><summary><span class="h2" style="font-size:1rem">Alunos dos outros treinadores</span><span class="tag">${alOutros.length} · opcional</span></summary><div class="stack" style="margin-top:12px">${alOutros.map(card).join('')}</div></details></div>` : ''); })()}
     ${ehSeg ? '' : resumoHTML}
-    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><a class="link-btn" href="#/feed">Ver retornos</a></div>
-      ${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`).join('')}
-        ${recentes.length > 6 && !st.tudo ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">Mostrar mais ${recentes.length - 6}</button>` : ''}</div>` : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'}
+    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Ver retornos</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
+      <div id="ativ-corpo" ${store.get('nx_ativ_oculta', false) ? 'hidden' : ''}>${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`).join('')}
+        ${recentes.length > 6 ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">${st.tudo ? 'Mostrar menos' : `Mostrar mais ${recentes.length - 6}`}</button>` : ''}</div>` : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'}</div>
+      ${store.get('nx_ativ_oculta', false) ? `<p class="small muted" id="ativ-oculta-txt">${recentes.length} ${recentes.length === 1 ? 'atividade oculta' : 'atividades ocultas'}. Toque na seta para mostrar.</p>` : ''}
     </div>`;
   bindCartaoPush();
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
@@ -4632,7 +4633,14 @@ async function staffHoje() {
     if (error || !r || r.erro) { b.disabled = false; return toast((r && r.erro) || 'Não foi possível recusar agora.', true); }
     toast('Pedido recusado.'); staffHoje();
   });
-  const ma = document.getElementById('mais-ativ'); if (ma) ma.onclick = () => { st.tudo = true; staffHoje(); };
+  const ma = document.getElementById('mais-ativ'); if (ma) ma.onclick = () => { st.tudo = !st.tudo; staffHoje(); };
+  const oa = document.getElementById('ocultar-ativ'); if (oa) oa.onclick = () => {
+    const fechar = !store.get('nx_ativ_oculta', false); store.set('nx_ativ_oculta', fechar);
+    const corpo = document.getElementById('ativ-corpo'); if (corpo) corpo.hidden = fechar;
+    const tx = document.getElementById('ativ-oculta-txt'); if (tx) tx.hidden = !fechar;
+    else if (fechar) corpo.insertAdjacentHTML('afterend', `<p class="small muted" id="ativ-oculta-txt">${recentes.length} ${recentes.length === 1 ? 'atividade oculta' : 'atividades ocultas'}. Toque na seta para mostrar.</p>`);
+    oa.classList.toggle('fechado', fechar); oa.setAttribute('aria-label', `${fechar ? 'Mostrar' : 'Ocultar'} atividade da semana`); oa.title = fechar ? 'Mostrar' : 'Ocultar';
+  };
   $app.querySelectorAll('[data-rs]').forEach((b) => b.onclick = () => {
     const abrir = !b.classList.contains('on');
     $app.querySelectorAll('[data-rs]').forEach((x) => x.classList.toggle('on', abrir && x === b));
