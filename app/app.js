@@ -2408,6 +2408,8 @@ async function desenharCard(cv, c, o) {
     const r = ctx.createRadialGradient(W * .9, H * .08, 0, W * .9, H * .08, W * .9); r.addColorStop(0, 'rgba(70,214,255,.22)'); r.addColorStop(1, 'rgba(70,214,255,0)'); ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
   }
   const sombra = branco && o.fundo !== 'nexos';
+  // tamanho e posição escolhidos com os dedos (o fundo não mexe)
+  const zz = o.zoom || 1; ctx.save(); ctx.translate(W / 2 + (o.dx || 0), H / 2 + (o.dy || 0)); ctx.scale(zz, zz); ctx.translate(-W / 2, -H / 2);
   const FB = "'Manrope', system-ui, sans-serif", FH = "'Unbounded', 'Manrope', system-ui, sans-serif", FM = "'JetBrains Mono', ui-monospace, monospace";
   const txt = (t, x, y, font, cor, al = 'center', esp = 0) => {
     ctx.save(); ctx.font = font; ctx.fillStyle = cor; ctx.textAlign = al; ctx.textBaseline = 'alphabetic';
@@ -2617,6 +2619,7 @@ async function desenharCard(cv, c, o) {
     ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.35)' : 'rgba(11,24,52,.2)'; ctx.fillRect(80, y - 40, W - 160, 2); ctx.restore();
     grade(lista, y + 10, px, 80, W - 80, 3, 'left');
   }
+  ctx.restore();
   assinatura();
 }
 async function abrirCardCorrida(c) {
@@ -2632,6 +2635,7 @@ async function abrirCardCorrida(c) {
   const disponivel0 = (k) => k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
   openSheet(`<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">Card da corrida</div>
     <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
+    <div class="cd-zoom"><button type="button" class="icon-btn sm" data-z="-1" aria-label="Diminuir">−</button><span class="tiny dim">Pince com 2 dedos para aumentar ou diminuir e arraste para mover</span><button type="button" class="icon-btn sm" data-z="1" aria-label="Aumentar">+</button><button type="button" class="link-btn tiny" id="cd-reset">Centralizar</button></div>
     <div class="field"><span>Fundo</span>${seg('fundo', [['transparente', 'Sem fundo'], ['foto', 'Foto'], ['nexos', 'Azul Nexos']], o.fundo)}</div>
     <input type="file" accept="image/*" id="cd-foto" hidden>
     <div class="field"><span>Modelo</span><div class="card-gal" id="cd-gal">${modelos.map(([k, l]) => `<button type="button" class="cg-it ${k === o.layout ? 'on' : ''}" data-lay="${k}"><span class="cg-cv"><canvas></canvas></span><small>${l}</small></button>`).join('')}</div></div>
@@ -2654,7 +2658,7 @@ async function abrirCardCorrida(c) {
       gal.classList.toggle('xadrez', o.fundo === 'transparente'); gal.classList.toggle('post', o.formato === 'post');
       const tmp = document.createElement('canvas');
       for (const b of gal.querySelectorAll('[data-lay]')) {
-        await desenharCard(tmp, c, { ...o, layout: b.dataset.lay });
+        await desenharCard(tmp, c, { ...o, layout: b.dataset.lay, zoom: 1, dx: 0, dy: 0 });
         const mc = b.querySelector('canvas'); mc.width = 216; mc.height = Math.round(216 * tmp.height / tmp.width);
         const mx = mc.getContext('2d'); mx.clearRect(0, 0, mc.width, mc.height); mx.drawImage(tmp, 0, 0, mc.width, mc.height);
       }
@@ -2669,6 +2673,26 @@ async function abrirCardCorrida(c) {
       salvar(); pinta();
     });
     inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const url = URL.createObjectURL(f); cardCarregarImg(url).then((im) => { if (!im) return toast('Não foi possível abrir a foto.', true); o.img = im; o.fundo = 'foto'; o.cor = 'branco'; r.querySelectorAll('.card-seg').forEach((x) => x.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y.dataset.v === o[x.dataset.o]))); pinta(); }); };
+    // mexer no card com os dedos
+    o.zoom = 1; o.dx = 0; o.dy = 0;
+    let quadro = 0; const redesenha = () => { if (quadro) return; quadro = requestAnimationFrame(async () => { quadro = 0; await desenharCard(cv, c, o); }); };
+    const limita = () => { o.zoom = Math.min(1.8, Math.max(.35, o.zoom)); const lim = 700; o.dx = Math.max(-lim, Math.min(lim, o.dx)); o.dy = Math.max(-lim * 1.4, Math.min(lim * 1.4, o.dy)); };
+    const escala = () => cv.width / cv.getBoundingClientRect().width;
+    const toques = new Map(); let ini = null;
+    cv.style.touchAction = 'none';
+    const estado = () => { const p = [...toques.values()]; if (p.length >= 2) { const [a, b] = p; return { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 }; } return p.length ? { d: 0, cx: p[0].x, cy: p[0].y } : null; };
+    cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); toques.set(e.pointerId, { x: e.clientX, y: e.clientY }); ini = { ...estado(), z: o.zoom, dx: o.dx, dy: o.dy }; });
+    cv.addEventListener('pointermove', (e) => {
+      if (!toques.has(e.pointerId) || !ini) return; toques.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const agora = estado(), k = escala();
+      if (agora.d && ini.d) o.zoom = ini.z * (agora.d / ini.d);
+      o.dx = ini.dx + (agora.cx - ini.cx) * k; o.dy = ini.dy + (agora.cy - ini.cy) * k; limita(); redesenha();
+    });
+    const solta = (e) => { toques.delete(e.pointerId); const st0 = estado(); ini = st0 ? { ...st0, z: o.zoom, dx: o.dx, dy: o.dy } : null; };
+    cv.addEventListener('pointerup', solta); cv.addEventListener('pointercancel', solta);
+    cv.addEventListener('wheel', (e) => { e.preventDefault(); o.zoom *= e.deltaY < 0 ? 1.06 : 1 / 1.06; limita(); redesenha(); }, { passive: false });
+    r.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => { o.zoom *= Number(b.dataset.z) > 0 ? 1.12 : 1 / 1.12; limita(); redesenha(); });
+    r.querySelector('#cd-reset').onclick = () => { o.zoom = 1; o.dx = 0; o.dy = 0; redesenha(); };
     r.querySelector('#cd-stats').onchange = (e) => { o.stats[e.target.value] = e.target.checked; salvar(); pinta(); };
     const blob = () => new Promise((res) => cv.toBlob(res, 'image/png'));
     const nomeArq = `nexos-corrida-${isoDia(c.data)}.png`;

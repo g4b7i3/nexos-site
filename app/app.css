@@ -1690,3 +1690,9 @@ html[data-tema="escuro"] .ftr.feito{box-shadow:0 0 0 1px rgba(242,193,78,.16) in
 .cg-it small{font-size:.7rem;font-weight:700;white-space:nowrap}
 .cg-it.on .cg-cv{border-color:var(--acc);transform:translateY(-2px)}
 .cg-it.on small{color:var(--acc)}
+/* ajuste do card com os dedos */
+.card-prev canvas{cursor:grab;touch-action:none}
+.card-prev canvas:active{cursor:grabbing}
+.cd-zoom{display:flex;align-items:center;justify-content:center;gap:10px;margin:-2px 0 12px;flex-wrap:wrap;text-align:center}
+.cd-zoom .icon-btn{font-size:1.2rem;font-weight:800;width:34px;height:34px}
+.cd-zoom span{max-width:200px;line-height:1.3}
