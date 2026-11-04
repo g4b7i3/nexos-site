@@ -5410,9 +5410,17 @@ async function staffFeed() {
    - Wewege et al. 2021 (Sports Med): só musculação já reduz ~1,4% de gordura corporal; melhor resultado = força + aeróbio + alimentação.
    - Llanos-Lagos et al. 2024 (Sports Med): para corredores, força pesada (≥80% 1RM), pliometria e a combinação melhoram a economia de corrida.
    - Lauersen et al. 2014 (BJSM): treino de força reduz lesões esportivas para menos de 1/3.
-   - Rønnestad et al. 2011 (JSCR): 1 sessão de força por semana mantém os ganhos na temporada; a cada 2 semanas, não. */
+   - Rønnestad et al. 2011 (JSCR): 1 sessão de força por semana mantém os ganhos na temporada; a cada 2 semanas, não.
+   - Iversen et al. 2021 (Sports Med): mínimo de 4 séries por músculo/semana (6–15 RM); bi-séries, drop-set e rest-pause cortam o tempo pela metade.
+   - Sødal et al. 2023 (Sports Med Open): drop-set dá hipertrofia parecida com séries tradicionais em menos tempo.
+   - van Dyk et al. 2019 (BJSM): programas com flexão nórdica reduzem lesões de posterior em ~51% (8.459 atletas).
+   - Harøy et al. 2019 (BJSM): prancha de Copenhague reduz problemas na virilha em ~41%.
+   - Watson et al. 2018 (JBMR, LIFTMOR): 5×5 a >80–85% + impacto, 2x/semana, aumenta densidade óssea em pós-menopausa.
+   - Su et al. 2023 (Front Endocrinol): musculação reduz HbA1c no diabetes tipo 2.
+   - Hayden et al. 2021 (Cochrane): exercício reduz a dor lombar crônica.
+   - Meta-análise de treino concorrente 2022 (Sports Med 52:2391): a corrida reduz um pouco o crescimento das fibras. */
 const NIVEIS_FORCA = [['ini', 'Iniciante'], ['int', 'Intermediário'], ['ava', 'Avançado']];
-const CATS_FORCA = [['hipertrofia', 'Hipertrofia'], ['gluteo', 'Glúteos e pernas'], ['emagrecimento', 'Emagrecimento'], ['forca', 'Força máxima'], ['corredor', 'Força para corredores'], ['casa', 'Em casa'], ['saude', 'Saúde e longevidade']];
+const CATS_FORCA = [['hipertrofia', 'Hipertrofia'], ['gluteo', 'Glúteos e pernas'], ['emagrecimento', 'Emagrecimento'], ['forca', 'Força máxima'], ['rapido', 'Treino rápido'], ['corredor', 'Força para corredores'], ['prevencao', 'Prevenção de lesões'], ['casa', 'Em casa'], ['saude', 'Saúde e longevidade']];
 const GUIA_FORCA = {
   ini: ['2 a 3 treinos por semana, corpo inteiro, com pelo menos 1 dia de descanso entre eles.', 'Pare cada série com 2–3 repetições sobrando: técnica primeiro, falha não é necessária.', 'Quando fizer o topo da faixa de repetições em todas as séries, aumente a carga (2–5%).', 'Descanso de 1 a 2 minutos. Amplitude completa em todos os exercícios.'],
   int: ['3 a 4 treinos por semana, cada músculo pelo menos 2 vezes.', 'Cerca de 10–15 séries por músculo na semana. Compostos pesados com 2–3 reps sobrando; isoladores podem chegar a 0–1.', 'Descanso de 1,5 a 3 min nos compostos e 1 a 1,5 min nos isoladores.', 'Anote as cargas: progredir carga ou repetições toda semana é o que faz evoluir.'],
@@ -6122,6 +6130,290 @@ const BIB_FORCA = [
         _F('Pallof press', 2, '10 cada lado', 45),
       ] },
     ] },
+
+  /* ---------- TREINO RÁPIDO ---------- */
+  { id: 'rap-ini', cat: 'rapido', niv: 'ini', nome: 'Treino rápido · 30 minutos', freq: '2 a 3x por semana (A, B e C)',
+    info: 'Para quem tem pouco tempo: exercícios multiarticulares em bi-séries, aquecimento só com séries leves do primeiro exercício e sem alongamento antes. Mínimo de 4 séries por músculo na semana, com 6–15 repetições perto da falha, já traz resultado (Iversen 2021).',
+    treinos: [
+      { titulo: 'Treino A', foco: '30 min · corpo inteiro', itens: [
+        _F('Agachamento goblet', 3, '8–12', 30, 'Bi-série 1. Aqueça com 1 série leve.'),
+        _F('Puxada frontal pegada aberta', 3, '8–12', 75, 'Fim da bi-série 1.'),
+        _F('Supino reto com halteres', 3, '8–12', 30, 'Bi-série 2.'),
+        _F('Levantamento terra romeno', 3, '8–12', 75, 'Fim da bi-série 2.'),
+        _F('Prancha', 2, '40 s', 30),
+      ] },
+      { titulo: 'Treino B', foco: '30 min · corpo inteiro', itens: [
+        _F('Leg press', 3, '10–12', 30, 'Bi-série 1.'),
+        _F('Supino reto na máquina', 3, '10–12', 75),
+        _F('Remada baixa no cabo', 3, '10–12', 30, 'Bi-série 2.'),
+        _F('Elevação pélvica com barra', 3, '10–12', 75),
+        _F('Dead bug', 2, '8 cada lado', 30),
+      ] },
+      { titulo: 'Treino C', foco: '30 min · corpo inteiro', itens: [
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '8–10 cada perna', 30, 'Bi-série 1.'),
+        _F('Desenvolvimento sentado com halteres', 3, '8–12', 75),
+        _F('Remada unilateral com halter (serrote)', 3, '10 cada lado', 30, 'Bi-série 2.'),
+        _F('Flexão de braço inclinada', 3, '8–15', 75),
+        _F('Pallof press', 2, '10 cada lado', 30),
+      ] },
+    ] },
+  { id: 'rap-int', cat: 'rapido', niv: 'int', nome: 'Treino rápido · 40 minutos com drop-set', freq: '3x por semana (A, B e C)',
+    info: 'Bi-séries de músculos opostos e drop-set na última série dos isoladores: dão hipertrofia parecida com o treino tradicional em cerca da metade do tempo (Iversen 2021; Sødal 2023). Funcionam melhor para massa do que para força máxima.',
+    treinos: [
+      { titulo: 'Treino A', foco: '40 min · inferior + empurrar', itens: [
+        _F('Agachamento livre com barra', 3, '6–10', 120, 'Aqueça com 2 séries leves. Descanso normal aqui.'),
+        _F('Supino inclinado com halteres', 3, '8–12', 30, 'Bi-série.'),
+        _F('Mesa flexora sentada', 3, '10–12', 75),
+        _F('Elevação lateral com halteres', 3, '12–15', 45, 'Última série em drop-set: tire ~25% do peso e continue até a falha, 2 vezes.'),
+        _F('Tríceps francês no cabo com corda', 2, '10–12', 45, 'Última série em drop-set.'),
+      ] },
+      { titulo: 'Treino B', foco: '40 min · posterior + puxar', itens: [
+        _F('Levantamento terra romeno', 3, '6–10', 120),
+        _F('Barra fixa', 3, '6–10', 30, 'Bi-série. Assistida se precisar.'),
+        _F('Elevação pélvica com barra', 3, '8–12', 75),
+        _F('Remada baixa no cabo', 3, '10–12', 45, 'Última série em drop-set.'),
+        _F('Rosca alternada com halteres no banco inclinado', 2, '10–12', 45, 'Última série em drop-set.'),
+      ] },
+      { titulo: 'Treino C', foco: '40 min · corpo inteiro', itens: [
+        _F('Leg press', 3, '10–12', 30, 'Bi-série.'),
+        _F('Supino reto com halteres', 3, '8–12', 75),
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '8 cada perna', 30, 'Bi-série.'),
+        _F('Puxada frontal com pegada supinada', 3, '10–12', 75),
+        _F('Panturrilha em pé na máquina', 3, '10–15', 45, 'Última série em drop-set.'),
+      ] },
+    ] },
+  { id: 'rap-ava', cat: 'rapido', niv: 'ava', nome: 'Treino rápido · rest-pause', freq: '3 a 4x por semana (A, B e C)',
+    info: 'Rest-pause: faça a série até perto da falha, descanse 15–20 s e faça mais repetições com o mesmo peso, 2 a 3 vezes. Num estudo, o treino caiu de 57 para 35 minutos mantendo o volume (Iversen 2021). Use nos isoladores e máquinas, não em agachamento e terra pesados.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Empurrar + quadríceps', itens: [
+        _F('Supino reto com barra (pegada média)', 3, '5–8', 150, 'Pesado, sem rest-pause.'),
+        _F('Agachamento hack na máquina', 2, '8–10 + rest-pause', 120, 'Rest-pause: 2 mini-séries com 15–20 s de pausa.'),
+        _F('Supino inclinado com halteres', 2, '8–10', 90),
+        _F('Elevação lateral sentada no cabo', 2, '12–15 + rest-pause', 60),
+        _F('Tríceps corda', 2, '10–12 + rest-pause', 60),
+      ] },
+      { titulo: 'Treino B', foco: 'Puxar + posterior', itens: [
+        _F('Barra fixa com peso', 3, '5–8', 150, 'Sem rest-pause.'),
+        _F('Mesa flexora sentada', 2, '8–10 + rest-pause', 75),
+        _F('Remada cavalinho apoiada no peito', 2, '8–10 + rest-pause', 90),
+        _F('Crucifixo inverso na máquina (peck deck)', 2, '12–15 + rest-pause', 60),
+        _F('Rosca alternada com halteres no banco inclinado', 2, '10–12 + rest-pause', 60),
+      ] },
+      { titulo: 'Treino C', foco: 'Pernas + ombros', itens: [
+        _F('Levantamento terra romeno', 3, '6–8', 150, 'Sem rest-pause.'),
+        _F('Leg press', 2, '10–12 + rest-pause', 120),
+        _F('Desenvolvimento de ombros na máquina', 2, '8–10 + rest-pause', 90),
+        _F('Cadeira extensora', 2, '12–15 + rest-pause', 60),
+        _F('Panturrilha em pé na máquina', 2, '10–12 + rest-pause', 60),
+      ] },
+    ] },
+
+  /* ---------- TÉCNICAS AVANÇADAS DE HIPERTROFIA ---------- */
+  { id: 'hip-tec', cat: 'hipertrofia', niv: 'ava', nome: 'Hipertrofia · Técnicas avançadas', freq: '4 a 5x por semana (A, B, C e repete)',
+    info: 'Bloco de 4–6 semanas com drop-set, rest-pause e excêntrica lenta nos isoladores. Drop-sets dão hipertrofia parecida com séries tradicionais gastando menos tempo (Sødal 2023). Use só no fim do exercício: muitas séries até a falha atrapalham a recuperação.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Peito, ombros e tríceps', itens: [
+        _F('Supino inclinado com halteres', 4, '6–10', 150, 'Descida em 3 s.'),
+        _F('Supino reto na máquina', 3, '8–10', 120, 'Última série em drop-set (2 quedas de ~25%).'),
+        _F('Crucifixo na máquina (peck deck)', 2, '12–15 + rest-pause', 60),
+        _F('Elevação lateral sentada no cabo', 4, '12–20', 60, 'Última série em drop-set.'),
+        _F('Tríceps francês no cabo com corda', 3, '10–12', 60, 'Última série em rest-pause.'),
+      ] },
+      { titulo: 'Treino B', foco: 'Costas e bíceps', itens: [
+        _F('Barra fixa com peso', 4, '6–10', 150, 'Descida em 3 s.'),
+        _F('Remada cavalinho apoiada no peito', 3, '8–10', 120, 'Última série em drop-set.'),
+        _F('Puxada frontal unilateral', 3, '10–12 cada lado', 75),
+        _F('Crucifixo inverso na máquina (peck deck)', 3, '15–20 + rest-pause', 60),
+        _F('Rosca alternada com halteres no banco inclinado', 3, '8–12', 60, 'Última série em drop-set.'),
+      ] },
+      { titulo: 'Treino C', foco: 'Pernas', itens: [
+        _F('Agachamento livre com barra', 4, '5–8', 180, 'Sem técnicas: só carga.'),
+        _F('Levantamento terra romeno', 3, '6–10', 150, 'Descida em 3 s.'),
+        _F('Leg press', 2, '10–12', 120, 'Última série em drop-set.'),
+        _F('Mesa flexora sentada', 3, '8–12 + rest-pause', 75),
+        _F('Cadeira extensora', 2, '12–15', 60, 'Última série em drop-set.'),
+        _F('Panturrilha em pé na máquina', 4, '8–12', 60, 'Pausa de 2 s embaixo.'),
+      ] },
+    ] },
+
+  /* ---------- PREVENÇÃO DE LESÕES ---------- */
+  { id: 'pre-ini', cat: 'prevencao', niv: 'ini', nome: 'Prevenção de lesões · Base', freq: '2x por semana (rodízio A → B → C), 20–30 min',
+    info: 'Os exercícios com melhor prova contra lesão: flexão nórdica (programas com ela cortam as lesões de posterior pela metade, van Dyk 2019), prancha de Copenhague (41% menos problemas na virilha, Harøy 2019), panturrilha e glúteo médio. Pode ser feito como complemento de outro treino.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Posterior e virilha', itens: [
+        _F('Glute-ham raise no chão', 2, '3–5', 90, 'Flexão nórdica: desça o mais devagar que conseguir, apoie as mãos no fim.'),
+        _F('Prancha de Copenhague curta (joelho apoiado)', 2, '15–20 s cada lado', 45),
+        _F('Ponte de glúteos unilateral', 3, '10 cada perna', 45),
+        _F('Panturrilha em pé com halteres', 3, '12 cada perna', 45, 'Uma perna por vez, descida em 3 s.'),
+        _F('Bird dog', 2, '8 cada lado', 30),
+      ] },
+      { titulo: 'Treino B', foco: 'Quadril e joelho', itens: [
+        _F('Monster walk (caminhada com elástico)', 2, '12 passos cada lado', 30),
+        _F('Agachamento isométrico na parede (cadeirinha)', 3, '30–45 s', 60),
+        _F('Subida no banco com halteres', 3, '8 cada perna', 60, 'Joelho alinhado com o pé.'),
+        _F('Abdução de quadril com elástico', 2, '15 cada lado', 30),
+        _F('Prancha lateral', 2, '30 s cada lado', 30),
+      ] },
+      { titulo: 'Treino C', foco: 'Tornozelo, panturrilha e core', itens: [
+        _F('Panturrilha sentado unilateral com halter', 3, '12 cada perna', 45, 'Sóleo.'),
+        _F('Prancha de equilíbrio', 3, '30 s', 30),
+        _F('Levantamento terra unilateral com kettlebell', 2, '8 cada perna', 60, 'Equilíbrio e posterior.'),
+        _F('Pallof press', 2, '10 cada lado', 30),
+        _F('Dead bug', 2, '8 cada lado', 30),
+      ] },
+    ] },
+  { id: 'pre-int', cat: 'prevencao', niv: 'int', nome: 'Prevenção de lesões · Progressão', freq: '2x por semana (rodízio A → B → C)',
+    info: 'Mais volume nos protetores: nórdicas e Copenhague com repetições, panturrilha pesada e unilaterais. O efeito protetor aparece com regularidade: o que funciona é fazer toda semana, durante a temporada inteira.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Posterior e virilha', itens: [
+        _F('Glute-ham raise no chão', 3, '5–6', 90),
+        _F('Prancha de Copenhague curta (joelho apoiado)', 3, '8–10 cada lado', 45, 'Agora em repetições.'),
+        _F('Levantamento terra romeno', 3, '8', 90),
+        _F('Panturrilha em pé na máquina', 3, '10', 60, 'Pesada, pausa embaixo.'),
+        _F('Prancha lateral', 2, '40 s cada lado', 30),
+      ] },
+      { titulo: 'Treino B', foco: 'Quadril e joelho', itens: [
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '8 cada perna', 75),
+        _F('Cadeira adutora', 3, '12', 45),
+        _F('Agachamento isométrico na parede (cadeirinha)', 3, '45 s', 60, 'Segure um halter no colo para dificultar.'),
+        _F('Cadeira abdutora', 3, '15', 45),
+        _F('Pallof press', 3, '10 cada lado', 30),
+      ] },
+      { titulo: 'Treino C', foco: 'Reatividade e tornozelo', itens: [
+        _F('Saltito unilateral com calcanhar ao glúteo', 3, '10 cada perna', 45),
+        _F('Panturrilha sentado unilateral com halter', 3, '10 cada perna', 45),
+        _F('Subida no banco com halteres', 3, '8 cada perna', 60),
+        _F('Caminhada do fazendeiro', 3, '30 m', 60, 'Core e postura.'),
+        _F('Bird dog', 2, '10 cada lado', 30),
+      ] },
+    ] },
+  { id: 'pre-ava', cat: 'prevencao', niv: 'ava', nome: 'Prevenção de lesões · Atleta', freq: '2x por semana (rodízio A → B → C)',
+    info: 'Para quem já faz nórdicas e Copenhague completas: carga excêntrica alta, saltos com aterrissagem controlada e força unilateral pesada. Mantenha 1 sessão por semana nas fases de competição para não perder o efeito.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Posterior e virilha avançado', itens: [
+        _F('Glute-ham raise no chão', 3, '6–8', 120, 'Sem apoiar as mãos.'),
+        _F('Prancha de Copenhague (pé apoiado)', 3, '8–12 cada lado', 60),
+        _F('Levantamento terra romeno', 3, '6', 120, 'Pesado.'),
+        _F('Panturrilha em pé na máquina', 4, '8', 60, 'Pesada.'),
+      ] },
+      { titulo: 'Treino B', foco: 'Aterrissagem e joelho', itens: [
+        _F('Salto frontal na caixa', 3, '5', 90, 'Aterrisse macio, joelho alinhado.'),
+        _F('Salto lateral alternado (bound)', 3, '6', 90, 'Segure 2 s em cada aterrissagem.'),
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '6 cada perna', 90, 'Pesado.'),
+        _F('Agachamento isométrico na parede (cadeirinha)', 3, '45 s', 60, 'Com carga.'),
+        _F('Pallof press', 3, '12 cada lado', 30),
+      ] },
+      { titulo: 'Treino C', foco: 'Força unilateral e tronco', itens: [
+        _F('Subida no banco com halteres', 3, '6 cada perna', 90, 'Banco alto, pesado.'),
+        _F('Levantamento terra unilateral com kettlebell', 3, '6 cada perna', 75),
+        _F('Cadeira adutora', 3, '10', 45),
+        _F('Caminhada do fazendeiro', 3, '40 m', 60),
+        _F('Roda abdominal', 3, '8', 45),
+      ] },
+    ] },
+
+  /* ---------- SAÚDE: OSSOS, GLICEMIA E COLUNA ---------- */
+  { id: 'sau-ossos', cat: 'saude', niv: 'int', nome: 'Saúde · Ossos fortes (pós-menopausa)', freq: '2x por semana, 30 min (A, B e C)',
+    info: 'Baseado no estudo LIFTMOR: mulheres pós-menopausa com baixa massa óssea fizeram 5×5 acima de 80–85% da carga máxima em terra, agachamento e desenvolvimento, mais saltos com aterrissagem, 2x por semana por 8 meses, e ganharam densidade óssea na coluna e no fêmur (Watson 2018). O primeiro mês é de adaptação com cargas leves. Precisa de liberação médica e supervisão próxima.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Terra e desenvolvimento', itens: [
+        _F('Levantamento terra com barra hexagonal', 5, '5', 150, '>80–85% 1RM depois do mês de adaptação. Coluna neutra sempre.'),
+        _F('Desenvolvimento militar com barra em pé', 5, '5', 120, '>80–85% 1RM.'),
+        _F('Agachamento com salto sem peso', 3, '5', 60, 'Impacto: aterrisse firme nos calcanhares.'),
+        _F('Prancha', 2, '30 s', 30),
+      ] },
+      { titulo: 'Treino B', foco: 'Agachamento e puxada', itens: [
+        _F('Agachamento livre com barra', 5, '5', 150, '>80–85% 1RM. Pode ser no banco (sentar e levantar).'),
+        _F('Barra fixa assistida com elástico', 3, '5', 90),
+        _F('Salto frontal na caixa', 3, '5', 60, 'Desça do caixote pulando (impacto).'),
+        _F('Bird dog', 2, '8 cada lado', 30),
+      ] },
+      { titulo: 'Treino C', foco: 'Corpo inteiro', itens: [
+        _F('Levantamento terra com barra hexagonal', 3, '5', 150),
+        _F('Agachamento livre com barra', 3, '5', 150),
+        _F('Desenvolvimento sentado com halteres', 3, '6', 90),
+        _F('Caminhada do fazendeiro', 3, '30 m', 60),
+      ] },
+    ] },
+  { id: 'sau-glic', cat: 'saude', niv: 'ini', nome: 'Saúde · Controle da glicemia', freq: '2 a 3x por semana (A, B e C), por pelo menos 12 semanas',
+    info: 'Na meta-análise de 2023 sobre diabetes tipo 2, a musculação baixou a hemoglobina glicada; os melhores resultados vieram com 2–3 treinos por semana, 3 séries de 6–10 repetições a ~70–80% da carga máxima e 12–16 semanas (Su 2023). Complementa, não substitui, o tratamento médico: confira a glicemia antes e depois no começo.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Grandes músculos', itens: [
+        _F('Leg press', 3, '8–10', 75),
+        _F('Supino reto na máquina', 3, '8–10', 75),
+        _F('Remada baixa no cabo', 3, '8–10', 75),
+        _F('Mesa flexora sentada', 3, '8–10', 60),
+        _F('Bicicleta ergométrica', 1, '10 min', 0, 'Leve, no fim do treino.'),
+      ] },
+      { titulo: 'Treino B', foco: 'Grandes músculos', itens: [
+        _F('Agachamento goblet', 3, '8–10', 75),
+        _F('Puxada frontal pegada aberta', 3, '8–10', 75),
+        _F('Desenvolvimento sentado com halteres', 3, '8–10', 75),
+        _F('Elevação pélvica com barra', 3, '8–10', 60),
+        _F('Caminhada na esteira', 1, '10 min', 0, 'Leve, no fim do treino.'),
+      ] },
+      { titulo: 'Treino C', foco: 'Grandes músculos', itens: [
+        _F('Cadeira extensora', 3, '8–10', 60),
+        _F('Supino reto com halteres', 3, '8–10', 75),
+        _F('Remada unilateral com halter (serrote)', 3, '8–10 cada lado', 60),
+        _F('Levantamento terra romeno', 3, '8–10', 75),
+        _F('Panturrilha sentado', 3, '10–12', 45),
+      ] },
+    ] },
+  { id: 'sau-coluna', cat: 'saude', niv: 'ini', nome: 'Saúde · Coluna e core', freq: '2 a 3x por semana (A, B e C)',
+    info: 'Para quem quer uma coluna mais forte ou tem dor lombar crônica sem sinal de alerta. Na revisão Cochrane de 2021 (249 estudos), o exercício reduziu a dor lombar crônica em média 15 pontos (de 100) em relação a não tratar, sem um tipo melhor que outro. Dor forte, irradiada ou depois de queda: avaliação antes.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Estabilidade', itens: [
+        _F('Bird dog', 3, '8 cada lado', 30, 'Devagar, sem girar o quadril.'),
+        _F('Dead bug', 3, '8 cada lado', 30),
+        _F('Ponte de glúteos', 3, '12', 45),
+        _F('Prancha lateral', 3, '20–30 s cada lado', 30, 'Joelhos no chão para facilitar.'),
+        _F('Agachamento com halteres até o banco', 2, '10', 60),
+      ] },
+      { titulo: 'Treino B', foco: 'Movimento de quadril', itens: [
+        _F('Levantamento terra romeno', 3, '10', 75, 'Leve: aprenda a dobrar no quadril com a coluna neutra.'),
+        _F('Pallof press', 3, '10 cada lado', 30),
+        _F('Remada baixa no cabo', 3, '10–12', 60),
+        _F('Superman', 2, '10', 30),
+        _F('Caminhada do fazendeiro', 3, '20 m', 45, 'Peso leve, postura alta.'),
+      ] },
+      { titulo: 'Treino C', foco: 'Força geral', itens: [
+        _F('Agachamento goblet', 3, '8–10', 75),
+        _F('Extensão lombar no banco', 2, '10–12', 60, 'Amplitude que não doa.'),
+        _F('Puxada frontal pegada aberta', 3, '10', 60),
+        _F('Prancha', 3, '30 s', 30),
+        _F('Elevação pélvica com barra', 3, '10', 60),
+      ] },
+    ] },
+
+  /* ---------- CORREDOR QUE QUER MASSA ---------- */
+  { id: 'cor-hip', cat: 'corredor', niv: 'int', nome: 'Corredor · Ganhar massa sem parar de correr', freq: '3x por semana (A, B e C), em dias de corrida leve',
+    info: 'Correr e treinar força juntos atrapalha pouco o ganho de massa, mas a corrida tende a reduzir um pouco o crescimento das fibras (meta-análise de 2022). Por isso: musculação nos dias de corrida leve, de preferência antes da corrida ou com 6 h ou mais de intervalo, e longe dos treinos fortes.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Superior', itens: [
+        _F('Supino inclinado com halteres', 3, '8–12', 120),
+        _F('Barra fixa', 3, '6–10', 120),
+        _F('Desenvolvimento sentado com halteres', 3, '8–12', 90),
+        _F('Remada baixa no cabo', 3, '10–12', 90),
+        _F('Tríceps francês no cabo com corda', 2, '10–12', 60),
+        _F('Rosca alternada com halteres no banco inclinado', 2, '10–12', 60),
+      ] },
+      { titulo: 'Treino B', foco: 'Inferior (força)', itens: [
+        _F('Agachamento livre com barra', 3, '6–8', 150),
+        _F('Levantamento terra romeno', 3, '8', 120),
+        _F('Agachamento com afundo e pé elevado com halteres', 2, '8 cada perna', 90),
+        _F('Panturrilha em pé na máquina', 3, '8–12', 60),
+        _F('Prancha lateral', 2, '30 s cada lado', 30),
+      ] },
+      { titulo: 'Treino C', foco: 'Superior + core', itens: [
+        _F('Supino reto com barra (pegada média)', 3, '6–10', 120),
+        _F('Remada cavalinho apoiada no peito', 3, '8–10', 90),
+        _F('Elevação lateral sentada no cabo', 3, '12–15', 60),
+        _F('Puxada frontal unilateral', 2, '10–12 cada lado', 60),
+        _F('Paralelas para peito', 2, '8–12', 75),
+        _F('Roda abdominal', 3, '8–10', 45),
+      ] },
+    ] },
 ];
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
@@ -6214,7 +6506,7 @@ async function staffBiblioteca(aba) {
           : `<div class="card guia-niv"><span class="eyebrow">Como montar · ${nomeNiv[sel]}</span><ul>${GUIA_FORCA[sel].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
         <div class="chips" id="fcat" style="margin-top:14px">${[['todos', 'Todos os objetivos'], ...CATS_FORCA].map(([k, l]) => `<button class="chip ${st.cat === k ? 'on' : ''}" data-fcat="${k}">${l}</button>`).join('')}</div>
         <div class="cols" style="margin-top:16px">${lista.map(cardProg).join('')}</div>
-        <p class="tiny dim" style="margin-top:18px">Bases: ACSM 2026 (Currier et al., Med Sci Sports Exerc); Robinson 2024 e Pelland (Sports Med); Singer 2024; Wolf 2023; Maeo 2021 e 2022; Plotkin 2023; Wewege 2021; Llanos-Lagos 2024; Lauersen 2014; Rønnestad 2011.</p>`}
+        <p class="tiny dim" style="margin-top:18px">Bases: ACSM 2026 (Currier et al., Med Sci Sports Exerc); Robinson 2024 e Pelland (Sports Med); Singer 2024; Wolf 2023; Maeo 2021 e 2022; Plotkin 2023; Wewege 2021; Llanos-Lagos 2024; Lauersen 2014; Rønnestad 2011; Iversen 2021; Sødal 2023; van Dyk 2019; Harøy 2019; Watson 2018 (LIFTMOR); Su 2023; Hayden 2021 (Cochrane).</p>`}
         <a class="fab" href="#/modelo/novo" aria-label="Novo modelo">${I.plus}</a>`;
     };
     desenhar();

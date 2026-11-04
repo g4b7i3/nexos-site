@@ -1765,3 +1765,8 @@ html{touch-action:manipulation}
 .tag.cat-t.cat-gluteo{background:color-mix(in srgb,#e879a6 18%,transparent);color:#a3245a}
 .tag.cat-t.cat-casa{background:color-mix(in srgb,#a78bfa 20%,transparent);color:#5b3fb8}
 [data-tema=escuro] .tag.cat-t.cat-gluteo{color:#f9a8cc}[data-tema=escuro] .tag.cat-t.cat-casa{color:#c4b5fd}
+.prog-f.cat-rapido{border-top-color:#38bdf8}
+.prog-f.cat-prevencao{border-top-color:#f59e0b}
+.tag.cat-t.cat-rapido{background:color-mix(in srgb,#38bdf8 18%,transparent);color:#0369a1}
+.tag.cat-t.cat-prevencao{background:color-mix(in srgb,#f59e0b 20%,transparent);color:#a15c07}
+[data-tema=escuro] .tag.cat-t.cat-rapido{color:#7dd3fc}[data-tema=escuro] .tag.cat-t.cat-prevencao{color:#fcd34d}
