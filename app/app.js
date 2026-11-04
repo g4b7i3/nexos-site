@@ -3267,10 +3267,11 @@ function cartaoSessao(p, perfil, feito, staff) {
   const st = feito ? 'feito' : p.data < hoje ? 'perdido' : 'pend';
   const est = estruturaDe(p); const rs = resumoEstrutura(est, perfil);
   return `<div class="ses ${st} ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}" ${staff ? 'draggable="false"' : ''}>
-    <div class="ses-t"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b>${feito ? '<span class="ses-ok">✓</span>' : st === 'perdido' ? '<span class="ses-x">!</span>' : ''}</div>
+    ${feito ? `<div class="ses-conc"><i>${I.check}</i>Treino concluído</div>` : ''}
+    <div class="ses-t"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b>${!feito && st === 'perdido' ? '<span class="ses-x">!</span>' : ''}</div>
     ${perfilHTML(est, perfil)}
-    <span class="ses-m">${rs.km ? f1(rs.km) + ' km' : ''}${rs.seg ? ' · ' + fmtDur(rs.seg) : ''}</span>
-    ${feito ? `<span class="ses-f">${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</span>` : ''}</div>`;
+    ${feito ? `<div class="ses-res"><div><small>Distância</small><b>${fmtKm(feito.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(feito)).replace('/km', '')}<em>/km</em></b></div></div>` : ''}
+    <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km ? f1(rs.km) + ' km' : ''}${rs.seg ? ' · ' + fmtDur(rs.seg) : ''}</span></div>`;
 }
 function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [], m = null) {
   const hoje = isoDia(new Date()); let h = '';
@@ -3292,7 +3293,7 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
       h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${staff ? `<span class="disp-cal">${dispIcones(m, (d.getDay() + 6) % 7)}</span>` : ''}${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
         ${pr.map((p) => `<a class="ses prova" href="${staff ? '#/eventos/equipe' : '#/eventos/minhas'}"><div class="ses-t"><b>${icT(I.flag)}${esc(p.titulo)}</b></div><span class="ses-m">${esc(p.distancia || 'Prova')}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span></a>`).join('')}
         ${itens.map((p) => cartaoSessao(p, perfil, corridas.find((c) => c.plano_id === p.id), staff)).join('')}
-        ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-t"><b>Corrida avulsa</b><span class="ses-ok">✓</span></div><span class="ses-f">${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}</span></a>`).join('')}
+        ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-conc"><i>${I.check}</i>Treino extra</div><div class="ses-t"><b>Corrida avulsa</b></div><div class="ses-res"><div><small>Distância</small><b>${fmtKm(c.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(c)).replace('/km', '')}<em>/km</em></b></div></div></a>`).join('')}
         ${!itens.length && !av.length && !pr.length ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
     });
     h += '</div></div>';

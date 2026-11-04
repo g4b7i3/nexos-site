@@ -1598,3 +1598,23 @@ html[data-tema="claro"] .empty{background:#fff}
   .section{margin-top:32px}
   .top{margin-bottom:26px}
 }
+
+/* ===== treino concluído: cartão azul-marinho preenchido ===== */
+.ses.feito{position:relative;overflow:hidden;gap:7px;padding:10px 11px 11px;border:0;color:#fff;
+  background:radial-gradient(120% 90% at 100% 0%,rgba(70,214,255,.20),transparent 55%),linear-gradient(155deg,#0d2654 0%,#143a7c 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 8px 20px rgba(11,35,82,.22)}
+html[data-tema="escuro"] .ses.feito{box-shadow:0 0 0 1px rgba(120,170,255,.18) inset,0 8px 22px rgba(0,0,0,.35)}
+.ses.feito:hover{border:0;box-shadow:0 0 0 2px rgba(70,214,255,.55) inset,0 10px 24px rgba(11,35,82,.28)}
+.ses-conc{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-m);font-size:.62rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#9fe3ff}
+.ses-conc i{width:16px;height:16px;flex:none;border-radius:50%;display:grid;place-items:center;background:#46d6ff;color:#0b2352}
+.ses-conc i svg{width:10px;height:10px;stroke-width:3.4}
+.ses.feito .ses-t b{color:#fff;font-size:.86rem}
+.ses.feito .perfil-int{background:rgba(255,255,255,.10)}
+.ses-res{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:2px}
+.ses-res div{display:flex;flex-direction:column;line-height:1.1}
+.ses-res small{font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.ses-res b{font-family:var(--f-h);font-size:1.02rem;font-weight:700;color:#fff;white-space:nowrap}
+.ses-res em{font-style:normal;font-size:.68rem;font-weight:600;color:rgba(255,255,255,.7);margin-left:1px}
+.ses.feito .ses-m{color:rgba(255,255,255,.62);font-size:.7rem}
+.ses.feito.avulsa{border:0}
+@media (min-width:1100px){.ses-conc{font-size:.56rem;letter-spacing:.08em}.ses-res b{font-size:.92rem}.ses.feito .ses-t b{padding-right:0}}
