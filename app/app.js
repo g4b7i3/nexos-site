@@ -2351,10 +2351,10 @@ function formCorrida(alunoId, d, plano, onSalvo) {
 
 /* ---------- detalhe de uma corrida ---------- */
 /* ---------- card da corrida para compartilhar (minimalista, estilo Strava/Garmin) ---------- */
-const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo'], ['fc', 'FC média'], ['elev', 'Subida'], ['cad', 'Cadência'], ['kcal', 'Calorias'], ['rota', 'Percurso'], ['data', 'Data'], ['logo', 'Logo Nexos']];
+const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo'], ['fc', 'FC média'], ['elev', 'Subida'], ['cad', 'Cadência'], ['kcal', 'Calorias'], ['passos', 'Passos'], ['rota', 'Percurso'], ['data', 'Data'], ['logo', 'Logo Nexos']];
 // modelos do card (inspirados nos stickers de corrida, com a cara da Nexos)
 const CARD_LAYOUTS = [
-  ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
+  ['icones', 'Com ícones'], ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
   ['sobre', 'Mapa + números'], ['tabela', 'Ficha'], ['ficha_mapa', 'Ficha + mapa'], ['lateral', 'Diagonal'], ['pilulas', 'Número de peito'],
   ['parciais', 'Parciais'], ['recibo', 'Medalha'], ['destaque', 'Destaque'], ['linha', 'Na foto'],
 ];
@@ -2372,6 +2372,7 @@ function cardValores(c) {
     elev: c.elevacao_m ? { l: 'Subida', v: String(Math.round(c.elevacao_m)), u: 'm' } : null,
     cad: c.cadencia ? { l: 'Cadência', v: String(c.cadencia), u: 'ppm' } : null,
     kcal: E.kcal ? { l: 'Calorias', v: Math.round(E.kcal).toLocaleString('pt-BR'), u: 'kcal' } : null,
+    passos: E.passos ? { l: 'Passos', v: Math.round(E.passos).toLocaleString('pt-BR'), u: '' } : null,
   };
 }
 function cardRota(ctx, rota, x, y, w, h, cor, lw, brilho = false) {
@@ -2416,7 +2417,7 @@ async function desenharCard(cv, c, o) {
   };
   const larg = (t, font, esp = 0) => { ctx.save(); ctx.font = font; if ('letterSpacing' in ctx) ctx.letterSpacing = esp + 'px'; const w = ctx.measureText(t).width; ctx.restore(); return w; };
   const V = cardValores(c);
-  const sel = ['dist', 'pace', 'tempo', 'fc', 'elev', 'cad', 'kcal'].filter((k) => o.stats[k] && V[k]).map((k) => V[k]);
+  const sel = ['dist', 'pace', 'tempo', 'fc', 'elev', 'cad', 'kcal', 'passos'].filter((k) => o.stats[k] && V[k]).map((k) => V[k]);
   const VAL = (px) => `700 ${Math.round(px * .84)}px ${FH}`, LBL = (px) => `700 ${px}px ${FB}`;
   // rótulo pequeno + número grande (unidade menor ao lado)
   const stat = (s, x, y, px, al = 'center', caixa = false) => {
@@ -2441,8 +2442,10 @@ async function desenharCard(cv, c, o) {
   const wm = comLogo ? await cardImg(branco ? 'icons/wordmark.svg' : 'icons/wordmark-escuro.svg') : null;
   const sim = comLogo ? await cardImg(branco ? 'icons/simbolo.svg' : 'icons/simbolo-escuro.svg') : null;
   const desenha = (im, ar, x, y, w, al = 'left') => { if (!im) return 0; const h = w * ar; const xx = al === 'center' ? x - w / 2 : al === 'right' ? x - w : x; ctx.save(); if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 12; } ctx.drawImage(im, xx, y, w, h); ctx.restore(); return h; };
-  const logo = (x, y, w = 240, al = 'center') => desenha(wm, 937.1 / 5645, x, y, w, al);
+  const logoTexto = (x, y, w = 240, al = 'center') => desenha(wm, 937.1 / 5645, x, y, w, al);
   const simbolo = (x, y, w = 120, al = 'center') => desenha(sim, 2333.5 / 5528.6, x, y, w, al);
+  // a marca principal nos cards é o símbolo (maior que o nome escrito)
+  const logo = (x, y, w = 240, al = 'center') => simbolo(x, y - w * .05, w * .72, al);
   const dt = new Date(c.data);
   const dataTxt = o.stats.data ? `${fmtDia(c.data)} · ${fmtHora(c.data)}`.toUpperCase() : '';
   const temRota = o.stats.rota && c.rota && c.rota.length > 1;
@@ -2457,7 +2460,24 @@ async function desenharCard(cv, c, o) {
     if (L !== 'linha') txt('NEXOS · PERFORMANCE E SAÚDE', W / 2, H - (post ? 44 : 64), `500 22px ${FM}`, sub, 'center', 6);
   };
 
-  if (L === 'classico') { // coluna centrada: percurso, números e logo
+  if (L === 'icones') { // grade 2 colunas com ícone em cima de cada número
+    const IC = { dist: 'M6 21s-4-4.5-4-7.5A4 4 0 0 1 10 13.5C10 16.5 6 21 6 21zM6 13.5h.01M18 11s-3-3.4-3-5.6a3 3 0 0 1 6 0C21 7.6 18 11 18 11zM18 5.4h.01M9 19.5c3 0 4-1.5 5.5-4s2.5-3 3.5-3', tempo: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2.5 1.5M10 2h4M12 2v3M19 6l1.5-1.5', pace: 'M3.5 17a9 9 0 1 1 17 0M12 13l4-4M12 13.5a1 1 0 1 0 0-.01M6.5 13H5M19 13h-1.5M12 6.5V5M7.6 8.6 6.6 7.6M16.4 8.6l1-1', elev: 'M2 20 9 8l4 6 3-4 6 10zM9 8l2 3', fc: 'M12 20s-7-4.4-9-9a4.7 4.7 0 0 1 9-3 4.7 4.7 0 0 1 9 3c-2 4.6-9 9-9 9zM3.5 12h4l2-3 2.5 6 2-3h6.5', passos: 'M7 4c1.7 0 2.5 1.8 2.5 4S8.7 12 7 12s-2.5-1.8-2.5-4S5.3 4 7 4zM5 14.5h4.5v2a2.3 2.3 0 0 1-4.5 0zM17 8c1.7 0 2.5 1.8 2.5 4s-.8 4-2.5 4-2.5-1.8-2.5-4S15.3 8 17 8zM15 18.5h4.5v.5a2.3 2.3 0 0 1-4.5 0z', cad: 'M7 4c1.7 0 2.5 1.8 2.5 4S8.7 12 7 12s-2.5-1.8-2.5-4S5.3 4 7 4zM5 14.5h4.5v2a2.3 2.3 0 0 1-4.5 0zM17 8c1.7 0 2.5 1.8 2.5 4s-.8 4-2.5 4-2.5-1.8-2.5-4S15.3 8 17 8zM15 18.5h4.5v.5a2.3 2.3 0 0 1-4.5 0z', kcal: 'M12 21c-4 0-6.5-2.6-6.5-6 0-4 3.5-5.5 4-10 2.5 1.5 4 4 4 6 1-1 1.5-2 1.5-3 2 1.7 3.5 4.4 3.5 7 0 3.4-2.5 6-6.5 6z' };
+    // usa o que estiver marcado e completa com os outros números da corrida até 6
+    const ordem = ['dist', 'tempo', 'pace', 'elev', 'fc', 'passos', 'cad', 'kcal'];
+    const chaves = [...ordem.filter((k) => o.stats[k] && V[k]), ...ordem.filter((k) => !o.stats[k] && V[k])].slice(0, 6).sort((a, b) => ordem.indexOf(a) - ordem.indexOf(b));
+    const rows = Math.ceil(chaves.length / 2), rh = post ? 300 : 340;
+    let y = (H - (rows * rh + 210)) / 2;
+    simbolo(W / 2, y, 300); y += 210;
+    const icone = (k, cx, cy, sz) => { if (!IC[k] || !window.Path2D) return; ctx.save(); ctx.translate(cx - sz / 2, cy); ctx.scale(sz / 24, sz / 24); ctx.strokeStyle = tx; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 6; } ctx.stroke(new Path2D(IC[k])); ctx.restore(); };
+    chaves.forEach((k, i) => {
+      const col = i % 2, row = Math.floor(i / 2), cx = col ? W * .72 : W * .28, cy = y + row * rh;
+      icone(k, cx, cy, 84);
+      const s2 = V[k]; txt(s2.l, cx, cy + 140, `600 38px ${FB}`, tx, 'center');
+      const px = 86, wv = larg(s2.v, VAL(px), -px * .035), fu = `700 ${Math.round(px * .5)}px ${FB}`, wu = s2.u ? larg(s2.u, fu) + 12 : 0, x0 = cx - (wv + wu) / 2;
+      txt(s2.v, x0, cy + 236, VAL(px), tx, 'left', -px * .035); if (s2.u) txt(s2.u, x0 + wv + 12, cy + 236, fu, tx, 'left');
+      if (row < rows - 1) { ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.22)' : 'rgba(11,24,52,.15)'; ctx.fillRect(cx - 190, cy + rh - 30, 380, 2); ctx.restore(); }
+    });
+  } else if (L === 'classico') { // coluna centrada: percurso, números e logo
     const px = post ? 84 : 100, passo = px * 1.95, hR = temRota ? (post ? 250 : 340) : 0;
     const tot = (hR ? hR + 70 : 0) + sel.length * passo + (dataTxt ? 70 : 0) + (wm ? 110 : 0);
     let y = (H - tot) / 2;
@@ -2469,17 +2489,16 @@ async function desenharCard(cv, c, o) {
     const lista = sel.slice(0, 6), px = lista.length > 3 ? 64 : 70;
     const alt = 140 + Math.ceil(lista.length / 3) * px * 1.9;
     let y = (H - alt) / 2;
-    const hs = simbolo(80, y, 150, 'left'); logo(80 + (sim ? 180 : 0), y + Math.max(0, (hs - 46) / 2), 280, 'left');
+    const hs = simbolo(80, y, 190, 'left'); logoTexto(80 + (sim ? 220 : 0), y + Math.max(0, (hs - 46) / 2), 270, 'left');
     if (dataTxt) txt(dataTxt, W - 80, y + 40, LBL(24), sub, 'right', 3);
     grade(lista, y + 150, px, 80, W - 80, 3, 'left');
   } else if (L === 'percurso') { // percurso grande, logo e números embaixo
     const hr = post ? 620 : 900, yr = post ? 150 : 240;
     rota(130, yr, W - 260, hr, 12);
     let y = yr + hr + (post ? 60 : 100);
-    logo(W / 2, y, 300); y += 110;
+    simbolo(W / 2, y, 230); y += 130;
     if (dataTxt) { txt(dataTxt, W / 2, y + 10, LBL(26), sub, 'center', 3); y += 60; }
     y = grade(sel.slice(0, 3), y, post ? 66 : 72, 70, W - 70, 3, 'center');
-    simbolo(W / 2, y + 10, 110, 'center');
   } else if (L === 'lado') { // percurso à esquerda, logo e números em coluna à direita
     const yc = H / 2, hr = post ? 520 : 600;
     rota(70, yc - hr / 2, 470, hr, 12);
@@ -2522,7 +2541,7 @@ async function desenharCard(cv, c, o) {
     lista.forEach((s, k) => stat(s, 60 + cw * k + cw / 2, -40, post ? 64 : 70, 'center', true));
     ctx.restore();
     if (dataTxt) txt(dataTxt, W / 2, yc + bh / 2 + 90, LBL(26), sub, 'center', 4);
-    simbolo(W / 2, H - (post ? 290 : 400), 150); logo(W / 2, H - (post ? 200 : 300), 260);
+    simbolo(W / 2, H - (post ? 260 : 360), 230);
   } else if (L === 'pilulas') { // número de peito: a "inscrição" da corrida
     const bw = 820, bh = post ? 760 : 860, x = (W - bw) / 2, y = (H - bh) / 2 - (post ? 0 : 40);
     ctx.save(); if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 30; }
@@ -2593,7 +2612,7 @@ async function desenharCard(cv, c, o) {
     const lista = sel.slice(0, 3), px = 72;
     let y = H - (post ? 120 : 170) - px * 1.4;
     rota(80, y - 320, 260, 230, 7);
-    simbolo(W - 80, y - 210, 120, 'right'); logo(W - 80, y - 110, 230, 'right');
+    simbolo(W - 80, y - 230, 190, 'right'); logoTexto(W - 80, y - 120, 210, 'right');
     if (dataTxt) txt(dataTxt, 80, y - 50 - 20, LBL(24), sub, 'left', 3);
     ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.35)' : 'rgba(11,24,52,.2)'; ctx.fillRect(80, y - 40, W - 160, 2); ctx.restore();
     grade(lista, y + 10, px, 80, W - 80, 3, 'left');
@@ -2610,14 +2629,14 @@ async function abrirCardCorrida(c) {
   const temParc = (c.parciais || []).length >= 2;
   const modelos = CARD_LAYOUTS.filter(([k]) => (k !== 'parciais' || temParc) && (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)));
   const seg = (k, ops, val) => `<div class="seg card-seg" data-o="${k}">${ops.map(([v, l]) => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-  const disponivel = (k) => k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
+  const disponivel0 = (k) => k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
   openSheet(`<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">Card da corrida</div>
     <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
     <div class="field"><span>Fundo</span>${seg('fundo', [['transparente', 'Sem fundo'], ['foto', 'Foto'], ['nexos', 'Azul Nexos']], o.fundo)}</div>
     <input type="file" accept="image/*" id="cd-foto" hidden>
     <div class="field"><span>Modelo</span><div class="card-gal" id="cd-gal">${modelos.map(([k, l]) => `<button type="button" class="cg-it ${k === o.layout ? 'on' : ''}" data-lay="${k}"><span class="cg-cv"><canvas></canvas></span><small>${l}</small></button>`).join('')}</div></div>
     <div class="grid2"><div class="field"><span>Formato</span>${seg('formato', [['story', 'Story'], ['post', 'Post']], o.formato)}</div><div class="field"><span>Cor do texto</span>${seg('cor', [['branco', 'Branco'], ['preto', 'Preto']], o.cor)}</div></div>
-    <div class="field"><span>O que aparece</span><div class="chips wrap" id="cd-stats">${CARD_STATS.filter(([k]) => disponivel(k)).map(([k, l]) => `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="field"><span>O que aparece</span><div class="chips wrap" id="cd-stats">${CARD_STATS.filter(([k]) => disponivel0(k)).map(([k, l]) => `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
     <div class="row" style="gap:8px;margin-top:6px"><button class="btn grow" id="cd-share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> Compartilhar</button><button class="btn ghost" id="cd-down">Baixar</button></div>
     <p class="tiny dim" style="margin-top:8px" id="cd-dica"></p>`, (r) => {
     const cv = r.querySelector('#cd-cv'), prev = r.querySelector('#cd-prev'), inp = r.querySelector('#cd-foto'), dica = r.querySelector('#cd-dica');
