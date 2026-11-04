@@ -1701,3 +1701,15 @@ html{touch-action:manipulation}
 .sheet-x{position:sticky;top:0;float:right;margin:-4px -6px 0 0;z-index:3;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--s1);border:1px solid var(--line);color:var(--ink)}
 .sheet-x:active{transform:scale(.94)}
 .sheet{transition:transform .2s}
+/* erros do app (treinador) */
+.erro-it{padding:14px 16px}
+.erro-top{display:flex;gap:12px;align-items:flex-start}
+.erro-ic{flex:none;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--err) 14%,transparent);color:var(--err)}
+.erro-ic svg{width:18px;height:18px}
+.erro-ic.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.erro-it.ok{opacity:.72}
+.erro-msg{display:block;word-break:break-word;line-height:1.35}
+.erro-det{margin-top:10px}
+.erro-det summary{cursor:pointer;color:var(--muted,inherit)}
+.erro-det pre{margin-top:8px;padding:10px;border-radius:10px;background:color-mix(in srgb,currentColor 6%,transparent);font:12px/1.45 'JetBrains Mono',ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto}
+.erro-acoes{display:flex;gap:14px;align-items:center;justify-content:flex-end;margin-top:10px}

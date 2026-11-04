@@ -310,6 +310,7 @@ async function router() {
       if (a === 'biblioteca') return b === 'modelos' ? (location.hash = '#/treinos') : await staffBiblioteca();
       if (a === 'treinos') return await staffTreinos(b);
       if (a === 'mais') return staffMais();
+      if (a === 'erros') return await staffErros();
       if (a === 'formularios') return await staffFormularios(b);
       if (a === 'mensagens') return await staffMensagens(b);
       if (a === 'eventos') return await viewEventos(b);
@@ -333,7 +334,7 @@ async function router() {
     if (a === 'perfil') return viewPerfil();
     return await alunoHoje();
   } catch (e) {
-    console.error(e);
+    console.error(e); reportarErro(e, 'tela não carregou');
     $app.innerHTML = `<div class="empty" style="margin-top:40px"><div class="h3">Algo não carregou</div><p class="small">Verifique sua internet e tente de novo.</p><button class="btn sm" style="margin-top:16px" onclick="location.reload()">Recarregar</button></div>`;
   }
 }
@@ -5408,12 +5409,14 @@ async function staffTreinos(aba) {
 function staffMais() {
   dockStaff();
   if (S.cache.fichasNovas == null) sb.from('nx_form_respostas').select('id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('visto', false).then((r) => { S.cache.fichasNovas = r.count || 0; if (S.cache.fichasNovas && location.hash === '#/mais') staffMais(); }).catch(() => {});
+  if (S.cache.errosAbertos == null) sb.from('nx_erros').select('id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('resolvido', false).then((r) => { S.cache.errosAbertos = r.count || 0; if (S.cache.errosAbertos && location.hash === '#/mais') staffMais(); }, () => {});
   const it = (href, ic, t, d) => `<a class="list-item" href="${href}" style="color:inherit"><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Gestão da assessoria</h1>
     <div class="stack" style="margin-top:16px">
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
+      ${it('#/erros', I.alerta, `Erros do app${S.cache.errosAbertos ? ` <span class="tag acc">${S.cache.errosAbertos} aberto${S.cache.errosAbertos > 1 ? 's' : ''}</span>` : ''}`, 'O que deu errado no app dos alunos, com tela e aparelho')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, treinadores e notificações' : 'Sua conta e notificações')}
     </div>`;
 }
@@ -5978,6 +5981,77 @@ async function staffFichaResposta(id) {
     } catch (e) { apA.disabled = false; apA.innerHTML = `${I.mail} Aprovar e enviar acesso por e-mail`; toast(e.message, true); }
   };
   document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };
+}
+
+/* ---------- monitoramento de erros: todo erro do app chega para a equipe em Mais → Erros do app ---------- */
+const NX_VERSAO = '2026.11.03';
+const ERROS_ENVIADOS = new Set(); let errosN = 0;
+function reportarErro(err, onde) {
+  try {
+    if (window.NX_DEMO) return;
+    const msg = String((err && (err.message || (typeof err.reason === 'string' && err.reason))) || err || '').slice(0, 500);
+    // ruído de internet e de navegador que não é defeito do app
+    if (!msg || /ResizeObserver loop|^Script error\.?$|AbortError|Load failed|NetworkError|Failed to fetch|cancelad|The user aborted|JWT expired|refresh_token/i.test(msg)) return;
+    const chave = msg + '|' + (onde || '');
+    if (ERROS_ENVIADOS.has(chave) || ++errosN > 15) return; // o mesmo erro vai uma vez por sessão; no máximo 15
+    ERROS_ENVIADOS.add(chave);
+    sb.rpc('nx_registrar_erro', { p_org: S.org ? S.org.id : null, p_msg: msg, p_stack: `${onde ? '[' + onde + ']\n' : ''}${String((err && err.stack) || '').slice(0, 3800)}`,
+      p_url: (location.hash || '#/').slice(0, 300), p_area: AREA, p_ua: navigator.userAgent, p_versao: NX_VERSAO }).then(() => {}, () => {});
+  } catch {}
+}
+window.addEventListener('error', (e) => { if (e && (e.error || e.message)) reportarErro(e.error || e.message, 'erro na tela'); });
+window.addEventListener('unhandledrejection', (e) => reportarErro(e && e.reason, 'ação que falhou'));
+// resumo em português dos erros mais comuns do navegador (o texto original fica nos detalhes)
+const erroPT = (m) => {
+  m = String(m || ''); let x;
+  if ((x = m.match(/(?:Cannot read propert(?:y|ies) of (?:undefined|null)(?: \(reading '([^']+)'\))?|undefined is not an object|null is not an object)/))) return `Faltou uma informação que a tela esperava${x[1] ? ` (“${x[1]}”)` : ''}`;
+  if (/is not a function/.test(m)) return 'Uma parte do app tentou fazer algo que não existe';
+  if (/is not defined/.test(m)) return 'Uma parte do app não foi carregada';
+  if (/row-level security|permission denied|42501/i.test(m)) return 'O banco de dados recusou a gravação (permissão)';
+  if (/duplicate key|23505/i.test(m)) return 'Tentou salvar algo que já existia';
+  if (/QuotaExceeded|quota/i.test(m)) return 'A memória do navegador do aparelho está cheia';
+  if (/timeout|timed out/i.test(m)) return 'Demorou demais para responder';
+  if (/NotAllowedError|permission/i.test(m)) return 'O aparelho não deu permissão (câmera, notificação ou arquivo)';
+  if (/JSON/.test(m)) return 'Recebeu um dado em formato errado';
+  return '';
+};
+const aparelhoTxt = (ua) => {
+  ua = ua || ''; const so = /iPhone|iPad/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Outro';
+  const nav = /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'navegador';
+  return `${so} · ${nav}`;
+};
+async function staffErros() {
+  dockStaff(); loading();
+  const [{ data: erros, error }, { data: membros }] = await Promise.all([
+    sb.from('nx_erros').select('*').eq('org_id', S.org.id).order('resolvido').order('ultimo_em', { ascending: false }).limit(100),
+    sb.from('nx_membros').select('user_id,nome').eq('org_id', S.org.id),
+  ]);
+  if (error) throw error;
+  const nomes = Object.fromEntries((membros || []).map((m) => [m.user_id, m.nome]));
+  const abertos = (erros || []).filter((e) => !e.resolvido), resolvidos = (erros || []).filter((e) => e.resolvido);
+  const quando = (d) => `${fmtData(d)} às ${fmtHora(d)}`;
+  const item = (e) => {
+    const pessoas = (e.usuarios || []).map((u) => nomes[u] || 'alguém de fora').slice(0, 4);
+    return `<div class="card erro-it ${e.resolvido ? 'ok' : ''}" data-id="${e.id}">
+      <div class="erro-top"><span class="erro-ic ${e.resolvido ? "ok" : ""}">${e.resolvido ? I.okc : I.alerta}</span><div class="grow"><b class="erro-msg">${esc(erroPT(e.msg) || e.msg)}</b>
+        <div class="small muted">${e.vezes}× · ${pessoas.length ? esc(pessoas.join(', ')) + ((e.usuarios || []).length > 4 ? ` e mais ${(e.usuarios || []).length - 4}` : '') : 'sem login'} · área do ${e.area === 'treinador' ? 'treinador' : 'aluno'}</div>
+        <div class="tiny dim">Última vez ${quando(e.ultimo_em)}${e.vezes > 1 ? ` · primeira ${quando(e.primeiro_em)}` : ''} · tela ${esc(e.url || '#/')} · ${esc(aparelhoTxt(e.ua))}</div></div></div>
+      <details class="erro-det"><summary class="tiny">Detalhes técnicos</summary><pre>${esc(e.msg)}${e.stack ? '\n\n' + esc(e.stack) : ''}</pre></details>
+      <div class="erro-acoes">${e.resolvido ? `<button type="button" class="link-btn small" data-reabrir="${e.id}">Reabrir</button>` : `<button type="button" class="btn sm" data-resolver="${e.id}">Marcar como resolvido</button>`}<button type="button" class="link-btn small" data-apagar-erro="${e.id}">Apagar</button></div></div>`;
+  };
+  $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Erros do app</h1>
+    <p class="muted small" style="margin-top:6px">Quando algo dá errado no app de um aluno ou de um treinador, o erro aparece aqui sozinho, com quem pegou, em que tela e em qual aparelho. Erros iguais se juntam num só.</p>
+    <div class="section"><div class="section-h"><h2 class="h2">Abertos${abertos.length ? ` <span class="tag acc">${abertos.length}</span>` : ''}</h2></div>
+      ${abertos.length ? `<div class="stack">${abertos.map(item).join('')}</div>` : `<div class="empty"><div class="h3">Nenhum erro aberto</div><p class="small muted">Tudo funcionando para os alunos.</p></div>`}</div>
+    ${resolvidos.length ? `<div class="section"><div class="section-h"><h2 class="h2">Resolvidos</h2></div><div class="stack">${resolvidos.slice(0, 30).map(item).join('')}</div></div>` : ''}`;
+  $app.onclick = async (ev) => {
+    const r = ev.target.closest('[data-resolver],[data-reabrir],[data-apagar-erro]'); if (!r) return;
+    const id = Number(r.dataset.resolver || r.dataset.reabrir || r.dataset.apagarErro);
+    if (r.dataset.apagarErro && !confirm('Apagar este erro da lista?')) return;
+    const q = r.dataset.apagarErro ? sb.from('nx_erros').delete().eq('id', id) : sb.from('nx_erros').update({ resolvido: !!r.dataset.resolver }).eq('id', id);
+    const { error: er } = await q; if (er) return toast('Não foi possível salvar.', true);
+    S.cache.errosAbertos = null; toast(r.dataset.resolver ? 'Marcado como resolvido.' : r.dataset.reabrir ? 'Erro reaberto.' : 'Erro apagado.'); staffErros();
+  };
 }
 
 if (window.NX_DEMO) window.__nx = { loading, toast };
