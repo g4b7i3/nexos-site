@@ -3698,7 +3698,7 @@ function forcaDiaHTML(fc, k, semana, staff) {
   const itens = [...prev.map((t) => ({ t: t.titulo, id: t.id, ok: feitos.some((x) => x.treino_id === t.id), rasc: !lib })), ...feitos.filter((x) => !prev.some((t) => t.id === x.treino_id)).map((x) => ({ t: x.treino_titulo || 'Treino', ok: true }))];
   const hoje = hojeISO();
   // para o aluno, a etiqueta abre o treino de força
-  return itens.map((x) => { const tag = !staff && x.id ? 'a' : 'div'; return `<${tag} class="forca-tag ${x.ok ? 'ok' : k < hoje ? 'perdeu' : ''} ${x.rasc && !x.ok ? 'rasc' : ''}"${tag === 'a' ? ` href="#/treino/${x.id}" style="color:inherit;text-decoration:none"` : ''} title="Força · ${esc(x.t)}${x.ok ? ' (feito)' : x.rasc ? ' (semana de força ainda não liberada)' : ''}"><span class="ft-ic">${FORCA_IC}</span><span class="ellip">${esc(x.t)}</span>${x.ok ? `<i class="ft-ok">${I.check}</i>` : ''}</${tag}>`; }).join('');
+  return itens.map((x) => { const tag = !staff && x.id ? 'a' : 'div'; return `<${tag} class="forca-tag ${x.ok ? 'ok' : k < hoje ? 'perdeu' : ''} ${x.rasc && !x.ok ? 'rasc' : ''}"${tag === 'a' ? ` href="#/treino/${x.id}" style="color:inherit;text-decoration:none"` : ''} title="Força · ${esc(x.t)}${x.ok ? ' (feito)' : x.rasc ? ' (semana de força ainda não liberada)' : ''}"><span class="ft-ic">${HALTER_S}</span><span class="ellip">${esc(x.t)}</span>${x.ok ? `<i class="ft-ok">${I.check}</i>` : ''}</${tag}>`; }).join('');
 }
 function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null, fc = null) {
   const corridas = ativs.filter(ehCorr), outras = ativs.filter((c) => !ehCorr(c));
