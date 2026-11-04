@@ -4142,7 +4142,7 @@ async function viewGps(id) {
   const st = ant && ant.id === id ? ant : { id, titulo, inicio: null, estado: 'pronto', mov: 0, dist: 0, passo: 0, pIni: { t: 0, d: 0 }, voltas: [], parciais: [], rota: [], serie: { t: [], d: [], vel: [] }, lacunas: 0, voz: true };
   if (st.estado === 'correndo') st.estado = 'pausado'; // voltou depois de fechar: espera o aluno continuar
   const recuperado = !!(ant && ant.id === id && ant.inicio);
-  let btsChave = '', nTick = 0, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = false, prec = null;
+  let btsChave = '', nTick = 0, podeSemSinal = false, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = false, prec = null;
   const salvar = () => { st.salvoEm = Date.now(); store.set(GPS_KEY, st); };
   const movAgora = () => st.mov + (st.estado === 'correndo' && marcaMov ? Date.now() - marcaMov : 0);
 
@@ -4199,14 +4199,14 @@ async function viewGps(id) {
       $('g-passo').innerHTML = `<div class="gps-p-h"><span class="gps-z">Corrida livre</span><span class="tiny">Volta ${v}</span></div><div class="gps-p-f">${(fD / 1000).toFixed(2).replace('.', ',')}<small> km nesta volta</small></div><div class="gps-bar"><i style="width:${Math.min(100, fD / 10).toFixed(1)}%"></i></div>`;
       $('g-prox').innerHTML = '';
     }
-    const E = st.estado, chave = E + gpsOk + !!passoAtual();
+    const E = st.estado, chave = E + gpsOk + podeSemSinal + !!passoAtual();
     if (chave === btsChave) return; btsChave = chave; // botões só mudam quando o estado muda (não some no meio do toque)
     $('g-bts').innerHTML = E === 'pronto'
-      ? `<button class="btn block gps-go" id="g-ini" ${gpsOk ? '' : 'disabled'}>${I.play} ${gpsOk ? 'Começar' : 'Esperando o GPS…'}</button>`
+      ? (gpsOk ? `<button class="btn block gps-go" id="g-ini">${I.play} Começar</button>` : podeSemSinal ? `<button class="btn block ghost" id="g-ini">${I.play} Começar mesmo assim</button>` : `<button class="btn block gps-go" id="g-ini" disabled>Esperando o GPS…</button>`)
       : E === 'correndo'
         ? `<button class="btn ghost" id="g-trv" aria-label="Travar a tela">🔒</button><button class="btn grow gps-pausa" id="g-pau">Pausar</button>${passos.length && passoAtual() ? `<button class="btn ghost" id="g-pul">Pular ›</button>` : ''}`
         : `<button class="btn grow gps-go" id="g-con">${I.play} Continuar</button><button class="btn ghost grow" id="g-fim">Terminar</button>`;
-    $('g-dica').textContent = E === 'pronto' ? (gpsOk ? 'Fique em um lugar aberto. Toque em Começar quando for sair.' : 'Ao ar livre o GPS acha o sinal mais rápido.') : E === 'pausado' ? (recuperado && !marcaMov ? 'Treino recuperado. Toque em Continuar para seguir.' : 'Treino pausado.') : 'Mantenha a tela ligada.';
+    $('g-dica').textContent = E === 'pronto' ? (gpsOk ? 'Fique em um lugar aberto. Toque em Começar quando for sair.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Ao ar livre o GPS acha o sinal mais rápido.') : E === 'pausado' ? (recuperado && !marcaMov ? 'Treino recuperado. Toque em Continuar para seguir.' : 'Treino pausado.') : 'Mantenha a tela ligada.';
     liga();
   };
   const liga = () => {
@@ -4318,6 +4318,7 @@ async function viewGps(id) {
   const tick = () => { if (!document.getElementById('g-tempo')) return encerrar(); verificaPasso(); if (st.estado === 'correndo') { desenha(); if (++nTick % 5 === 0) salvar(); } };
   tickRef = setInterval(tick, 1000);
   ligarGPS(); desenha();
+  setTimeout(() => { podeSemSinal = true; if (document.getElementById('g-bts')) desenha(); }, 15000); // sem sinal bom em 15 s: libera começar assim mesmo
   // saiu da tela por navegação: libera GPS e tela
   const sairRota = () => { if (!location.hash.startsWith('#/gps/' + id)) { if (st.estado === 'correndo') { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; salvar(); } encerrar(); window.removeEventListener('hashchange', sairRota); } };
   window.addEventListener('hashchange', sairRota);
