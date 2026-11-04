@@ -630,7 +630,7 @@ async function viewCalendarioMes(alunoId, box) {
   for (let i = 0; i < off; i++) cells += '<div class="cm-d vazio"></div>';
   for (let d = 1; d <= nd; d++) {
     const k = `${st.comp}-${String(d).padStart(2, '0')}`; const x = doDia(k);
-    const corPl = x.pl.map((p) => { const z = achatar(estruturaDe(p), perfil).filter((s) => s.k === 'co').sort((a, b) => b.seg - a.seg)[0]; return (ZONAS_INFO[(z && z.z) || 'leve'] || ZONAS_INFO.leve).c; });
+    const corPl = x.pl.map((p) => { if (p.tipo === 'forca') return 'var(--frc-ac)'; const z = achatar(estruturaDe(p), perfil).filter((s) => s.k === 'co').sort((a, b) => b.seg - a.seg)[0]; return (ZONAS_INFO[(z && z.z) || 'leve'] || ZONAS_INFO.leve).c; });
     const lbl = [...x.pr.map((p) => `<i class="cm-t pr">${icT(I.flag)}${esc(p.titulo)}</i>`), ...x.pl.map((p, j) => `<i class="cm-t ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}">${esc(p.titulo || nomeTipo(p.tipo))}</i>`), ...x.co.filter((c) => !c.plano_id).map((c) => `<i class="cm-t ok" style="--c:var(--ok)">${f1(c.distancia_m / 1000)} km</i>`), ...x.se.map((s2) => `<i class="cm-t tmu">${esc(s2.treino_titulo || 'Musculação')}</i>`)].join('');
     cells += `<button class="cm-d ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''} ${x.co.length ? 'co-ok' : ''} ${x.se.length ? 'fo-ok' : ''}" data-k="${k}"><span>${d}</span>${x.co.length || x.se.length ? `<div class="cm-faixas">${x.co.length ? '<i class="fx-co"></i>' : ''}${x.se.length ? '<i class="fx-fo"></i>' : ''}</div>` : ''}<div class="cm-txt">${lbl}</div><div class="cm-ic">${x.pr.length ? `<i class="pr">${icT(I.flag)}</i>` : ''}${x.pl.map((p, j) => `<i class="dot ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}"></i>`).join('')}${x.co.filter((c) => !c.plano_id).map(() => '<i class="dot ok" style="--c:var(--ok)"></i>').join('')}${x.se.length ? '<i class="mu"></i>' : ''}</div></button>`;
   }
@@ -714,8 +714,9 @@ async function alunoHoje() {
   const offCorr = fC && planoSem.some((p) => p.data === hoje && p.tipo === 'folga');
   const offForca = fM && forcaLib && (dispDe(S.me).off_forca || []).includes(dsemIdx(hoje));
   if (offForca) prox = null;
-  const corrDoDia = fC ? planoSem.filter((p) => p.data === hoje && p.tipo !== 'folga') : [];
-  const proxCorr = fC ? planoSem.find((p) => p.data > hoje && p.tipo !== 'folga') : null;
+  const corrDoDia = fC ? planoSem.filter((p) => p.data === hoje && !semCorrida(p)) : [];
+  const forcaHoje = fC ? planoSem.find((p) => p.data === hoje && p.tipo === 'forca') : null;
+  const proxCorr = fC ? planoSem.find((p) => p.data > hoje && !semCorrida(p)) : null;
   const h = new Date().getHours();
   const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const cardCorr = (p) => {
@@ -731,7 +732,7 @@ async function alunoHoje() {
   const cardMusc = prox ? (muscHoje
     ? `<div class="card wcard feito" style="display:flex"><div class="wletter">✓</div><div class="grow"><span class="eyebrow">Musculação</span><div class="h3" style="margin-top:2px">${esc(muscHoje.treino_titulo || 'Treino')} feito</div><div class="small muted">${fixoHoje ? 'Bom trabalho! Treino do dia concluído.' : 'Próximo da sequência: ' + esc(prox.titulo)}</div></div></div>`
     : `<a class="card tap wcard" href="#/treino/${prox.id}" style="display:flex"><div class="wletter">${esc(letraTreino(prox, ativos.indexOf(prox)))}</div><div class="grow"><span class="eyebrow">Musculação · ${fixoHoje ? 'treino de hoje' : 'próximo da sequência'}</span><div class="h3" style="margin-top:2px">${esc(prox.titulo)}</div>${prox.foco ? `<div class="small muted">${esc(prox.foco)}</div>` : ''}<div class="meta"><span class="tag">${prox.nx_treino_itens.length} exercícios</span></div></div><span class="go">${I.play}</span></a>`) : '';
-  const descanso = !corrDoDia.length && !cardMusc;
+  const descanso = !corrDoDia.length && !cardMusc && !forcaHoje;
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
     <div class="saud-row"><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a><div style="min-width:0"><p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
@@ -739,6 +740,7 @@ async function alunoHoje() {
     <div class="hoje-grid"><div class="hoje-main">
     ${cartaoCobrancaHTML(cobP)}
     <div class="stack" style="margin-top:16px">
+      ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
       ${corrDoDia.map(cardCorr).join('')}
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
@@ -2714,6 +2716,7 @@ const INFO_NOR = 'Método norueguês: limiar controlado, sem passar do ponto (la
 const INFO_SUB = 'Sublimiar (Norwegian singles): blocos longos entre o ritmo de maratona e o de meia maratona, com 1 min de pausa. Para amadores, 2–3 sessões assim por semana somando ~20–25% do volume; o resto é leve.';
 const MODELOS_PADRAO = [
   { id: 'p-off', nome: 'Day off', tipo: 'folga', estrutura: [], niv: TODOS_NIV, cat: 'off', info: 'Descanso total. Faz parte do treino: é quando o corpo assimila o que foi feito.' },
+  { id: 'p-forca', nome: 'Força', tipo: 'forca', estrutura: [], niv: TODOS_NIV, cat: 'off', info: 'Dia do treino de força que o aluno faz por conta própria (academia ou outro profissional). Nesse dia não tem corrida.' },
   // ---------- INICIANTE ----------
   { id: 'i-cc8', nome: 'Corre e caminha 8 × 1 min', tipo: 'rodagem', niv: ['ini'], cat: 'base', info: 'Adaptação ao impacto: alterna trote leve e caminhada. Ideal para as primeiras semanas.', estrutura: [_A(5, 'min'), serie(8, [_C(1, 'min', 'leve'), _R(2, 'min')]), _D(5, 'min')] },
   { id: 'i-cc6', nome: 'Corre e caminha 6 × 3 min', tipo: 'rodagem', niv: ['ini'], cat: 'base', info: 'Próximo passo do corre e caminha: blocos maiores de corrida com pausa curta caminhando.', estrutura: [_A(5, 'min'), serie(6, [_C(3, 'min', 'leve'), _R(1, 'min')]), _D(5, 'min')] },
@@ -2860,7 +2863,7 @@ function perfilHTML(estrutura, perfil, alto = false) {
   return `<div class="perfil-int ${alto ? 'alto' : ''}" aria-hidden="true">${l.map((s) => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; return `<i style="flex:${(s.seg / tot * 100).toFixed(2)};height:${Math.round(z.h * 100)}%;background:${z.c}"></i>`; }).join('')}</div>`;
 }
 function estruturaDe(p) {
-  if (p.tipo === 'folga') return [];
+  if (semCorrida(p)) return [];
   if (p.estrutura && p.estrutura.length) return p.estrutura;
   if (p.distancia_km) return [passo('co', +p.distancia_km, 'km', p.zona || 'leve')];
   if (p.duracao_min) return [passo('co', +p.duracao_min, 'min', p.zona || 'leve')];
@@ -2880,7 +2883,7 @@ async function relatorioMes(alunoId, box, staff, m) {
     sb.from('nx_corridas').select('data,distancia_m').eq('aluno_id', alunoId).gte('data', iniAnt).lte('data', ate(fimAnt)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_sessoes').select('iniciado_em,treino_titulo').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', ini).lte('iniciado_em', ate(fim)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_sessoes').select('iniciado_em').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', iniAnt).lte('iniciado_em', ate(fimAnt)).then((r) => r.data || []).catch(() => []),
-    sb.from('nx_plano_corrida').select('id,data,tipo,liberado').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => (r.data || []).filter((p) => p.tipo !== 'folga' && p.liberado !== false)).catch(() => []),
+    sb.from('nx_plano_corrida').select('id,data,tipo,liberado').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => (r.data || []).filter((p) => !semCorrida(p) && p.liberado !== false)).catch(() => []),
     sb.from('nx_registros').select('exercicio_nome,carga_kg,criado_em').eq('aluno_id', alunoId).not('carga_kg', 'is', null).lte('criado_em', ate(fim)).order('criado_em').limit(3000).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => r.data || []).catch(() => []),
   ]);
@@ -3261,8 +3264,12 @@ async function polimentoSheet(alunoId, prova, perfil, aoAplicar) {
 }
 
 /* ---------- calendário da planilha ---------- */
+// dias sem corrida na planilha: day off e dia de força por conta do aluno
+const semCorrida = (p) => !!p && (p.tipo === 'folga' || p.tipo === 'forca');
+const FORCA_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>';
 const OFF_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" opacity=".5"><rect x="2" y="7.6" width="3.6" height="11" rx="1.7"/><rect x="2.6" y="14.8" width="14.6" height="3.8" rx="1.7"/><rect x="3.8" y="18.2" width="2.2" height="3.2" rx=".9"/><rect x="14.4" y="18.2" width="2.2" height="3.2" rx=".9"/></g><g fill="none" stroke="currentColor" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 8.8 9.7 13.4h6.2l1.6 6.6h2.4"/><path d="M8.6 10.4l4.2 2"/></g><circle cx="8" cy="4.5" r="2.5" fill="currentColor"/></svg>'; // pessoa sentada na poltrona
 function cartaoSessao(p, perfil, feito, staff) {
+  if (p.tipo === 'forca') return `<div class="ses forca-l ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic fo">${FORCA_IC}</span><b>Força</b></div><span class="ses-m">${p.descricao ? esc(p.descricao) : 'por conta do aluno'}</span></div>`;
   if (p.tipo === 'folga') return `<div class="ses folga ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic">${OFF_IC}</span><b>Day off</b></div><span class="ses-m">Descanso</span></div>`;
   const hoje = isoDia(new Date());
   const st = feito ? 'feito' : p.data < hoje ? 'perdido' : 'pend';
@@ -3338,7 +3345,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           <div class="tool-grp" role="group" aria-label="${semanas > 1 ? 'Semanas' : 'Semana'}"><button type="button" id="copiar-sem" ${plano.length ? '' : 'disabled'} title="Copiar os treinos ${semanas > 1 ? 'destas semanas' : 'desta semana'}">${I.copy}<span>Copiar</span></button><button type="button" id="colar-sem" class="${clip ? 'pronto' : ''}" ${clip ? '' : 'disabled'} title="${clip ? esc('Colar: ' + clip.itens.length + ' treinos de ' + clip.origem) : 'Copie uma semana primeiro'}">${I.paste}<span>Colar</span>${clip ? '<i class="tool-dot"></i>' : ''}</button></div>
           <button type="button" class="tool-ic" id="avisar" title="Avisar aluno da planilha" aria-label="Avisar aluno">${I.bell}</button><button type="button" class="tool-ic" id="guia-plan" title="Como usar a planilha" aria-label="Como usar a planilha">?</button></div>`; })() : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div>
       <div class="${staff ? 'pl-grid' : ''}">
-        ${staff ? `<aside class="biblio ${store.get('nx_bib_aberta', false) ? 'aberta' : ''}"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span><button type="button" class="bib-tog" id="bib-tog" aria-label="Mostrar ou esconder a biblioteca"><span class="bt-abrir">Abrir</span><span class="bt-fechar">Fechar</span>${I.chev}</button></div><p class="bib-dica">Toque em <b>+</b> no dia para escolher um treino, ou abra a biblioteca para arrastar.</p>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
+        ${staff ? `<aside class="biblio ${store.get('nx_bib_aberta', false) ? 'aberta' : ''}"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span><button type="button" class="bib-tog" id="bib-tog" aria-label="Mostrar ou esconder a biblioteca"><span class="bt-abrir">Abrir</span><span class="bt-fechar">Fechar</span>${I.chev}</button></div><p class="bib-dica">Toque em <b>+</b> no dia para escolher um treino, ou abra a biblioteca para arrastar.</p>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : md.tipo === 'forca' ? `<div class="mod mod-forca" data-mod="${md.id}"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
         <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:12px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
@@ -3451,22 +3458,23 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       const nv = e.target.closest('[data-novo]'), se = e.target.closest('[data-ses]');
       if (nv) return escolherModelo(nv.dataset.novo);
       if (se) { const p = plano.find((x) => x.id === se.dataset.ses); if (!p) return;
+        if (p.tipo === 'forca') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Dia de força</div><p class="small muted" style="margin-top:6px">O aluno faz força por conta própria e não tem corrida nesse dia. Ele vê “Hoje é dia de força” na tela inicial.</p><label class="field" style="margin-top:14px"><span>Recado para o aluno (opcional)</span><input class="input" id="fo-obs" maxlength="120" placeholder="Ex.: academia às 18h, foco em pernas" value="${esc(p.descricao || '')}"></label><button class="btn block" id="fo-ok" style="margin-top:12px">Salvar</button><button class="btn ghost danger block" id="fo-del" style="margin-top:8px">Tirar o dia de força</button>`, (r) => { r.querySelector('#fo-ok').onclick = async () => { const { error } = await sb.from('nx_plano_corrida').update({ descricao: r.querySelector('#fo-obs').value.trim() || null }).eq('id', p.id); closeSheet(); error ? toast('Não foi possível salvar.', true) : (toast('Dia de força salvo.'), recarregar()); }; r.querySelector('#fo-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Dia de força removido.'); recarregar(); }; }) : toast(p.descricao ? `Dia de força: ${p.descricao}` : 'Dia de força: treino de força por sua conta, sem corrida.');
         if (p.tipo === 'folga') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Day off</div><p class="small muted" style="margin-top:6px">Dia de descanso de corrida. O aluno vê “Hoje é day off” na tela inicial.</p><button class="btn danger block" id="off-del" style="margin-top:16px">Tirar o day off</button>`, (r) => { r.querySelector('#off-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Day off removido.'); recarregar(); }; }) : toast('Day off: dia de descanso.');
         staff ? editorTreino({ alunoId, perfil, sessao: p, aoSalvar: recarregar, modelos: modelosOrg }) : verTreinoPlanilha(p, perfil, corridas.find((c) => c.plano_id === p.id)); }
     });
     const escolherModelo = (data) => openSheet(`<p class="eyebrow">${fmtDia(data)}</p><div class="h2" style="margin-top:4px">Escolha um ponto de partida</div><div style="margin-top:12px">${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'pick-niv')}</div><div class="sheet-mods" id="pick-l"></div>`, (r) => {
-      const desenhaPick = () => { const sel = store.get('nx_bib_niv', 'todos'); const lst = modelos.filter((md) => md.tipo !== 'folga' && passaNiv(md, sel));
+      const desenhaPick = () => { const sel = store.get('nx_bib_niv', 'todos'); const lst = modelos.filter((md) => !semCorrida(md) && passaNiv(md, sel));
         const grupos = CATS_CORR.filter((c) => c[0] !== 'off').map(([k, l]) => [l, lst.filter((md) => (md.cat || (md.org_id ? '' : 'base')) === k)]).filter(([, l2]) => l2.length);
         const meus = lst.filter((md) => md.org_id);
         const card = (md) => `<button class="mod" data-pick="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</span></button>`;
-        r.querySelector('#pick-l').innerHTML = `<div class="pick-g"><div class="biblio-l"><button class="mod mod-off" data-pick="p-off"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></button><button class="mod" data-pick=""><div class="perfil-int vazio"></div><b>Em branco</b><span>montar do zero</span></button></div></div>`
+        r.querySelector('#pick-l').innerHTML = `<div class="pick-g"><div class="biblio-l"><button class="mod mod-off" data-pick="p-off"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></button><button class="mod mod-forca" data-pick="p-forca"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></button><button class="mod" data-pick=""><div class="perfil-int vazio"></div><b>Em branco</b><span>montar do zero</span></button></div></div>`
           + (meus.length ? `<p class="mes-rot">Meus modelos</p><div class="biblio-l">${meus.map(card).join('')}</div>` : '')
           + grupos.map(([l, l2]) => `<p class="mes-rot">${l}</p><div class="biblio-l">${l2.map(card).join('')}</div>`).join('');
       };
       desenhaPick();
       r.querySelector('#pick-niv').onclick = (e) => { const b = e.target.closest('[data-niv]'); if (!b) return; store.set('nx_bib_niv', b.dataset.niv); r.querySelectorAll('#pick-niv .chip').forEach((x) => x.classList.toggle('on', x === b)); desenhaPick(); };
       r.querySelector('.sheet-mods').onclick = async (e) => { const b = e.target.closest('[data-pick]'); if (!b) return; const md = modelos.find((x) => x.id === b.dataset.pick);
-        if (md && md.tipo === 'folga') { const { error } = await sb.from('nx_plano_corrida').insert({ org_id: S.org.id, aluno_id: alunoId, data, tipo: 'folga', titulo: 'Day off', estrutura: [], distancia_km: 0, duracao_min: 0, zona: null, criado_por: S.user.id }); closeSheet(); return error ? toast('Não foi possível salvar.', true) : (toast('Day off marcado.'), recarregar()); } editorTreino({ alunoId, perfil, data, modelo: md || { nome: '', tipo: 'rodagem', estrutura: [] }, aoSalvar: recarregar, modelos: modelosOrg }); };
+        if (md && semCorrida(md)) { const { error } = await sb.from('nx_plano_corrida').insert({ org_id: S.org.id, aluno_id: alunoId, data, tipo: md.tipo, titulo: md.nome, estrutura: [], distancia_km: 0, duracao_min: 0, zona: null, criado_por: S.user.id }); closeSheet(); return error ? toast('Não foi possível salvar.', true) : (toast(md.tipo === 'forca' ? 'Dia de força marcado.' : 'Day off marcado.'), recarregar()); } editorTreino({ alunoId, perfil, data, modelo: md || { nome: '', tipo: 'rodagem', estrutura: [] }, aoSalvar: recarregar, modelos: modelosOrg }); };
     });
     if (staff) {
       const area = q('.pl-grid');
@@ -3690,7 +3698,7 @@ function garminItem(p, perfil) {
 async function sincronizarGarmin(alunoId, planos, perfil, staff) {
   const chave = 'garSync:' + alunoId; S.cache.garSync = S.cache.garSync || {};
   const GARMIN_FMT = '2026-11-03T23:00:00Z'; // mudou o que vai para o relógio: o que foi antes disso é reenviado
-  const pend = (planos || []).filter((p) => p.liberado !== false && p.tipo !== 'folga' && p.data >= hojeISO() && (!p.garmin_workout_id || (p.garmin_enviado_em && p.garmin_enviado_em < GARMIN_FMT)) && estruturaDe(p).length && !(S.cache.garSync[chave] || []).includes(p.id));
+  const pend = (planos || []).filter((p) => p.liberado !== false && !semCorrida(p) && p.data >= hojeISO() && (!p.garmin_workout_id || (p.garmin_enviado_em && p.garmin_enviado_em < GARMIN_FMT)) && estruturaDe(p).length && !(S.cache.garSync[chave] || []).includes(p.id));
   if (!pend.length) return 0;
   S.cache.garSync[chave] = [...(S.cache.garSync[chave] || []), ...pend.map((p) => p.id)];
   try {
@@ -3700,7 +3708,7 @@ async function sincronizarGarmin(alunoId, planos, perfil, staff) {
   } catch { return 0; }
 }
 async function enviarGarmin(alunoId, planos, perfil) {
-  const itens = planos.filter((p) => p.tipo !== 'folga' && p.liberado !== false && p.data >= hojeISO()).map((p) => garminItem(p, perfil)).filter(Boolean);
+  const itens = planos.filter((p) => !semCorrida(p) && p.liberado !== false && p.data >= hojeISO()).map((p) => garminItem(p, perfil)).filter(Boolean);
   if (!itens.length) return { enviados: 0 };
   return chamarGarmin({ acao: 'enviar_treinos', aluno_id: alunoId, itens });
 }
@@ -4137,7 +4145,7 @@ async function staffHoje() {
     const sP = sess.filter((s) => s.aluno_id === id && naSem(s.iniciado_em, segPass)), cP = corr.filter((c) => c.aluno_id === id && naSem(c.data, segPass));
     if (sP.length || cP.length) rs.treinaram.push({ m, d: [cP.length ? `${cP.length} corrida${cP.length > 1 ? 's' : ''}` : '', sP.length ? `${sP.length} força` : ''].filter(Boolean).join(' · ') });
     let prev = 0, fez = 0;
-    if (faz('corrida', m)) { const pl = planoRes.filter((p) => p.aluno_id === id && p.tipo !== 'folga' && p.liberado && naSem(p.data, segPass)); prev += pl.length; fez += pl.filter((p) => cP.some((c) => c.plano_id === p.id || isoDia(c.data) === p.data)).length; }
+    if (faz('corrida', m)) { const pl = planoRes.filter((p) => p.aluno_id === id && !semCorrida(p) && p.liberado && naSem(p.data, segPass)); prev += pl.length; fez += pl.filter((p) => cP.some((c) => c.plano_id === p.id || isoDia(c.data) === p.data)).length; }
     if (faz('musculacao', m) && libsRes.some((l) => l.aluno_id === id && l.semana === segPass)) { const off = dispDe(m).off_forca || []; const pf = treinosRes.filter((t) => t.aluno_id === id).reduce((a, t) => a + (t.dias || []).filter((d) => !off.includes(d)).length, 0); prev += pf; fez += Math.min(pf, sP.length); }
     if (prev && fez < prev) rs.faltaram.push({ m, d: `fez ${fez} de ${prev}`, f: prev - fez });
     const pv = provasEq.find((x) => x.aluno_id === id && diasAte(x.data) <= 14);
@@ -4303,7 +4311,7 @@ async function staffAlunos() {
     buscarSessoes(null, 600), contarNaoVistos(), contarMsgNovas(),
     sb.from('nx_anamneses').select('aluno_id,parq_positivo,visto_treinador').eq('org_id', S.org.id).then((r) => { S.cache.anam = Object.fromEntries((r.data || []).map((x) => [x.aluno_id, x])); }),
     fimPlanilhas(),
-    sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo,liberado').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => (r.data || []).filter((p) => p.tipo !== 'folga')).catch(() => []),
+    sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo,liberado').eq('org_id', S.org.id).gte('data', de).lte('data', ate).then((r) => (r.data || []).filter((p) => !semCorrida(p))).catch(() => []),
     sb.from('nx_corridas').select('aluno_id,data,plano_id').eq('org_id', S.org.id).gte('data', isoDia(Date.now() - 90 * 864e5)).order('data', { ascending: false }).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hoje).order('data').then((r) => r.data || []).catch(() => []),
     sb.from('nx_treinos').select('aluno_id,dias,ativo').eq('org_id', S.org.id).eq('ativo', true).then((r) => r.data || []).catch(() => []),
@@ -5030,8 +5038,8 @@ async function staffTreinos(aba) {
   const st = S.cache.libCorr || (S.cache.libCorr = { niv: store.get('nx_lib_niv', 'ini') });
   const nomeNiv = Object.fromEntries(NIVEIS_CORR);
   const card = (md, meu) => `<div class="card mod-corr"><div class="row between" style="gap:10px;align-items:flex-start"><div style="min-width:0"><b>${esc(md.nome)}</b><div class="mc-tags">${meu ? '<span class="tag acc">meu modelo</span>' : (md.niv || []).length === 4 ? '<span class="tag">todos os níveis</span>' : (md.niv || []).map((n) => `<span class="tag niv-${n}">${nomeNiv[n]}</span>`).join('')}</div></div>${meu ? `<button class="link-btn tiny" data-delmc="${md.id}" style="color:var(--err)">Excluir</button>` : ''}</div>
-    <div style="margin:10px 0 6px">${md.tipo === 'folga' ? `<div class="off-faixa grande">${OFF_IC}</div>` : perfilHTML(md.estrutura, perfil, true)}</div>
-    ${md.tipo === 'folga' ? '' : `<p class="small"><b>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</b> · ~${fmtDur(resumoEstrutura(md.estrutura, perfil).seg)}</p><p class="small muted" style="margin-top:2px">${esc(descreverEstrutura(md.estrutura))}</p>`}
+    <div style="margin:10px 0 6px">${md.tipo === 'folga' ? `<div class="off-faixa grande">${OFF_IC}</div>` : md.tipo === 'forca' ? `<div class="off-faixa grande fo">${FORCA_IC}</div>` : perfilHTML(md.estrutura, perfil, true)}</div>
+    ${semCorrida(md) ? '' : `<p class="small"><b>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</b> · ~${fmtDur(resumoEstrutura(md.estrutura, perfil).seg)}</p><p class="small muted" style="margin-top:2px">${esc(descreverEstrutura(md.estrutura))}</p>`}
     ${md.info ? `<p class="mc-info">${esc(md.info)}</p>` : ''}</div>`;
   const desenhar = () => {
     const sel = st.niv; const lst = sel === 'meus' ? [] : MODELOS_PADRAO.filter((md) => passaNiv(md, sel));

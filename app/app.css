@@ -1656,3 +1656,17 @@ html[data-tema="escuro"] .ftr.feito{box-shadow:0 0 0 1px rgba(242,193,78,.16) in
 /* modalidade do aluno ao lado do nome: corrida, força ou as duas */
 .mod-selos{display:inline-flex;gap:3px;vertical-align:-3px;margin-left:6px;flex:none}
 .atl-nome .mod-selos{margin-left:2px}
+
+/* ===== dia de força (por conta do aluno) na planilha de corrida ===== */
+.mod-forca .off-faixa{height:22px;border-radius:7px;display:grid;place-items:center;color:var(--frc-ac);background:linear-gradient(135deg,var(--frc-2),var(--frc-1))}
+.mod-forca .off-faixa svg{width:17px;height:17px}
+.off-faixa.grande.fo{color:var(--frc-ac);background:linear-gradient(135deg,var(--frc-2),var(--frc-1))}
+.off-ic.fo{background:linear-gradient(135deg,var(--frc-2),var(--frc-1));color:var(--frc-ac)}
+.ses.forca-l{border:1px dashed color-mix(in srgb,var(--frc-ac) 55%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--frc-ac) 9%,var(--bg2)),var(--bg2))}
+.ses.forca-l .ses-t{display:flex;align-items:center;gap:6px;justify-content:flex-start}
+.ses.forca-l .ses-m{color:var(--mute)}
+.wletter.fo{background:linear-gradient(135deg,var(--frc-2),var(--frc-1));color:var(--frc-ac);border:0;height:74px;-webkit-text-stroke:0}
+.wletter.fo svg{width:26px;height:26px}
+.wcard.dia-forca{border-color:color-mix(in srgb,var(--frc-ac) 45%,var(--line))}
+.wcard.dia-forca .eyebrow{color:#b8860b}
+html[data-tema="escuro"] .wcard.dia-forca .eyebrow{color:var(--frc-ac)}
