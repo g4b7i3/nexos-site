@@ -1653,3 +1653,6 @@ html[data-tema="escuro"] .ftr.feito{box-shadow:0 0 0 1px rgba(242,193,78,.16) in
 .lg-co{background:var(--run-2)} .lg-fo{background:var(--frc-ac)}
 .ftr .ses-conc{display:flex;width:max-content}
 .cm-d.co-ok .cm-ic .dot.ok,.cm-d .cm-ic i.mu{display:none}
+/* modalidade do aluno ao lado do nome: corrida, força ou as duas */
+.mod-selos{display:inline-flex;gap:3px;vertical-align:-3px;margin-left:6px;flex:none}
+.atl-nome .mod-selos{margin-left:2px}
