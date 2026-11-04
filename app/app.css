@@ -1618,3 +1618,38 @@ html[data-tema="escuro"] .ses.feito{box-shadow:0 0 0 1px rgba(120,170,255,.18) i
 .ses.feito .ses-m{color:rgba(255,255,255,.62);font-size:.7rem}
 .ses.feito.avulsa{border:0}
 @media (min-width:1100px){.ses-conc{font-size:.56rem;letter-spacing:.08em}.ses-res b{font-size:.92rem}.ses.feito .ses-t b{padding-right:0}}
+
+/* ===================== PALETA: corrida × força =====================
+   Corrida  → azul-marinho Nexos, detalhe ciano (a cor da marca)
+   Força    → grafite, detalhe dourado (contraste quente e sóbrio)
+   Prova    → laranja (já existente) · Feito em geral nunca usa verde chapado */
+:root{--run-1:#0d2654;--run-2:#143a7c;--run-ac:#46d6ff;--frc-1:#161b26;--frc-2:#2b3446;--frc-ac:#f2c14e}
+/* selos de tipo: força agora grafite com halter dourado */
+.selo-f{background:linear-gradient(135deg,var(--frc-2),var(--frc-1))}
+.selo-f svg{stroke:var(--frc-ac)!important;color:var(--frc-ac)}
+.selo-c{background:linear-gradient(135deg,#1f6fe0,var(--run-2))}
+/* força planejada: borda dourada; concluída: cartão grafite preenchido */
+.ftr{border-left-color:var(--frc-ac)}
+.ftr.feito{border-left:0;color:#fff;padding:10px 12px;
+  background:radial-gradient(120% 100% at 100% 0%,rgba(242,193,78,.16),transparent 55%),linear-gradient(155deg,var(--frc-1) 0%,var(--frc-2) 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 8px 20px rgba(10,14,22,.22)}
+.ftr.feito b{color:#fff}
+.ftr.feito small{color:rgba(255,255,255,.62)!important}
+.ftr.feito .sd-x{color:rgba(255,255,255,.7);background:rgba(255,255,255,.08)}
+.ftr.feito.extra{opacity:1}
+.ses-conc.fo{color:var(--frc-ac);margin-bottom:3px}
+.ses-conc.fo i{background:var(--frc-ac);color:var(--frc-1)}
+html[data-tema="escuro"] .ftr.feito{box-shadow:0 0 0 1px rgba(242,193,78,.16) inset,0 8px 22px rgba(0,0,0,.35)}
+/* calendário do mês: faixas na base do dia (azul = corrida, dourado = força) */
+.cm-d{position:relative;overflow:hidden}
+.cm-faixas{position:absolute;left:5px;right:5px;bottom:4px;display:flex;gap:3px}
+.cm-faixas i{flex:1;height:4px;border-radius:3px}
+.fx-co{background:linear-gradient(90deg,var(--run-2),#1f6fe0)}
+.fx-fo{background:linear-gradient(90deg,#d9a531,var(--frc-ac))}
+.cm-d.co-ok{background:linear-gradient(180deg,var(--bg2),color-mix(in srgb,var(--run-2) 9%,var(--bg2)))}
+.cm-d.fo-ok:not(.co-ok){background:linear-gradient(180deg,var(--bg2),color-mix(in srgb,var(--frc-ac) 12%,var(--bg2)))}
+.cm-d.co-ok.fo-ok{background:linear-gradient(180deg,var(--bg2),color-mix(in srgb,var(--run-2) 7%,color-mix(in srgb,var(--frc-ac) 7%,var(--bg2))))}
+.lg-co,.lg-fo{display:inline-block;width:14px;height:4px;border-radius:3px}
+.lg-co{background:var(--run-2)} .lg-fo{background:var(--frc-ac)}
+.ftr .ses-conc{display:flex;width:max-content}
+.cm-d.co-ok .cm-ic .dot.ok,.cm-d .cm-ic i.mu{display:none}
