@@ -1726,3 +1726,37 @@ html{touch-action:manipulation}
 .forca-tag.perdeu{opacity:.55}
 .forca-tag.rasc{background:transparent;border:1.5px dashed color-mix(in srgb,var(--frc-ac) 55%,transparent);color:color-mix(in srgb,var(--frc-ac) 80%,var(--muted,#888))}
 .forca-tag.rasc .ellip{color:inherit}
+/* biblioteca de força (programas) */
+@media(min-width:760px){.niv-tabs.niv-f{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.niv-tabs.niv-f{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(min-width:420px){.niv-tabs.niv-f{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.prog-f{display:flex;flex-direction:column;gap:2px;border-top:3px solid var(--frc-ac)}
+.cols>.prog-f+.prog-f{margin-top:0}
+.prog-f.cat-hipertrofia{border-top-color:#f2c14e}
+.prog-f.cat-emagrecimento{border-top-color:#ff7a59}
+.prog-f.cat-forca{border-top-color:#8b9bb8}
+.prog-f.cat-corredor{border-top-color:#46d6ff}
+.prog-f.cat-saude{border-top-color:#3ddc97}
+.pf-top{display:flex;gap:12px;align-items:flex-start}
+.pf-ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--frc-ac);background:linear-gradient(135deg,var(--frc-1),var(--frc-2))}
+.pf-ic svg{width:20px;height:20px}
+.pf-freq{margin-top:10px;display:flex;align-items:center;gap:6px;font-weight:700}
+.pf-freq svg{width:15px;height:15px;opacity:.75}
+.pf-treinos{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pf-t{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg2)}
+.pf-t-h{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:8px 10px;background:none;border:0;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.pf-t-h b{white-space:nowrap}
+.pf-t-h .mt-fotos{margin-top:0;gap:4px}
+.pf-t-h .mt-fotos .thumb{width:32px;height:32px}
+@media(max-width:420px){.pf-t-h .mt-fotos .thumb:nth-child(n+3){display:none}}
+.pf-ex{list-style:none;margin:0;padding:4px 10px 10px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line)}
+.pf-ex li{display:flex;gap:10px;align-items:flex-start;padding-top:8px}
+.pf-fig .thumb{width:44px;height:44px}
+.pf-ver{align-self:flex-start;margin-top:8px}
+.pf-acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tag.cat-t{background:color-mix(in srgb,var(--frc-ac) 18%,transparent);color:#8a6510}
+.tag.cat-t.cat-emagrecimento{background:color-mix(in srgb,#ff7a59 18%,transparent);color:#b4401f}
+.tag.cat-t.cat-forca{background:color-mix(in srgb,#8b9bb8 22%,transparent);color:#3d4b66}
+.tag.cat-t.cat-corredor{background:color-mix(in srgb,#46d6ff 18%,transparent);color:#0369a1}
+.tag.cat-t.cat-saude{background:color-mix(in srgb,#3ddc97 18%,transparent);color:#15803d}
+[data-tema=escuro] .tag.cat-t{color:#f2c14e}[data-tema=escuro] .tag.cat-t.cat-emagrecimento{color:#ff9f80}[data-tema=escuro] .tag.cat-t.cat-forca{color:#c3cde0}[data-tema=escuro] .tag.cat-t.cat-corredor{color:#7fe3ff}[data-tema=escuro] .tag.cat-t.cat-saude{color:#6ee7b7}
