@@ -1806,5 +1806,5 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .cic-selo.gota{width:18px;height:18px;background:color-mix(in srgb,var(--cf) 16%,transparent);color:var(--cf)}
 .cic-selo.prev{opacity:.55}
 .cic-selo.prev:not(.gota){background:transparent;border:2px solid var(--cf);width:10px;height:10px}
-.cic-leg{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:.76rem;color:var(--mute);margin:0 0 8px}
+.cic-leg{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:.76rem;color:var(--mute);margin:0 0 -6px}
 .cic-leg span{display:inline-flex;align-items:center;gap:6px}

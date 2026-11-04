@@ -3888,8 +3888,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           <button type="button" class="tool-ic" id="avisar" title="Avisar aluno da planilha" aria-label="Avisar aluno">${I.bell}</button><button type="button" class="tool-ic" id="guia-plan" title="Como usar a planilha" aria-label="Como usar a planilha">?</button></div>`; })() : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div>
       <div class="${staff ? 'pl-grid' : ''}">
         ${staff ? `<aside class="biblio ${store.get('nx_bib_aberta', false) ? 'aberta' : ''}"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span><button type="button" class="bib-tog" id="bib-tog" aria-label="Mostrar ou esconder a biblioteca"><span class="bt-abrir">Abrir</span><span class="bt-fechar">Fechar</span>${I.chev}</button></div><p class="bib-dica">Toque em <b>+</b> no dia para escolher um treino, ou abra a biblioteca para arrastar.</p>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : md.tipo === 'forca' ? `<div class="mod mod-forca" data-mod="${md.id}"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
-        ${cicloFaseDia(ciclo, hojeISO()) ? `<div class="cic-leg">${Object.entries(FASES_CICLO).map(([k, [n, cor]]) => `<span><i class="cic-selo ${k === 'menstrual' ? 'gota' : ''}" style="--cf:${cor}">${k === 'menstrual' ? '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>' : ''}</i>${n.replace('Fase ', '')}</span>`).join('')}<span class="dim">vazado = previsão</span></div>` : ''}
-        <div class="cal">${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m, forcaCal, ciclo)}</div>
+        <div class="cal">${cicloFaseDia(ciclo, hojeISO()) ? `<div class="cic-leg">${Object.entries(FASES_CICLO).map(([k, [n, cor]]) => `<span><i class="cic-selo ${k === 'menstrual' ? 'gota' : ''}" style="--cf:${cor}">${k === 'menstrual' ? '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>' : ''}</i>${n.replace('Fase ', '')}</span>`).join('')}<span class="dim">vazado = previsão</span></div>` : ''}${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m, forcaCal, ciclo)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:12px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
       ${!staff && !plano.length ? '<p class="small muted" style="margin-top:12px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
@@ -4637,7 +4636,7 @@ function quandoVence(c) {
 }
 
 /* ---------- Pix copia e cola (BR Code estático) ---------- */
-const pixTexto = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 .,@+\-_]/g, '').trim();
+const pixTexto = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 .,@+\-_]/g, '').trim();
 function crc16(str) {
   let crc = 0xffff;
   for (let i = 0; i < str.length; i++) { crc ^= str.charCodeAt(i) << 8; for (let j = 0; j < 8; j++) crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff; }
@@ -5833,7 +5832,7 @@ async function aplicarTreinoAlunos(t, ids, avisar) {
   return (novos || []).length;
 }
 
-const semAcento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 function filtrarEx(exs, g, q, eq) {
   const nq = semAcento(q).trim().split(/\s+/).filter(Boolean);
   return exs.filter((e) => (g === 'Todos' || e.grupo === g) && (!eq || eq === 'Todos' || e.equipamento === eq) &&
