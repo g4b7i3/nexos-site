@@ -3809,7 +3809,7 @@ function forcaDiaHTML(fc, k, semana, staff) {
   // para o aluno, a etiqueta abre o treino de força
   return itens.map((x) => { const tag = !staff && x.id ? 'a' : 'div'; return `<${tag} class="forca-tag ${x.ok ? 'ok' : k < hoje ? 'perdeu' : ''} ${x.rasc && !x.ok ? 'rasc' : ''}"${tag === 'a' ? ` href="#/treino/${x.id}" style="color:inherit;text-decoration:none"` : ''} title="Força · ${esc(x.t)}${x.ok ? ' (feito)' : x.rasc ? ' (semana de força ainda não liberada)' : ''}"><span class="ft-ic">${HALTER_S}</span><span class="ellip">${esc(x.t)}</span>${x.ok ? `<i class="ft-ok">${I.check}</i>` : ''}</${tag}>`; }).join('');
 }
-function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null, fc = null) {
+function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null, fc = null, ciclo = null) {
   const corridas = ativs.filter(ehCorr), outras = ativs.filter((c) => !ehCorr(c));
   const hoje = isoDia(new Date()); let h = '';
   for (let w = 0; w < semanas; w++) {
@@ -3829,7 +3829,7 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
       const ou = outras.filter((c) => isoDia(c.data) === k);
       const pr = provas.filter((p) => p.data === k);
       const fTag = forcaDiaHTML(fc, k, isoDia(dias[0]), staff);
-      h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${staff ? `<span class="disp-cal">${dispIcones(m, (d.getDay() + 6) % 7)}</span>` : ''}${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
+      h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${cicloSeloHTML(ciclo, k)}${staff ? `<span class="disp-cal">${dispIcones(m, (d.getDay() + 6) % 7)}</span>` : ''}${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
         ${fTag}
         ${pr.map((p) => `<a class="ses prova" href="${staff ? '#/eventos/equipe' : '#/eventos/minhas'}"><div class="ses-t"><b>${icT(I.flag)}${esc(p.titulo)}</b></div><span class="ses-m">${esc(p.distancia || 'Prova')}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span></a>`).join('')}
         ${itens.map((p) => cartaoSessao(p, perfil, corridas.find((c) => c.plano_id === p.id), staff)).join('')}
@@ -3856,7 +3856,8 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   const ini = inicioSemana(); ini.setDate(ini.getDate() + st.off * 7);
   const fim = new Date(ini); fim.setDate(ini.getDate() + semanas * 7 - 1);
   const comForca = faz('musculacao', m);
-  const [ativsTodas, plano, integs, modelosOrg, provas, provasProx, forcaTr, forcaSe, forcaLib] = await Promise.all([
+  const comCiclo = (staff ? m.sexo : S.me.sexo) === 'F';
+  const [ativsTodas, plano, integs, modelosOrg, provas, provasProx, forcaTr, forcaSe, forcaLib, ciclo] = await Promise.all([
     buscarCorridas(alunoId), buscarPlano(alunoId, isoDia(ini), isoDia(fim)),
     sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em').eq('user_id', alunoId).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []),
     staff ? sb.from('nx_modelos_corrida').select('*').eq('org_id', S.org.id).order('criado_em').then((r) => r.data || []).catch(() => []) : Promise.resolve([]),
@@ -3866,6 +3867,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     comForca ? sb.from('nx_treinos').select('id,titulo,dias').eq('aluno_id', alunoId).eq('ativo', true).then((r) => r.data || [], () => []) : Promise.resolve([]),
     comForca ? sb.from('nx_sessoes').select('id,treino_id,treino_titulo,iniciado_em').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', isoDia(ini)).lte('iniciado_em', isoDia(fim) + 'T23:59:59').then((r) => r.data || [], () => []) : Promise.resolve([]),
     comForca ? sb.from('nx_forca_semanas').select('semana').eq('aluno_id', alunoId).gte('semana', isoDia(ini)).lte('semana', isoDia(fim)).then((r) => (r.data || []).map((x) => x.semana), () => []) : Promise.resolve([]),
+    comCiclo ? buscarCiclo(alunoId).catch(() => null) : Promise.resolve(null), // fase do ciclo em cada dia da planilha
   ]);
   const forcaCal = comForca ? { tr: forcaTr, se: forcaSe, lib: forcaLib, off: dispDe(m).off_forca || [] } : null;
   const corridas = ativsTodas.filter(ehCorr); // força, pedal etc. do relógio aparecem na planilha e na lista, mas não entram nos km
@@ -3886,7 +3888,8 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           <button type="button" class="tool-ic" id="avisar" title="Avisar aluno da planilha" aria-label="Avisar aluno">${I.bell}</button><button type="button" class="tool-ic" id="guia-plan" title="Como usar a planilha" aria-label="Como usar a planilha">?</button></div>`; })() : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div>
       <div class="${staff ? 'pl-grid' : ''}">
         ${staff ? `<aside class="biblio ${store.get('nx_bib_aberta', false) ? 'aberta' : ''}"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span><button type="button" class="bib-tog" id="bib-tog" aria-label="Mostrar ou esconder a biblioteca"><span class="bt-abrir">Abrir</span><span class="bt-fechar">Fechar</span>${I.chev}</button></div><p class="bib-dica">Toque em <b>+</b> no dia para escolher um treino, ou abra a biblioteca para arrastar.</p>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : md.tipo === 'forca' ? `<div class="mod mod-forca" data-mod="${md.id}"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
-        <div class="cal">${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m, forcaCal)}</div>
+        ${cicloFaseDia(ciclo, hojeISO()) ? `<div class="cic-leg">${Object.entries(FASES_CICLO).map(([k, [n, cor]]) => `<span><i class="cic-selo ${k === 'menstrual' ? 'gota' : ''}" style="--cf:${cor}">${k === 'menstrual' ? '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>' : ''}</i>${n.replace('Fase ', '')}</span>`).join('')}<span class="dim">vazado = previsão</span></div>` : ''}
+        <div class="cal">${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m, forcaCal, ciclo)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:12px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
       ${!staff && !plano.length ? '<p class="small muted" style="margin-top:12px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
@@ -4118,6 +4121,25 @@ function cicloInfo(c, ref = hojeISO()) {
   const fase = d <= dm ? 'menstrual' : d < ov - 1 ? 'folicular' : d <= ov + 1 ? 'ovulatoria' : 'lutea';
   return { dia: d, ciclo: cl, fase, prox: somaDias(ins[0], cl * (Math.floor(desde / cl) + 1)), ultimo: ins[0], atraso: desde >= cl ? desde - cl + 1 : 0 };
 }
+/** fase do ciclo num dia (usa a menstruação registrada mais recente até aquele dia; antes dela, conta para trás) */
+function cicloFaseDia(c, k) {
+  if (!c || !c.ativo || c.situacao === 'contraceptivo' || c.situacao === 'nao_menstrua') return null;
+  const ins = (c.inicios || []).slice().sort().reverse(); if (!ins.length) return null;
+  let cl = c.duracao_ciclo || 28; const difs = [];
+  for (let i = 0; i < Math.min(ins.length - 1, 3); i++) { const x = Math.round((dia(ins[i]) - dia(ins[i + 1])) / 864e5); if (x >= 20 && x <= 45) difs.push(x); }
+  if (difs.length) cl = Math.round(difs.reduce((a, b) => a + b, 0) / difs.length);
+  const base = ins.find((x) => x <= k) || ins[ins.length - 1];
+  const desde = Math.round((dia(k) - dia(base)) / 864e5), d = ((desde % cl) + cl) % cl + 1, dm = c.duracao_menstr || 5, ov = cl - 14;
+  const fase = d <= dm ? 'menstrual' : d < ov - 1 ? 'folicular' : d <= ov + 1 ? 'ovulatoria' : 'lutea';
+  return { fase, dia: d, ciclo: cl, previsto: k > hojeISO() || desde < 0 || (fase === 'menstrual' && desde >= cl) };
+}
+/** sinal do ciclo no cabeçalho do dia da planilha: gota na menstruação, ponto colorido nas outras fases */
+function cicloSeloHTML(c, k) {
+  const f = cicloFaseDia(c, k); if (!f) return '';
+  const [nome, cor] = FASES_CICLO[f.fase];
+  const dica = `${nome} · dia ${f.dia} de ${f.ciclo}${f.previsto ? ' (previsão)' : ''}`;
+  return `<i class="cic-selo ${f.fase === 'menstrual' ? 'gota' : ''} ${f.previsto ? 'prev' : ''}" style="--cf:${cor}" title="${esc(dica)}" aria-label="${esc(dica)}">${f.fase === 'menstrual' ? '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>' : ''}</i>`;
+}
 /** linha resumida da fase (aluna no Hoje e treinador na planilha) */
 function cicloLinhaHTML(c, staff) {
   const inf = cicloInfo(c); if (!inf) return '';
@@ -4129,7 +4151,6 @@ function cicloLinhaHTML(c, staff) {
     ? `<div class="ciclo-l" style="--cf:${f[1]}"><i></i><span><b>${f[0]}</b> · ${txt}</span></div>`
     : `<button type="button" class="ciclo-l btn-ciclo" style="--cf:${f[1]}"><i></i><span><b>${f[0]}</b> · ${txt}</span>${I.chev}</button>`;
 }
-/** folha para a aluna registrar a menstruação e ver a fase */
 // ativar o acompanhamento do ciclo sem precisar abrir a ficha de saúde inteira
 function ativarCiclo(depois) {
   const sel = (ops, v) => ops.map(([k, l]) => `<option value="${k}" ${v === k ? 'selected' : ''}>${l}</option>`).join('');
@@ -4161,6 +4182,7 @@ function ativarCiclo(depois) {
     };
   });
 }
+/** folha para a aluna registrar a menstruação e ver a fase */
 function abrirCiclo(c, depois) {
   const inf = cicloInfo(c) || {};
   const f = inf.fase ? FASES_CICLO[inf.fase] : null;
