@@ -144,11 +144,25 @@ function toast(msg, err = false) {
 const $sheet = document.getElementById('sheet');
 const $sheetBody = document.getElementById('sheet-body');
 function openSheet(html, onMount) {
+  if ($sheet.hidden) { try { history.pushState({ ...(history.state || {}), nxPainel: 1 }, ''); } catch {} }
   $sheetBody.innerHTML = html; $sheet.hidden = false; document.body.style.overflow = 'hidden';
   onMount && onMount($sheetBody);
   const f = $sheetBody.querySelector('[autofocus]'); if (f) setTimeout(() => f.focus(), 250);
 }
-function closeSheet() { $sheet.hidden = true; $sheetBody.innerHTML = ''; document.body.style.overflow = ''; }
+function closeSheet(semVoltar) {
+  const estava = !$sheet.hidden;
+  $sheet.hidden = true; $sheetBody.innerHTML = ''; document.body.style.overflow = ''; const sh = $sheet.querySelector('.sheet'); if (sh) sh.style.transform = '';
+  // o painel abriu um passo no histórico: fechar pelo X tira esse passo (o "voltar" do celular também fecha)
+  if (estava && !semVoltar && history.state && history.state.nxPainel) history.back();
+}
+window.addEventListener('popstate', () => { if (!$sheet.hidden) closeSheet(true); });
+// arrastar o painel para baixo fecha (quando ele está no topo)
+(() => {
+  const sh = $sheet.querySelector('.sheet'); if (!sh) return; let y0 = null, dy = 0;
+  sh.addEventListener('touchstart', (e) => { if (sh.scrollTop > 0 || e.touches.length > 1 || e.target.closest('canvas,input,textarea,select,.card-gal,.chips')) { y0 = null; return; } y0 = e.touches[0].clientY; dy = 0; }, { passive: true });
+  sh.addEventListener('touchmove', (e) => { if (y0 == null) return; dy = e.touches[0].clientY - y0; if (dy > 0) { sh.style.transition = 'none'; sh.style.transform = innerWidth >= 700 ? `translate(-50%, calc(-50% + ${dy}px))` : `translate(-50%, ${dy}px)`; } }, { passive: true });
+  sh.addEventListener('touchend', () => { if (y0 == null) return; sh.style.transition = ''; if (dy > 110) closeSheet(); else sh.style.transform = ''; y0 = null; });
+})();
 $sheet.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeSheet(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$sheet.hidden) closeSheet(); });
 
@@ -207,6 +221,10 @@ new MutationObserver(() => enfeitarVazios(document.body)).observe(document.body,
   }, { passive: false });
 })();
 
+/* ---------- a página não dá zoom com os dedos ---------- */
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 && !e.target.closest('#cd-cv')) e.preventDefault(); }, { passive: false });
+
 /* ---------- navegação ---------- */
 function setDock(items) {
   if (!items) { $dock.hidden = true; return; }
@@ -259,7 +277,7 @@ function loading() {
 }
 
 async function router() {
-  closeSheet(); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT); clearInterval(S.msgT);
+  closeSheet(true); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT); clearInterval(S.msgT);
   const fichaTk = (location.hash.match(/^#\/ficha\/([a-f0-9]{12,40})/) || [])[1];
   if (fichaTk) return viewFicha(fichaTk);
   if (!S.user) return viewLogin();
@@ -2459,7 +2477,7 @@ async function desenharCard(cv, c, o) {
     [0, 1, 2].forEach((k) => { ctx.globalAlpha = 1 - k * .32; ctx.fillStyle = AC; ctx.beginPath(); const x0 = bx - 150 + k * 46; ctx.moveTo(x0, by + hh); ctx.lineTo(x0 + 30, by + hh); ctx.lineTo(x0 + 58, by); ctx.lineTo(x0 + 28, by); ctx.closePath(); ctx.fill(); });
     ctx.restore();
     // selo da marca na base
-    if (L !== 'linha') txt('NEXOS · PERFORMANCE E SAÚDE', W / 2, H - (post ? 44 : 64), `500 22px ${FM}`, sub, 'center', 6);
+    if (L === 'icones' || L === 'mapa') txt('NEXOS · PERFORMANCE E SAÚDE', W / 2, H - (post ? 44 : 64), `500 22px ${FM}`, sub, 'center', 6);
   };
 
   if (L === 'icones') { // grade 2 colunas com ícone em cima de cada número

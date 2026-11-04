@@ -5,7 +5,7 @@
 <base href="/app/">
 <script>try{var t=localStorage.getItem("nx-tema");document.documentElement.dataset.tema=t?JSON.parse(t):"claro"}catch(e){document.documentElement.dataset.tema="claro"}</script>
 <meta name="robots" content="noindex, nofollow">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Nexos · Área do treinador</title>
 <meta name="description" content="Área do treinador da Nexos Performance e Saúde: alunos, treinos, planilhas, financeiro e eventos.">
 <meta name="theme-color" content="#f3f6fb">
@@ -32,7 +32,7 @@ if(document.readyState==='complete')sair();else addEventListener('load',sair);se
 </div>
 <nav class="dock" id="dock" hidden></nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<div class="sheet-wrap" id="sheet" hidden><div class="sheet-bg" data-close></div><div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grip"></div><div class="sheet-body" id="sheet-body"></div></div></div>
+<div class="sheet-wrap" id="sheet" hidden><div class="sheet-bg" data-close></div><div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grip"></div><button type="button" class="sheet-x" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div class="sheet-body" id="sheet-body"></div></div></div>
 <div class="rest" id="rest" hidden></div>
 <script src="supabase.js"></script>
 <script>window.NX_AREA = "treinador";</script>

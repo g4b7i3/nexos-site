@@ -1696,3 +1696,8 @@ html[data-tema="escuro"] .ftr.feito{box-shadow:0 0 0 1px rgba(242,193,78,.16) in
 .cd-zoom{display:flex;align-items:center;justify-content:center;gap:10px;margin:-2px 0 12px;flex-wrap:wrap;text-align:center}
 .cd-zoom .icon-btn{font-size:1.2rem;font-weight:800;width:34px;height:34px}
 .cd-zoom span{max-width:200px;line-height:1.3}
+/* painel: botão de fechar sempre visível e sem zoom de pinça */
+html{touch-action:manipulation}
+.sheet-x{position:sticky;top:0;float:right;margin:-4px -6px 0 0;z-index:3;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--s1);border:1px solid var(--line);color:var(--ink)}
+.sheet-x:active{transform:scale(.94)}
+.sheet{transition:transform .2s}
