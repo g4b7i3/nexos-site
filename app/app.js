@@ -2351,11 +2351,19 @@ function formCorrida(alunoId, d, plano, onSalvo) {
 
 /* ---------- detalhe de uma corrida ---------- */
 /* ---------- card da corrida para compartilhar (minimalista, estilo Strava/Garmin) ---------- */
-const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo'], ['fc', 'FC média'], ['elev', 'Subida'], ['cad', 'Cadência'], ['rota', 'Percurso'], ['data', 'Data'], ['logo', 'Logo Nexos']];
-const CARD_LAYOUTS = [['classico', 'Clássico'], ['destaque', 'Destaque'], ['linha', 'Linha'], ['percurso', 'Percurso']];
+const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo'], ['fc', 'FC média'], ['elev', 'Subida'], ['cad', 'Cadência'], ['kcal', 'Calorias'], ['rota', 'Percurso'], ['data', 'Data'], ['logo', 'Logo Nexos']];
+// modelos do card (inspirados nos stickers de corrida, com a cara da Nexos)
+const CARD_LAYOUTS = [
+  ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
+  ['sobre', 'Mapa + números'], ['tabela', 'Ficha'], ['ficha_mapa', 'Ficha + mapa'], ['lateral', 'Vertical'], ['pilulas', 'Etiquetas'],
+  ['parciais', 'Parciais'], ['recibo', 'Recibo'], ['destaque', 'Destaque'], ['linha', 'Na foto'],
+];
 const cardCarregarImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+const CARD_IMGS = {};
+const DIAS_LONGOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const cardImg = async (src) => (CARD_IMGS[src] || (CARD_IMGS[src] = await cardCarregarImg(src)));
 function cardValores(c) {
-  const pace = paceDe(c);
+  const pace = paceDe(c); const E = { ...(c.resumo_rel || {}), ...((c.analise && c.analise.extras) || {}) };
   return {
     dist: c.distancia_m ? { l: 'Distância', v: (c.distancia_m / 1000).toFixed(2).replace('.', ','), u: 'km' } : null,
     pace: pace ? { l: 'Pace', v: fmtPace(pace).replace('/km', ''), u: '/km' } : null,
@@ -2363,101 +2371,210 @@ function cardValores(c) {
     fc: c.fc_media ? { l: 'FC média', v: String(c.fc_media), u: 'bpm' } : null,
     elev: c.elevacao_m ? { l: 'Subida', v: String(Math.round(c.elevacao_m)), u: 'm' } : null,
     cad: c.cadencia ? { l: 'Cadência', v: String(c.cadencia), u: 'ppm' } : null,
+    kcal: E.kcal ? { l: 'Calorias', v: Math.round(E.kcal).toLocaleString('pt-BR'), u: 'kcal' } : null,
   };
 }
-function cardRota(ctx, rota, x, y, w, h, cor, lw) {
+function cardRota(ctx, rota, x, y, w, h, cor, lw, brilho = false) {
   if (!rota || rota.length < 2) return false;
   const lats = rota.map((p) => p[0]), lons = rota.map((p) => p[1]);
   const la0 = Math.min(...lats), la1 = Math.max(...lats), lo0 = Math.min(...lons), lo1 = Math.max(...lons);
   const k = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
   const rw = Math.max((lo1 - lo0) * k, 1e-6), rh = Math.max(la1 - la0, 1e-6);
   const s = Math.min(w / rw, h / rh), ox = x + (w - rw * s) / 2, oy = y + (h - rh * s) / 2;
-  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = cor; ctx.lineWidth = lw;
-  ctx.beginPath(); rota.forEach((p, i) => { const px = ox + (p[1] - lo0) * k * s, py = oy + rh * s - (p[0] - la0) * s; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
+  const caminho = () => { ctx.beginPath(); rota.forEach((p, i) => { const px = ox + (p[1] - lo0) * k * s, py = oy + rh * s - (p[0] - la0) * s; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); };
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (brilho) { ctx.shadowColor = cor; ctx.shadowBlur = lw * 3; }
+  ctx.strokeStyle = cor; ctx.lineWidth = lw; caminho(); ctx.stroke();
+  // ponto de largada
+  const p0 = rota[0], sx = ox + (p0[1] - lo0) * k * s, sy = oy + rh * s - (p0[0] - la0) * s;
+  ctx.shadowBlur = 0; ctx.fillStyle = cor; ctx.beginPath(); ctx.arc(sx, sy, lw * 1.25, 0, Math.PI * 2); ctx.fill();
   ctx.restore(); return true;
 }
+const ret = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
 async function desenharCard(cv, c, o) {
   const W = 1080, H = o.formato === 'post' ? 1350 : 1920; cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
-  const branco = o.cor === 'branco';
-  const tx = branco ? '#ffffff' : '#0b1834', sub = branco ? 'rgba(255,255,255,.78)' : 'rgba(11,24,52,.62)';
+  const branco = o.cor === 'branco', post = o.formato === 'post';
+  const tx = branco ? '#ffffff' : '#0b1834', sub = branco ? 'rgba(255,255,255,.74)' : 'rgba(11,24,52,.6)';
+  const AC = branco ? '#46d6ff' : '#0b62d6'; // ciano da marca (no texto preto, o azul Nexos)
   if (o.fundo === 'foto' && o.img) {
     const im = o.img, sc = Math.max(W / im.width, H / im.height);
     ctx.drawImage(im, (W - im.width * sc) / 2, (H - im.height * sc) / 2, im.width * sc, im.height * sc);
-    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(0,0,0,.18)'); g.addColorStop(.5, 'rgba(0,0,0,.05)'); g.addColorStop(1, 'rgba(0,0,0,.5)');
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(0,0,0,.2)'); g.addColorStop(.5, 'rgba(0,0,0,.04)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   } else if (o.fundo === 'nexos') {
     const g = ctx.createLinearGradient(0, 0, W * .4, H); g.addColorStop(0, '#0d2a5e'); g.addColorStop(1, '#040a18'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const r = ctx.createRadialGradient(W * .9, H * .08, 0, W * .9, H * .08, W * .9); r.addColorStop(0, 'rgba(70,214,255,.22)'); r.addColorStop(1, 'rgba(70,214,255,0)'); ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
   }
   const sombra = branco && o.fundo !== 'nexos';
-  const FB = "'Manrope', system-ui, sans-serif";
+  const FB = "'Manrope', system-ui, sans-serif", FH = "'Unbounded', 'Manrope', system-ui, sans-serif", FM = "'JetBrains Mono', ui-monospace, monospace";
   const txt = (t, x, y, font, cor, al = 'center', esp = 0) => {
     ctx.save(); ctx.font = font; ctx.fillStyle = cor; ctx.textAlign = al; ctx.textBaseline = 'alphabetic';
     if ('letterSpacing' in ctx) ctx.letterSpacing = esp + 'px';
-    if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 2; }
+    if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 2; }
     ctx.fillText(t, x, y); ctx.restore();
   };
   const larg = (t, font, esp = 0) => { ctx.save(); ctx.font = font; if ('letterSpacing' in ctx) ctx.letterSpacing = esp + 'px'; const w = ctx.measureText(t).width; ctx.restore(); return w; };
   const V = cardValores(c);
-  const sel = ['dist', 'pace', 'tempo', 'fc', 'elev', 'cad'].filter((k) => o.stats[k] && V[k]).map((k) => V[k]);
-  const VAL = (px) => `800 ${px}px ${FB}`, LBL = (px) => `600 ${px}px ${FB}`;
-  // rótulo pequeno em caixa alta + número grande (unidade menor ao lado)
-  const stat = (s, x, y, px, al = 'center') => {
-    const fu = `700 ${Math.round(px * .4)}px ${FB}`, ev = -px * .02;
+  const sel = ['dist', 'pace', 'tempo', 'fc', 'elev', 'cad', 'kcal'].filter((k) => o.stats[k] && V[k]).map((k) => V[k]);
+  const VAL = (px) => `800 ${px}px ${FB}`, LBL = (px) => `700 ${px}px ${FB}`;
+  // rótulo pequeno + número grande (unidade menor ao lado)
+  const stat = (s, x, y, px, al = 'center', caixa = false) => {
+    const fu = `700 ${Math.round(px * .42)}px ${FB}`, ev = -px * .02;
     const wv = larg(s.v, VAL(px), ev), wu = s.u ? larg(s.u, fu) + px * .12 : 0, tot = wv + wu;
     const x0 = al === 'center' ? x - tot / 2 : al === 'right' ? x - tot : x;
-    txt(s.l.toUpperCase(), al === 'center' ? x : al === 'right' ? x : x0, y, LBL(Math.max(26, Math.round(px * .3))), sub, al, px * .05);
-    txt(s.v, x0, y + px * 1.02, VAL(px), tx, 'left', ev);
-    if (s.u) txt(s.u, x0 + wv + px * .12, y + px * 1.02, fu, sub, 'left');
+    txt(caixa ? s.l.toUpperCase() : s.l, al === 'center' ? x : al === 'right' ? x : x0, y, LBL(Math.max(24, Math.round(px * .34))), sub, al, caixa ? px * .05 : 0);
+    txt(s.v, x0, y + px * 1.04, VAL(px), tx, 'left', ev);
+    if (s.u) txt(s.u, x0 + wv + px * .12, y + px * 1.04, fu, sub, 'left');
+    return wv + wu;
   };
-  const linha = (lista, y, px, x0 = 90, x1 = W - 90) => {
-    const n = lista.length; if (!n) return y; const porLinha = n === 4 ? 2 : Math.min(3, n); let yy = y;
-    for (let i = 0; i < n; i += porLinha) { const parte = lista.slice(i, i + porLinha), cw = (x1 - x0) / parte.length; parte.forEach((s, j) => stat(s, x0 + cw * j + cw / 2, yy, px)); yy += px * 1.75; }
+  const grade = (lista, y, px, x0 = 80, x1 = W - 80, porLinha = 3, al = 'left') => {
+    let yy = y;
+    for (let i = 0; i < lista.length; i += porLinha) {
+      const parte = lista.slice(i, i + porLinha), cw = (x1 - x0) / porLinha;
+      parte.forEach((s, j) => stat(s, al === 'center' ? x0 + cw * j + cw / 2 : x0 + cw * j, yy, px, al));
+      yy += px * 1.9;
+    }
     return yy;
   };
-  const wm = o.stats.logo ? await cardCarregarImg(branco ? 'icons/wordmark.svg' : 'icons/wordmark-escuro.svg') : null;
-  const logo = (cx, y, w = 240) => { if (!wm) return; const h = w * (937.1 / 5645); ctx.save(); ctx.globalAlpha = .95; if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 12; } ctx.drawImage(wm, cx - w / 2, y, w, h); ctx.restore(); };
+  const comLogo = o.stats.logo;
+  const wm = comLogo ? await cardImg(branco ? 'icons/wordmark.svg' : 'icons/wordmark-escuro.svg') : null;
+  const sim = comLogo ? await cardImg(branco ? 'icons/simbolo.svg' : 'icons/simbolo-escuro.svg') : null;
+  const desenha = (im, ar, x, y, w, al = 'left') => { if (!im) return 0; const h = w * ar; const xx = al === 'center' ? x - w / 2 : al === 'right' ? x - w : x; ctx.save(); if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 12; } ctx.drawImage(im, xx, y, w, h); ctx.restore(); return h; };
+  const logo = (x, y, w = 240, al = 'center') => desenha(wm, 937.1 / 5645, x, y, w, al);
+  const simbolo = (x, y, w = 120, al = 'center') => desenha(sim, 2333.5 / 5528.6, x, y, w, al);
+  const dt = new Date(c.data);
   const dataTxt = o.stats.data ? `${fmtDia(c.data)} · ${fmtHora(c.data)}`.toUpperCase() : '';
   const temRota = o.stats.rota && c.rota && c.rota.length > 1;
-  const post = o.formato === 'post';
+  const rota = (x, y, w, h, lw = 9, br = false) => temRota && cardRota(ctx, c.rota, x, y, w, h, AC, lw, br);
+  const L = o.layout;
 
-  if (o.layout === 'classico') { // coluna centrada: percurso, números e logo (o sticker clássico do Strava)
-    const px = post ? 90 : 104, passo = px * 1.85, hR = temRota ? (post ? 260 : 340) : 0;
-    const tot = (hR ? hR + 70 : 0) + sel.length * passo + (dataTxt ? 70 : 0) + (wm ? 90 : 0);
+  if (L === 'classico') { // coluna centrada: percurso, números e logo
+    const px = post ? 84 : 100, passo = px * 1.95, hR = temRota ? (post ? 250 : 340) : 0;
+    const tot = (hR ? hR + 70 : 0) + sel.length * passo + (dataTxt ? 70 : 0) + (wm ? 110 : 0);
     let y = (H - tot) / 2;
-    if (temRota) { cardRota(ctx, c.rota, W / 2 - 230, y, 460, hR, tx, 7); y += hR + 70; }
+    if (temRota) { rota(W / 2 - 230, y, 460, hR, 10); y += hR + 70; }
     if (dataTxt) { txt(dataTxt, W / 2, y + 26, LBL(28), sub, 'center', 3); y += 70; }
-    sel.forEach((s) => { stat(s, W / 2, y + 30, px); y += passo; });
-    logo(W / 2, y + 20);
-  } else if (o.layout === 'destaque') { // um número gigante e o resto pequeno embaixo
+    sel.forEach((s) => { stat(s, W / 2, y + 30, px, 'center'); y += passo; });
+    logo(W / 2, y + 30, 250);
+  } else if (L === 'faixa') { // símbolo + logo numa linha e os números lado a lado
+    const lista = sel.slice(0, 6), px = lista.length > 3 ? 64 : 70;
+    const alt = 140 + Math.ceil(lista.length / 3) * px * 1.9;
+    let y = (H - alt) / 2;
+    const hs = simbolo(80, y, 150, 'left'); logo(80 + (sim ? 180 : 0), y + Math.max(0, (hs - 46) / 2), 280, 'left');
+    if (dataTxt) txt(dataTxt, W - 80, y + 40, LBL(24), sub, 'right', 3);
+    grade(lista, y + 150, px, 80, W - 80, 3, 'left');
+  } else if (L === 'percurso') { // percurso grande, logo e números embaixo
+    const hr = post ? 620 : 900, yr = post ? 150 : 240;
+    rota(130, yr, W - 260, hr, 12);
+    let y = yr + hr + (post ? 60 : 100);
+    logo(W / 2, y, 300); y += 110;
+    if (dataTxt) { txt(dataTxt, W / 2, y + 10, LBL(26), sub, 'center', 3); y += 60; }
+    y = grade(sel.slice(0, 3), y, post ? 66 : 72, 70, W - 70, 3, 'center');
+    simbolo(W / 2, y + 10, 110, 'center');
+  } else if (L === 'lado') { // percurso à esquerda, logo e números em coluna à direita
+    const yc = H / 2, hr = post ? 520 : 600;
+    rota(70, yc - hr / 2, 470, hr, 12);
+    const px = 66; let y = yc - (sel.slice(0, 4).length * px * 1.95 + 120) / 2;
+    logo(600, y, 340, 'left'); y += 120;
+    sel.slice(0, 4).forEach((s) => { stat(s, 600, y + 28, px, 'left'); y += px * 1.95; });
+  } else if (L === 'mapa') { // só o percurso e a marca
+    const hr = post ? 760 : 1050; const y0 = (H - hr - 160) / 2;
+    rota(110, y0, W - 220, hr, 14, true);
+    logo(W / 2, y0 + hr + 90, 300);
+  } else if (L === 'sobre') { // números empilhados por cima do percurso
+    ctx.save(); ctx.globalAlpha = .9; rota(110, post ? 180 : 300, W - 220, post ? 900 : 1250, 16); ctx.restore();
+    const px = post ? 70 : 80, passo = px * 1.85, lista = sel.slice(0, 6);
+    let y = (H - (lista.length * passo + 110)) / 2;
+    logo(W / 2, y, 260); y += 110;
+    lista.forEach((s) => { stat(s, W / 2, y + 26, px, 'center'); y += passo; });
+  } else if (L === 'tabela' || L === 'ficha_mapa') { // ficha com pontilhado (estilo recibo de prova)
+    const lista = sel.slice(0, 7), lh = post ? 64 : 72, fs = post ? 38 : 42;
+    const alt = (wm ? 90 : 0) + lista.length * lh + (dataTxt ? 70 : 0);
+    let y = L === 'ficha_mapa' ? H - (post ? 110 : 170) - alt : (H - alt) / 2;
+    if (L === 'ficha_mapa') rota(160, post ? 110 : 200, W - 320, y - (post ? 190 : 300), 13);
+    const x0 = 150, x1 = W - 150;
+    if (wm) { logo(x0, y, 230, 'left'); y += 90; }
+    if (dataTxt) { txt(dataTxt, x0, y + 30, LBL(24), sub, 'left', 3); y += 70; }
+    lista.forEach((s) => {
+      const vt = s.v + (s.u ? ' ' + s.u : ''); y += lh;
+      txt(s.l, x0, y, `600 ${fs}px ${FB}`, tx, 'left'); txt(vt, x1, y, `800 ${fs}px ${FB}`, tx, 'right');
+      const a = x0 + larg(s.l, `600 ${fs}px ${FB}`) + 22, b = x1 - larg(vt, `800 ${fs}px ${FB}`) - 22;
+      ctx.save(); ctx.fillStyle = sub; for (let xx = a; xx < b; xx += 15) { ctx.beginPath(); ctx.arc(xx, y - fs * .32, 2.6, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
+    });
+  } else if (L === 'lateral') { // números na vertical, colados na borda direita
+    if (wm) logo(140, post ? 110 : 180, 220, 'left');
+    rota(120, H * .3, W * .55, H * .42, 12);
+    const lista = sel.slice(0, 6), pares = []; for (let i = 0; i < lista.length; i += 2) pares.push(lista.slice(i, i + 2));
+    const blocoH = (H - (post ? 200 : 320)) / Math.max(1, pares.length);
+    pares.forEach((par, i) => {
+      ctx.save(); ctx.translate(W - 150, H - (post ? 100 : 160) - i * blocoH); ctx.rotate(-Math.PI / 2);
+      par.forEach((s, j) => { const yy = j * 64; txt(s.l, 0, yy, LBL(34), sub, 'left'); txt(s.v + (s.u ? ' ' + s.u : ''), 230, yy, `800 40px ${FB}`, tx, 'left'); });
+      ctx.restore();
+    });
+  } else if (L === 'pilulas') { // etiquetas arredondadas (estilo número de peito)
+    const linhas = [];
+    const p1 = [{ t: 'NEXOS', logo: true }, { t: `${dt.getDate()} ${MESES[dt.getMonth()].toUpperCase()} ${dt.getFullYear()}` }, { t: '', sim: true }];
+    linhas.push(p1);
+    const tags = sel.slice(0, 6).map((s) => ({ t: `${s.l.toUpperCase()} ${s.v}${s.u ? ' ' + s.u.toUpperCase() : ''}` }));
+    for (let i = 0; i < tags.length; i += 2) linhas.push(tags.slice(i, i + 2));
+    const fs = 42, ph = 100, gap = 16; let y = (H - linhas.length * (ph + gap)) / 2;
+    linhas.forEach((ln) => {
+      const ws = ln.map((p) => (p.logo ? 260 : p.sim ? 140 : larg(p.t, `600 ${fs}px ${FB}`, 1) + 64));
+      let x = (W - (ws.reduce((a, b) => a + b, 0) + gap * (ln.length - 1))) / 2;
+      ln.forEach((p, i) => {
+        ctx.save(); ctx.strokeStyle = tx; ctx.globalAlpha = .9; ctx.lineWidth = 3; ret(ctx, x, y, ws[i], ph, ph / 2); ctx.stroke(); ctx.restore();
+        if (p.logo) logo(x + ws[i] / 2, y + ph / 2 - 17, 180); else if (p.sim) simbolo(x + ws[i] / 2, y + ph / 2 - 22, 92);
+        else txt(p.t, x + ws[i] / 2, y + ph / 2 + fs * .36, `600 ${fs}px ${FB}`, tx, 'center', 1);
+        x += ws[i] + gap;
+      });
+      y += ph + gap;
+    });
+  } else if (L === 'parciais') { // barras dos km (o mais rápido em destaque)
+    const parc = (c.parciais || []).filter((p) => !p.parcial || p.km % 1 > .3).slice(0, post ? 16 : 24);
+    const pk = (p) => p.seg / (p.parcial ? (p.km % 1 || 1) : 1);
+    const vs = parc.map(pk), mn = Math.min(...vs), mx = Math.max(...vs);
+    const lh = Math.min(post ? 56 : 66, (H - (post ? 520 : 700)) / Math.max(1, parc.length));
+    let y = (H - (130 + parc.length * lh + 150)) / 2;
+    txt('Parciais por km', 100, y + 60, `800 64px ${FH}`, tx, 'left', -1); y += 130;
+    parc.forEach((p, i) => {
+      const v = vs[i], w = mx > mn ? 220 + 440 * (mx - v) / (mx - mn) : 600, yy = y + i * lh;
+      txt(p.parcial ? String(p.km).replace('.', ',') : String(p.km), 100, yy + lh * .62, `700 ${Math.round(lh * .5)}px ${FB}`, sub, 'left');
+      ctx.save(); ctx.fillStyle = v === mn ? AC : (branco ? 'rgba(255,255,255,.88)' : 'rgba(11,24,52,.85)'); ret(ctx, 180, yy + lh * .2, w, lh * .56, lh * .28); ctx.fill(); ctx.restore();
+      txt(fmtPace(v).replace('/km', ''), W - 100, yy + lh * .62, `800 ${Math.round(lh * .5)}px ${FB}`, v === mn ? AC : tx, 'right');
+    });
+    logo(W / 2, y + parc.length * lh + 60, 240);
+  } else if (L === 'recibo') { // recibo com picote: dia da semana em destaque
+    const bw = 620, x = (W - bw) / 2, bh = post ? 700 : 760, y = (H - bh) / 2;
+    ctx.save(); ctx.strokeStyle = tx; ctx.lineWidth = 3; ctx.globalAlpha = .9; ctx.beginPath(); ctx.moveTo(x, y + bh); ctx.lineTo(x, y); ctx.lineTo(x + bw, y); ctx.lineTo(x + bw, y + bh);
+    const dentes = 12, dw = bw / dentes; for (let i = dentes; i > 0; i--) { ctx.lineTo(x + (i - .5) * dw, y + bh - 22); ctx.lineTo(x + (i - 1) * dw, y + bh); } ctx.stroke(); ctx.restore();
+    let yy = y + 90; logo(W / 2, yy, 260); yy += 110;
+    simbolo(W / 2, yy, 150); yy += 110;
+    txt(DIAS_LONGOS[dt.getDay()], W / 2, yy + 80, `700 92px ${FH}`, tx, 'center', -2); yy += 140;
+    txt(`${dt.getDate()} de ${MESES[dt.getMonth()].toLowerCase()}.`, W / 2, yy, `600 36px ${FB}`, sub, 'center');
+    const d0 = sel[0]; if (d0) { yy += 90; txt(`${d0.v}${d0.u ? ' ' + d0.u : ''}`, W / 2, yy, `800 58px ${FB}`, AC, 'center'); }
+  } else if (L === 'destaque') { // um número gigante e o resto pequeno embaixo
     const prim = sel[0], resto = sel.slice(1);
-    let y = H * (post ? .3 : .34);
+    let y = H * (post ? .26 : .3);
     if (dataTxt) txt(dataTxt, W / 2, y - 40, LBL(28), sub, 'center', 3);
     if (prim) {
       txt(prim.l.toUpperCase(), W / 2, y + 40, LBL(34), sub, 'center', 5);
-      const px = post ? 230 : 270; txt(prim.v, W / 2, y + 40 + px * .98, VAL(px), tx, 'center', -px * .03);
-      if (prim.u) txt(prim.u.replace('/', '').toUpperCase(), W / 2, y + 40 + px * .98 + 80, `800 46px ${FB}`, sub, 'center', 10);
+      const px = post ? 230 : 270; txt(prim.v, W / 2, y + 40 + px * .98, `800 ${px}px ${FH}`, tx, 'center', -px * .05);
+      if (prim.u) txt(prim.u.replace('/', '').toUpperCase(), W / 2, y + 40 + px * .98 + 80, `800 46px ${FB}`, AC, 'center', 10);
       y += 40 + px * .98 + 190;
     }
-    y = linha(resto.slice(0, 3), y, post ? 70 : 78);
-    if (temRota) { const hr = post ? 0 : 300; if (hr) { cardRota(ctx, c.rota, W / 2 - 160, y + 10, 320, hr - 60, tx, 6); y += hr; } }
-    logo(W / 2, H - (post ? 110 : 150));
-  } else if (o.layout === 'linha') { // tudo numa faixa embaixo, a foto fica livre
+    y = grade(resto.slice(0, 3), y, post ? 66 : 74, 70, W - 70, 3, 'center');
+    if (temRota && !post) rota(W / 2 - 160, y + 10, 320, 240, 8);
+    logo(W / 2, H - (post ? 110 : 150), 250);
+  } else { // 'linha': tudo numa faixa embaixo, a foto fica livre
     if (o.fundo === 'foto') { const g = ctx.createLinearGradient(0, H * .55, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = g; ctx.fillRect(0, H * .55, W, H * .45); }
-    const lista = sel.slice(0, 3), px = 74;
+    const lista = sel.slice(0, 3), px = 72;
     let y = H - (post ? 120 : 170) - px * 1.4;
-    if (temRota) cardRota(ctx, c.rota, 90, y - 300, 260, 220, tx, 6);
-    if (wm) logo(W - 90 - 105, y - 150, 210);
-    if (dataTxt) txt(dataTxt, temRota ? 380 : 90, y - 120, LBL(26), sub, 'left', 3);
-    ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.35)' : 'rgba(11,24,52,.2)'; ctx.fillRect(90, y - 50, W - 180, 2); ctx.restore();
-    linha(lista, y + 10, px);
-  } else { // percurso grande no centro
-    const hr = post ? 600 : 900, yr = post ? 170 : 250;
-    if (temRota) cardRota(ctx, c.rota, 140, yr, W - 280, hr, tx, 9);
-    let y = yr + hr + (post ? 70 : 110);
-    if (dataTxt) { txt(dataTxt, W / 2, y, LBL(28), sub, 'center', 3); y += 70; }
-    y = linha(sel.slice(0, 3), y, post ? 72 : 80);
-    logo(W / 2, H - (post ? 100 : 150));
+    rota(80, y - 320, 260, 230, 7);
+    simbolo(W - 80, y - 210, 120, 'right'); logo(W - 80, y - 110, 230, 'right');
+    if (dataTxt) txt(dataTxt, 80, y - 50 - 20, LBL(24), sub, 'left', 3);
+    ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.35)' : 'rgba(11,24,52,.2)'; ctx.fillRect(80, y - 40, W - 160, 2); ctx.restore();
+    grade(lista, y + 10, px, 80, W - 80, 3, 'left');
   }
 }
 async function abrirCardCorrida(c) {
@@ -2465,14 +2582,17 @@ async function abrirCardCorrida(c) {
   let st = {}; try { st = JSON.parse(localStorage.getItem('nx-card') || '{}'); } catch {}
   const V = cardValores(c);
   const o = { layout: st.layout || 'classico', fundo: st.fundo || 'transparente', cor: st.cor || 'branco', formato: st.formato || 'story', img: null,
-    stats: Object.assign({ dist: true, pace: true, tempo: true, fc: false, elev: false, cad: false, rota: true, data: false, logo: true }, st.stats || {}) };
+    stats: Object.assign({ dist: true, pace: true, tempo: true, fc: false, elev: false, cad: false, kcal: false, rota: true, data: false, logo: true }, st.stats || {}) };
+  if (!CARD_LAYOUTS.some(([k]) => k === o.layout)) o.layout = 'classico';
+  const temParc = (c.parciais || []).length >= 2;
+  const modelos = CARD_LAYOUTS.filter(([k]) => (k !== 'parciais' || temParc) && (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)));
   const seg = (k, ops, val) => `<div class="seg card-seg" data-o="${k}">${ops.map(([v, l]) => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const disponivel = (k) => k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
   openSheet(`<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">Card da corrida</div>
     <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
     <div class="field"><span>Fundo</span>${seg('fundo', [['transparente', 'Sem fundo'], ['foto', 'Foto'], ['nexos', 'Azul Nexos']], o.fundo)}</div>
     <input type="file" accept="image/*" id="cd-foto" hidden>
-    <div class="field"><span>Layout</span>${seg('layout', CARD_LAYOUTS, o.layout)}</div>
+    <div class="field"><span>Modelo</span><div class="card-gal" id="cd-gal">${modelos.map(([k, l]) => `<button type="button" class="cg-it ${k === o.layout ? 'on' : ''}" data-lay="${k}"><span class="cg-cv"><canvas></canvas></span><small>${l}</small></button>`).join('')}</div></div>
     <div class="grid2"><div class="field"><span>Formato</span>${seg('formato', [['story', 'Story'], ['post', 'Post']], o.formato)}</div><div class="field"><span>Cor do texto</span>${seg('cor', [['branco', 'Branco'], ['preto', 'Preto']], o.cor)}</div></div>
     <div class="field"><span>O que aparece</span><div class="chips wrap" id="cd-stats">${CARD_STATS.filter(([k]) => disponivel(k)).map(([k, l]) => `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
     <div class="row" style="gap:8px;margin-top:6px"><button class="btn grow" id="cd-share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> Compartilhar</button><button class="btn ghost" id="cd-down">Baixar</button></div>
@@ -2483,7 +2603,21 @@ async function abrirCardCorrida(c) {
       prev.classList.toggle('xadrez', o.fundo === 'transparente'); prev.classList.toggle('post', o.formato === 'post');
       dica.textContent = o.fundo === 'transparente' ? 'Sem fundo: a imagem sai transparente. No story do Instagram, cole por cima da sua foto (sticker).' : o.fundo === 'foto' && !o.img ? 'Toque em “Foto” para escolher a imagem de fundo.' : '';
       await desenharCard(cv, c, o);
+      miniaturas();
     };
+    // miniaturas dos modelos com os dados reais da corrida
+    let mT = null;
+    const miniaturas = () => { clearTimeout(mT); mT = setTimeout(async () => {
+      const gal = r.querySelector('#cd-gal'); if (!gal) return;
+      gal.classList.toggle('xadrez', o.fundo === 'transparente'); gal.classList.toggle('post', o.formato === 'post');
+      const tmp = document.createElement('canvas');
+      for (const b of gal.querySelectorAll('[data-lay]')) {
+        await desenharCard(tmp, c, { ...o, layout: b.dataset.lay });
+        const mc = b.querySelector('canvas'); mc.width = 216; mc.height = Math.round(216 * tmp.height / tmp.width);
+        const mx = mc.getContext('2d'); mx.clearRect(0, 0, mc.width, mc.height); mx.drawImage(tmp, 0, 0, mc.width, mc.height);
+      }
+    }, 60); };
+    r.querySelector('#cd-gal').onclick = (e) => { const b = e.target.closest('[data-lay]'); if (!b) return; o.layout = b.dataset.lay; r.querySelectorAll('#cd-gal [data-lay]').forEach((x) => x.classList.toggle('on', x === b)); salvar(); desenharCard(cv, c, o); };
     r.querySelectorAll('.card-seg').forEach((sg) => sg.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return; const k = sg.dataset.o;
       if (k === 'fundo' && b.dataset.v === 'foto') { inp.click(); if (!o.img) return; }
