@@ -596,13 +596,28 @@ function formProvaPropria(aoSalvar) {
 
 /* ================= PLANILHA DO ALUNO: corrida, musculação e calendário ================= */
 async function viewPlanilhaAluno(aba) {
+  // quem faz corrida e força vê uma planilha só: a semana com os dois juntos e, embaixo, os treinos de força
+  if (faz('corrida') && faz('musculacao')) {
+    const mes = aba === 'calendario';
+    $app.innerHTML = `<p class="eyebrow">Planilha</p><div class="row" style="justify-content:space-between;align-items:flex-end;gap:10px"><h1 class="h1">Seus treinos</h1><a class="btn ghost sm" href="#/planilha${mes ? '' : '/calendario'}">${mes ? 'Ver a semana' : `${I.cal} Ver o mês`}</a></div>
+      ${mes ? '' : '<p class="small muted" style="margin-top:6px">Corrida e força na mesma planilha.</p>'}<div id="pl-c" style="margin-top:12px"></div><div id="pl-f"></div>`;
+    const box = document.getElementById('pl-c');
+    if (mes) return viewCalendarioMes(S.user.id, box);
+    await viewCorridaPainel(S.user.id, box, false, S.me, ['planilha']);
+    return planilhaForcaAluno(document.getElementById('pl-f'), true);
+  }
   const abasP = [['corrida', 'Corrida'], ['musculacao', 'Musculação'], ['calendario', 'Calendário']].filter(([k]) => k === 'calendario' || faz(k));
   aba = abasP.some(([k]) => k === aba) ? aba : abasP[0][0];
   $app.innerHTML = `<p class="eyebrow">Planilha</p><h1 class="h1">Seus treinos</h1>
     <div class="subtabs" style="margin-top:16px">${abasP.map(([k, l]) => `<a class="${aba === k ? 'on' : ''}" href="#/planilha/${k}">${l}</a>`).join('')}</div><div id="pl-c"></div>`;
   const box = document.getElementById('pl-c');
   if (aba === 'corrida') return viewCorridaPainel(S.user.id, box, false, S.me, ['planilha']);
-  if (aba === 'musculacao') {
+  if (aba === 'musculacao') return planilhaForcaAluno(box, false);
+  return viewCalendarioMes(S.user.id, box);
+}
+// treinos de força do aluno; soLista = sem a grade da semana (na planilha única a força já aparece em cada dia)
+async function planilhaForcaAluno(box, soLista) {
+  {
     const [treinos, sessoes] = await Promise.all([buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 200)]);
     const ativos = treinos.filter((t) => t.ativo); const ultima = sessoes[0];
     const hj = dsemIdx(hojeISO()); const seq = ativos.filter((t) => !(t.dias && t.dias.length));
@@ -623,17 +638,15 @@ async function viewPlanilhaAluno(aba) {
           ${offF.includes(i) ? `<div class="ftr folga"><span class="off-ic">${OFF_IC}</span><span class="grow"><b>Day off</b><small>Descanso de força</small></span></div>` : ''}
           ${!doDia.length && !feitos.length && !offF.includes(i) ? `<span class="cal-vazio">${temDias ? 'sem treino' : 'treino na sequência abaixo'}</span>` : ''}</div></div>`; }).join('')}</div>
       ${seq.length && temDias ? `<p class="small muted" style="margin-top:8px">Sem dia fixo (faça na sequência): ${seq.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}.</p>` : ''}`;
-    box.innerHTML = ativos.length ? semanaF + `<div class="section"><div class="section-h"><h2 class="h2">Seus treinos</h2>${slashes}</div><div class="stack">${ativos.map((t, i) => { const ex = sessoes.filter((s) => s.treino_id === t.id); return `<div class="card tr-card ${prox && prox.id === t.id ? 'prox' : ''}"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
+    box.innerHTML = ativos.length ? (soLista ? '' : semanaF) + `<div class="section"><div class="section-h"><h2 class="h2">${soLista ? 'Seus treinos de força' : 'Seus treinos'}</h2>${slashes}</div><div class="stack">${ativos.map((t, i) => { const ex = sessoes.filter((s) => s.treino_id === t.id); return `<div class="card tr-card ${prox && prox.id === t.id ? 'prox' : ''}"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
       <div class="grow">${prox && prox.id === t.id ? `<span class="eyebrow">${(t.dias || []).includes(hj) ? 'Treino de hoje' : 'Próximo da sequência'}</span>` : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:4px">${diasTxt(t.dias)}</span>` : ''}</div></div>
       <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Você fez ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, a última em ${fmtData(ex[0].iniciado_em)}` : 'Você ainda não fez este treino'}</p>
       <div class="grid2 tr-acoes"><a class="btn sm" href="#/treino/${t.id}">${I.play} Começar</a><a class="btn ghost sm" href="#/historico/cargas">${I.hist} Evolução</a></div></div>`; }).join('')}</div></div>`
-      : '<div class="empty"><div class="h3">Seu treino de musculação está sendo preparado</div><p class="small">Assim que o treinador liberar, ele aparece aqui.</p></div>';
-    const reF = () => viewPlanilhaAluno('musculacao');
+      : (soLista ? '<div class="section"><div class="section-h"><h2 class="h2">Seus treinos de força</h2>' + slashes + '</div><div class="empty"><div class="h3">Seu treino de musculação está sendo preparado</div><p class="small">Assim que o treinador liberar, ele aparece aqui.</p></div></div>' : '<div class="empty"><div class="h3">Seu treino de musculação está sendo preparado</div><p class="small">Assim que o treinador liberar, ele aparece aqui.</p></div>');
+    const reF = () => planilhaForcaAluno(box, soLista);
     const fa = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = () => { f(); reF(); }; };
     fa('fa-a', () => fs.off--); fa('fa-p', () => fs.off++); fa('fa-h', () => { fs.off = 0; });
-    return;
   }
-  return viewCalendarioMes(S.user.id, box);
 }
 async function viewCalendarioMes(alunoId, box) {
   const st = S.cache.calMes || (S.cache.calMes = { comp: compDe() });
@@ -3682,9 +3695,10 @@ function forcaDiaHTML(fc, k, semana, staff) {
   if (!fc) return '';
   const i = dsemIdx(k), lib = fc.lib.includes(semana), feitos = fc.se.filter((x) => isoDia(x.iniciado_em) === k);
   const prev = (lib || staff) && !fc.off.includes(i) ? fc.tr.filter((t) => (t.dias || []).includes(i)) : [];
-  const itens = [...prev.map((t) => ({ t: t.titulo, ok: feitos.some((x) => x.treino_id === t.id), rasc: !lib })), ...feitos.filter((x) => !prev.some((t) => t.id === x.treino_id)).map((x) => ({ t: x.treino_titulo || 'Treino', ok: true }))];
+  const itens = [...prev.map((t) => ({ t: t.titulo, id: t.id, ok: feitos.some((x) => x.treino_id === t.id), rasc: !lib })), ...feitos.filter((x) => !prev.some((t) => t.id === x.treino_id)).map((x) => ({ t: x.treino_titulo || 'Treino', ok: true }))];
   const hoje = hojeISO();
-  return itens.map((x) => `<div class="forca-tag ${x.ok ? 'ok' : k < hoje ? 'perdeu' : ''} ${x.rasc && !x.ok ? 'rasc' : ''}" title="Força · ${esc(x.t)}${x.ok ? ' (feito)' : x.rasc ? ' (semana de força ainda não liberada)' : ''}"><span class="ft-ic">${FORCA_IC}</span><span class="ellip">${esc(x.t)}</span>${x.ok ? `<i class="ft-ok">${I.check}</i>` : ''}</div>`).join('');
+  // para o aluno, a etiqueta abre o treino de força
+  return itens.map((x) => { const tag = !staff && x.id ? 'a' : 'div'; return `<${tag} class="forca-tag ${x.ok ? 'ok' : k < hoje ? 'perdeu' : ''} ${x.rasc && !x.ok ? 'rasc' : ''}"${tag === 'a' ? ` href="#/treino/${x.id}" style="color:inherit;text-decoration:none"` : ''} title="Força · ${esc(x.t)}${x.ok ? ' (feito)' : x.rasc ? ' (semana de força ainda não liberada)' : ''}"><span class="ft-ic">${FORCA_IC}</span><span class="ellip">${esc(x.t)}</span>${x.ok ? `<i class="ft-ok">${I.check}</i>` : ''}</${tag}>`; }).join('');
 }
 function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null, fc = null) {
   const corridas = ativs.filter(ehCorr), outras = ativs.filter((c) => !ehCorr(c));
