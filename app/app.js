@@ -2801,13 +2801,13 @@ async function abrirCardCorrida(c, plano) {
     <div class="field"><span>Modelo</span><div class="card-gal" id="cd-gal">${modelos.map(([k, l]) => `<button type="button" class="cg-it ${k === o.layout ? 'on' : ''}" data-lay="${k}"><span class="cg-cv"><canvas></canvas></span><small>${l}</small></button>`).join('')}</div></div>
     <div class="grid2"><div class="field"><span>Formato</span>${seg('formato', [['story', 'Story'], ['post', 'Post']], o.formato)}</div><div class="field"><span>Cor do texto</span>${seg('cor', [['branco', 'Branco'], ['preto', 'Preto']], o.cor)}</div></div>
     <div class="field"><span>O que aparece</span><div class="chips wrap" id="cd-stats">${CARD_STATS.filter(([k]) => disponivel0(k)).map(([k, l]) => `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
-    <div class="row" style="gap:8px;margin-top:6px"><button class="btn grow" id="cd-share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> Compartilhar</button><button class="btn ghost" id="cd-down">Baixar</button></div>
+    <div class="row" style="gap:8px;margin-top:6px"><button class="btn grow" id="cd-share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> Compartilhar</button></div><div class="row" style="gap:8px;margin-top:8px"><button class="btn ghost grow" id="cd-copy"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg> Copiar</button><button class="btn ghost grow" id="cd-down">Baixar</button></div>
     <p class="tiny dim" style="margin-top:8px" id="cd-dica"></p>`, (r) => {
     const cv = r.querySelector('#cd-cv'), prev = r.querySelector('#cd-prev'), inp = r.querySelector('#cd-foto'), dica = r.querySelector('#cd-dica');
     const salvar = () => { try { localStorage.setItem('nx-card', JSON.stringify({ layout: o.layout, fundo: o.fundo === 'foto' ? 'transparente' : o.fundo, cor: o.cor, formato: o.formato, stats: o.stats })); } catch {} };
     const pinta = async () => {
       prev.classList.toggle('xadrez', o.fundo === 'transparente'); prev.classList.toggle('post', o.formato === 'post');
-      dica.textContent = o.fundo === 'transparente' ? 'Sem fundo: a imagem sai transparente. No story do Instagram, cole por cima da sua foto (sticker).' : o.fundo === 'foto' && !o.img ? 'Toque em “Foto” para escolher a imagem de fundo.' : '';
+      dica.textContent = o.fundo === 'transparente' ? 'Sem fundo: toque em “Copiar” e cole no story do Instagram por cima da sua foto. Dá para voltar, trocar o modelo e copiar outro para colar junto.' : o.fundo === 'foto' && !o.img ? 'Toque em “Foto” para escolher a imagem de fundo.' : '';
       await desenharCard(cv, c, o);
       miniaturas();
     };
@@ -2859,6 +2859,30 @@ async function abrirCardCorrida(c, plano) {
     const nomeArq = `nexos-corrida-${isoDia(c.data)}.png`;
     const marcar = () => { try { localStorage.setItem('nx-card-' + c.id, '1'); } catch {} };
     r.querySelector('#cd-down').onclick = async () => { const b = await blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = nomeArq; document.body.append(a); a.click(); a.remove(); marcar(); toast('Imagem salva!'); };
+    // copiar para colar como figurinha no story (sem fundo: corta o espaço vazio em volta)
+    const blobCopia = async () => {
+      const hd = document.createElement('canvas'); await desenharCard(hd, c, { ...o, escala: 2 });
+      let saida = hd;
+      if (o.fundo === 'transparente') {
+        const W = hd.width, H = hd.height, px = hd.getContext('2d').getImageData(0, 0, W, H).data;
+        let x0 = W, y0 = H, x1 = -1, y1 = -1;
+        for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (px[(y * W + x) * 4 + 3] > 8) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        if (x1 > x0 && y1 > y0) {
+          const m = 40; x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(W, x1 + m); y1 = Math.min(H, y1 + m);
+          saida = document.createElement('canvas'); saida.width = x1 - x0; saida.height = y1 - y0;
+          saida.getContext('2d').drawImage(hd, x0, y0, x1 - x0, y1 - y0, 0, 0, x1 - x0, y1 - y0);
+        }
+      }
+      return await new Promise((res) => saida.toBlob(res, 'image/png'));
+    };
+    r.querySelector('#cd-copy').onclick = async () => {
+      if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)) return toast('Este celular não deixa copiar imagem. Use “Compartilhar” ou “Baixar”.', true);
+      try {
+        // o ClipboardItem precisa nascer na hora do toque (exigência do iPhone); a imagem fica pronta logo depois
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobCopia() })]);
+        marcar(); toast('Card copiado! No story do Instagram, toque na tela e escolha “Colar”. Depois volte aqui para copiar outro.');
+      } catch (e) { toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true); }
+    };
     r.querySelector('#cd-share').onclick = async () => {
       const b = await blob(); const file = new File([b], nomeArq, { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); marcar(); } catch (e) { if (e.name !== 'AbortError') toast('Não foi possível compartilhar. Use “Baixar”.', true); } }
