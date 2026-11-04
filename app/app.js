@@ -5660,7 +5660,7 @@ const BIB_FORCA = [
 
   /* ---------- FORÇA PARA CORREDORES ---------- */
   { id: 'cor-ini', cat: 'corredor', niv: 'ini', nome: 'Corredor · Força e prevenção', freq: '2x por semana, longe dos treinos fortes de corrida',
-    info: 'Base de força para correr: unilaterais, glúteo, posterior e panturrilha (que segura até ~2x o peso do corpo a cada passada). Treino de força reduz lesões esportivas para menos de 1/3 (Lauersen 2014).',
+    info: 'Base de força para correr: unilaterais, glúteo, posterior e panturrilha (a cada passada o chão devolve 2 a 3 vezes o peso do corpo, e a panturrilha é o músculo que mais trabalha). Treino de força reduz lesões esportivas para menos de 1/3 (Lauersen 2014).',
     treinos: [
       { titulo: 'Treino A', foco: 'Pernas e core', itens: [
         _F('Agachamento goblet', 3, '8–10', 90),
@@ -5682,7 +5682,7 @@ const BIB_FORCA = [
       ] },
     ] },
   { id: 'cor-int', cat: 'corredor', niv: 'int', nome: 'Corredor · Força pesada + saltos', freq: '2x por semana',
-    info: 'Força pesada (≥80% 1RM, poucas repetições) e pliometria melhoram a economia de corrida, e a combinação dos dois rende mais (Llanos-Lagos 2024). Cargas altas com poucas repetições quase não aumentam o peso do corpo.',
+    info: 'Força pesada (≥80% 1RM, poucas repetições) e pliometria melhoram a economia de corrida; a combinação dos dois teve o maior efeito, mas com evidência ainda fraca (Llanos-Lagos 2024). Cargas altas com poucas repetições quase não aumentam o peso do corpo.',
     treinos: [
       { titulo: 'Treino A', foco: 'Agachamento pesado + saltos', itens: [
         _F('Salto na caixa (múltiplas repetições)', 3, '5', 90, 'Antes da força, com as pernas descansadas.'),
