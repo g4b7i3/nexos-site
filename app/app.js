@@ -620,7 +620,7 @@ async function viewPlanilhaAluno(aba) {
 async function planilhaForcaAluno(box, soLista) {
   {
     const [treinos, sessoes] = await Promise.all([buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 200)]);
-    const ativos = treinos.filter((t) => t.ativo); const ultima = sessoes[0];
+    const ativos = treinos.filter((t) => t.ativo);
     const hj = dsemIdx(hojeISO()); const seq = ativos.filter((t) => !(t.dias && t.dias.length));
     const prox = ativos.find((t) => (t.dias || []).includes(hj)) || null;
     // semana de força do aluno (mesma visão do treinador, só leitura)
@@ -704,18 +704,6 @@ async function buscarSessoes(alunoId, limit = 60) {
   if (alunoId) q = q.eq('aluno_id', alunoId);
   const { data, error } = await q; if (error) throw error; return data || [];
 }
-function semanaHTML(sessoes) {
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const ini = new Date(hoje); ini.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7)); // segunda
-  const feitos = new Set(sessoes.map((s) => new Date(s.iniciado_em).toDateString()));
-  let h = '<div class="week">';
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(ini); d.setDate(ini.getDate() + i);
-    const cls = [feitos.has(d.toDateString()) ? 'done' : '', d.getTime() === hoje.getTime() ? 'today' : ''].join(' ');
-    h += `<div class="${cls}"><b></b><span>${DIAS[d.getDay()]}</span></div>`;
-  }
-  return h + '</div>';
-}
 function letraTreino(t, i) {
   const m = String(t.titulo || '').match(/\b([A-Z])\b/); return m ? m[1] : String.fromCharCode(65 + (i % 26));
 }
@@ -738,11 +726,9 @@ async function alunoHoje() {
   dockAluno();
   const ativos = treinos.filter((t) => t.ativo);
   const ativSem = [...sessoes, ...corrSem.map((c) => ({ iniciado_em: c.data }))];
-  const semanaCount = ativSem.filter((s) => diasDesde(s.iniciado_em) < 7).length;
-  const ultima = sessoes[0];
   let prox = null;
   const forcaLib = await sb.from('nx_forca_semanas').select('id').eq('aluno_id', S.user.id).eq('semana', isoDia(inicioSemana())).maybeSingle().then((r) => !!r.data).catch(() => false);
-  const doDiaM = forcaLib ? ativos.filter((t) => (t.dias || []).includes(dsemIdx(hoje))) : []; const seqM = ativos.filter((t) => !(t.dias && t.dias.length));
+  const doDiaM = forcaLib ? ativos.filter((t) => (t.dias || []).includes(dsemIdx(hoje))) : [];
   let fixoHoje = false;
   if (doDiaM.length) { prox = doDiaM.find((t) => !sessoes.some((s) => s.treino_id === t.id && isoDia(s.iniciado_em) === hoje)) || doDiaM[0]; fixoHoje = true; }
   // só mostra musculação no Hoje quando há treino marcado para este dia (sem “próximo da sequência”)
@@ -758,7 +744,7 @@ async function alunoHoje() {
   const h = new Date().getHours();
   const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const cardCorr = (p) => {
-    const feito = corrHoje.find((c) => c.plano_id === p.id); const est = estruturaDe(p); const rs = resumoEstrutura(est, perfC);
+    const feito = corrHoje.find((c) => c.plano_id === p.id); const est = estruturaDe(p);
     return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span>${feito ? '<span class="tag ok">✓ feita</span>' : ''}</div>
       <div class="h3" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
@@ -1175,7 +1161,6 @@ const fmtDia = (d) => dia(d).toLocaleDateString('pt-BR', { day: '2-digit', month
 const fmtCurto = (d) => dia(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 const hojeISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const somaDias = (iso, n) => { const d = dia(iso); d.setDate(d.getDate() + n); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
-const tabsHTML = (aba, lista) => `<div class="tabs scroll">${lista.map(([k, l]) => `<button class="${aba === k ? 'on' : ''}" data-aba="${k}">${l}</button>`).join('')}</div>`;
 
 /** gráfico de linha em SVG (mini = sparkline) */
 function grafico(pts, { mini = false, unid = '', dec = 1, fmt = null } = {}) {
@@ -1709,7 +1694,7 @@ function aplicarMascaras(root) {
 // vale para todos os campos com data-mask do app, em qualquer tela ou janela
 document.addEventListener('input', (e) => { const el = e.target; const fn = el && el.dataset && MASCARA[el.dataset.mask]; if (fn) { const nv = fn(el.value, el); if (nv !== el.value) el.value = nv; } }, true);
 // mostra uma etapa por vez; "Próximo" só avança quando validar(etapa) não devolve erro
-function etapas(form, validar) {
+function etapas(form, validar, aoAvancar) { // aoAvancar(etapa): salva na hora o que não pode se perder se a pessoa sair no meio
   form.classList.add('wz');
   const enviar = form.querySelector('[type=submit]');
   const prog = document.createElement('div'); prog.className = 'wz-prog';
@@ -1732,6 +1717,7 @@ function etapas(form, validar) {
   prox.onclick = () => {
     const err = validar(atual());
     if (err) { toast(err.msg, true); const alvo = err.sel && atual().querySelector(err.sel); const box = alvo && alvo.closest('.field, .parq, .ficha-aceite, label, .card'); if (box) { box.classList.add('wz-erro'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => box.classList.remove('wz-erro'), 1600); } return; }
+    if (aoAvancar) aoAvancar(atual());
     i++; pinta(true);
   };
   volta.onclick = () => { i--; pinta(true); };
@@ -1829,7 +1815,7 @@ async function viewAnamnese(opts = {}) {
       if (k === 'ciclo') { if (!f.cic_on.checked) return null; const sit = f.cic_sit.value; if (sit === 'contraceptivo' || sit === 'nao_menstrua') return null; const d = dataISO(f.cic_ini.value); return !d || d > hojeISO() ? { msg: 'Confira a data do início da última menstruação (dd/mm/aaaa).', sel: '[name=cic_ini]' } : null; }
       if (k === 'emerg') { if (String(fd.get('emerg_nome') || '').trim().length < 2) return { msg: 'Escreva o nome do contato de emergência.', sel: '[name=emerg_nome]' }; if (soDig(fd.get('emerg_tel')).length < 10) return { msg: 'Confira o telefone com DDD.', sel: '[name=emerg_tel]' }; return null; }
       return null;
-    });
+    }, (el) => { if (el.dataset.k === 'ciclo') salvarCiclo(); }); // o ciclo é salvo já ao passar da etapa
   }
   const salvarCiclo = async () => {
     if (!cc || cc.hidden) return true;
@@ -3312,7 +3298,6 @@ const MODELOS_PADRAO = [
   { id: 'p-prv', nome: 'Prova', tipo: 'prova', niv: TODOS_NIV, cat: 'teste', info: 'Dia de prova. Ajuste a distância no editor.', estrutura: [_C(10, 'km', 'maratona')] },
 ];
 // filtro de nível da biblioteca (lembra a escolha)
-const nivMod = (md) => md.niv || (md.org_id ? ['meus'] : TODOS_NIV);
 const chipsNivHTML = (sel, id) => `<div class="chips niv-chips" id="${id}">${[['todos', 'Todos'], ...NIVEIS_CORR, ['meus', 'Meus']].map(([k, l]) => `<button type="button" class="chip ${sel === k ? 'on' : ''}" data-niv="${k}">${l}</button>`).join('')}</div>`;
 const passaNiv = (md, sel) => sel === 'todos' || (sel === 'meus' ? !!md.org_id : (md.niv || []).includes(sel));
 const ordemCat = (md) => { if (md.cat === 'off') return -1; const i = CATS_CORR.findIndex((c) => c[0] === md.cat); return i < 0 ? 99 : i; };
@@ -3594,7 +3579,6 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       <em class="pace-dica">pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ≈ ${estimaPasso(s, perfil).txt}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
-    const rs = resumoEstrutura(t.estrutura, perfil);
     r.querySelector('#passos').innerHTML = t.estrutura.map((s, i) => s.k === 'rep'
       ? `<div class="serie" data-cam="${i}"><div class="serie-h"><span class="alca" aria-label="Arrastar">⋮⋮</span><b>Repetir</b><input class="input nin" data-cam="${i}" data-f="n" data-mask="num" data-max="2" inputmode="numeric" value="${s.n}"><b>vezes</b><button type="button" class="x-passo" data-del="${i}" aria-label="Remover série">${I.x}</button></div>
           <div class="serie-c">${(s.passos || []).map((p, j) => linhaPasso(p, i + '.' + j)).join('')}<button type="button" class="link-btn small" data-addin="${i}">+ passo na série</button></div></div>`
@@ -3676,8 +3660,8 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
 
 /* ---------- detalhe do treino para o aluno ---------- */
 function verTreinoPlanilha(p, perfil, feito) {
-  const est = estruturaDe(p); const rs = resumoEstrutura(est, perfil);
-  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pz = s.z !== 'rec' && perfil.paces && perfil.paces[s.z]; const pzt = paceZonaTxt(s.z, perfil); const km = s.med === 'km' ? s.v : s.med === 'm' ? s.v / 1000 : 0; const e = estimaPasso(s, perfil); const alvoT = ` <em class="alvo-t">${e.tipo === 'dist' ? 'dist. est.' : 'tempo est.'} ≈ ${e.txt}</em>`; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
+  const est = estruturaDe(p);
+  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pzt = paceZonaTxt(s.z, perfil); const e = estimaPasso(s, perfil); const alvoT = ` <em class="alvo-t">${e.tipo === 'dist' ? 'dist. est.' : 'tempo est.'} ≈ ${e.txt}</em>`; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
   openSheet(`<p class="eyebrow">${fmtDia(p.data)} · ${esc(nomeTipo(p.tipo))}</p><div class="h2" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
     ${sobreTreino(p.tipo) ? `<p class="small muted" style="margin-top:6px">${esc(sobreTreino(p.tipo))}</p>` : ''}
     <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px">${(() => { const t = estimaTotal(est, perfil); return `<b>${t.soDist ? '' : '≈ '}${t.km}</b> · ${t.soTempo ? '' : '≈ '}${t.tempo}`; })()}</p></div>
@@ -4301,7 +4285,7 @@ async function viewGps(id) {
   const st = ant && ant.id === id ? ant : { id, titulo, inicio: null, estado: 'pronto', mov: 0, dist: 0, passo: 0, pIni: { t: 0, d: 0 }, voltas: [], parciais: [], rota: [], serie: { t: [], d: [], vel: [] }, lacunas: 0, voz: true };
   if (st.estado === 'correndo') st.estado = 'pausado'; // voltou depois de fechar: espera o aluno continuar
   const recuperado = !!(ant && ant.id === id && ant.inicio);
-  let btsChave = '', nTick = 0, podeSemSinal = false, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = false, prec = null;
+  let btsChave = '', nTick = 0, podeSemSinal = false, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = false;
   const salvar = () => { st.salvoEm = Date.now(); store.set(GPS_KEY, st); };
   const movAgora = () => st.mov + (st.estado === 'correndo' && marcaMov ? Date.now() - marcaMov : 0);
 
@@ -4370,12 +4354,12 @@ async function viewGps(id) {
   };
   const liga = () => {
     const b = (i, f) => { const el = $(i); if (el) el.onclick = f; };
-    b('g-ini', comecar); b('g-pau', pausar); b('g-con', continuar); b('g-fim', terminar); b('g-pul', () => fecharPasso(true)); b('g-trv', () => { $('g-trava').hidden = false; });
+    b('g-ini', comecar); b('g-pau', pausar); b('g-con', continuar); b('g-fim', terminar); b('g-pul', () => fecharPasso()); b('g-trv', () => { $('g-trava').hidden = false; });
   };
 
   // fecha a parte atual (volta) e passa para a próxima
-  const fecharPasso = (pulou) => {
-    const mov = movAgora() / 1000, s = passoAtual();
+  const fecharPasso = () => {
+    const mov = movAgora() / 1000;
     const v = { d: Math.round(st.dist - st.pIni.d), seg: Math.round(mov - st.pIni.t) };
     if (v.seg > 0) st.voltas.push(v);
     st.pIni = { t: mov, d: st.dist };
@@ -4389,15 +4373,15 @@ async function viewGps(id) {
   const verificaPasso = () => {
     if (st.estado !== 'correndo') return;
     const s = passoAtual(), mov = movAgora() / 1000;
-    if (s) { if ((s.t && mov - st.pIni.t >= s.t) || (s.d && st.dist - st.pIni.d >= s.d)) fecharPasso(false); }
-    else if (!passos.length && st.dist - st.pIni.d >= 1000) fecharPasso(false);
+    if (s) { if ((s.t && mov - st.pIni.t >= s.t) || (s.d && st.dist - st.pIni.d >= s.d)) fecharPasso(); }
+    else if (!passos.length && st.dist - st.pIni.d >= 1000) fecharPasso();
   };
 
   // GPS
   const onPos = (pos) => {
     if (!document.getElementById('g-sinal')) return; // já saiu da tela do treino
     const c = pos.coords, pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6)], t = pos.timestamp || Date.now();
-    prec = c.accuracy; gpsOk = c.accuracy <= 35;
+    gpsOk = c.accuracy <= 35;
     $('g-sinal').textContent = c.accuracy <= 15 ? 'GPS ótimo' : c.accuracy <= 35 ? 'GPS bom' : `GPS fraco (±${Math.round(c.accuracy)} m)`;
     $('g-sinal').className = 'tiny ' + (c.accuracy <= 35 ? 'gps-ok' : 'gps-fraco');
     if (st.estado === 'pronto') desenha();
@@ -4525,7 +4509,6 @@ const RELOGIO_IC = '<svg class="rel-ic" viewBox="0 0 24 24" fill="none" stroke="
 /** converte um treino da planilha para o formato de passos enviado ao Garmin */
 function garminItem(p, perfil) {
   const est = estruturaDe(p); if (!est.length) return null;
-  const faixa = (z) => { const pz = perfil && perfil.paces && perfil.paces[z]; if (pz) { const a = Math.min(pz[0], pz[1]), b = Math.max(pz[0], pz[1]); return a === b ? [a * 0.97, a * 1.03] : [a, b]; } const c = paceZona(z, perfil); return [c * 0.96, c * 1.04]; };
   const INT = { aq: 'WARMUP', dq: 'COOLDOWN', rc: 'RECOVERY', co: 'INTERVAL' };
   const conv = (s, emSerie) => {
     const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
@@ -6959,7 +6942,6 @@ function staffMais() {
 /* ---------- biblioteca de exercícios ---------- */
 async function staffBiblioteca(aba) {
   loading();
-  const abasBib = (k) => `<div class="subtabs" style="margin-top:16px">${[['exercicios', 'Exercícios'], ['modelos', 'Modelos de treino']].map(([x, l]) => `<a class="${k === x ? 'on' : ''}" href="#/biblioteca${x === 'modelos' ? '/modelos' : ''}">${l}</a>`).join('')}</div>`;
   if (aba === 'modelos') {
     const mods = await buscarModelosTreino();
     dockStaff();
