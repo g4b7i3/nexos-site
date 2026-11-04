@@ -1770,3 +1770,7 @@ html{touch-action:manipulation}
 .tag.cat-t.cat-rapido{background:color-mix(in srgb,#38bdf8 18%,transparent);color:#0369a1}
 .tag.cat-t.cat-prevencao{background:color-mix(in srgb,#f59e0b 20%,transparent);color:#a15c07}
 [data-tema=escuro] .tag.cat-t.cat-rapido{color:#7dd3fc}[data-tema=escuro] .tag.cat-t.cat-prevencao{color:#fcd34d}
+/* vídeo do exercício dentro do app */
+.ex-vid{margin:0 0 12px}
+.ex-vid video{display:block;width:100%;max-height:360px;border-radius:14px;background:#000;object-fit:contain}
+.ex-vid p{margin-top:4px}

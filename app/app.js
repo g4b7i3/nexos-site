@@ -119,12 +119,16 @@ async function hidratarInstrucoes(root = document) {
     } catch { el.innerHTML = '<p class="dim">Não foi possível carregar as instruções.</p>'; }
   }
 }
+// vídeo em arquivo (mp4/mov/webm ou do armazenamento) toca dentro do app; link de YouTube etc. abre fora
+const ehVideoArquivo = (u) => /\.(mp4|mov|m4v|webm)(\?|$)/i.test(u || '') || /\/storage\/v1\/object\//.test(u || '');
+const exVideoHTML = (ex) => ex && ex.video_url && ehVideoArquivo(ex.video_url)
+  ? `<div class="ex-vid"><video src="${esc(ex.video_url)}" controls playsinline muted loop preload="none"></video>${ex.video_credito ? `<p class="tiny dim">Vídeo: ${esc(ex.video_credito).replace('CC BY-SA 4.0', '<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" target="_blank" rel="noopener" class="dim">CC BY-SA 4.0</a>')}</p>` : ''}</div>` : '';
 function exDetalhe(ex) {
   const passos = (ex.instrucoes && ex.instrucoes.length) ? passosHTML(ex.instrucoes)
     : ex.ref_externa ? `<div data-instr-ref="${esc(ex.ref_externa)}"><p class="dim small">Carregando instruções…</p></div>`
     : (ex.descricao ? `<p>${esc(ex.descricao)}</p>` : '<p class="dim">Sem instruções.</p>');
   const mus = [...(ex.musculos || []).map((m) => `<span class="tag acc">${esc(m)}</span>`), ...(ex.musculos_sec || []).map((m) => `<span class="tag">${esc(m)}</span>`)].join('');
-  return `${passos}${mus ? `<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">${mus}</div>` : ''}${ex.equipamento ? `<p class="tiny dim" style="margin-top:8px">Equipamento: ${esc(ex.equipamento)}${ex.nivel ? ' · Nível: ' + esc(ex.nivel) : ''}</p>` : ''}`;
+  return `${exVideoHTML(ex)}${passos}${mus ? `<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">${mus}</div>` : ''}${ex.equipamento ? `<p class="tiny dim" style="margin-top:8px">Equipamento: ${esc(ex.equipamento)}${ex.nivel ? ' · Nível: ' + esc(ex.nivel) : ''}</p>` : ''}`;
 }
 const slashes = '<span class="slashes" aria-hidden="true"><i></i><i></i><i></i></span>';
 
@@ -958,7 +962,7 @@ async function ultimasCargas(alunoId, exIds) {
 
 async function viewExecucao(treinoId, preview) {
   loading();
-  const { data: t, error } = await sb.from('nx_treinos').select('*, nx_treino_itens(*, nx_exercicios(nome,grupo,equipamento,descricao,video_url,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa))').eq('id', treinoId).maybeSingle();
+  const { data: t, error } = await sb.from('nx_treinos').select('*, nx_treino_itens(*, nx_exercicios(nome,grupo,equipamento,descricao,video_url,video_credito,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa))').eq('id', treinoId).maybeSingle();
   if (error) throw error;
   if (!t) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Treino não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
   const itens = (t.nx_treino_itens || []).sort((a, b) => a.ordem - b.ordem);
@@ -1015,7 +1019,7 @@ async function viewExecucao(treinoId, preview) {
             <button type="button" class="link-btn ex-how" data-how>Como fazer</button>
             <div class="ex-actions">
               ${it.descanso_seg ? `<button class="btn ghost sm" data-rest="${it.descanso_seg}">${I.timer} Descanso</button>` : ''}
-              ${ex.video_url ? `<a class="btn ghost sm" href="${esc(ex.video_url)}" target="_blank" rel="noopener">${I.play} Vídeo</a>` : ''}
+              ${ex.video_url ? (ehVideoArquivo(ex.video_url) ? `<button type="button" class="btn ghost sm" data-vid>${I.play} Vídeo</button>` : `<a class="btn ghost sm" href="${esc(ex.video_url)}" target="_blank" rel="noopener">${I.play} Vídeo</a>`) : ''}
             </div>
           </div>
           <button class="check" data-check aria-label="Marcar como feito">${I.check}</button>
@@ -1031,6 +1035,8 @@ async function viewExecucao(treinoId, preview) {
   };
   $app.onclick = (e) => {
     const card = e.target.closest('[data-item]');
+    const vidB = e.target.closest('[data-vid]');
+    if (vidB) { const card = vidB.closest('.ex'); if (card) { card.classList.add('open'); const v = card.querySelector('.ex-vid video'); if (v) { v.scrollIntoView({ block: 'center', behavior: 'smooth' }); v.play().catch(() => {}); } } return; }
     const restB = e.target.closest('[data-rest]');
     if (restB) { e.stopPropagation(); startRest(+restB.dataset.rest); return; }
     const serB = e.target.closest('[data-ser]');
@@ -5109,7 +5115,7 @@ async function staffAluno(alunoId, aba, extra) {
 /* ---------- montar / editar treino ---------- */
 async function carregarExercicios(force) {
   if (!S.cache.ex || force) {
-    const cols = 'id,nome,nome_en,grupo,equipamento,imagens,video_url,nivel,fonte,ref_externa';
+    const cols = 'id,nome,nome_en,grupo,equipamento,imagens,video_url,video_credito,nivel,fonte,ref_externa';
     let all = [], from = 0;
     for (;;) {
       const { data, error } = await sb.from('nx_exercicios').select(cols).eq('org_id', S.org.id).order('nome').range(from, from + 999);
