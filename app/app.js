@@ -4035,13 +4035,19 @@ function garminItem(p, perfil) {
     return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: `${zi.z} ${zi.d} · ${fmtPace(pmin).replace('/km', '')}–${fmtPace(pmax)}`.slice(0, 100) };
   };
   const tot = estimaTotal(est, perfil);
-  const desc = [sobreTreino(p.tipo), `Total est.: ${tot.soDist ? '' : '≈ '}${tot.km} · ${tot.soTempo ? '' : '≈ '}${tot.tempo}`, p.descricao ? 'Treinador: ' + p.descricao : ''].filter(Boolean).join('\n\n');
+  // o treino estruturado por escrito, na mesma ordem do app (aparece no Garmin Connect)
+  const NOMES = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Desaquecimento' };
+  const linhaPasso = (x) => { const zi = ZONAS_INFO[x.z] || ZONAS_INFO.leve; const [a, b] = faixaZona(x.z, perfil); return `${NOMES[x.k] || 'Corrida'} ${medTxt(x)} · ${zi.z} ${zi.d}${a && b ? ` (${fmtPace(a).replace('/km', '')}–${fmtPace(b)})` : ''}`; };
+  const estruturaTxt = est.map((x, i) => x.k === 'rep' ? `${i + 1}. Repetir ${x.n || 1}×:\n${(x.passos || []).map((y) => `   • ${linhaPasso(y)}`).join('\n')}` : `${i + 1}. ${linhaPasso(x)}`).join('\n');
+  const montar = (sobre) => [`TREINO\n${estruturaTxt}`, `Total est.: ${tot.soDist ? '' : '≈ '}${tot.km} · ${tot.soTempo ? '' : '≈ '}${tot.tempo}`, p.descricao ? 'Treinador: ' + p.descricao : '', sobre].filter(Boolean).join('\n\n');
+  // o Garmin aceita até 500 letras: o texto sobre o tipo de treino sai primeiro se não couber
+  let desc = montar(sobreTreino(p.tipo)); if (desc.length > 500) desc = montar('');
   return { plano_id: p.id, data: p.data, nome: p.titulo || nomeTipo(p.tipo), descricao: desc, passos: est.map((s) => s.k === 'rep' ? { repetir: s.n || 1, passos: (s.passos || []).map((x) => conv(x, true)) } : conv(s, false)) };
 }
 /** manda ao Garmin os treinos liberados (de hoje em diante) que ainda não estão lá — uma vez por sessão por aluno */
 async function sincronizarGarmin(alunoId, planos, perfil, staff) {
   const chave = 'garSync:' + alunoId; S.cache.garSync = S.cache.garSync || {};
-  const GARMIN_FMT = '2026-11-03T23:00:00Z'; // mudou o que vai para o relógio: o que foi antes disso é reenviado
+  const GARMIN_FMT = '2026-11-04T03:05:00Z'; // mudou o que vai para o relógio: o que foi antes disso é reenviado
   const pend = (planos || []).filter((p) => p.liberado !== false && !semCorrida(p) && p.data >= hojeISO() && (!p.garmin_workout_id || (p.garmin_enviado_em && p.garmin_enviado_em < GARMIN_FMT)) && estruturaDe(p).length && !(S.cache.garSync[chave] || []).includes(p.id));
   if (!pend.length) return 0;
   S.cache.garSync[chave] = [...(S.cache.garSync[chave] || []), ...pend.map((p) => p.id)];
@@ -6065,6 +6071,6 @@ async function staffErros() {
   };
 }
 
-if (window.NX_DEMO) window.__nx = { loading, toast };
+if (window.NX_DEMO) window.__nx = { loading, toast, garminItem };
 iniciar();
 })();
