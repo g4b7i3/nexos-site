@@ -3971,7 +3971,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   if (q('#intervals-box')) bindIntervals(q('#intervals-box'), integ, staff, alunoId, recarregar);
   if (q('#garmin-box')) bindGarmin(q('#garmin-box'), recarregar);
   // sincronização automática com o Garmin: todo treino liberado que ainda não está no relógio vai sozinho
-  if (garm) sincronizarGarmin(alunoId, plano, perfil, staff).then((n) => { if (n) silencioso(recarregar); });
+  if (garm) sincronizarGarmin(alunoId, plano, perfil, staff).then((n) => { if (n) recarregar(); });
   if (sub === 'planilha') {
     box.querySelectorAll('[data-pol]').forEach((b) => b.onclick = () => polimentoSheet(alunoId, provasProx.find((x) => x.id === b.dataset.pol), perfil, recarregar));
     box.querySelectorAll('[data-semp]').forEach((b) => b.onclick = async () => {
@@ -3997,7 +3997,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         const daSemana = plano.filter((p) => p.data >= de && p.data <= ate).map((p) => ({ ...p, liberado: lib }));
         if (lib) {
           notificarAluno('planilha', alunoId); toast('Semana liberada! O aluno foi avisado.');
-          if (S.cache.garmOn) { const k = 'garSync:' + alunoId; S.cache.garSync = S.cache.garSync || {}; S.cache.garSync[k] = (S.cache.garSync[k] || []).filter((id) => !daSemana.some((p) => p.id === id)); sincronizarGarmin(alunoId, daSemana, perfil, true).then((n) => { if (n) silencioso(recarregar); }); }
+          if (S.cache.garmOn) { const k = 'garSync:' + alunoId; S.cache.garSync = S.cache.garSync || {}; S.cache.garSync[k] = (S.cache.garSync[k] || []).filter((id) => !daSemana.some((p) => p.id === id)); sincronizarGarmin(alunoId, daSemana, perfil, true).then((n) => { if (n) recarregar(); }); }
         } else {
           toast('Liberação cancelada. A semana voltou a ser rascunho.');
           const noG = daSemana.filter((p) => p.garmin_workout_id); if (noG.length) chamarGarmin({ acao: 'remover_treinos', aluno_id: alunoId, itens: noG.map((p) => ({ plano_id: p.id })) }).catch(() => {});
@@ -4009,7 +4009,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         const [de, ate] = gb.dataset.garmin.split('|'); gb.disabled = true; gb.textContent = 'Enviando…';
         try { const r = await enviarGarmin(alunoId, plano.filter((p) => p.data >= de && p.data <= ate), perfil); toast(r.sem_garmin ? 'O aluno não está com o Garmin conectado.' : r.enviados ? `${r.enviados} treino${r.enviados > 1 ? 's' : ''} no Garmin do aluno ⌚` : r.erros ? 'Não consegui enviar ao Garmin. Tente de novo em instantes.' : 'Nada para enviar nesta semana.', !r.enviados); }
         catch (er) { toast(er.message, true); }
-        return silencioso(recarregar);
+        return recarregar();
       }
       const nv = e.target.closest('[data-novo]'), se = e.target.closest('[data-ses]');
       if (nv) return escolherModelo(nv.dataset.novo);
