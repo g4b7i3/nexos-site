@@ -2386,7 +2386,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
 const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo'], ['fc', 'FC média'], ['elev', 'Subida'], ['cad', 'Cadência'], ['kcal', 'Calorias'], ['passos', 'Passos'], ['rota', 'Percurso'], ['data', 'Data'], ['logo', 'Logo Nexos']];
 // modelos do card (inspirados nos stickers de corrida, com a cara da Nexos)
 const CARD_LAYOUTS = [
-  ['icones', 'Com ícones'], ['clima', 'Clima'], ['clima_faixa', 'Clima + números'], ['tiros', 'Tiros'], ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
+  ['icones', 'Com ícones'], ['clima', 'Clima'], ['clima_faixa', 'Clima + números'], ['tiros', 'Tiros'], ['nome', 'Nome do treino'], ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
   ['sobre', 'Mapa + números'], ['tabela', 'Ficha'], ['ficha_mapa', 'Ficha + mapa'], ['lateral', 'Diagonal'], ['pilulas', 'Número de peito'],
   ['parciais', 'Parciais'], ['recibo', 'Medalha'], ['destaque', 'Destaque'], ['linha', 'Na foto'],
 ];
@@ -2417,7 +2417,13 @@ function serieDe(c, plano) {
   if (tp === 'tiros' || /tiro/.test(t)) return { titulo: 'Tiros', qual: true };
   if (tp === 'intervalado' || /intervalad/.test(t)) return { titulo: 'Intervalado', qual: true };
   if (tp === 'teste') return { titulo: 'Teste', qual: true };
-  if (tp) return { titulo: 'Tiros', qual: false, leve: ['rodagem', 'regenerativo', 'longao', 'folga'].includes(tp) };
+  // treinos leves ganham o card minimalista com o nome do treino
+  const NOME_LEVE = { rodagem: 'Rodagem', regenerativo: 'Regenerativo', longao: 'Longão' };
+  if (NOME_LEVE[tp]) return { titulo: 'Tiros', qual: false, leve: true, nome: NOME_LEVE[tp] };
+  if (tp) return { titulo: 'Tiros', qual: false, leve: tp === 'folga' };
+  if (/long[aã]o/.test(t)) return { titulo: 'Tiros', qual: false, leve: true, nome: 'Longão' };
+  if (/regenerativ/.test(t)) return { titulo: 'Tiros', qual: false, leve: true, nome: 'Regenerativo' };
+  if (/rodagem/.test(t)) return { titulo: 'Tiros', qual: false, leve: true, nome: 'Rodagem' };
   return { titulo: 'Tiros', qual: false };
 }
 function tirosDe(c) {
@@ -2602,6 +2608,17 @@ async function desenharCard(cv, c, o) {
     const med = tr.reduce((a, v) => a + v.seg, 0) / tr.reduce((a, v) => a + v.d / 1000, 0);
     grade([{ l: tit === 'Tiros' ? 'Pace médio dos tiros' : 'Pace médio das séries', v: fmtPace(med).replace('/km', ''), u: '/km' }, { l: 'Melhor', v: fmtPace(mn).replace('/km', ''), u: '/km' }], y, 64, 100, W - 100, 2, 'left');
     simbolo(W / 2, H - (post ? 150 : 230), 170);
+  } else if (L === 'nome') { // minimalista: só o nome do treino, uma linha de números e a marca
+    const nm = (c._serie && c._serie.nome) || 'Corrida', esp = 6;
+    let px = post ? 150 : 170; while (px > 60 && larg(nm, `400 ${px}px ${FH}`, esp) > W - 180) px -= 4;
+    const linha = sel.slice(0, 3).map((s) => `${s.v}${s.u ? ' ' + s.u : ''}`).join('   ·   ');
+    const alt = (dataTxt ? 80 : 0) + px + 60 + (linha ? 70 : 0);
+    let y = (H - alt) / 2 - (post ? 30 : 60);
+    if (dataTxt) { txt(dataTxt, W / 2, y + 26, `600 28px ${FB}`, sub, 'center', 8); y += 80; }
+    txt(nm, W / 2 + esp / 2, y + px * .82, `400 ${px}px ${FH}`, tx, 'center', esp); y += px + 40;
+    ctx.save(); ctx.fillStyle = AC; ctx.fillRect(W / 2 - 40, y, 80, 4); ctx.restore(); y += 30;
+    if (linha) txt(linha, W / 2, y + 44, `500 38px ${FB}`, sub, 'center', 2);
+    simbolo(W / 2, H - (post ? 170 : 260), 150);
   } else if (L === 'icones') { // grade 2 colunas com ícone em cima de cada número
     const IC = { dist: 'M6 21s-4-4.5-4-7.5A4 4 0 0 1 10 13.5C10 16.5 6 21 6 21zM6 13.5h.01M18 11s-3-3.4-3-5.6a3 3 0 0 1 6 0C21 7.6 18 11 18 11zM18 5.4h.01M9 19.5c3 0 4-1.5 5.5-4s2.5-3 3.5-3', tempo: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2.5 1.5M10 2h4M12 2v3M19 6l1.5-1.5', pace: 'M3.5 17a9 9 0 1 1 17 0M12 13l4-4M12 13.5a1 1 0 1 0 0-.01M6.5 13H5M19 13h-1.5M12 6.5V5M7.6 8.6 6.6 7.6M16.4 8.6l1-1', elev: 'M2 20 9 8l4 6 3-4 6 10zM9 8l2 3', fc: 'M12 20s-7-4.4-9-9a4.7 4.7 0 0 1 9-3 4.7 4.7 0 0 1 9 3c-2 4.6-9 9-9 9zM3.5 12h4l2-3 2.5 6 2-3h6.5', passos: 'M7 4c1.7 0 2.5 1.8 2.5 4S8.7 12 7 12s-2.5-1.8-2.5-4S5.3 4 7 4zM5 14.5h4.5v2a2.3 2.3 0 0 1-4.5 0zM17 8c1.7 0 2.5 1.8 2.5 4s-.8 4-2.5 4-2.5-1.8-2.5-4S15.3 8 17 8zM15 18.5h4.5v.5a2.3 2.3 0 0 1-4.5 0z', cad: 'M7 4c1.7 0 2.5 1.8 2.5 4S8.7 12 7 12s-2.5-1.8-2.5-4S5.3 4 7 4zM5 14.5h4.5v2a2.3 2.3 0 0 1-4.5 0zM17 8c1.7 0 2.5 1.8 2.5 4s-.8 4-2.5 4-2.5-1.8-2.5-4S15.3 8 17 8zM15 18.5h4.5v.5a2.3 2.3 0 0 1-4.5 0z', kcal: 'M12 21c-4 0-6.5-2.6-6.5-6 0-4 3.5-5.5 4-10 2.5 1.5 4 4 4 6 1-1 1.5-2 1.5-3 2 1.7 3.5 4.4 3.5 7 0 3.4-2.5 6-6.5 6z' };
     // usa o que estiver marcado e completa com os outros números da corrida até 6
@@ -2764,7 +2781,7 @@ async function desenharCard(cv, c, o) {
 }
 async function abrirCardCorrida(c, plano) {
   c._serie = serieDe(c, plano);
-  try { await Promise.all(["800 100px 'Unbounded'", "700 40px 'Manrope'"].map((f) => document.fonts.load(f))); } catch {}
+  try { await Promise.all(["800 100px 'Unbounded'", "400 100px 'Unbounded'", "700 40px 'Manrope'", "500 40px 'Manrope'"].map((f) => document.fonts.load(f))); } catch {}
   let st = {}; try { st = JSON.parse(localStorage.getItem('nx-card') || '{}'); } catch {}
   const V = cardValores(c);
   const o = { layout: st.layout || 'classico', fundo: st.fundo || 'transparente', cor: st.cor || 'branco', formato: st.formato || 'story', img: null,
@@ -2772,7 +2789,8 @@ async function abrirCardCorrida(c, plano) {
   if (!CARD_LAYOUTS.some(([k]) => k === o.layout)) o.layout = 'classico';
   const temParc = (c.parciais || []).length >= 2;
   const temTiros = tirosDe(c).length >= (c._serie.qual ? 1 : 2), temClima = !!((c.rota && c.rota.length) || (c.analise && c.analise.extras && c.analise.extras.temp_med != null));
-  const modelos = CARD_LAYOUTS.map(([k, l]) => [k, k === 'tiros' ? c._serie.titulo : l]).filter(([k]) => (k !== 'parciais' || temParc) && (k !== 'tiros' || temTiros) && (!k.startsWith('clima') || temClima) && (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)));
+  const modelos = CARD_LAYOUTS.map(([k, l]) => [k, k === 'tiros' ? c._serie.titulo : k === 'nome' ? c._serie.nome : l]).filter(([k]) => (k !== 'parciais' || temParc) && (k !== 'tiros' || temTiros) && (k !== 'nome' || !!c._serie.nome) && (!k.startsWith('clima') || temClima) && (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)));
+  if (!modelos.some(([k]) => k === o.layout)) o.layout = 'classico';
   const seg = (k, ops, val) => `<div class="seg card-seg" data-o="${k}">${ops.map(([v, l]) => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const disponivel0 = (k) => k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
   openSheet(`<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">Card da corrida</div>
