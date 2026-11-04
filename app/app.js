@@ -6037,7 +6037,7 @@ async function staffErros() {
         <div class="small muted">${e.vezes}× · ${pessoas.length ? esc(pessoas.join(', ')) + ((e.usuarios || []).length > 4 ? ` e mais ${(e.usuarios || []).length - 4}` : '') : 'sem login'} · área do ${e.area === 'treinador' ? 'treinador' : 'aluno'}</div>
         <div class="tiny dim">Última vez ${quando(e.ultimo_em)}${e.vezes > 1 ? ` · primeira ${quando(e.primeiro_em)}` : ''} · tela ${esc(e.url || '#/')} · ${esc(aparelhoTxt(e.ua))}</div></div></div>
       <details class="erro-det"><summary class="tiny">Detalhes técnicos</summary><pre>${esc(e.msg)}${e.stack ? '\n\n' + esc(e.stack) : ''}</pre></details>
-      <div class="erro-acoes">${e.resolvido ? `<button type="button" class="link-btn small" data-reabrir="${e.id}">Reabrir</button>` : `<button type="button" class="btn sm" data-resolver="${e.id}">Marcar como resolvido</button>`}<button type="button" class="link-btn small" data-apagar-erro="${e.id}">Apagar</button></div></div>`;
+      <div class="erro-acoes"><button type="button" class="link-btn small" data-copiar-erro="${e.id}">${I.copy || ''}Copiar erro</button>${e.resolvido ? `<button type="button" class="link-btn small" data-reabrir="${e.id}">Reabrir</button>` : `<button type="button" class="btn sm" data-resolver="${e.id}">Resolvido</button>`}<button type="button" class="link-btn small" data-apagar-erro="${e.id}">Apagar</button></div></div>`;
   };
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Erros do app</h1>
     <p class="muted small" style="margin-top:6px">Quando algo dá errado no app de um aluno ou de um treinador, o erro aparece aqui sozinho, com quem pegou, em que tela e em qual aparelho. Erros iguais se juntam num só.</p>
@@ -6045,6 +6045,17 @@ async function staffErros() {
       ${abertos.length ? `<div class="stack">${abertos.map(item).join('')}</div>` : `<div class="empty"><div class="h3">Nenhum erro aberto</div><p class="small muted">Tudo funcionando para os alunos.</p></div>`}</div>
     ${resolvidos.length ? `<div class="section"><div class="section-h"><h2 class="h2">Resolvidos</h2></div><div class="stack">${resolvidos.slice(0, 30).map(item).join('')}</div></div>` : ''}`;
   $app.onclick = async (ev) => {
+    const cp = ev.target.closest('[data-copiar-erro]');
+    if (cp) {
+      const e = (erros || []).find((x) => x.id === Number(cp.dataset.copiarErro)); if (!e) return;
+      const pessoas = (e.usuarios || []).map((u) => nomes[u] || 'alguém de fora');
+      const texto = [`Erro no app Nexos — pode corrigir?`, '', `Resumo: ${erroPT(e.msg) || e.msg}`, `Mensagem: ${e.msg}`, `Tela: ${e.url || '#/'} (área do ${e.area === 'treinador' ? 'treinador' : 'aluno'})`,
+        `Aparelho: ${aparelhoTxt(e.ua)} — ${e.ua || 'desconhecido'}`, `Aconteceu ${e.vezes}× com ${pessoas.length ? pessoas.join(', ') : 'quem estava sem login'}`,
+        `Primeira vez: ${quando(e.primeiro_em)} · Última: ${quando(e.ultimo_em)} · Versão ${e.versao || '?'} · Código do erro #${e.id}`, '', 'Detalhes técnicos:', e.stack || '(sem detalhes)'].join('\n');
+      try { await navigator.clipboard.writeText(texto); }
+      catch { const t = document.createElement('textarea'); t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch {} t.remove(); }
+      return toast('Copiado! Cole na conversa com o Claude.');
+    }
     const r = ev.target.closest('[data-resolver],[data-reabrir],[data-apagar-erro]'); if (!r) return;
     const id = Number(r.dataset.resolver || r.dataset.reabrir || r.dataset.apagarErro);
     if (r.dataset.apagarErro && !confirm('Apagar este erro da lista?')) return;

@@ -1713,3 +1713,6 @@ html{touch-action:manipulation}
 .erro-det summary{cursor:pointer;color:var(--muted,inherit)}
 .erro-det pre{margin-top:8px;padding:10px;border-radius:10px;background:color-mix(in srgb,currentColor 6%,transparent);font:12px/1.45 'JetBrains Mono',ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto}
 .erro-acoes{display:flex;gap:14px;align-items:center;justify-content:flex-end;margin-top:10px}
+.erro-acoes [data-copiar-erro]{margin-right:auto;display:inline-flex;align-items:center;gap:6px}
+.erro-acoes [data-copiar-erro] svg{width:16px;height:16px}
+.erro-acoes button{white-space:nowrap}
