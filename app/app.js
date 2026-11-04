@@ -4140,6 +4140,11 @@ async function viewConexoes(ret) {
 /* ---------- treino pelo celular (GPS do aparelho, para quem não tem relógio compatível) ----------
    App web: o GPS só funciona com a tela ligada. Por isso a tela fica acesa durante o treino (Wake Lock),
    o progresso é guardado no aparelho a cada poucos segundos e, se a tela apagar, o treino continua de onde parou. */
+const GPS_IC = {
+  som: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>',
+  mudo: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>',
+  trava: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
+};
 const GPS_KEY = 'nx-gps';
 const gpsSalvo = () => { const s = store.get(GPS_KEY, null); return s && s.inicio && Date.now() - s.salvoEm < 8 * 3600e3 ? s : null; };
 // passos do treino em ordem, com o número da repetição (ex.: Tiro 3 de 6)
@@ -4209,7 +4214,7 @@ async function viewGps(id) {
   const movAgora = () => st.mov + (st.estado === 'correndo' && marcaMov ? Date.now() - marcaMov : 0);
 
   $app.innerHTML = `<div class="gps">
-    <div class="gps-top"><button class="icon-btn sm" id="g-sair" aria-label="Sair">${I.back}</button><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(titulo)}</b><span class="tiny" id="g-sinal">Procurando GPS…</span></div><button class="icon-btn sm" id="g-voz" aria-label="Voz">${st.voz ? '🔊' : '🔇'}</button></div>
+    <div class="gps-top"><button class="icon-btn sm" id="g-sair" aria-label="Sair">${I.back}</button><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(titulo)}</b><span class="tiny" id="g-sinal">Procurando GPS…</span></div><button class="icon-btn sm" id="g-voz" aria-label="Voz">${st.voz ? GPS_IC.som : GPS_IC.mudo}</button></div>
     <div class="gps-passo" id="g-passo"></div>
     <div class="gps-num"><div><span>Tempo</span><b id="g-tempo">0:00</b></div><div><span>Distância</span><b id="g-dist">0,00<small> km</small></b></div><div><span>Pace agora</span><b id="g-pace">–</b></div><div><span>Pace médio</span><b id="g-pm">–</b></div></div>
     <div class="gps-prox" id="g-prox"></div>
@@ -4253,7 +4258,7 @@ async function viewGps(id) {
       $('g-prox').innerHTML = nx ? `Depois: <b>${gpsNomePasso(nx)}</b> · ${gpsAlvoTxt(nx)} · ${(ZONAS_INFO[nx.z] || ZONAS_INFO.leve).z}` : 'Última parte do treino';
     } else if (passos.length) {
       $('g-passo').style.setProperty('--zc', 'var(--ok)');
-      $('g-passo').innerHTML = '<div class="gps-p-n">Treino completo ✓</div><p class="small" style="margin-top:6px">Pode desacelerar e tocar em Terminar para salvar.</p>';
+      $('g-passo').innerHTML = '<div class="gps-p-n">Treino completo</div><p class="small" style="margin-top:6px">Pode desacelerar e tocar em Terminar para salvar.</p>';
       $('g-prox').innerHTML = '';
     } else {
       const v = st.voltas.length + 1, fD = st.dist - st.pIni.d;
@@ -4266,7 +4271,7 @@ async function viewGps(id) {
     $('g-bts').innerHTML = E === 'pronto'
       ? (gpsOk ? `<button class="btn block gps-go" id="g-ini">${I.play} Começar</button>` : podeSemSinal ? `<button class="btn block ghost" id="g-ini">${I.play} Começar mesmo assim</button>` : `<button class="btn block gps-go" id="g-ini" disabled>Esperando o GPS…</button>`)
       : E === 'correndo'
-        ? `<button class="btn ghost" id="g-trv" aria-label="Travar a tela">🔒</button><button class="btn grow gps-pausa" id="g-pau">Pausar</button>${passos.length && passoAtual() ? `<button class="btn ghost" id="g-pul">Pular ›</button>` : ''}`
+        ? `<button class="btn ghost" id="g-trv" aria-label="Travar a tela">${GPS_IC.trava}</button><button class="btn grow gps-pausa" id="g-pau">Pausar</button>${passos.length && passoAtual() ? `<button class="btn ghost" id="g-pul">Pular ›</button>` : ''}`
         : `<button class="btn grow gps-go" id="g-con">${I.play} Continuar</button><button class="btn ghost grow" id="g-fim">Terminar</button>`;
     $('g-dica').textContent = E === 'pronto' ? (gpsOk ? 'Fique em um lugar aberto. Toque em Começar quando for sair.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Ao ar livre o GPS acha o sinal mais rápido.') : E === 'pausado' ? (recuperado && !marcaMov ? 'Treino recuperado. Toque em Continuar para seguir.' : 'Treino pausado.') : 'Mantenha a tela ligada.';
     liga();
@@ -4364,7 +4369,7 @@ async function viewGps(id) {
   // tela apagou e voltou: GPS e tela acesa de novo; o tempo corre certo porque é pelo relógio do aparelho
   const onVis = () => { if (document.visibilityState === 'visible') { ultimo = null; if (st.estado === 'correndo') pedirTela(); desenha(); } else salvar(); };
   document.addEventListener('visibilitychange', onVis);
-  $('g-voz').onclick = () => { st.voz = !st.voz; $('g-voz').textContent = st.voz ? '🔊' : '🔇'; salvar(); };
+  $('g-voz').onclick = () => { st.voz = !st.voz; $('g-voz').innerHTML = st.voz ? GPS_IC.som : GPS_IC.mudo; salvar(); };
   $('g-sair').onclick = () => {
     if (st.estado === 'pronto') { encerrar(); location.hash = '#/gps'; return; }
     if (st.estado === 'correndo' && !confirm('Sair da tela do treino? Ele fica pausado e você pode continuar depois em Conexões → Treinar pelo celular.')) return;
