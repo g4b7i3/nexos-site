@@ -2355,8 +2355,8 @@ const CARD_STATS = [['dist', 'Distância'], ['pace', 'Pace'], ['tempo', 'Tempo']
 // modelos do card (inspirados nos stickers de corrida, com a cara da Nexos)
 const CARD_LAYOUTS = [
   ['classico', 'Coluna'], ['faixa', 'Faixa'], ['percurso', 'Percurso'], ['lado', 'Lado a lado'], ['mapa', 'Só o mapa'],
-  ['sobre', 'Mapa + números'], ['tabela', 'Ficha'], ['ficha_mapa', 'Ficha + mapa'], ['lateral', 'Vertical'], ['pilulas', 'Etiquetas'],
-  ['parciais', 'Parciais'], ['recibo', 'Recibo'], ['destaque', 'Destaque'], ['linha', 'Na foto'],
+  ['sobre', 'Mapa + números'], ['tabela', 'Ficha'], ['ficha_mapa', 'Ficha + mapa'], ['lateral', 'Diagonal'], ['pilulas', 'Número de peito'],
+  ['parciais', 'Parciais'], ['recibo', 'Medalha'], ['destaque', 'Destaque'], ['linha', 'Na foto'],
 ];
 const cardCarregarImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
 const CARD_IMGS = {};
@@ -2417,10 +2417,10 @@ async function desenharCard(cv, c, o) {
   const larg = (t, font, esp = 0) => { ctx.save(); ctx.font = font; if ('letterSpacing' in ctx) ctx.letterSpacing = esp + 'px'; const w = ctx.measureText(t).width; ctx.restore(); return w; };
   const V = cardValores(c);
   const sel = ['dist', 'pace', 'tempo', 'fc', 'elev', 'cad', 'kcal'].filter((k) => o.stats[k] && V[k]).map((k) => V[k]);
-  const VAL = (px) => `800 ${px}px ${FB}`, LBL = (px) => `700 ${px}px ${FB}`;
+  const VAL = (px) => `700 ${Math.round(px * .84)}px ${FH}`, LBL = (px) => `700 ${px}px ${FB}`;
   // rótulo pequeno + número grande (unidade menor ao lado)
   const stat = (s, x, y, px, al = 'center', caixa = false) => {
-    const fu = `700 ${Math.round(px * .42)}px ${FB}`, ev = -px * .02;
+    const fu = `700 ${Math.round(px * .42)}px ${FB}`, ev = -px * .035;
     const wv = larg(s.v, VAL(px), ev), wu = s.u ? larg(s.u, fu) + px * .12 : 0, tot = wv + wu;
     const x0 = al === 'center' ? x - tot / 2 : al === 'right' ? x - tot : x;
     txt(caixa ? s.l.toUpperCase() : s.l, al === 'center' ? x : al === 'right' ? x : x0, y, LBL(Math.max(24, Math.round(px * .34))), sub, al, caixa ? px * .05 : 0);
@@ -2448,6 +2448,14 @@ async function desenharCard(cv, c, o) {
   const temRota = o.stats.rota && c.rota && c.rota.length > 1;
   const rota = (x, y, w, h, lw = 9, br = false) => temRota && cardRota(ctx, c.rota, x, y, w, h, AC, lw, br);
   const L = o.layout;
+  const assinatura = () => {
+    // as três faixas diagonais da Nexos no canto superior direito
+    ctx.save(); const bx = W - 70, by = post ? 66 : 96, hh = 54;
+    [0, 1, 2].forEach((k) => { ctx.globalAlpha = 1 - k * .32; ctx.fillStyle = AC; ctx.beginPath(); const x0 = bx - 150 + k * 46; ctx.moveTo(x0, by + hh); ctx.lineTo(x0 + 30, by + hh); ctx.lineTo(x0 + 58, by); ctx.lineTo(x0 + 28, by); ctx.closePath(); ctx.fill(); });
+    ctx.restore();
+    // selo da marca na base
+    if (L !== 'linha') txt('NEXOS · PERFORMANCE E SAÚDE', W / 2, H - (post ? 44 : 64), `500 22px ${FM}`, sub, 'center', 6);
+  };
 
   if (L === 'classico') { // coluna centrada: percurso, números e logo
     const px = post ? 84 : 100, passo = px * 1.95, hR = temRota ? (post ? 250 : 340) : 0;
@@ -2502,34 +2510,40 @@ async function desenharCard(cv, c, o) {
       const a = x0 + larg(s.l, `600 ${fs}px ${FB}`) + 22, b = x1 - larg(vt, `800 ${fs}px ${FB}`) - 22;
       ctx.save(); ctx.fillStyle = sub; for (let xx = a; xx < b; xx += 15) { ctx.beginPath(); ctx.arc(xx, y - fs * .32, 2.6, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
     });
-  } else if (L === 'lateral') { // números na vertical, colados na borda direita
-    if (wm) logo(140, post ? 110 : 180, 220, 'left');
-    rota(120, H * .3, W * .55, H * .42, 12);
-    const lista = sel.slice(0, 6), pares = []; for (let i = 0; i < lista.length; i += 2) pares.push(lista.slice(i, i + 2));
-    const blocoH = (H - (post ? 200 : 320)) / Math.max(1, pares.length);
-    pares.forEach((par, i) => {
-      ctx.save(); ctx.translate(W - 150, H - (post ? 100 : 160) - i * blocoH); ctx.rotate(-Math.PI / 2);
-      par.forEach((s, j) => { const yy = j * 64; txt(s.l, 0, yy, LBL(34), sub, 'left'); txt(s.v + (s.u ? ' ' + s.u : ''), 230, yy, `800 40px ${FB}`, tx, 'left'); });
-      ctx.restore();
-    });
-  } else if (L === 'pilulas') { // etiquetas arredondadas (estilo número de peito)
-    const linhas = [];
-    const p1 = [{ t: 'NEXOS', logo: true }, { t: `${dt.getDate()} ${MESES[dt.getMonth()].toUpperCase()} ${dt.getFullYear()}` }, { t: '', sim: true }];
-    linhas.push(p1);
-    const tags = sel.slice(0, 6).map((s) => ({ t: `${s.l.toUpperCase()} ${s.v}${s.u ? ' ' + s.u.toUpperCase() : ''}` }));
-    for (let i = 0; i < tags.length; i += 2) linhas.push(tags.slice(i, i + 2));
-    const fs = 42, ph = 100, gap = 16; let y = (H - linhas.length * (ph + gap)) / 2;
-    linhas.forEach((ln) => {
-      const ws = ln.map((p) => (p.logo ? 260 : p.sim ? 140 : larg(p.t, `600 ${fs}px ${FB}`, 1) + 64));
-      let x = (W - (ws.reduce((a, b) => a + b, 0) + gap * (ln.length - 1))) / 2;
-      ln.forEach((p, i) => {
-        ctx.save(); ctx.strokeStyle = tx; ctx.globalAlpha = .9; ctx.lineWidth = 3; ret(ctx, x, y, ws[i], ph, ph / 2); ctx.stroke(); ctx.restore();
-        if (p.logo) logo(x + ws[i] / 2, y + ph / 2 - 17, 180); else if (p.sim) simbolo(x + ws[i] / 2, y + ph / 2 - 22, 92);
-        else txt(p.t, x + ws[i] / 2, y + ph / 2 + fs * .36, `600 ${fs}px ${FB}`, tx, 'center', 1);
-        x += ws[i] + gap;
-      });
-      y += ph + gap;
-    });
+  } else if (L === 'lateral') { // faixa diagonal da marca atravessando o card, com os números dentro
+    rota(W / 2 - 230, post ? 120 : 210, 460, post ? 330 : 470, 10);
+    const yc = H * (post ? .58 : .56), bh = post ? 330 : 380, inc = 140;
+    ctx.save(); ctx.translate(0, yc);
+    const g = ctx.createLinearGradient(0, 0, W, 0); g.addColorStop(0, branco ? 'rgba(70,214,255,.22)' : 'rgba(11,98,214,.14)'); g.addColorStop(1, branco ? 'rgba(47,107,255,.32)' : 'rgba(11,98,214,.24)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-40, -bh / 2 + inc / 2); ctx.lineTo(W + 40, -bh / 2 - inc / 2); ctx.lineTo(W + 40, bh / 2 - inc / 2); ctx.lineTo(-40, bh / 2 + inc / 2); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = AC; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-40, -bh / 2 + inc / 2); ctx.lineTo(W + 40, -bh / 2 - inc / 2); ctx.stroke();
+    ctx.rotate(-Math.atan2(inc, W + 80));
+    const lista = sel.slice(0, 3), cw = (W - 120) / Math.max(1, lista.length);
+    lista.forEach((s, k) => stat(s, 60 + cw * k + cw / 2, -40, post ? 64 : 70, 'center', true));
+    ctx.restore();
+    if (dataTxt) txt(dataTxt, W / 2, yc + bh / 2 + 90, LBL(26), sub, 'center', 4);
+    simbolo(W / 2, H - (post ? 290 : 400), 150); logo(W / 2, H - (post ? 200 : 300), 260);
+  } else if (L === 'pilulas') { // número de peito: a "inscrição" da corrida
+    const bw = 820, bh = post ? 760 : 860, x = (W - bw) / 2, y = (H - bh) / 2 - (post ? 0 : 40);
+    ctx.save(); if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 30; }
+    ctx.fillStyle = branco ? 'rgba(255,255,255,.96)' : '#ffffff'; ret(ctx, x, y, bw, bh, 34); ctx.fill(); ctx.restore();
+    const faixa = 180; ctx.save(); ret(ctx, x, y, bw, bh, 34); ctx.clip();
+    const g = ctx.createLinearGradient(x, y, x + bw, y); g.addColorStop(0, '#0d2a5e'); g.addColorStop(1, '#143a7c'); ctx.fillStyle = g; ctx.fillRect(x, y, bw, faixa);
+    ctx.fillStyle = '#46d6ff'; for (let k = 0; k < 3; k++) { ctx.globalAlpha = 1 - k * .3; ctx.beginPath(); const sx = x + bw - 210 + k * 46; ctx.moveTo(sx, y + faixa); ctx.lineTo(sx + 30, y + faixa); ctx.lineTo(sx + 70, y); ctx.lineTo(sx + 40, y); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    // furos dos alfinetes
+    ctx.save(); ctx.fillStyle = branco ? 'rgba(0,0,0,.0)' : 'rgba(0,0,0,0)'; ctx.globalCompositeOperation = 'destination-out'; [[x + 46, y + 46], [x + bw - 46, y + 46], [x + 46, y + bh - 46], [x + bw - 46, y + bh - 46]].forEach(([a, b2]) => { ctx.beginPath(); ctx.arc(a, b2, 16, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); }); ctx.restore();
+    const wmB = await cardImg('icons/wordmark.svg'), simE = await cardImg('icons/simbolo-escuro.svg');
+    if (wmB) ctx.drawImage(wmB, x + 110, y + faixa / 2 - 26, 312, 312 * (937.1 / 5645));
+    const d0 = V.dist || sel[0];
+    const nb = d0 ? d0.v : '';
+    ctx.save(); ctx.font = `800 ${post ? 230 : 260}px ${FH}`; ctx.fillStyle = '#0b1834'; ctx.textAlign = 'center'; if ('letterSpacing' in ctx) ctx.letterSpacing = '-10px'; ctx.fillText(nb, W / 2, y + faixa + (post ? 300 : 340)); ctx.restore();
+    ctx.save(); ctx.font = `800 44px ${FB}`; ctx.fillStyle = '#0b62d6'; ctx.textAlign = 'center'; if ('letterSpacing' in ctx) ctx.letterSpacing = '12px'; ctx.fillText('KM', W / 2, y + faixa + (post ? 380 : 430)); ctx.restore();
+    const resto = sel.filter((s) => s !== d0).slice(0, 3); const cw = (bw - 120) / Math.max(1, resto.length);
+    resto.forEach((s, k) => { const cx = x + 60 + cw * k + cw / 2, yy = y + bh - (post ? 150 : 170);
+      ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(11,24,52,.55)'; ctx.font = `700 26px ${FB}`; if ('letterSpacing' in ctx) ctx.letterSpacing = '3px'; ctx.fillText(s.l.toUpperCase(), cx, yy); ctx.fillStyle = '#0b1834'; ctx.font = `700 52px ${FH}`; if ('letterSpacing' in ctx) ctx.letterSpacing = '-1px'; ctx.fillText(s.v + (s.u === '/km' ? '' : ''), cx, yy + 66); ctx.restore(); });
+    if (simE) { const w2 = 96; ctx.drawImage(simE, x + bw - 60 - w2, y + bh - 60 - w2 * (2333.5 / 5528.6), w2, w2 * (2333.5 / 5528.6)); }
+    ctx.save(); ctx.fillStyle = 'rgba(11,24,52,.45)'; ctx.font = `500 22px ${FM}`; if ('letterSpacing' in ctx) ctx.letterSpacing = '4px'; ctx.fillText(`${dt.getDate()} ${MESES[dt.getMonth()]} ${dt.getFullYear()}`, x + 60, y + bh - 50); ctx.restore();
   } else if (L === 'parciais') { // barras dos km (o mais rápido em destaque)
     const parc = (c.parciais || []).filter((p) => !p.parcial || p.km % 1 > .3).slice(0, post ? 16 : 24);
     const pk = (p) => p.seg / (p.parcial ? (p.km % 1 || 1) : 1);
@@ -2544,15 +2558,23 @@ async function desenharCard(cv, c, o) {
       txt(fmtPace(v).replace('/km', ''), W - 100, yy + lh * .62, `800 ${Math.round(lh * .5)}px ${FB}`, v === mn ? AC : tx, 'right');
     });
     logo(W / 2, y + parc.length * lh + 60, 240);
-  } else if (L === 'recibo') { // recibo com picote: dia da semana em destaque
-    const bw = 620, x = (W - bw) / 2, bh = post ? 700 : 760, y = (H - bh) / 2;
-    ctx.save(); ctx.strokeStyle = tx; ctx.lineWidth = 3; ctx.globalAlpha = .9; ctx.beginPath(); ctx.moveTo(x, y + bh); ctx.lineTo(x, y); ctx.lineTo(x + bw, y); ctx.lineTo(x + bw, y + bh);
-    const dentes = 12, dw = bw / dentes; for (let i = dentes; i > 0; i--) { ctx.lineTo(x + (i - .5) * dw, y + bh - 22); ctx.lineTo(x + (i - 1) * dw, y + bh); } ctx.stroke(); ctx.restore();
-    let yy = y + 90; logo(W / 2, yy, 260); yy += 110;
-    simbolo(W / 2, yy, 150); yy += 110;
-    txt(DIAS_LONGOS[dt.getDay()], W / 2, yy + 80, `700 92px ${FH}`, tx, 'center', -2); yy += 140;
-    txt(`${dt.getDate()} de ${MESES[dt.getMonth()].toLowerCase()}.`, W / 2, yy, `600 36px ${FB}`, sub, 'center');
-    const d0 = sel[0]; if (d0) { yy += 90; txt(`${d0.v}${d0.u ? ' ' + d0.u : ''}`, W / 2, yy, `800 58px ${FB}`, AC, 'center'); }
+  } else if (L === 'recibo') { // medalha: fita em V e o disco com a distância
+    const cx = W / 2, cy = H * (post ? .56 : .54), R0 = post ? 250 : 280;
+    ctx.save(); // fita
+    const fita = (lado, cor) => { ctx.fillStyle = cor; ctx.beginPath(); ctx.moveTo(cx + lado * 40, cy - R0 + 20); ctx.lineTo(cx + lado * 260, cy - R0 - (post ? 420 : 560)); ctx.lineTo(cx + lado * 120, cy - R0 - (post ? 420 : 560)); ctx.lineTo(cx - lado * 60, cy - R0 + 30); ctx.closePath(); ctx.fill(); };
+    fita(-1, '#143a7c'); fita(1, '#46d6ff');
+    ctx.restore();
+    ctx.save(); if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 30; }
+    const gm = ctx.createRadialGradient(cx - R0 * .3, cy - R0 * .3, R0 * .1, cx, cy, R0); gm.addColorStop(0, '#e9f6ff'); gm.addColorStop(.6, '#9fd8f5'); gm.addColorStop(1, '#4aa7da');
+    ctx.fillStyle = gm; ctx.beginPath(); ctx.arc(cx, cy, R0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = 'rgba(11,24,52,.25)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, R0 - 26, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    const simE = await cardImg('icons/simbolo-escuro.svg'); if (simE) ctx.drawImage(simE, cx - 70, cy - R0 + 60, 140, 140 * (2333.5 / 5528.6));
+    const d0 = V.dist || sel[0];
+    if (d0) { ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = '#0b1834'; ctx.font = `800 ${R0 * .52}px ${FH}`; if ('letterSpacing' in ctx) ctx.letterSpacing = '-6px'; ctx.fillText(d0.v, cx, cy + R0 * .16); ctx.font = `800 34px ${FB}`; ctx.fillStyle = '#0b62d6'; if ('letterSpacing' in ctx) ctx.letterSpacing = '10px'; ctx.fillText((d0.u || '').toUpperCase(), cx, cy + R0 * .36); ctx.restore(); }
+    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(11,24,52,.6)'; ctx.font = `600 26px ${FM}`; if ('letterSpacing' in ctx) ctx.letterSpacing = '4px'; ctx.fillText(`${DIAS_LONGOS[dt.getDay()].toUpperCase()} · ${dt.getDate()} ${MESES[dt.getMonth()]}`, cx, cy + R0 * .62); ctx.restore();
+    const resto = sel.filter((s) => s !== d0).slice(0, 2); const yy = cy + R0 + (post ? 90 : 130);
+    resto.forEach((s, k) => stat(s, resto.length > 1 ? W / 2 + (k ? 200 : -200) : W / 2, yy, 70, 'center'));
+    logo(W / 2, H - (post ? 130 : 220), 260);
   } else if (L === 'destaque') { // um número gigante e o resto pequeno embaixo
     const prim = sel[0], resto = sel.slice(1);
     let y = H * (post ? .26 : .3);
@@ -2576,6 +2598,7 @@ async function desenharCard(cv, c, o) {
     ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.35)' : 'rgba(11,24,52,.2)'; ctx.fillRect(80, y - 40, W - 160, 2); ctx.restore();
     grade(lista, y + 10, px, 80, W - 80, 3, 'left');
   }
+  assinatura();
 }
 async function abrirCardCorrida(c) {
   try { await Promise.all(["800 100px 'Unbounded'", "700 40px 'Manrope'"].map((f) => document.fonts.load(f))); } catch {}
