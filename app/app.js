@@ -784,7 +784,14 @@ async function alunoHoje() {
     const v = e.target.closest('[data-ver]'); if (v) { const p = corrDoDia.find((x) => x.id === v.dataset.ver); return verTreinoPlanilha(p, perfC, corrHoje.find((c) => c.plano_id === p.id)); }
   };
   const rh = document.getElementById('reg-home'); if (rh) rh.onclick = () => registrarCorrida(S.user.id, () => alunoHoje());
-  const cn = document.getElementById('card-nova'); if (cn) cn.onclick = () => abrirCardCorrida(corrNova);
+  const cn = document.getElementById('card-nova'); if (cn) cn.onclick = async () => {
+    let c = corrNova, plano = null;
+    try {
+      const { data: full } = await sb.from('nx_corridas').select('*').eq('id', corrNova.id).maybeSingle(); if (full) c = full;
+      if (c.plano_id) plano = (await sb.from('nx_plano_corrida').select('*').eq('id', c.plano_id).maybeSingle()).data || null;
+    } catch {}
+    abrirCardCorrida(c, plano);
+  };
   const tc = document.getElementById('termo-corr'); if (tc) tc.onclick = () => termometroCorrida(semNota, () => alunoHoje());
   let jaAvisou = true; try { jaAvisou = !!(semNota && (localStorage.getItem('nx-pop-' + semNota.id) || sessionStorage.getItem('nx-pop-' + semNota.id))); } catch {}
   if (semNota && !jaAvisou) setTimeout(() => {
