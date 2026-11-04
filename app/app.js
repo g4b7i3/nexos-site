@@ -5409,9 +5409,10 @@ async function staffFeed() {
    - Plotkin et al. 2023 (Front Physiol): elevação pélvica e agachamento dão glúteo parecido; agachamento dá mais coxa.
    - Wewege et al. 2021 (Sports Med): só musculação já reduz ~1,4% de gordura corporal; melhor resultado = força + aeróbio + alimentação.
    - Llanos-Lagos et al. 2024 (Sports Med): para corredores, força pesada (≥80% 1RM), pliometria e a combinação melhoram a economia de corrida.
-   - Lauersen et al. 2014 (BJSM): treino de força reduz lesões esportivas para menos de 1/3. */
+   - Lauersen et al. 2014 (BJSM): treino de força reduz lesões esportivas para menos de 1/3.
+   - Rønnestad et al. 2011 (JSCR): 1 sessão de força por semana mantém os ganhos na temporada; a cada 2 semanas, não. */
 const NIVEIS_FORCA = [['ini', 'Iniciante'], ['int', 'Intermediário'], ['ava', 'Avançado']];
-const CATS_FORCA = [['hipertrofia', 'Hipertrofia'], ['emagrecimento', 'Emagrecimento'], ['forca', 'Força máxima'], ['corredor', 'Força para corredores'], ['saude', 'Saúde e longevidade']];
+const CATS_FORCA = [['hipertrofia', 'Hipertrofia'], ['gluteo', 'Glúteos e pernas'], ['emagrecimento', 'Emagrecimento'], ['forca', 'Força máxima'], ['corredor', 'Força para corredores'], ['casa', 'Em casa'], ['saude', 'Saúde e longevidade']];
 const GUIA_FORCA = {
   ini: ['2 a 3 treinos por semana, corpo inteiro, com pelo menos 1 dia de descanso entre eles.', 'Pare cada série com 2–3 repetições sobrando: técnica primeiro, falha não é necessária.', 'Quando fizer o topo da faixa de repetições em todas as séries, aumente a carga (2–5%).', 'Descanso de 1 a 2 minutos. Amplitude completa em todos os exercícios.'],
   int: ['3 a 4 treinos por semana, cada músculo pelo menos 2 vezes.', 'Cerca de 10–15 séries por músculo na semana. Compostos pesados com 2–3 reps sobrando; isoladores podem chegar a 0–1.', 'Descanso de 1,5 a 3 min nos compostos e 1 a 1,5 min nos isoladores.', 'Anote as cargas: progredir carga ou repetições toda semana é o que faz evoluir.'],
@@ -5420,7 +5421,7 @@ const GUIA_FORCA = {
 const _F = (nome, series, repeticoes, descanso_seg, observacao) => ({ nome, series, repeticoes, descanso_seg, observacao: observacao || null });
 const BIB_FORCA = [
   /* ---------- HIPERTROFIA ---------- */
-  { id: 'hip-ini', cat: 'hipertrofia', niv: 'ini', nome: 'Hipertrofia · Corpo inteiro', freq: '3x por semana, alternando A e B',
+  { id: 'hip-ini', cat: 'hipertrofia', niv: 'ini', nome: 'Hipertrofia · Corpo inteiro', freq: '3x por semana, em sequência A → B → C',
     info: 'Corpo inteiro 3x por semana: cada músculo é treinado com frequência, que é o que mais rende para quem está começando. Faixa de 8–15 repetições, parando com 2–3 sobrando (ACSM 2026).',
     treinos: [
       { titulo: 'Treino A', foco: 'Corpo inteiro', itens: [
@@ -5441,6 +5442,15 @@ const BIB_FORCA = [
         _F('Rosca alternada com halteres no banco inclinado', 2, '10–12', 60, 'Banco inclinado alonga o bíceps.'),
         _F('Tríceps francês no cabo com corda', 2, '10–12', 60, 'Braços acima da cabeça: cresce mais que o pulley.'),
         _F('Dead bug', 2, '8 cada lado', 45),
+      ] },
+      { titulo: 'Treino C', foco: 'Corpo inteiro', itens: [
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '10 cada perna', 90, 'Búlgaro: comece só com o peso do corpo se precisar.'),
+        _F('Puxada frontal com pegada supinada', 3, '10–12', 90),
+        _F('Supino reto na máquina', 3, '10–12', 90),
+        _F('Levantamento terra romeno', 3, '10–12', 90, 'Barra perto das pernas, coluna neutra.'),
+        _F('Remada unilateral com halter (serrote)', 2, '10–12 cada lado', 75),
+        _F('Panturrilha em pé com halteres', 2, '12–15', 60, 'Pausa embaixo, com a panturrilha alongada.'),
+        _F('Pallof press', 2, '10 cada lado', 45),
       ] },
     ] },
   { id: 'hip-int', cat: 'hipertrofia', niv: 'int', nome: 'Hipertrofia · Superior e inferior', freq: '4x por semana (Sup A, Inf A, Sup B, Inf B)',
@@ -5518,7 +5528,7 @@ const BIB_FORCA = [
     ] },
 
   /* ---------- EMAGRECIMENTO ---------- */
-  { id: 'ema-ini', cat: 'emagrecimento', niv: 'ini', nome: 'Emagrecimento · Circuito corpo inteiro', freq: '3x por semana + caminhada ou corrida leve',
+  { id: 'ema-ini', cat: 'emagrecimento', niv: 'ini', nome: 'Emagrecimento · Circuito corpo inteiro', freq: '3x por semana (A, B e C) + caminhada ou corrida leve',
     info: 'Circuito: faça um exercício atrás do outro com 30–45 s de pausa e descanse 2 min ao fim de cada volta. Só musculação já reduz ~1,4% de gordura (Wewege 2021); o melhor resultado vem de força + aeróbio + alimentação, preservando músculo.',
     treinos: [
       { titulo: 'Treino A', foco: 'Circuito corpo inteiro (3 voltas)', itens: [
@@ -5539,8 +5549,17 @@ const BIB_FORCA = [
         _F('Remo ergométrico', 3, '1 min', 40, 'Ritmo moderado a forte.'),
         _F('Dead bug', 3, '8 cada lado', 120, 'Ao fim da volta, descanse 2 min.'),
       ] },
+      { titulo: 'Treino C', foco: 'Circuito corpo inteiro (3 voltas)', itens: [
+        _F('Subida no banco com halteres', 3, '10 cada perna', 40),
+        _F('Supino reto com halteres', 3, '12', 40),
+        _F('Puxada frontal com pegada supinada', 3, '12', 40),
+        _F('Stiff com halteres', 3, '12', 40),
+        _F('Elevação lateral com halteres', 3, '12–15', 40),
+        _F('Bicicleta ergométrica', 3, '1 min', 40, 'Ritmo moderado a forte.'),
+        _F('Prancha lateral', 3, '20–30 s cada lado', 120, 'Ao fim da volta, descanse 2 min.'),
+      ] },
     ] },
-  { id: 'ema-int', cat: 'emagrecimento', niv: 'int', nome: 'Emagrecimento · Bi-séries + finalizador', freq: '3 a 4x por semana + aeróbio',
+  { id: 'ema-int', cat: 'emagrecimento', niv: 'int', nome: 'Emagrecimento · Bi-séries + finalizador', freq: '3x por semana (A, B e C) + aeróbio',
     info: 'Bi-séries de músculos opostos: o treino fica mais denso e curto sem perder o estímulo de força. No fim, um finalizador intervalado. Carga desafiadora: no déficit calórico, o treino pesado é o que segura a massa muscular.',
     treinos: [
       { titulo: 'Treino A', foco: 'Bi-séries corpo inteiro', itens: [
@@ -5560,6 +5579,15 @@ const BIB_FORCA = [
         _F('Subida no banco com halteres', 3, '10 cada perna', 30, 'Bi-série 3.'),
         _F('Desenvolvimento sentado com halteres', 3, '12', 90),
         _F('Remo ergométrico', 8, '20 s forte', 40, 'Finalizador: 20 s forte e 40 s leve.'),
+      ] },
+      { titulo: 'Treino C', foco: 'Bi-séries corpo inteiro', itens: [
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '10 cada perna', 30, 'Bi-série 1.'),
+        _F('Remada curvada com halteres', 3, '10', 90),
+        _F('Levantamento terra com barra hexagonal', 3, '8', 30, 'Bi-série 2.'),
+        _F('Flexão de braços', 3, '8–15', 90, 'Apoie os joelhos se precisar.'),
+        _F('Mesa flexora sentada', 3, '12', 30, 'Bi-série 3.'),
+        _F('Elevação lateral com halteres', 3, '15', 75),
+        _F('Bicicleta ergométrica', 8, '20 s forte', 40, 'Finalizador: 20 s forte e 40 s leve.'),
       ] },
     ] },
   { id: 'ema-ava', cat: 'emagrecimento', niv: 'ava', nome: 'Emagrecimento · Força + condicionamento', freq: '3x por semana (A, B e C) + aeróbio',
@@ -5591,7 +5619,7 @@ const BIB_FORCA = [
     ] },
 
   /* ---------- FORÇA MÁXIMA ---------- */
-  { id: 'for-ini', cat: 'forca', niv: 'ini', nome: 'Força · Base técnica', freq: '3x por semana, alternando A e B',
+  { id: 'for-ini', cat: 'forca', niv: 'ini', nome: 'Força · Base técnica', freq: '3x por semana, em sequência A → B → C',
     info: 'Progressão linear: mesmas séries de 5, subindo um pouco a carga a cada treino enquanto a técnica estiver perfeita. Força responde melhor a cargas altas (≥80% 1RM) e 2–3 séries (ACSM 2026). Falha não é necessária.',
     treinos: [
       { titulo: 'Treino A', foco: 'Agachamento e supino', itens: [
@@ -5607,6 +5635,13 @@ const BIB_FORCA = [
         _F('Barra fixa assistida com elástico', 3, '5–8', 120, 'Diminua a ajuda do elástico com o tempo.'),
         _F('Agachamento goblet', 2, '8', 90, 'Treino de técnica do agachamento.'),
         _F('Pallof press', 3, '10 cada lado', 60),
+      ] },
+      { titulo: 'Treino C', foco: 'Agachamento e supino (variação)', itens: [
+        _F('Agachamento livre com barra', 3, '5', 180, 'Mesma progressão do Treino A.'),
+        _F('Supino inclinado com halteres', 3, '6–8', 150),
+        _F('Remada unilateral com halter (serrote)', 3, '6–8 cada lado', 120),
+        _F('Levantamento terra romeno', 2, '6–8', 150, 'Reforça o posterior para o terra.'),
+        _F('Prancha lateral', 3, '30 s cada lado', 60),
       ] },
     ] },
   { id: 'for-int', cat: 'forca', niv: 'int', nome: 'Força · Pesado por movimento', freq: '3 a 4x por semana (A, B e C)',
@@ -5659,7 +5694,7 @@ const BIB_FORCA = [
     ] },
 
   /* ---------- FORÇA PARA CORREDORES ---------- */
-  { id: 'cor-ini', cat: 'corredor', niv: 'ini', nome: 'Corredor · Força e prevenção', freq: '2x por semana, longe dos treinos fortes de corrida',
+  { id: 'cor-ini', cat: 'corredor', niv: 'ini', nome: 'Corredor · Força e prevenção', freq: '2x por semana em rodízio A → B → C, longe dos treinos fortes de corrida',
     info: 'Base de força para correr: unilaterais, glúteo, posterior e panturrilha (a cada passada o chão devolve 2 a 3 vezes o peso do corpo, e a panturrilha é o músculo que mais trabalha). Treino de força reduz lesões esportivas para menos de 1/3 (Lauersen 2014).',
     treinos: [
       { titulo: 'Treino A', foco: 'Pernas e core', itens: [
@@ -5680,8 +5715,16 @@ const BIB_FORCA = [
         _F('Bird dog', 3, '8 cada lado', 45),
         _F('Pallof press', 2, '10 cada lado', 45),
       ] },
+      { titulo: 'Treino C', foco: 'Posterior, pé e quadril', itens: [
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '8 cada perna', 75),
+        _F('Levantamento terra romeno', 3, '8', 90),
+        _F('Panturrilha em pé com halteres', 3, '12 cada perna', 60, 'Uma perna por vez, descida em 3 s.'),
+        _F('Abdução de quadril com elástico', 2, '15 cada lado', 45),
+        _F('Elevação pélvica com barra', 3, '10', 75),
+        _F('Prancha', 3, '40 s', 45),
+      ] },
     ] },
-  { id: 'cor-int', cat: 'corredor', niv: 'int', nome: 'Corredor · Força pesada + saltos', freq: '2x por semana',
+  { id: 'cor-int', cat: 'corredor', niv: 'int', nome: 'Corredor · Força pesada + saltos', freq: '2x por semana em rodízio A → B → C',
     info: 'Força pesada (≥80% 1RM, poucas repetições) e pliometria melhoram a economia de corrida; a combinação dos dois teve o maior efeito, mas com evidência ainda fraca (Llanos-Lagos 2024). Cargas altas com poucas repetições quase não aumentam o peso do corpo.',
     treinos: [
       { titulo: 'Treino A', foco: 'Agachamento pesado + saltos', itens: [
@@ -5701,8 +5744,16 @@ const BIB_FORCA = [
         _F('Panturrilha sentado', 3, '10', 60),
         _F('Pallof press', 3, '10 cada lado', 45),
       ] },
+      { titulo: 'Treino C', foco: 'Unilateral pesado + elasticidade', itens: [
+        _F('Saltito unilateral com calcanhar ao glúteo', 3, '10 cada perna', 60, 'Contato rápido com o chão.'),
+        _F('Agachamento com afundo e pé elevado com halteres', 4, '5 cada perna', 120, 'Pesado.'),
+        _F('Levantamento terra unilateral com kettlebell', 3, '6 cada perna', 90),
+        _F('Elevação pélvica com barra', 3, '6', 120, 'Pesada.'),
+        _F('Panturrilha em pé na máquina', 4, '8', 75),
+        _F('Prancha lateral', 3, '30 s cada lado', 45),
+      ] },
     ] },
-  { id: 'cor-ava', cat: 'corredor', niv: 'ava', nome: 'Corredor · Força máxima + pliometria', freq: '2x por semana (1x na semana de prova)',
+  { id: 'cor-ava', cat: 'corredor', niv: 'ava', nome: 'Corredor · Força máxima + pliometria', freq: '2x por semana em rodízio A → B → C (1x na semana de prova)',
     info: 'Método de contraste: exercício pesado seguido de salto. É a combinação que mais melhorou a economia de corrida (Llanos-Lagos 2024), com efeito maior em quem corre mais rápido. Nunca na véspera de treino forte.',
     treinos: [
       { titulo: 'Treino A', foco: 'Contraste agachamento + salto', itens: [
@@ -5721,10 +5772,18 @@ const BIB_FORCA = [
         _F('Glute-ham raise no chão', 3, '5', 90),
         _F('Panturrilha sentado', 3, '8', 60),
       ] },
+      { titulo: 'Treino C', foco: 'Potência e reatividade', itens: [
+        _F('Power clean', 5, '2', 120, 'Técnica antes de carga.'),
+        _F('Salto em profundidade linear', 4, '4', 120),
+        _F('Elevação pélvica com barra', 4, '4–5', 150, 'Pesada.'),
+        _F('Salto com afundo alternado', 3, '6 cada perna', 90),
+        _F('Panturrilha em pé na máquina', 4, '6', 75, 'Bem pesada.'),
+        _F('Pallof press', 3, '10 cada lado', 45),
+      ] },
     ] },
 
   /* ---------- SAÚDE E LONGEVIDADE ---------- */
-  { id: 'sau-ini', cat: 'saude', niv: 'ini', nome: 'Saúde · Primeiros passos', freq: '2x por semana',
+  { id: 'sau-ini', cat: 'saude', niv: 'ini', nome: 'Saúde · Primeiros passos', freq: '2 a 3x por semana (A, B e C)',
     info: 'Para quem está começando ou voltando: máquinas e movimentos simples, 2 séries, longe da falha. 2 treinos por semana já trazem ganho real de força e função, e o treino de força está ligado a 10–17% menos risco de morte por todas as causas.',
     treinos: [
       { titulo: 'Treino A', foco: 'Máquinas, corpo inteiro', itens: [
@@ -5745,8 +5804,17 @@ const BIB_FORCA = [
         _F('Panturrilha em pé com halteres', 2, '12', 60),
         _F('Pallof press', 2, '10 cada lado', 45),
       ] },
+      { titulo: 'Treino C', foco: 'Máquinas e equilíbrio', itens: [
+        _F('Cadeira extensora', 2, '10–12', 75),
+        _F('Desenvolvimento de ombros na máquina', 2, '10–12', 75),
+        _F('Remada baixa no cabo', 2, '10–12', 75),
+        _F('Mesa flexora sentada', 2, '10–12', 75),
+        _F('Supino reto na máquina', 2, '10–12', 75),
+        _F('Panturrilha sentado', 2, '12–15', 60),
+        _F('Prancha', 2, '20–30 s', 45),
+      ] },
     ] },
-  { id: 'sau-int', cat: 'saude', niv: 'int', nome: 'Saúde · Força e potência', freq: '2 a 3x por semana',
+  { id: 'sau-int', cat: 'saude', niv: 'int', nome: 'Saúde · Força e potência', freq: '2 a 3x por semana (A, B e C)',
     info: 'Subir o peso o mais rápido possível (descer com controle) melhora velocidade de marcha, equilíbrio e subir escadas: é a recomendação mais forte para função (ACSM 2026). Mantenha 2–3 reps sobrando.',
     treinos: [
       { titulo: 'Treino A', foco: 'Força com subida rápida', itens: [
@@ -5765,8 +5833,16 @@ const BIB_FORCA = [
         _F('Arremesso de medicine ball no chão', 3, '6', 60),
         _F('Panturrilha em pé com halteres', 3, '12', 60),
       ] },
+      { titulo: 'Treino C', foco: 'Força e carregamento', itens: [
+        _F('Levantamento terra com barra hexagonal', 3, '6', 120, 'Suba rápido, desça com controle.'),
+        _F('Flexão de braços', 3, '6–12', 75, 'Mãos num banco se precisar.'),
+        _F('Remada unilateral com halter (serrote)', 3, '10 cada lado', 75),
+        _F('Subida no banco com halteres', 3, '8 cada perna', 75, 'Suba rápido.'),
+        _F('Kettlebell swing', 3, '10', 60),
+        _F('Pallof press', 3, '10 cada lado', 45),
+      ] },
     ] },
-  { id: 'sau-ava', cat: 'saude', niv: 'ava', nome: 'Saúde · Força total e potência', freq: '3x por semana',
+  { id: 'sau-ava', cat: 'saude', niv: 'ava', nome: 'Saúde · Força total e potência', freq: '3x por semana (A, B e C)',
     info: 'Para quem já treina há tempo e quer força, potência e independência física a longo prazo: levantamentos básicos, exercícios explosivos e carregamentos. Falha não é necessária, principalmente depois dos 60 anos.',
     treinos: [
       { titulo: 'Treino A', foco: 'Força e potência', itens: [
@@ -5786,9 +5862,267 @@ const BIB_FORCA = [
         _F('Pallof press', 3, '10 cada lado', 45),
         _F('Panturrilha em pé com halteres', 3, '10', 60),
       ] },
+      { titulo: 'Treino C', foco: 'Força pesada e core', itens: [
+        _F('Agachamento frontal com barra', 4, '5', 180),
+        _F('Desenvolvimento militar com barra em pé', 3, '5', 150),
+        _F('Levantamento terra romeno', 3, '6', 150),
+        _F('Barra fixa com peso', 3, '5', 150),
+        _F('Salto frontal na caixa', 3, '3', 90),
+        _F('Roda abdominal', 3, '8', 60),
+      ] },
+    ] },
+  /* ---------- EM CASA ---------- */
+  { id: 'casa-ini', cat: 'casa', niv: 'ini', nome: 'Em casa · Peso do corpo', freq: '3x por semana (A, B e C)',
+    info: 'Sem academia: peso do corpo, uma cadeira firme e, se tiver, um elástico. Elásticos e peso do corpo dão ganhos de força e massa parecidos com os do treino convencional quando a série é feita perto da falha (ACSM 2026).',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Corpo inteiro', itens: [
+        _F('Agachamento livre com peso do corpo', 3, '12–20', 60, 'Desça devagar (3 s).'),
+        _F('Flexão de braço inclinada', 3, '8–15', 60, 'Mãos na cadeira ou na mesa.'),
+        _F('Ponte de glúteos', 3, '15–20', 45, 'Segure 2 s em cima.'),
+        _F('Abertura com elástico (pull apart)', 3, '15', 45),
+        _F('Superman', 2, '10', 45),
+        _F('Prancha', 3, '30 s', 45),
+      ] },
+      { titulo: 'Treino B', foco: 'Corpo inteiro', itens: [
+        _F('Avanço para trás com halteres', 3, '10 cada perna', 60, 'Sem halteres, use mochila com livros.'),
+        _F('Mergulho no banco', 3, '8–12', 60, 'Use uma cadeira firme.'),
+        _F('Elevação pélvica com elástico', 3, '15', 45),
+        _F('Desenvolvimento de ombros com elástico', 3, '12', 45),
+        _F('Dead bug', 3, '8 cada lado', 45),
+        _F('Polichinelo', 3, '30 s', 30),
+      ] },
+      { titulo: 'Treino C', foco: 'Corpo inteiro', itens: [
+        _F('Subida no banco com elevação de joelho', 3, '10 cada perna', 60, 'Degrau ou cadeira baixa.'),
+        _F('Flexão de braços', 3, 'máximo com boa técnica', 75, 'Joelhos no chão se precisar.'),
+        _F('Ponte de glúteos unilateral', 3, '10 cada perna', 45),
+        _F('Crucifixo inverso com elástico', 3, '15', 45),
+        _F('Bird dog', 3, '8 cada lado', 45),
+        _F('Prancha lateral', 2, '20–30 s cada lado', 45),
+      ] },
+    ] },
+  { id: 'casa-int', cat: 'casa', niv: 'int', nome: 'Em casa · Elásticos e halteres', freq: '3 a 4x por semana (A, B e C)',
+    info: 'Com um par de halteres (ou galões de água) e elásticos dá para treinar todo o corpo com carga. Quando ficar fácil, use mais repetições, desça mais devagar ou faça uma perna por vez: o importante é a série terminar perto da falha.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Pernas e empurrar', itens: [
+        _F('Agachamento goblet', 4, '10–15', 75, 'Desça em 3 s.'),
+        _F('Supino reto com halteres', 3, '10–15', 75, 'No chão ou num banco.'),
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '10 cada perna', 75, 'Pé de trás no sofá.'),
+        _F('Desenvolvimento sentado com halteres', 3, '10–12', 60),
+        _F('Tríceps francês sentado com halter', 3, '10–12', 60),
+        _F('Prancha', 3, '45 s', 45),
+      ] },
+      { titulo: 'Treino B', foco: 'Puxar e posterior', itens: [
+        _F('Stiff com halteres', 4, '10–12', 75),
+        _F('Remada curvada com halteres', 3, '10–12', 75),
+        _F('Remada unilateral com halter (serrote)', 3, '10–12 cada lado', 60),
+        _F('Elevação pélvica com elástico', 3, '15', 60),
+        _F('Rosca alternada com halteres no banco inclinado', 3, '10–12', 60, 'Encostado num sofá reclinado.'),
+        _F('Dead bug', 3, '8 cada lado', 45),
+      ] },
+      { titulo: 'Treino C', foco: 'Corpo inteiro', itens: [
+        _F('Subida no banco com halteres', 3, '10 cada perna', 75),
+        _F('Flexão de braços', 3, 'máximo − 2', 75),
+        _F('Agachamento com elástico (alças)', 3, '15', 60),
+        _F('Crucifixo inverso com elástico', 3, '15', 45),
+        _F('Elevação lateral com elástico', 3, '15', 45),
+        _F('Rosca martelo com halteres', 2, '12', 45),
+        _F('Kettlebell swing', 4, '15', 45, 'Um halter segurado pelas duas mãos funciona.'),
+      ] },
+    ] },
+  { id: 'casa-ava', cat: 'casa', niv: 'ava', nome: 'Em casa · Calistenia avançada', freq: '4x por semana (A, B, C e repete)',
+    info: 'Peso do corpo em variações difíceis: unilaterais, excêntricas lentas e saltos. Precisa de uma barra fixa. Progrida trocando para a variação mais difícil quando passar de ~15 repetições.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Empurrar e pernas', itens: [
+        _F('Flexão de braços com pés elevados', 4, '8–15', 90),
+        _F('Agachamento unilateral no caixote alto', 4, '6–10 cada perna', 90, 'Desça até sentar no caixote, em 3 s.'),
+        _F('Paralelas para tríceps', 3, '8–12', 90, 'Entre duas cadeiras firmes.'),
+        _F('Flexão de braço em parada de mão', 3, '3–8', 120, 'Contra a parede; comece com pike.'),
+        _F('Salto com afundo alternado', 3, '8 cada perna', 60),
+      ] },
+      { titulo: 'Treino B', foco: 'Puxar e posterior', itens: [
+        _F('Barra fixa', 4, '6–12', 120, 'Desça em 3 s.'),
+        _F('Glute-ham raise natural', 3, '4–6', 120, 'Flexão nórdica com os pés presos no sofá.'),
+        _F('Barra fixa supinada', 3, '6–10', 90),
+        _F('Ponte de glúteos unilateral', 3, '12–15 cada perna', 60, 'Ombros no sofá.'),
+        _F('Elevação de pernas suspenso na barra', 3, '8–12', 60),
+      ] },
+      { titulo: 'Treino C', foco: 'Potência e core', itens: [
+        _F('Flexão pliométrica', 4, '5', 90),
+        _F('Agachamento com salto sem peso', 4, '6', 90, 'Salto máximo, aterrisse macio.'),
+        _F('Flexão de braço unilateral', 3, '3–6 cada lado', 90, 'Mão num banco para facilitar.'),
+        _F('Burpee', 4, '10', 60),
+        _F('Rastejar de aranha', 3, '10 m', 45),
+        _F('Prancha lateral', 3, '45 s cada lado', 45),
+      ] },
+    ] },
+
+  /* ---------- GLÚTEOS E PERNAS ---------- */
+  { id: 'glu-ini', cat: 'gluteo', niv: 'ini', nome: 'Glúteos e pernas · Base', freq: '3x por semana (A, B e C)',
+    info: 'Foco em glúteos e pernas, com o resto do corpo em menor volume. Elevação pélvica e agachamento crescem o glúteo de forma parecida; o agachamento ainda trabalha mais a coxa (Plotkin 2023), por isso os dois entram.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Glúteo e quadríceps', itens: [
+        _F('Agachamento goblet', 3, '10–12', 90),
+        _F('Elevação pélvica com barra', 3, '10–12', 90, 'Segure 1 s em cima.'),
+        _F('Cadeira abdutora', 3, '15', 60),
+        _F('Leg press', 3, '12', 90, 'Pés mais altos na plataforma pegam mais glúteo.'),
+        _F('Puxada frontal pegada aberta', 2, '12', 75),
+        _F('Prancha', 3, '30 s', 45),
+      ] },
+      { titulo: 'Treino B', foco: 'Glúteo e posterior', itens: [
+        _F('Stiff com halteres', 3, '10–12', 90),
+        _F('Ponte de glúteos unilateral', 3, '10 cada perna', 60),
+        _F('Mesa flexora sentada', 3, '12', 75),
+        _F('Avanço para trás com halteres', 3, '10 cada perna', 75),
+        _F('Supino reto com halteres', 2, '12', 75),
+        _F('Panturrilha em pé com halteres', 2, '15', 45),
+      ] },
+      { titulo: 'Treino C', foco: 'Glúteo médio e unilateral', itens: [
+        _F('Subida no banco com halteres', 3, '10 cada perna', 75),
+        _F('Monster walk (caminhada com elástico)', 3, '12 passos cada lado', 45),
+        _F('Coice no cabo unilateral', 3, '12 cada perna', 60),
+        _F('Agachamento plié com halter', 3, '12', 75, 'Pés afastados, desça fundo.'),
+        _F('Remada baixa no cabo', 2, '12', 75),
+        _F('Dead bug', 3, '8 cada lado', 45),
+      ] },
+    ] },
+  { id: 'glu-int', cat: 'gluteo', niv: 'int', nome: 'Glúteos e pernas · Volume', freq: '3 a 4x por semana (A, B e C)',
+    info: 'Cerca de 12–16 séries de glúteo na semana, com cargas mais altas nos compostos e mais repetições nos isoladores. Os exercícios com o quadril bem flexionado (búlgaro, stiff, agachamento fundo) alongam o glúteo sob carga.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Agachamento e glúteo', itens: [
+        _F('Agachamento livre com barra', 4, '6–10', 150, 'Fundo, até onde a técnica permitir.'),
+        _F('Elevação pélvica com barra', 4, '8–12', 120),
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '8–10 cada perna', 90, 'Tronco levemente inclinado à frente.'),
+        _F('Cadeira abdutora', 3, '15–20', 60, 'Tronco inclinado à frente pega mais glúteo.'),
+        _F('Elevação de pernas suspenso na barra', 3, '10–12', 60),
+      ] },
+      { titulo: 'Treino B', foco: 'Posterior e glúteo', itens: [
+        _F('Levantamento terra romeno', 4, '6–10', 150),
+        _F('Mesa flexora sentada', 3, '10–12', 75),
+        _F('Extensão lombar no banco', 3, '12–15', 60, 'Costas arredondadas e foco em apertar o glúteo.'),
+        _F('Pull through no cabo', 3, '12–15', 60),
+        _F('Puxada frontal pegada aberta', 3, '10–12', 75),
+        _F('Desenvolvimento sentado com halteres', 2, '10–12', 75),
+      ] },
+      { titulo: 'Treino C', foco: 'Unilateral e quadríceps', itens: [
+        _F('Leg press', 4, '10–12', 120, 'Pés altos e afastados.'),
+        _F('Avanço com halteres', 3, '10 cada perna', 90, 'Passo longo.'),
+        _F('Ponte de glúteos com barra', 3, '12–15', 75),
+        _F('Coice no cabo unilateral', 3, '12 cada perna', 60),
+        _F('Cadeira extensora', 2, '12–15', 60),
+        _F('Panturrilha sentado', 3, '12–15', 60),
+      ] },
+    ] },
+  { id: 'glu-ava', cat: 'gluteo', niv: 'ava', nome: 'Glúteos e pernas · Avançado', freq: '4x por semana (A, B, C e repete A)',
+    info: 'Volume alto de glúteo (16–20 séries na semana) distribuído em vários dias, com progressão de carga nos compostos e isoladores perto da falha. Acima de ~20 séries o ganho extra é pequeno (ACSM 2026).',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Pesado: agachamento e elevação pélvica', itens: [
+        _F('Agachamento livre com barra', 4, '5–8', 180),
+        _F('Elevação pélvica com barra', 4, '6–10', 150, 'Pesada, pausa de 1 s em cima.'),
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '8 cada perna', 120),
+        _F('Cadeira abdutora', 3, '15–20', 60, 'Última série até a falha.'),
+        _F('Panturrilha em pé na máquina', 3, '10–12', 60),
+      ] },
+      { titulo: 'Treino B', foco: 'Pesado: terra e posterior', itens: [
+        _F('Levantamento terra sumô', 4, '4–6', 180),
+        _F('Levantamento terra romeno', 3, '8', 150),
+        _F('Mesa flexora sentada', 3, '8–12', 75),
+        _F('Extensão reversa de quadril', 3, '12–15', 75),
+        _F('Barra fixa', 3, '6–10', 120),
+        _F('Roda abdominal', 3, '8–10', 60),
+      ] },
+      { titulo: 'Treino C', foco: 'Volume: unilateral e isoladores', itens: [
+        _F('Leg press', 4, '10–15', 120, 'Pés altos e afastados.'),
+        _F('Subida no banco com halteres', 3, '8–10 cada perna', 90, 'Banco alto.'),
+        _F('Ponte de glúteos com barra', 3, '15–20', 75),
+        _F('Coice no cabo unilateral', 3, '12–15 cada perna', 45),
+        _F('Pull through no cabo', 3, '15', 60),
+        _F('Desenvolvimento sentado com halteres', 3, '10–12', 75),
+      ] },
+    ] },
+
+  /* ---------- MAIS HIPERTROFIA, SAÚDE E CORREDORES ---------- */
+  { id: 'hip-abc', cat: 'hipertrofia', niv: 'int', nome: 'Hipertrofia · ABC clássico', freq: '6x por semana (ABC 2 vezes) ou 3x',
+    info: 'Divisão ABC por grupos musculares. Feita 2 vezes na semana (ABCABC), cada músculo é treinado 2x, o que é melhor que 1x. Feita só 3x na semana, cada músculo fica com 1x: aí aumente o número de séries de cada treino.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Peito, ombros e tríceps', itens: [
+        _F('Supino reto com barra (pegada média)', 4, '6–10', 150),
+        _F('Supino inclinado com halteres', 3, '8–12', 120),
+        _F('Crucifixo na máquina (peck deck)', 3, '12–15', 60),
+        _F('Desenvolvimento sentado com halteres', 3, '8–12', 90),
+        _F('Elevação lateral com halteres', 4, '12–20', 60),
+        _F('Tríceps francês no cabo com corda', 3, '10–12', 60),
+        _F('Tríceps corda', 2, '12–15', 60),
+      ] },
+      { titulo: 'Treino B', foco: 'Costas, ombro posterior e bíceps', itens: [
+        _F('Barra fixa', 4, '6–10', 120),
+        _F('Remada curvada com barra', 3, '8–10', 120),
+        _F('Puxada frontal unilateral', 3, '10–12 cada lado', 75),
+        _F('Remada baixa no cabo', 3, '10–12', 90),
+        _F('Face pull', 3, '15', 60),
+        _F('Rosca alternada com halteres no banco inclinado', 3, '8–12', 60),
+        _F('Rosca martelo com halteres', 2, '10–12', 60),
+      ] },
+      { titulo: 'Treino C', foco: 'Pernas completas', itens: [
+        _F('Agachamento livre com barra', 4, '6–10', 180),
+        _F('Leg press', 3, '10–12', 120),
+        _F('Levantamento terra romeno', 3, '8–10', 150),
+        _F('Mesa flexora sentada', 3, '10–12', 75),
+        _F('Cadeira extensora', 3, '12–15', 60),
+        _F('Elevação pélvica com barra', 3, '8–12', 90),
+        _F('Panturrilha em pé na máquina', 4, '10–15', 60),
+      ] },
+    ] },
+  { id: 'sau-60', cat: 'saude', niv: 'ini', nome: 'Saúde · 60+ equilíbrio e prevenção de quedas', freq: '2 a 3x por semana (A, B e C)',
+    info: 'Força de pernas, equilíbrio e potência para levantar, subir escadas e evitar quedas. Os estudos com mais de 11 mil idosos mostram que o treino de força é seguro; evite ir até a falha e faça a subida rápida, com a descida controlada (ACSM 2026).',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Levantar e sentar', itens: [
+        _F('Agachamento com halteres até o banco', 2, '8–10', 90, 'Levante rápido, sente devagar.'),
+        _F('Supino reto na máquina', 2, '10', 75),
+        _F('Remada baixa no cabo', 2, '10', 75),
+        _F('Panturrilha em pé com halteres', 2, '12', 60, 'Segure em algo firme.'),
+        _F('Prancha de equilíbrio', 2, '20–30 s', 45, 'Perto de uma parede ou apoio.'),
+        _F('Bird dog', 2, '6 cada lado', 45),
+      ] },
+      { titulo: 'Treino B', foco: 'Degraus e marcha', itens: [
+        _F('Subida no banco com halteres', 2, '8 cada perna', 75, 'Degrau baixo, com apoio para a mão.'),
+        _F('Leg press', 2, '10', 90, 'Empurre rápido, volte devagar.'),
+        _F('Puxada frontal pegada aberta', 2, '10', 75),
+        _F('Elevação lateral de perna em pé', 2, '10 cada perna', 45, 'Apoiado na cadeira.'),
+        _F('Mesa flexora sentada', 2, '10', 75),
+        _F('Pallof press', 2, '8 cada lado', 45),
+      ] },
+      { titulo: 'Treino C', foco: 'Força geral', itens: [
+        _F('Cadeira extensora', 2, '10–12', 75),
+        _F('Desenvolvimento de ombros na máquina', 2, '10', 75),
+        _F('Ponte de glúteos', 2, '12', 60),
+        _F('Flexão de braço inclinada', 2, '8–10', 60, 'Mãos na parede ou na mesa.'),
+        _F('Avanço para trás com halteres', 2, '6 cada perna', 75, 'Sem halteres e com apoio no começo.'),
+        _F('Prancha', 2, '20 s', 45),
+      ] },
+    ] },
+  { id: 'cor-manut', cat: 'corredor', niv: 'int', nome: 'Corredor · Manutenção em fase de provas', freq: '1x por semana, em rodízio A → B → C',
+    info: 'Na fase de provas, 1 sessão curta e pesada por semana costuma manter a força ganha na preparação; a cada 2 semanas já se perde força e velocidade (Rønnestad 2011, com atletas). Faça pelo menos 48 h antes de treino forte ou prova.',
+    treinos: [
+      { titulo: 'Treino A', foco: 'Agachamento pesado', itens: [
+        _F('Salto frontal na caixa', 3, '3', 90),
+        _F('Agachamento livre com barra', 3, '3–5', 180, '≥80% 1RM, 2–3 reps sobrando.'),
+        _F('Panturrilha em pé na máquina', 3, '6–8', 75),
+        _F('Prancha lateral', 2, '30 s cada lado', 45),
+      ] },
+      { titulo: 'Treino B', foco: 'Terra pesado', itens: [
+        _F('Skipping rápido', 3, '15 s', 45),
+        _F('Levantamento terra com barra hexagonal', 3, '3–5', 180, '≥80% 1RM.'),
+        _F('Glute-ham raise no chão', 2, '4–5', 90),
+        _F('Panturrilha sentado', 3, '8', 60),
+      ] },
+      { titulo: 'Treino C', foco: 'Unilateral pesado', itens: [
+        _F('Saltos laterais sobre cones', 3, '8', 60),
+        _F('Agachamento com afundo e pé elevado com halteres', 3, '4–6 cada perna', 120, 'Pesado.'),
+        _F('Elevação pélvica com barra', 3, '5', 120),
+        _F('Pallof press', 2, '10 cada lado', 45),
+      ] },
     ] },
 ];
-
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
   if (aba !== 'corrida') return staffBiblioteca('modelos');
@@ -5871,7 +6205,7 @@ async function staffBiblioteca(aba) {
     };
     const desenhar = () => {
       const sel = st.niv, meus = sel === 'meus';
-      const lista = BIB_FORCA.filter((pg) => pg.niv === sel && (st.cat === 'todos' || pg.cat === st.cat));
+      const ordCat = CATS_FORCA.map(([k]) => k); const lista = BIB_FORCA.filter((pg) => pg.niv === sel && (st.cat === 'todos' || pg.cat === st.cat)).sort((a, b) => ordCat.indexOf(a.cat) - ordCat.indexOf(b.cat));
       const cont = (k) => k === 'meus' ? mods.length : BIB_FORCA.filter((pg) => pg.niv === k).length;
       $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('musculacao')}
         <p class="muted small">Biblioteca de força da Nexos por nível e objetivo, montada com as recomendações mais recentes (posição do ACSM de 2026 e meta-análises de 2021 a 2026). Aplique o programa inteiro a um aluno ou salve nos seus modelos para ajustar.</p>
@@ -5880,7 +6214,7 @@ async function staffBiblioteca(aba) {
           : `<div class="card guia-niv"><span class="eyebrow">Como montar · ${nomeNiv[sel]}</span><ul>${GUIA_FORCA[sel].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
         <div class="chips" id="fcat" style="margin-top:14px">${[['todos', 'Todos os objetivos'], ...CATS_FORCA].map(([k, l]) => `<button class="chip ${st.cat === k ? 'on' : ''}" data-fcat="${k}">${l}</button>`).join('')}</div>
         <div class="cols" style="margin-top:16px">${lista.map(cardProg).join('')}</div>
-        <p class="tiny dim" style="margin-top:18px">Bases: ACSM 2026 (Currier et al., Med Sci Sports Exerc); Robinson 2024 e Pelland (Sports Med); Singer 2024; Wolf 2023; Maeo 2021 e 2022; Plotkin 2023; Wewege 2021; Llanos-Lagos 2024; Lauersen 2014.</p>`}
+        <p class="tiny dim" style="margin-top:18px">Bases: ACSM 2026 (Currier et al., Med Sci Sports Exerc); Robinson 2024 e Pelland (Sports Med); Singer 2024; Wolf 2023; Maeo 2021 e 2022; Plotkin 2023; Wewege 2021; Llanos-Lagos 2024; Lauersen 2014; Rønnestad 2011.</p>`}
         <a class="fab" href="#/modelo/novo" aria-label="Novo modelo">${I.plus}</a>`;
     };
     desenhar();

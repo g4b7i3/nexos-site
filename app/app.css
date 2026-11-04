@@ -1760,3 +1760,8 @@ html{touch-action:manipulation}
 .tag.cat-t.cat-corredor{background:color-mix(in srgb,#46d6ff 18%,transparent);color:#0369a1}
 .tag.cat-t.cat-saude{background:color-mix(in srgb,#3ddc97 18%,transparent);color:#15803d}
 [data-tema=escuro] .tag.cat-t{color:#f2c14e}[data-tema=escuro] .tag.cat-t.cat-emagrecimento{color:#ff9f80}[data-tema=escuro] .tag.cat-t.cat-forca{color:#c3cde0}[data-tema=escuro] .tag.cat-t.cat-corredor{color:#7fe3ff}[data-tema=escuro] .tag.cat-t.cat-saude{color:#6ee7b7}
+.prog-f.cat-gluteo{border-top-color:#e879a6}
+.prog-f.cat-casa{border-top-color:#a78bfa}
+.tag.cat-t.cat-gluteo{background:color-mix(in srgb,#e879a6 18%,transparent);color:#a3245a}
+.tag.cat-t.cat-casa{background:color-mix(in srgb,#a78bfa 20%,transparent);color:#5b3fb8}
+[data-tema=escuro] .tag.cat-t.cat-gluteo{color:#f9a8cc}[data-tema=escuro] .tag.cat-t.cat-casa{color:#c4b5fd}
