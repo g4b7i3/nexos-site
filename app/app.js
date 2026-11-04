@@ -150,14 +150,44 @@ async function chamarFuncao(body) {
   return data;
 }
 
+/* ---------- computador: faixas que rolam para o lado aceitam arrastar com o mouse e a roda ---------- */
+(() => {
+  if (!matchMedia('(pointer:fine)').matches) return;
+  const rolavel = (el) => { for (let n = el; n && n !== document.body; n = n.parentElement) { if (n.scrollWidth > n.clientWidth + 4) { const ox = getComputedStyle(n).overflowX; if (ox === 'auto' || ox === 'scroll') return n; } } return null; };
+  let arr = null;
+  document.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || e.target.closest('input,textarea,select,.mod,[data-mod],[draggable="true"]')) return;
+    const n = rolavel(e.target); if (!n) return;
+    arr = { n, x: e.clientX, sl: n.scrollLeft, moveu: false };
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!arr) return; const dx = e.clientX - arr.x;
+    if (!arr.moveu && Math.abs(dx) < 6) return;
+    arr.moveu = true; arr.n.scrollLeft = arr.sl - dx; arr.n.classList.add('arrastando-x'); e.preventDefault();
+  });
+  document.addEventListener('mouseup', () => {
+    if (!arr) return; const a = arr; arr = null; a.n.classList.remove('arrastando-x');
+    if (a.moveu) { const k = (ev) => { ev.stopPropagation(); ev.preventDefault(); }; document.addEventListener('click', k, { capture: true, once: true }); setTimeout(() => document.removeEventListener('click', k, { capture: true }), 0); }
+  });
+  document.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || e.shiftKey) return;
+    const n = rolavel(e.target); if (!n || n.scrollHeight > n.clientHeight + 4) return;
+    const fim = e.deltaY > 0 ? n.scrollLeft + n.clientWidth >= n.scrollWidth - 1 : n.scrollLeft <= 0; if (fim) return;
+    n.scrollLeft += e.deltaY; e.preventDefault();
+  }, { passive: false });
+})();
+
 /* ---------- navegação ---------- */
 function setDock(items) {
   if (!items) { $dock.hidden = true; return; }
   const cur = location.hash || '#/';
-  $dock.innerHTML = items.map((it) => {
+  // no computador o dock vira menu lateral: marca no topo e o perfil no rodapé
+  const marca = `<a href="#/" class="dock-brand" aria-label="Início"><img class="lg-claro" src="icons/wordmark-escuro.svg" alt="Nexos"><img class="lg-escuro" src="icons/wordmark.svg" alt="Nexos"><img class="lg-sim lg-sim-c" src="icons/simbolo-escuro.svg" alt=""><img class="lg-sim lg-sim-e" src="icons/simbolo.svg" alt=""><small>${S.staff ? 'Área do treinador' : 'Área do aluno'}</small></a>`;
+  const eu = S.me ? `<a href="#/perfil" class="dock-eu ${cur.startsWith('#/perfil') ? 'on' : ''}" aria-label="Meu perfil">${avAluno(S.me, 'sm')}<span><b>${esc(firstName(S.me.nome) || 'Perfil')}</b><small>Meu perfil</small></span></a>` : '';
+  $dock.innerHTML = marca + items.map((it) => {
     const on = it.match.some((m) => cur === m || (m.length > 2 && cur.startsWith(m + '/')));
     return `<a href="${it.href}" class="${on ? 'on' : ''}" aria-label="${esc(it.label)}">${it.icon}<span>${esc(it.label)}</span>${it.badge ? `<i class="badge">${it.badge}</i>` : ''}</a>`;
-  }).join('');
+  }).join('') + eu;
   $dock.hidden = false;
 }
 const MODS = [['musculacao', 'Musculação'], ['corrida', 'Corrida']];

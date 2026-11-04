@@ -1410,3 +1410,73 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .coment-tr{border-color:color-mix(in srgb,var(--acc) 40%,transparent);background:color-mix(in srgb,var(--acc) 6%,var(--card,transparent))}
 .coment-tr .eyebrow{display:inline-flex;align-items:center;gap:6px;color:var(--acc)}
 .coment-tr .eyebrow svg{width:14px;height:14px}
+
+/* ===================== COMPUTADOR (tela larga) =====================
+   menu lateral fixo, conteúdo largo, biblioteca com rolagem própria,
+   filtros que quebram linha em vez de esconder opções */
+.dock .dock-brand,.dock .dock-eu{display:none}
+.arrastando-x{cursor:grabbing;user-select:none}
+@media (pointer:fine){
+  .chips,.subtabs,.tabs.scroll,.thumbs,.voltas-c{cursor:default}
+}
+@media (min-width:1100px){
+  body:has(#dock:not([hidden])){padding-left:248px}
+  .dock{left:0;top:0;bottom:0;transform:none;width:248px;flex-direction:column;gap:2px;padding:22px 14px 16px;border-radius:0;border:0;border-right:1px solid var(--line2);background:var(--bg2);box-shadow:none;overflow-y:auto;backdrop-filter:none;-webkit-backdrop-filter:none}
+  html[data-tema="claro"] .dock{background:#fff;box-shadow:1px 0 0 rgba(11,24,52,.04)}
+  .dock a{flex-direction:row;justify-content:flex-start;gap:12px;min-width:0;padding:11px 14px;font-size:.93rem;font-weight:700;letter-spacing:0;border-radius:12px}
+  .dock a:not(.on):hover{background:var(--s1);color:var(--ink)}
+  .dock a svg{width:20px;height:20px;flex:none}
+  .dock a .badge{position:static;margin-left:auto;min-width:20px;height:20px;border-radius:10px;font-size:.7rem}
+  .dock .dock-brand{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:4px 14px 22px;margin-bottom:8px;border-bottom:1px solid var(--line);border-radius:0;background:none!important;color:inherit}
+  .dock-brand img{height:22px;width:auto}
+  .dock-brand .lg-sim{display:none}
+  .dock-brand small{font-family:var(--f-m);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);font-weight:600}
+  html[data-tema="escuro"] .lg-claro,html:not([data-tema="escuro"]) .lg-escuro{display:none}
+  .dock .dock-eu{display:flex;margin-top:auto;padding:10px 12px;border-top:1px solid var(--line);border-radius:12px;gap:10px;align-items:center}
+  .dock-eu span{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+  .dock-eu b{color:var(--ink);font-size:.9rem}
+  .dock-eu small{font-size:.74rem;color:var(--mute);font-weight:600}
+  .dock a.dock-eu.on{background:var(--s1);color:inherit}
+  body.arrastando #dock{display:flex}
+  .app{padding-bottom:56px}
+  .app.wide{max-width:1360px;padding-left:36px;padding-right:36px}
+  .fab,.app.wide~.fab{right:36px;bottom:32px}
+  .ses{position:relative}
+  .ses .ses-ok,.ses .ses-x{position:absolute;top:6px;right:6px}
+  .ses-t b{padding-right:18px}
+  /* filtros e abas: tudo à vista, quebrando linha */
+  .app .chips,.app .subtabs,.app .niv-chips,.app .tabs.scroll{flex-wrap:wrap;overflow:visible}
+  /* planilha: biblioteca fixa ao lado, com rolagem própria */
+  .pl-grid{grid-template-columns:244px minmax(0,1fr);gap:16px}
+  .cal-dias{gap:6px}
+  .cal-dia{padding:7px}
+  .ses-t b{overflow-wrap:normal;word-break:normal;hyphens:auto;-webkit-hyphens:auto}
+  .biblio{top:16px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:14px}
+  .biblio .niv-chips{gap:6px;margin:10px 0 10px}
+  .biblio .biblio-l{flex:1;min-height:0;overflow-y:auto;padding-right:4px;margin-right:-6px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+  .cal-dia{min-height:150px}
+  /* cards de 2 colunas onde a tela sobra */
+  .app.wide .cols{gap:14px}
+}
+@media (min-width:1500px){
+  .app.wide{max-width:1480px}
+  .pl-grid{grid-template-columns:290px minmax(0,1fr)}
+  .cal-dias{gap:8px}
+}
+
+/* telas entre 1100 e 1279 px: menu lateral compacto (só ícones) para sobrar espaço */
+@media (min-width:1100px) and (max-width:1279px){
+  body:has(#dock:not([hidden])){padding-left:84px}
+  .dock{width:84px;padding:18px 12px;align-items:center}
+  .dock a{justify-content:center;padding:12px;width:56px}
+  .dock a>span,.dock-brand small,.dock-eu span{display:none}
+  .dock a .badge{position:absolute;top:4px;right:4px;margin:0;min-width:16px;height:16px;font-size:.6rem}
+  .dock .dock-brand{padding:4px 0 18px;align-items:center;width:100%}
+  .dock-brand .lg-claro,.dock-brand .lg-escuro{display:none!important}
+  .dock-brand .lg-sim{display:block;height:24px}
+  html[data-tema="escuro"] .dock-brand .lg-sim-c,html:not([data-tema="escuro"]) .dock-brand .lg-sim-e{display:none}
+  .biblio-h .tiny{display:none}
+  .pl-grid{grid-template-columns:220px minmax(0,1fr)}
+  .dock .dock-eu{padding:8px;justify-content:center}
+  .app.wide{padding-left:28px;padding-right:28px}
+}
