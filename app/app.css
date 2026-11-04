@@ -1517,3 +1517,84 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
   .sit-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:899px){.cal-dia:not(:has(.ses)):has(.cal-add) .cal-vazio{display:none}}
+
+/* ===== ícones da marca no lugar de emojis ===== */
+.ic-t{display:inline-flex;vertical-align:-.16em;width:1.05em;height:1.05em;margin-right:.32em;flex:none;font-style:normal}
+.ic-t svg{width:100%;height:100%}
+.ic-t.warn{color:var(--warn)}
+.ic-t.pr,.pr>.ic-t{color:#ea580c}
+.ic-t:only-child{margin-right:0}
+.est-ic{width:58px;height:58px;margin:0 auto 10px;border-radius:18px;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
+.est-ic svg{width:28px;height:28px}
+.est-ic.t-ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.est-ic.t-warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.li-ic{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--s1);color:var(--acc)}
+.li-ic svg{width:20px;height:20px}
+.li-ic.pr{background:rgba(234,88,12,.12);color:#ea580c}
+.ativ-ic svg{width:18px;height:18px}
+
+/* ===== esqueleto de carregamento ===== */
+.sk{display:block;border-radius:10px;background:linear-gradient(90deg,var(--s1) 0%,var(--s2) 40%,var(--s1) 80%);background-size:300% 100%;animation:skBrilho 1.3s ease-in-out infinite}
+@keyframes skBrilho{from{background-position:100% 0}to{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+.sk-pag{padding-top:8px;display:flex;flex-direction:column;gap:12px}
+.sk-ey{width:120px;height:10px;border-radius:5px}
+.sk-h1{width:min(320px,70%);height:30px;margin-bottom:10px}
+.sk-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.sk-tile{height:78px;border-radius:16px}
+.sk-row{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--bg2)}
+.sk-av{width:44px;height:44px;border-radius:14px;flex:none}
+.sk-col{flex:1;display:flex;flex-direction:column;gap:8px}
+.sk-t{height:13px;border-radius:6px}
+.sk-s{height:10px;border-radius:5px}
+.sk-wrap{display:flex;flex-direction:column;gap:10px;padding:6px 0}
+.sk-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.sk-dia{display:flex;flex-direction:column;gap:10px;padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--bg2);min-height:130px}
+.sk-card{height:70px;border-radius:12px}
+@media (max-width:899px){.sk-cal{grid-template-columns:1fr}.sk-dia{min-height:0;flex-direction:row;align-items:center}.sk-dia .sk-card{flex:1;height:44px}}
+.sk-chat{padding:14px 4px}
+.sk-bolha{height:40px;border-radius:16px 16px 16px 6px}
+.sk-bolha.eu{align-self:flex-end;border-radius:16px 16px 6px 16px}
+
+/* ===== telas vazias ===== */
+.empty{padding:30px 22px 28px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg2);color:var(--mute)}
+html[data-tema="claro"] .empty{background:#fff}
+.empty .h3{font-size:1.02rem;margin-bottom:4px}
+.empty .small{max-width:420px;margin-left:auto;margin-right:auto;line-height:1.5}
+.empty .btn{margin-top:16px}
+.empty .est-ic{width:52px;height:52px;border-radius:16px;margin-bottom:12px}
+.empty .est-ic svg{width:24px;height:24px}
+
+/* ===== respostas ao toque e transições ===== */
+.toast{display:inline-flex;align-items:center;gap:10px;text-align:left}
+.toast-ic{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--ok);color:#fff}
+.toast.err .toast-ic{background:rgba(255,255,255,.22)}
+.toast-ic svg{width:14px;height:14px;stroke-width:3}
+.toast.show .toast-ic{animation:okPop .42s cubic-bezier(.2,1.6,.4,1) .08s both}
+.toast.show .toast-ic svg{stroke-dasharray:30;stroke-dashoffset:30;animation:okTraco .32s ease-out .22s forwards}
+@keyframes okPop{from{transform:scale(.3);opacity:0}}
+@keyframes okTraco{to{stroke-dashoffset:0}}
+/* cada tela entra suave */
+.app.entrando>*{animation:telaEntra .26s cubic-bezier(.2,.8,.3,1) both}
+.app.entrando>*:nth-child(2){animation-delay:.03s}.app.entrando>*:nth-child(3){animation-delay:.06s}.app.entrando>*:nth-child(4){animation-delay:.09s}.app.entrando>*:nth-child(n+5){animation-delay:.12s}
+@keyframes telaEntra{from{opacity:0;transform:translateY(8px)}}
+/* botões e cartões respondem ao toque */
+.btn,.list-item,.card-cta,.mod,.ses,.chip,.dock a{transition:transform .12s ease,background .15s,border-color .15s,box-shadow .15s}
+.btn:active,.list-item:active,.card-cta:active,.chip:active,.dock a:active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){.app>*{animation:none!important}.toast-ic,.toast-ic svg{animation:none!important;stroke-dashoffset:0}}
+
+/* ===== régua única: títulos, cabeçalhos e espaçamentos ===== */
+.eyebrow+.h1,.eyebrow+h1{margin-top:4px}
+.h1{letter-spacing:-.015em}
+.h1+.small,.h1+p.muted,.h1+.sub{margin-top:6px}
+.section{margin-top:28px}
+.section-h{margin-bottom:12px;gap:12px}
+.section-h .h2{font-weight:700}
+.card{border-radius:18px}
+.list-item+.list-item{margin-top:8px}
+.back{margin-bottom:16px}
+@media (min-width:1100px){
+  .h1{font-size:2.15rem}
+  .section{margin-top:32px}
+  .top{margin-bottom:26px}
+}

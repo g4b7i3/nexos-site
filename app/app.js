@@ -55,6 +55,13 @@ if (document.querySelector('base')) {
 const loginURL = () => { try { return new URL('.', document.baseURI).href; } catch { return location.origin + location.pathname.replace(/[^/]*$/, ''); } };
 
 const I = {
+  alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/></svg>',
+  espera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  bolo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M5 20v-6.5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2V20"/><path d="M5 15.5c1.4 1 2.8 1 4.2 0s2.8-1 4.2 0 2.8 1 4.2 0"/><path d="M12 11.5V8M12 5.5v.01"/></svg>',
+  saude: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-4 3 8 2-4h7"/></svg>',
+  caixa: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13 6.5 5h11L20 13v5.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M4 13h4.5l1.5 2.5h4l1.5-2.5H20"/></svg>',
+  okc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.3 2.4 2.4 4.6-4.9"/></svg>',
+  raio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg>',
   paste: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5h6v3H9z"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>',
   ficha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg>',
@@ -121,9 +128,14 @@ function exDetalhe(ex) {
 const slashes = '<span class="slashes" aria-hidden="true"><i></i><i></i><i></i></span>';
 
 let toastT;
+const vibrar = (p) => { try { if (navigator.vibrate && matchMedia('(pointer:coarse)').matches) navigator.vibrate(p); } catch {} };
 function toast(msg, err = false) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
+  // sucesso ganha um check animado e uma vibração curta; erro vibra diferente; "Enviando…" fica neutro
+  const neutro = !err && /…$/.test(String(msg));
+  t.innerHTML = `${neutro ? '' : `<span class="toast-ic">${err ? I.alerta : I.check}</span>`}<span>${esc(String(msg))}</span>`;
+  t.className = 'toast show' + (err ? ' err' : '') + (neutro ? ' neutro' : '');
+  if (!neutro) vibrar(err ? [40, 60, 40] : 18);
   clearTimeout(toastT); toastT = setTimeout(() => (t.className = 'toast' + (err ? ' err' : '')), 2800);
 }
 
@@ -149,6 +161,23 @@ async function chamarFuncao(body) {
   if (data?.erro) throw new Error(data.erro);
   return data;
 }
+
+// ícone dentro do texto (no lugar de emoji) e ícone grande de estado
+const icT = (svg, cls = '') => `<i class="ic-t ${cls}">${svg}</i>`;
+const estIc = (svg, tom = 'acc') => `<div class="est-ic t-${tom}">${svg}</div>`;
+
+/* ---------- telas vazias: ícone do assunto em cima do texto (automático) ---------- */
+const EMPTY_IC = [[/mensag|conversa/i, 'feed'], [/prova/i, 'flag'], [/avalia/i, 'ficha'], [/mensalid|pagament/i, 'money'], [/atleta|aluno/i, 'users'], [/ficha|anamnese/i, 'ficha'], [/carga/i, 'up'], [/ritmo|pace/i, 'watch'], [/exerc/i, 'lib'], [/corrida/i, 'run'], [/treino/i, 'cal'], [/encontrad/i, 'search']];
+function enfeitarVazios(raiz) {
+  raiz.querySelectorAll('.empty:not(.com-ic)').forEach((e) => {
+    e.classList.add('com-ic');
+    if (e.querySelector('.est-ic')) return;
+    const t = (e.querySelector('.h3') || e).textContent || '';
+    const k = (EMPTY_IC.find(([re]) => re.test(t)) || [, 'grid'])[1];
+    e.insertAdjacentHTML('afterbegin', `<div class="est-ic">${I[k] || I.grid}</div>`);
+  });
+}
+new MutationObserver(() => enfeitarVazios(document.body)).observe(document.body, { childList: true, subtree: true });
 
 /* ---------- computador: faixas que rolam para o lado aceitam arrastar com o mouse e a roda ---------- */
 (() => {
@@ -209,8 +238,24 @@ const dockStaff = () => setDock([
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
-function layout(cls = '') { $app.className = 'app ' + cls; window.scrollTo(0, 0); }
-function loading() { $app.innerHTML = '<div class="boot"><div class="boot-bar"><i></i></div></div>'; }
+function layout(cls = '') { $app.className = 'app ' + cls; $app.dataset.novo = '1'; window.scrollTo(0, 0); }
+// a tela nova entra suave só quando o conteúdo de verdade chega (não a cada atualização)
+new MutationObserver(() => {
+  if (!$app.dataset.novo) return; const f = $app.firstElementChild;
+  if (!f || f.classList.contains('sk-pag')) return;
+  delete $app.dataset.novo; $app.classList.add('entrando'); clearTimeout($app._entT); $app._entT = setTimeout(() => $app.classList.remove('entrando'), 700);
+}).observe($app, { childList: true });
+// esqueleto de carregamento: o formato da tela aparece enquanto os dados chegam
+const sk = (cls = '', st = '') => `<i class="sk ${cls}"${st ? ` style="${st}"` : ''}></i>`;
+const skLinha = (n = 4) => Array.from({ length: n }, (_, i) => `<div class="sk-row">${sk('sk-av')}<div class="sk-col">${sk('sk-t', `width:${[62, 48, 70, 55, 66][i % 5]}%`)}${sk('sk-s', `width:${[38, 30, 44, 34, 40][i % 5]}%`)}</div></div>`).join('');
+const esqBloco = (tipo = 'lista') => tipo === 'cal'
+  ? `<div class="sk-wrap"><div class="sk-cal">${Array.from({ length: 7 }, () => `<div class="sk-dia">${sk('sk-s', 'width:40%')}${sk('sk-card')}</div>`).join('')}</div></div>`
+  : tipo === 'chat'
+    ? `<div class="sk-wrap sk-chat">${sk('sk-bolha', 'width:58%')}${sk('sk-bolha eu', 'width:44%')}${sk('sk-bolha', 'width:66%')}${sk('sk-bolha eu', 'width:36%')}</div>`
+    : `<div class="sk-wrap">${skLinha(3)}</div>`;
+function loading() {
+  $app.innerHTML = `<div class="sk-pag" aria-busy="true" aria-label="Carregando">${sk('sk-ey')}${sk('sk-h1')}<div class="sk-tiles">${sk('sk-tile')}${sk('sk-tile')}${sk('sk-tile')}</div>${skLinha(4)}</div>`;
+}
 
 async function router() {
   closeSheet(); stopRest(); $app.onclick = null; $app.oninput = null; clearInterval(S.chatT); clearInterval(S.msgT);
@@ -270,7 +315,7 @@ async function router() {
     return await alunoHoje();
   } catch (e) {
     console.error(e);
-    $app.innerHTML = `<div class="empty" style="margin-top:40px"><div class="h3">Algo não carregou</div><p class="small">Verifique sua internet e tente de novo.</p><button class="btn sm" style="margin-top:14px" onclick="location.reload()">Recarregar</button></div>`;
+    $app.innerHTML = `<div class="empty" style="margin-top:40px"><div class="h3">Algo não carregou</div><p class="small">Verifique sua internet e tente de novo.</p><button class="btn sm" style="margin-top:16px" onclick="location.reload()">Recarregar</button></div>`;
   }
 }
 window.addEventListener('hashchange', router);
@@ -312,8 +357,8 @@ function viewLogin() {
     </form>
     <div class="login-foot small muted">
       <button class="link-btn" id="esqueci">Esqueci minha senha</button>
-      <p style="margin-top:14px">${AREA === 'treinador' ? '<a href="/app/" class="muted">Sou aluno → Área do aluno</a>' : ''}</p>
-      <p style="margin-top:10px"><a href="../" class="muted">← Voltar ao site da Nexos</a> · <a href="../privacidade.html" class="muted" target="_blank" rel="noopener">Privacidade</a></p>
+      <p style="margin-top:16px">${AREA === 'treinador' ? '<a href="/app/" class="muted">Sou aluno → Área do aluno</a>' : ''}</p>
+      <p style="margin-top:12px"><a href="../" class="muted">← Voltar ao site da Nexos</a> · <a href="../privacidade.html" class="muted" target="_blank" rel="noopener">Privacidade</a></p>
     </div>
   </section>`;
   const f = document.getElementById('f-login');
@@ -346,7 +391,7 @@ function viewOutraArea(destino) {
 function viewSemAcesso() {
   $dock.hidden = true; layout('bare');
   const pinta = (pend) => { $app.innerHTML = pend
-    ? `<section class="login"><div class="empty"><div style="font-size:2.2rem">⏳</div><div class="h3">Seu cadastro está aguardando a aprovação do treinador</div><p class="small" style="margin:8px 0 16px">Assim que ele aprovar, você recebe o acesso no seu e-mail e já pode entrar.</p><button class="btn sm" id="de-novo">Verificar de novo</button> <button class="btn sm ghost" id="sair">Sair</button></div></section>`
+    ? `<section class="login"><div class="empty">${estIc(I.espera, 'warn')}<div class="h3">Seu cadastro está aguardando a aprovação do treinador</div><p class="small" style="margin:8px 0 16px">Assim que ele aprovar, você recebe o acesso no seu e-mail e já pode entrar.</p><button class="btn sm" id="de-novo">Verificar de novo</button> <button class="btn sm ghost" id="sair">Sair</button></div></section>`
     : `<section class="login"><div class="empty"><div class="h3">Sua conta ainda não está ligada a uma assessoria</div><p class="small" style="margin:8px 0 16px">Peça ao seu treinador para cadastrar o seu e-mail no app da Nexos.</p><button class="btn sm ghost" id="sair">Sair</button></div></section>`;
     document.getElementById('sair').onclick = () => sb.auth.signOut();
     const dn = document.getElementById('de-novo'); if (dn) dn.onclick = async () => { await carregarPerfil().catch(() => {}); router(); }; };
@@ -398,11 +443,11 @@ function detalheEvento(e, dados, aoMudar) {
       ${e.preco ? `<div><span>Inscrição</span><b>${esc(e.preco)}${e.status ? ' · ' + esc(e.status) : ''}</b></div>` : e.status ? `<div><span>Inscrições</span><b>${esc(e.status)}</b></div>` : ''}
     </div>
     ${e.obs ? `<p class="small" style="margin-top:12px;white-space:pre-line">${esc(e.obs)}</p>` : ''}
-    ${e.link ? `<a class="btn ghost block" href="${esc(e.link)}" target="_blank" rel="noopener" style="margin-top:14px">${e.fonte === 'radar' ? 'Fazer a inscrição no site oficial' : 'Abrir link do evento'} ↗</a>` : ''}
+    ${e.link ? `<a class="btn ghost block" href="${esc(e.link)}" target="_blank" rel="noopener" style="margin-top:16px">${e.fonte === 'radar' ? 'Fazer a inscrição no site oficial' : 'Abrir link do evento'} ↗</a>` : ''}
     ${S.staff ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2" style="font-size:1rem">Alunos que vão (${quem.length})</h2></div>${quem.length ? quem.map((p) => `<a class="list-item" href="#/aluno/${p.aluno_id}/corrida" style="color:inherit"><b class="grow">${esc((S.cache.nomes || {})[p.aluno_id] || 'Aluno')}</b>${p.distancia ? `<span class="pill">${esc(p.distancia)}</span>` : ''}${p.meta ? `<span class="tag">meta ${esc(p.meta)}</span>` : ''}</a>`).join('') : '<p class="small muted">Ninguém marcou ainda.</p>'}</div>
       ${e.fonte === 'nexos' ? '<button class="btn ghost block sm" id="ev-editar" style="margin-top:12px">Editar evento</button>' : ''}`
       : eu ? `<div class="card" style="margin-top:14px;border-color:rgba(14,154,95,.4)"><b>✓ Você vai${eu.distancia ? ' nos ' + esc(eu.distancia) : ''}</b>${eu.meta ? `<p class="small muted">Meta: ${esc(eu.meta)}</p>` : ''}<p class="small muted">A prova aparece na sua planilha e no calendário. ${faltam(e.data)}.</p></div><button class="link-btn small" id="ev-sair" style="margin-top:10px;color:var(--err)">Não vou mais</button>`
-      : `<form id="ev-vou" class="card" style="margin-top:14px"><b>Vai participar?</b><p class="small muted" style="margin:4px 0 10px">${e.fonte === 'radar' ? 'Faça a inscrição no site oficial e marque aqui para a prova entrar na sua planilha.' : 'Confirme para o treinador saber quem vai.'}</p>
+      : `<form id="ev-vou" class="card" style="margin-top:16px"><b>Vai participar?</b><p class="small muted" style="margin:4px 0 10px">${e.fonte === 'radar' ? 'Faça a inscrição no site oficial e marque aqui para a prova entrar na sua planilha.' : 'Confirme para o treinador saber quem vai.'}</p>
         ${dists.length ? `<div class="chips wrap" style="margin-bottom:10px">${dists.map((x, i) => `<label class="chipc"><input type="radio" name="dist" value="${esc(String(x))}" ${i === dists.length - 1 ? 'checked' : ''}><span>${esc(String(x))}</span></label>`).join('')}</div>` : ''}
         ${e.fonte === 'radar' ? '<label class="field"><span>Meta de tempo (opcional)</span><input class="input" name="meta" placeholder="Ex.: 55:00"></label>' : ''}
         <button class="btn block">${e.fonte === 'radar' ? 'Vou correr ✓' : 'Vou ✓'}</button></form>`}`, (r) => {
@@ -466,8 +511,8 @@ async function viewEventos(aba) {
       ${daNexos.length ? `<p class="mes-rot">Da equipe Nexos</p><div class="stack">${daNexos.map((e) => cartaoEvento(e, S.staff ? null : dados.part, cont[e.ref])).join('')}</div>` : ''}
       <div class="row between" style="margin-top:18px;gap:10px;flex-wrap:wrap"><p class="mes-rot" style="margin:0">Provas no Maranhão</p></div>
       <div class="chips" id="ev-f" style="margin-top:8px">${[['slz', 'Grande São Luís'], ['todas', 'Todo o Maranhão'], ['trail', 'Trail']].map(([k, l]) => `<button class="chip ${st.filtro === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
-      <div id="ev-l">${Object.entries(meses).map(([k, l]) => `<p class="mes-rot">${nomeMes(k)}</p><div class="stack">${l.map((e) => cartaoEvento(e, S.staff ? null : dados.part, cont[e.ref])).join('')}</div>`).join('') || '<div class="empty" style="margin-top:14px"><div class="h3">Nenhuma prova encontrada</div><p class="small">Tente outro filtro.</p></div>'}
-      ${todas.length > lista.length ? `<button class="btn ghost block" id="ev-mais" style="margin-top:14px">Ver mais provas (${todas.length - lista.length})</button>` : ''}</div>
+      <div id="ev-l">${Object.entries(meses).map(([k, l]) => `<p class="mes-rot">${nomeMes(k)}</p><div class="stack">${l.map((e) => cartaoEvento(e, S.staff ? null : dados.part, cont[e.ref])).join('')}</div>`).join('') || '<div class="empty" style="margin-top:16px"><div class="h3">Nenhuma prova encontrada</div><p class="small">Tente outro filtro.</p></div>'}
+      ${todas.length > lista.length ? `<button class="btn ghost block" id="ev-mais" style="margin-top:16px">Ver mais provas (${todas.length - lista.length})</button>` : ''}</div>
       <p class="tiny dim" style="margin-top:16px">Agenda de provas do Maranhão pelo <b>Radar Corridas MA</b>. A inscrição é feita no site oficial de cada prova.</p>`;
   } else if (aba === 'minhas') {
     const fut = dados.part.filter((p) => p.data >= hojeISO()), pas = dados.part.filter((p) => p.data < hojeISO()).reverse();
@@ -481,7 +526,7 @@ async function viewEventos(aba) {
       : '<div class="empty"><div class="h3">Nenhum aluno marcou prova ainda</div><p class="small">Quando os alunos marcarem “Vou correr”, aparece aqui.</p></div>';
   }
   $app.innerHTML = `<p class="eyebrow">Eventos</p><h1 class="h1">${S.staff ? 'Provas e eventos' : 'Provas e eventos'}</h1>
-    <div class="subtabs" style="margin-top:14px">${abas.map(([k, l]) => `<a class="${aba === k ? 'on' : ''}" href="#/eventos${k === 'proximas' ? '' : '/' + k}">${l}</a>`).join('')}</div>
+    <div class="subtabs" style="margin-top:16px">${abas.map(([k, l]) => `<a class="${aba === k ? 'on' : ''}" href="#/eventos${k === 'proximas' ? '' : '/' + k}">${l}</a>`).join('')}</div>
     ${S.staff ? `<button class="btn sm" id="ev-novo" style="margin-bottom:12px">${I.plus} Treinão ou evento da Nexos</button>` : `<button class="card tap prova-fora" id="ev-minha"><span class="go">${I.plus}</span><div class="grow"><b>A prova que vou correr não está aqui</b><div class="small muted">Cadastre a sua prova e ela entra na sua planilha</div></div>${I.chev}</button>`}
     ${corpo}`;
   const re = () => viewEventos(aba);
@@ -500,7 +545,7 @@ async function viewEventos(aba) {
 function formProvaPropria(aoSalvar) {
   const DIST = ['5 km', '10 km', '21 km', '42 km'];
   openSheet(`<p class="eyebrow">Minha prova</p><div class="h2" style="margin-top:4px">Cadastrar uma prova</div><p class="small muted" style="margin-top:4px">Para provas fora do Maranhão ou que ainda não estão na agenda. O treinador é avisado e a prova entra na sua planilha.</p>
-    <form id="f-pp" style="margin-top:14px">
+    <form id="f-pp" style="margin-top:16px">
       <label class="field"><span>Nome da prova *</span><input class="input" name="titulo" required placeholder="Ex.: Maratona do Rio"></label>
       <div class="grid2"><label class="field"><span>Data *</span><input class="input" type="date" name="data" required min="${hojeISO()}"></label><label class="field"><span>Cidade</span><input class="input" name="cidade" placeholder="Ex.: Rio de Janeiro"></label></div>
       <div class="field"><span>Distância</span><div class="chips wrap">${DIST.map((d) => `<label class="chipc"><input type="radio" name="dist" value="${d}"><span>${d}</span></label>`).join('')}<label class="chipc"><input type="radio" name="dist" value="outra"><span>Outra</span></label></div></div>
@@ -530,7 +575,7 @@ async function viewPlanilhaAluno(aba) {
   const abasP = [['corrida', 'Corrida'], ['musculacao', 'Musculação'], ['calendario', 'Calendário']].filter(([k]) => k === 'calendario' || faz(k));
   aba = abasP.some(([k]) => k === aba) ? aba : abasP[0][0];
   $app.innerHTML = `<p class="eyebrow">Planilha</p><h1 class="h1">Seus treinos</h1>
-    <div class="subtabs" style="margin-top:14px">${abasP.map(([k, l]) => `<a class="${aba === k ? 'on' : ''}" href="#/planilha/${k}">${l}</a>`).join('')}</div><div id="pl-c"></div>`;
+    <div class="subtabs" style="margin-top:16px">${abasP.map(([k, l]) => `<a class="${aba === k ? 'on' : ''}" href="#/planilha/${k}">${l}</a>`).join('')}</div><div id="pl-c"></div>`;
   const box = document.getElementById('pl-c');
   if (aba === 'corrida') return viewCorridaPainel(S.user.id, box, false, S.me, ['planilha']);
   if (aba === 'musculacao') {
@@ -555,7 +600,7 @@ async function viewPlanilhaAluno(aba) {
           ${!doDia.length && !feitos.length && !offF.includes(i) ? `<span class="cal-vazio">${temDias ? 'sem treino' : 'treino na sequência abaixo'}</span>` : ''}</div></div>`; }).join('')}</div>
       ${seq.length && temDias ? `<p class="small muted" style="margin-top:8px">Sem dia fixo (faça na sequência): ${seq.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}.</p>` : ''}`;
     box.innerHTML = ativos.length ? semanaF + `<div class="section"><div class="section-h"><h2 class="h2">Seus treinos</h2>${slashes}</div><div class="stack">${ativos.map((t, i) => { const ex = sessoes.filter((s) => s.treino_id === t.id); return `<div class="card tr-card ${prox && prox.id === t.id ? 'prox' : ''}"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
-      <div class="grow">${prox && prox.id === t.id ? `<span class="eyebrow">${(t.dias || []).includes(hj) ? 'Treino de hoje' : 'Próximo da sequência'}</span>` : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:5px">${diasTxt(t.dias)}</span>` : ''}</div></div>
+      <div class="grow">${prox && prox.id === t.id ? `<span class="eyebrow">${(t.dias || []).includes(hj) ? 'Treino de hoje' : 'Próximo da sequência'}</span>` : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:4px">${diasTxt(t.dias)}</span>` : ''}</div></div>
       <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Você fez ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, a última em ${fmtData(ex[0].iniciado_em)}` : 'Você ainda não fez este treino'}</p>
       <div class="grid2 tr-acoes"><a class="btn sm" href="#/treino/${t.id}">${I.play} Começar</a><a class="btn ghost sm" href="#/historico/cargas">${I.hist} Evolução</a></div></div>`; }).join('')}</div></div>`
       : '<div class="empty"><div class="h3">Seu treino de musculação está sendo preparado</div><p class="small">Assim que o treinador liberar, ele aparece aqui.</p></div>';
@@ -585,22 +630,22 @@ async function viewCalendarioMes(alunoId, box) {
   for (let d = 1; d <= nd; d++) {
     const k = `${st.comp}-${String(d).padStart(2, '0')}`; const x = doDia(k);
     const corPl = x.pl.map((p) => { const z = achatar(estruturaDe(p), perfil).filter((s) => s.k === 'co').sort((a, b) => b.seg - a.seg)[0]; return (ZONAS_INFO[(z && z.z) || 'leve'] || ZONAS_INFO.leve).c; });
-    const lbl = [...x.pr.map((p) => `<i class="cm-t pr">🏁 ${esc(p.titulo)}</i>`), ...x.pl.map((p, j) => `<i class="cm-t ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}">${esc(p.titulo || nomeTipo(p.tipo))}</i>`), ...x.co.filter((c) => !c.plano_id).map((c) => `<i class="cm-t ok" style="--c:var(--ok)">${f1(c.distancia_m / 1000)} km</i>`), ...x.se.map((s2) => `<i class="cm-t tmu">${esc(s2.treino_titulo || 'Musculação')}</i>`)].join('');
-    cells += `<button class="cm-d ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-k="${k}"><span>${d}</span><div class="cm-txt">${lbl}</div><div class="cm-ic">${x.pr.length ? '<i class="pr">🏁</i>' : ''}${x.pl.map((p, j) => `<i class="dot ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}"></i>`).join('')}${x.co.filter((c) => !c.plano_id).map(() => '<i class="dot ok" style="--c:var(--ok)"></i>').join('')}${x.se.length ? '<i class="mu"></i>' : ''}</div></button>`;
+    const lbl = [...x.pr.map((p) => `<i class="cm-t pr">${icT(I.flag)}${esc(p.titulo)}</i>`), ...x.pl.map((p, j) => `<i class="cm-t ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}">${esc(p.titulo || nomeTipo(p.tipo))}</i>`), ...x.co.filter((c) => !c.plano_id).map((c) => `<i class="cm-t ok" style="--c:var(--ok)">${f1(c.distancia_m / 1000)} km</i>`), ...x.se.map((s2) => `<i class="cm-t tmu">${esc(s2.treino_titulo || 'Musculação')}</i>`)].join('');
+    cells += `<button class="cm-d ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-k="${k}"><span>${d}</span><div class="cm-txt">${lbl}</div><div class="cm-ic">${x.pr.length ? `<i class="pr">${icT(I.flag)}</i>` : ''}${x.pl.map((p, j) => `<i class="dot ${x.co.some((c) => c.plano_id === p.id) ? 'ok' : ''}" style="--c:${corPl[j]}"></i>`).join('')}${x.co.filter((c) => !c.plano_id).map(() => '<i class="dot ok" style="--c:var(--ok)"></i>').join('')}${x.se.length ? '<i class="mu"></i>' : ''}</div></button>`;
   }
   const totKm = plano.reduce((a, p) => a + resumoEstrutura(estruturaDe(p), perfil).km, 0), feitoKm = corrs.reduce((a, c) => a + c.distancia_m / 1000, 0);
   box.innerHTML = `<div class="mes-nav" style="margin-top:4px"><button class="icon-btn sm" id="cm-a" aria-label="Mês anterior">${I.back}</button><b>${nomeMes(st.comp)}</b><button class="icon-btn sm" id="cm-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
     <p class="small muted center">${totKm ? `previsto ${f1(totKm)} km · ` : ''}feito ${f1(feitoKm)} km${sess.length ? ` · ${sess.length} treino${sess.length > 1 ? 's' : ''} de musculação` : ''}</p>
     <div class="cal-mes"><div class="cm-sem">${['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cm-grade">${cells}</div></div>
-    <div class="cm-leg"><span><i class="dot" style="--c:var(--acc)"></i>corrida planejada</span><span><i class="dot ok" style="--c:var(--ok)"></i>corrida feita</span><span><i class="mu"></i>musculação</span><span>🏁 prova</span></div>
-    ${provas.length ? `<div class="section"><div class="section-h"><h2 class="h2">Provas do mês</h2>${slashes}</div><div class="stack">${provas.map((p) => `<a class="list-item" href="#/eventos/minhas" style="color:inherit"><span style="font-size:1.4rem">🏁</span><div class="grow"><b>${esc(p.titulo)}</b><div class="small muted">${fmtData(p.data + 'T12:00:00')}${p.distancia ? ' · ' + esc(p.distancia) : ''} · ${faltam(p.data)}</div></div>${I.chev}</a>`).join('')}</div></div>` : ''}`;
+    <div class="cm-leg"><span><i class="dot" style="--c:var(--acc)"></i>corrida planejada</span><span><i class="dot ok" style="--c:var(--ok)"></i>corrida feita</span><span><i class="mu"></i>musculação</span><span>${icT(I.flag, 'pr')}prova</span></div>
+    ${provas.length ? `<div class="section"><div class="section-h"><h2 class="h2">Provas do mês</h2>${slashes}</div><div class="stack">${provas.map((p) => `<a class="list-item" href="#/eventos/minhas" style="color:inherit"><span class="li-ic pr">${I.flag}</span><div class="grow"><b>${esc(p.titulo)}</b><div class="small muted">${fmtData(p.data + 'T12:00:00')}${p.distancia ? ' · ' + esc(p.distancia) : ''} · ${faltam(p.data)}</div></div>${I.chev}</a>`).join('')}</div></div>` : ''}`;
   box.querySelector('#cm-a').onclick = () => { st.comp = somaMes(st.comp, -1); viewCalendarioMes(alunoId, box); };
   box.querySelector('#cm-p').onclick = () => { st.comp = somaMes(st.comp, 1); viewCalendarioMes(alunoId, box); };
   box.querySelector('.cm-grade').onclick = (e) => {
     const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; const x = doDia(k);
     if (!x.pl.length && !x.co.length && !x.se.length && !x.pr.length) return toast('Dia livre: descanso.');
     openSheet(`<p class="eyebrow">${fmtDiaSem(k)}</p><div class="stack" style="margin-top:12px">
-      ${x.pr.map((p) => `<a class="list-item" href="#/eventos/minhas" style="color:inherit"><span style="font-size:1.3rem">🏁</span><div class="grow"><b>${esc(p.titulo)}</b><div class="small muted">${esc(p.distancia || '')} ${p.meta ? '· meta ' + esc(p.meta) : ''}</div></div></a>`).join('')}
+      ${x.pr.map((p) => `<a class="list-item" href="#/eventos/minhas" style="color:inherit"><span class="li-ic pr">${I.flag}</span><div class="grow"><b>${esc(p.titulo)}</b><div class="small muted">${esc(p.distancia || '')} ${p.meta ? '· meta ' + esc(p.meta) : ''}</div></div></a>`).join('')}
       ${x.pl.map((p) => cartaoSessao(p, perfil, x.co.find((c) => c.plano_id === p.id), false)).join('')}
       ${x.co.filter((c) => !c.plano_id).map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><span class="ativ-ic">${icCorr(S.staff ? null : S.me)}</span><div class="grow"><b>Corrida · ${fmtKm(c.distancia_m, 1)}</b><div class="small muted">${fmtPace(paceDe(c))}</div></div>${I.chev}</a>`).join('')}
       ${x.se.map((s) => `<div class="list-item"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(s.treino_titulo || 'Musculação')}</b><div class="small muted">feito às ${fmtHora(s.iniciado_em)}</div></div></div>`).join('')}</div>`, (r) => {
@@ -692,18 +737,18 @@ async function alunoHoje() {
     <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é day off' : 'seu treino de hoje'}</h1></div></div>
     <div class="hoje-grid"><div class="hoje-main">
     ${cartaoCobrancaHTML(cobP)}
-    <div class="stack" style="margin-top:18px">
+    <div class="stack" style="margin-top:16px">
       ${corrDoDia.map(cardCorr).join('')}
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
-    ${corrNova ? `<button class="card-cta" id="card-nova" style="margin-top:12px"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Corrida de ${fmtKm(corrNova.distancia_m, 1)} registrada! 🔥</b><span class="small">Gere o card e poste no seu story</span></div>${I.chev}</button>` : ''}
+    ${corrNova ? `<button class="card-cta" id="card-nova" style="margin-top:12px"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Corrida de ${fmtKm(corrNova.distancia_m, 1)} registrada!</b><span class="small">Gere o card e poste no seu story</span></div>${I.chev}</button>` : ''}
     ${semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi a corrida de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${fmtKm(semNota.distancia_m, 1)} · leva 10 segundos responder</div></div>${I.chev}</button>` : ''}
     <div id="ciclo-box"></div>
     ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
     ${cartaoPushHTML()}
     </div><div class="hoje-side">
-    ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex">${provaProx.data === hoje ? '<div class="pc-n"><b style="font-size:1rem">É</b><span>hoje</span></div>' : `<div class="pc-n"><b>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5)}</b><span>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5) === 1 ? 'dia' : 'dias'}</span></div>`}<div class="grow" style="min-width:0"><span class="eyebrow">🏁 Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
+    ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex">${provaProx.data === hoje ? '<div class="pc-n"><b style="font-size:1rem">É</b><span>hoje</span></div>' : `<div class="pc-n"><b>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5)}</b><span>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5) === 1 ? 'dia' : 'dias'}</span></div>`}<div class="grow" style="min-width:0"><span class="eyebrow">${icT(I.flag)}Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
     <div class="semana-comp" style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
     </div></div>`;
   bindCartaoPush();
@@ -723,8 +768,8 @@ async function alunoHoje() {
       <p class="eyebrow" style="margin-top:12px">${c.fonte === 'garmin' ? 'Treino carregado do Garmin' : 'Treino registrado'}</p>
       <div class="h2" style="margin-top:4px">Sua corrida de ${quandoC} foi concluída</div></div>
       <div class="mini-stats" style="margin-top:16px"><div><b>${fmtKm(c.distancia_m, 1)}</b><span>distância</span></div>${c.duracao_s ? `<div><b>${fmtDur(c.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(c))}</b><span>pace</span></div>` : ''}</div>
-      <p class="small muted center" style="margin-top:14px">Quer comentar como foi o treino? Seu treinador usa isso para ajustar os próximos.</p>
-      <button class="btn block" id="pop-sim" style="margin-top:14px">Comentar o treino</button>
+      <p class="small muted center" style="margin-top:16px">Quer comentar como foi o treino? Seu treinador usa isso para ajustar os próximos.</p>
+      <button class="btn block" id="pop-sim" style="margin-top:16px">Comentar o treino</button>
       <button class="btn ghost block" id="pop-nao" style="margin-top:8px">Agora não</button>`, (r) => {
       r.querySelector('#pop-sim').onclick = () => { closeSheet(); termometroCorrida(c, () => alunoHoje()); };
       r.querySelector('#pop-nao').onclick = () => { try { localStorage.setItem('nx-pop-' + c.id, '1'); } catch {} closeSheet(); };
@@ -739,14 +784,14 @@ async function alunoHoje() {
 function termometroCorrida(c, depois) {
   let rpe = null, dor = false; const corpo = {};
   openSheet(`<p class="eyebrow">Check-in · ${fmtKm(c.distancia_m, 1)}</p><div class="h2" style="margin-top:4px">Como foi a corrida?</div>
-    <div style="margin-top:18px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
+    <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
       <div class="effort" id="eff">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div>
       <div class="effort-lbl"><span>Repouso</span><span id="eff-txt"></span><span>Máximo</span></div></div>
-    <div style="margin-top:18px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
+    <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
       <div class="seg" style="margin-top:8px"><button type="button" class="on" data-dor="0">Não</button><button type="button" data-dor="1">Sim</button></div>
-      <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:10px" hidden></div>
+      <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:12px" hidden></div>
     ${corpoHTML()}
-    <label class="field" style="margin-top:18px"><span>Comentário para o treinador (opcional)</span><textarea class="textarea" id="t-coment" placeholder="Ex.: senti as pernas pesadas no fim, o calor atrapalhou">${esc(c.comentario || '')}</textarea></label>
+    <label class="field" style="margin-top:16px"><span>Comentário para o treinador (opcional)</span><textarea class="textarea" id="t-coment" placeholder="Ex.: senti as pernas pesadas no fim, o calor atrapalhou">${esc(c.comentario || '')}</textarea></label>
     <button class="btn block" id="t-salvar" style="margin-top:12px">Enviar ${I.check}</button>`, (root) => {
     root.querySelector('#eff').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; rpe = +b.dataset.n; root.querySelectorAll('#eff button').forEach((x) => { const on = +x.dataset.n === rpe; x.classList.toggle('on', on); x.style.background = on ? rpeCor(rpe) : ''; }); root.querySelector('#eff-txt').textContent = rpeTxt(rpe); };
     root.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => { dor = b.dataset.dor === '1'; root.querySelectorAll('[data-dor]').forEach((x) => { x.classList.toggle('on', x === b); x.classList.toggle('alert', x === b && dor); }); root.querySelector('#dor-local').hidden = !dor; });
@@ -1020,14 +1065,14 @@ function abrirCheckin(t, itens, st, key) {
   let esforco = null, dor = false; const corpo = {};
   openSheet(`
     <p class="eyebrow">Check-in</p><div class="h2" style="margin-top:4px">Como foi o treino?</div>
-    <div style="margin-top:18px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
+    <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
       <div class="effort" id="eff">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div>
       <div class="effort-lbl"><span>Repouso</span><span id="eff-txt"></span><span>Máximo</span></div></div>
-    <div style="margin-top:20px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
+    <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
       <div class="seg" style="margin-top:8px"><button type="button" class="on" data-dor="0">Não</button><button type="button" data-dor="1">Sim</button></div>
-      <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:10px" hidden></div>
+      <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:12px" hidden></div>
     ${corpoHTML()}
-    <label class="field" style="margin-top:18px"><span>Quer deixar um recado pro treinador? (opcional)</span><textarea class="textarea" id="coment" placeholder="Ex.: senti o ombro no supino"></textarea></label>
+    <label class="field" style="margin-top:16px"><span>Quer deixar um recado pro treinador? (opcional)</span><textarea class="textarea" id="coment" placeholder="Ex.: senti o ombro no supino"></textarea></label>
     <button class="btn block" id="salvar-sessao">Salvar treino ${I.check}</button>
     <button class="btn ghost block" data-close style="margin-top:8px">Voltar ao treino</button>`, (root) => {
     root.querySelector('#eff').onclick = (e) => {
@@ -1064,7 +1109,7 @@ function abrirCheckin(t, itens, st, key) {
       notificar('checkin', ses.id);
       const novasCargas = regs.filter((r) => r.carga_kg != null).length;
       store.del(key); closeSheet();
-      $app.innerHTML = `<section class="login center"><div class="slashes" style="justify-content:center;margin:0 auto 18px"><i></i><i></i><i></i></div><h1 class="h1">Treino concluído!</h1><p class="muted" style="margin:10px 0 6px">Seu treinador já recebeu o seu check-in.</p>${novasCargas ? `<p class="small" style="margin-bottom:24px">${novasCargas} carga${novasCargas > 1 ? 's' : ''} registrada${novasCargas > 1 ? 's' : ''} na sua evolução.</p>` : '<div style="height:18px"></div>'}<a class="btn" href="#/">Voltar ao início</a><a class="btn ghost" href="#/historico/cargas" style="margin-top:10px">Ver minha evolução</a></section>`;
+      $app.innerHTML = `<section class="login center"><div class="slashes" style="justify-content:center;margin:0 auto 18px"><i></i><i></i><i></i></div><h1 class="h1">Treino concluído!</h1><p class="muted" style="margin:10px 0 6px">Seu treinador já recebeu o seu check-in.</p>${novasCargas ? `<p class="small" style="margin-bottom:24px">${novasCargas} carga${novasCargas > 1 ? 's' : ''} registrada${novasCargas > 1 ? 's' : ''} na sua evolução.</p>` : '<div style="height:18px"></div>'}<a class="btn" href="#/">Voltar ao início</a><a class="btn ghost" href="#/historico/cargas" style="margin-top:12px">Ver minha evolução</a></section>`;
     };
   });
 }
@@ -1392,7 +1437,7 @@ async function viewRelatorio(avId) {
       <div class="zonas">${zonasFC(r.fc_max, av.fc_rep).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate} bpm</em></div>`).join('')}</div></div>` : ''}
     ${av.observacoes ? `<div class="card" style="margin-top:24px;border-color:rgba(70,214,255,.3)"><span class="eyebrow">Recado do avaliador</span><p style="margin-top:6px;white-space:pre-line">${esc(av.observacoes)}</p></div>` : ''}
     ${av.proxima ? `<div class="card"><span class="eyebrow">Próxima avaliação</span><div class="h3" style="margin-top:4px">${fmtDia(av.proxima)}</div></div>` : ''}
-    <p class="tiny dim" style="margin-top:20px">Os percentuais de gordura são estimativas por equações de referência (Jackson & Pollock, Petroski, Faulkner, conversão de Siri) ou pela balança de bioimpedância. Servem para acompanhar a sua evolução ao longo do tempo e não são diagnóstico. Classificações de IMC, cintura e cintura/quadril seguem a OMS; pressão arterial, a Diretriz Brasileira de Hipertensão (2020). FC máxima por Tanaka (2001); zonas por Karvonen; metabolismo basal por Katch-McArdle ou Mifflin-St Jeor.</p>
+    <p class="tiny dim" style="margin-top:16px">Os percentuais de gordura são estimativas por equações de referência (Jackson & Pollock, Petroski, Faulkner, conversão de Siri) ou pela balança de bioimpedância. Servem para acompanhar a sua evolução ao longo do tempo e não são diagnóstico. Classificações de IMC, cintura e cintura/quadril seguem a OMS; pressão arterial, a Diretriz Brasileira de Hipertensão (2020). FC máxima por Tanaka (2001); zonas por Karvonen; metabolismo basal por Katch-McArdle ou Mifflin-St Jeor.</p>
     <p class="tiny dim" style="margin-top:6px">Nexos Performance e Saúde · São Luís–MA</p>`;
   document.getElementById('imprimir').onclick = () => window.print();
 }
@@ -1418,8 +1463,8 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
   if (staff) { const { data: al } = await sb.from('nx_membros').select('user_id,nome,foto_url').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); if (al) porId[al.user_id] = al; }
   box.innerHTML = `${staff ? '' : `<p class="eyebrow">Conversa</p>
     <div class="treinador-top">${equipe.length ? `<div class="fotos-eq">${equipe.slice(0, 3).map((p) => fotoHTML(p, 'md')).join('')}</div>` : ''}<div class="grow" style="min-width:0"><h1 class="h2">${equipe.length ? esc(nomesEq.length > 1 ? nomesEq.slice(0, -1).join(', ') + ' e ' + nomesEq[nomesEq.length - 1] : nomesEq[0]) : 'Seu treinador'}</h1><p class="small muted">${equipe.length > 1 ? 'Treinadores da Nexos' : 'Seu treinador na Nexos'} · <span class="online-dot"></span> ${equipe.length > 1 ? 'respondem' : 'responde'} por aqui</p></div></div>
-    <p class="small muted" style="margin-top:10px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>`}
-    <div class="chat" id="chat"><div class="boot-bar" style="margin:30px auto"><i></i></div></div>
+    <p class="small muted" style="margin-top:12px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>`}
+    <div class="chat" id="chat">${esqBloco('chat')}</div>
     <form class="composer" id="f-msg">
       <div id="ref-box"></div>
       <div class="row" style="gap:8px;align-items:flex-end"><textarea class="textarea" name="texto" rows="1" maxlength="2000" placeholder="${staff ? 'Escreva para o aluno…' : 'Escreva para o seu treinador…'}" required></textarea><button class="btn send" aria-label="Enviar">${I.arrow}</button></div>
@@ -1472,7 +1517,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
     const minha = m.autor_id === S.user.id;
     try { navigator.vibrate && navigator.vibrate(15); } catch {}
     openSheet(`<div class="msg-prev">${esc(m.texto.length > 160 ? m.texto.slice(0, 159) + '…' : m.texto)}</div>
-      <div class="stack" style="margin-top:14px">
+      <div class="stack" style="margin-top:16px">
         <button class="list-item msg-ac" id="mc-copiar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg><b>Copiar</b></button>
         ${minha ? `<button class="list-item msg-ac del" id="mc-apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><b>Apagar para todos</b></button>` : ''}
       </div>
@@ -1549,7 +1594,7 @@ function viewTermo() {
       <p class="eyebrow">Antes de começar</p><h1 class="h1" style="margin-top:4px">Seus dados, suas regras</h1>
       <p class="muted small" style="margin:8px 0 14px">Para acompanhar seu treino com segurança precisamos guardar alguns dados de saúde. Leia com calma:</p>
       <div class="card termo">${termoTexto()}</div>
-      <form id="f-termo" style="margin-top:14px">
+      <form id="f-termo" style="margin-top:16px">
         <label class="aceite"><input type="checkbox" name="a" required><span>Li e concordo com o termo e com a Política de Privacidade.</span></label>
         <label class="aceite"><input type="checkbox" name="b" required><span>Autorizo, de forma específica e destacada, o tratamento dos meus dados de saúde e das minhas fotos para o acompanhamento do treino (art. 11, I, da LGPD).</span></label>
         <button class="btn block" type="submit" style="margin-top:8px">Aceitar e continuar ${I.arrow}</button>
@@ -1750,7 +1795,7 @@ async function viewAnamnese(opts = {}) {
     await carregarSaude(true);
     const seguir = () => { const alvo = opts.gate ? '#/' : '#/perfil'; if (location.hash === alvo || (alvo === '#/' && !location.hash)) router(); else location.hash = alvo; };
     if (positivo) {
-      box.innerHTML = `<section class="login center"><div style="font-size:2.6rem">🩺</div><h1 class="h1" style="margin-top:8px">Converse com um médico</h1>
+      box.innerHTML = `<section class="login center">${estIc(I.saude)}<h1 class="h1" style="margin-top:8px">Converse com um médico</h1>
         <p class="muted" style="margin:12px 0 22px">Você respondeu "sim" em pelo menos uma pergunta do PAR-Q. Antes de começar ou aumentar a intensidade dos treinos, procure um médico para uma avaliação. Seu treinador já foi avisado e vai ajustar o treino com você.</p>
         <button class="btn" id="seguir">Entendi, continuar</button></section>`;
       box.querySelector('#seguir').onclick = seguir; window.scrollTo(0, 0); return;
@@ -1766,7 +1811,7 @@ function anamneseResumoHTML(a, termo) {
   const sim = PARQ.map((q, i) => [i + 1, q, (a.parq || {})['q' + (i + 1)]]).filter((x) => x[2] === 'sim');
   return `<div class="row" style="gap:6px;flex-wrap:wrap">${termoH}<span class="tag">Atualizada ${quando(a.atualizado_em)}</span></div>
     <div class="card" style="margin-top:12px;${a.parq_positivo ? 'border-color:rgba(255,207,92,.45)' : ''}"><span class="eyebrow" style="${a.parq_positivo ? 'color:var(--warn)' : ''}">PAR-Q ${a.parq_positivo ? '· atenção' : '· sem alterações'}</span>
-      ${a.parq_positivo ? `<p class="small" style="margin:6px 0 8px">Respondeu <b>sim</b> em:</p>${sim.map(([n, q]) => `<p class="small" style="margin-top:6px">⚠️ ${n}. ${q}</p>`).join('')}<p class="tiny dim" style="margin-top:10px">Recomendado pedir liberação médica antes de intensificar o treino.</p>` : '<p class="small muted" style="margin-top:6px">Respondeu "não" a todas as perguntas.</p>'}
+      ${a.parq_positivo ? `<p class="small" style="margin:6px 0 8px">Respondeu <b>sim</b> em:</p>${sim.map(([n, q]) => `<p class="small" style="margin-top:6px">${icT(I.alerta, 'warn')}${n}. ${q}</p>`).join('')}<p class="tiny dim" style="margin-top:12px">Recomendado pedir liberação médica antes de intensificar o treino.</p>` : '<p class="small muted" style="margin-top:6px">Respondeu "não" a todas as perguntas.</p>'}
     </div>
     <div class="card"><span class="eyebrow">Ficha</span><div class="kv" style="margin-top:8px">
       ${linha('Altura e peso', [r.altura && r.altura + ' m', r.peso && r.peso + ' kg'].filter(Boolean).join(' · '))}
@@ -1833,10 +1878,10 @@ function bindSlots(root, grade) {
   });
   return files;
 }
-const DICAS_FOTO = '<p class="tiny dim" style="margin-top:10px">Dicas: mesma luz, mesma roupa justa, mesma distância (uns 2,5 m), celular na altura do umbigo e corpo inteiro no quadro. Assim a comparação fica fiel.</p>';
+const DICAS_FOTO = '<p class="tiny dim" style="margin-top:12px">Dicas: mesma luz, mesma roupa justa, mesma distância (uns 2,5 m), celular na altura do umbigo e corpo inteiro no quadro. Assim a comparação fica fiel.</p>';
 
 async function viewFotos(alunoId, box, staff) {
-  box.innerHTML = '<div class="boot-bar" style="margin:30px auto"><i></i></div>';
+  box.innerHTML = esqBloco();
   const [{ data: fotos }, { data: posts }] = await Promise.all([
     sb.from('nx_fotos').select('*').eq('org_id', S.org.id).eq('aluno_id', alunoId).order('data').order('criado_em'),
     sb.from('nx_posturais').select('id,data,achados,observacoes').eq('org_id', S.org.id).eq('aluno_id', alunoId).order('data', { ascending: false }),
@@ -1855,7 +1900,7 @@ async function viewFotos(alunoId, box, staff) {
     const quadro = (f, d) => `<figure class="cmp-f">${f ? `<img src="${esc(urls[f.caminho])}" alt="Foto de ${fmtDia(d)}" data-foto="${f.id}">` : '<div class="cmp-vazio">Sem foto nesta vista</div>'}${st.grade ? '<i class="grade"></i>' : ''}<figcaption>${d ? fmtDia(d) : ''}</figcaption></figure>`;
     box.innerHTML = `
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" id="add-fotos">${I.plus} Fotos de progresso</button>${staff ? `<a class="btn ghost sm" href="#/aluno/${alunoId}/postural/nova">${I.plus} Avaliação postural</a>` : ''}</div>
-      ${datas.length ? `<div class="section" style="margin-top:20px"><div class="section-h"><h2 class="h2">Antes e depois</h2>${slashes}</div>
+      ${datas.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Antes e depois</h2>${slashes}</div>
         <div class="card cmp">
           <div class="chips">${VISTAS.map(([v, l]) => `<button class="chip ${st.vista === v ? 'on' : ''}" data-vista="${v}">${l}</button>`).join('')}<button class="chip ${st.grade ? 'on' : ''}" id="grade">Grade</button></div>
           ${datas.length > 1 ? `<div class="grid2" style="margin-top:12px"><select class="input" id="da">${op(st.a)}</select><select class="input" id="db">${op(st.b)}</select></div>` : ''}
@@ -1879,7 +1924,7 @@ async function viewFotos(alunoId, box, staff) {
   const abrirFoto = (f) => {
     if (!f) return;
     const podeApagar = staff || f.enviado_por === S.user.id;
-    openSheet(`<p class="eyebrow">${VISTAS.find((x) => x[0] === f.vista)?.[1] || 'Foto'} · ${fmtDia(f.data)}</p><div class="foto-grande" style="margin-top:10px"><img src="${esc(urls[f.caminho])}" alt=""><i class="grade" hidden></i></div>
+    openSheet(`<p class="eyebrow">${VISTAS.find((x) => x[0] === f.vista)?.[1] || 'Foto'} · ${fmtDia(f.data)}</p><div class="foto-grande" style="margin-top:12px"><img src="${esc(urls[f.caminho])}" alt=""><i class="grade" hidden></i></div>
       <div class="row" style="gap:8px;margin-top:12px"><button class="btn ghost sm" id="g2">Grade</button>${podeApagar ? '<button class="btn danger sm" id="apagar-f">Apagar foto</button>' : ''}<button class="btn ghost sm" data-close style="margin-left:auto">Fechar</button></div>`, (r) => {
       r.querySelector('#g2').onclick = () => { const gi = r.querySelector('.grade'); gi.hidden = !gi.hidden; };
       const ap = r.querySelector('#apagar-f');
@@ -1894,9 +1939,9 @@ async function viewFotos(alunoId, box, staff) {
   };
   const novasFotos = () => {
     openSheet(`<p class="eyebrow">Fotos de progresso</p><div class="h2" style="margin-top:4px">Novo registro</div>
-      <label class="field" style="margin-top:14px"><span>Data</span><input class="input" type="date" id="fdata" value="${hojeISO()}"></label>
+      <label class="field" style="margin-top:16px"><span>Data</span><input class="input" type="date" id="fdata" value="${hojeISO()}"></label>
       <div class="slots">${VISTAS.map(([v, l]) => slotFotoHTML(v, l)).join('')}</div>${DICAS_FOTO}
-      <button class="btn block" id="enviar-f" style="margin-top:14px">Salvar fotos</button><button class="btn ghost block" data-close style="margin-top:8px">Cancelar</button>`, (r) => {
+      <button class="btn block" id="enviar-f" style="margin-top:16px">Salvar fotos</button><button class="btn ghost block" data-close style="margin-top:8px">Cancelar</button>`, (r) => {
       const files = bindSlots(r, false);
       r.querySelector('#enviar-f').onclick = async (e) => {
         const vs = Object.keys(files); if (!vs.length) return toast('Escolha pelo menos uma foto.', true);
@@ -1930,7 +1975,7 @@ async function formPostural(alunoId, posId) {
         <span class="small muted" style="font-weight:700">Fotos (com grade de referência)</span>
         <div class="slots" style="margin-top:8px">${VISTAS.map(([v, l]) => slotFotoHTML(v, l, fv(v) ? urls[fv(v).caminho] : '', true)).join('')}</div>${DICAS_FOTO}</div>
       ${VISTAS.map(([v, l]) => `<div class="card"><span class="eyebrow">Vista ${v === 'lado' ? 'lateral' : l.toLowerCase() === 'frente' ? 'anterior' : 'posterior'}</span>
-        <div class="chips wrap" style="margin-top:10px">${ACHADOS[v].map(([k, t]) => `<label class="chipc"><input type="checkbox" name="${v}" value="${k}" ${((p.achados || {})[v] || []).includes(k) ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div></div>`).join('')}
+        <div class="chips wrap" style="margin-top:12px">${ACHADOS[v].map(([k, t]) => `<label class="chipc"><input type="checkbox" name="${v}" value="${k}" ${((p.achados || {})[v] || []).includes(k) ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div></div>`).join('')}
       <div class="card"><label class="field"><span>Observações e orientações para o aluno</span><textarea class="textarea" name="obs" placeholder="Ex.: reforçar glúteo médio e mobilidade torácica; manter alongamento de peitoral">${esc(p.observacoes || '')}</textarea></label></div>
       <button class="btn block" type="submit">Salvar avaliação postural ${I.check}</button>
       ${posId ? '<button class="btn danger block sm" type="button" id="apagar-p">Excluir avaliação</button>' : ''}
@@ -1982,7 +2027,7 @@ async function viewPostural(posId) {
     <div class="section"><div class="section-h"><h2 class="h2">O que foi observado</h2>${slashes}</div>
       ${VISTAS.map(([v, l]) => { const ls = (p.achados || {})[v] || []; return `<div class="card"><span class="eyebrow">${l}</span>${ls.length ? `<ul class="achados">${ls.map((k) => `<li>${esc(nomeAch(v, k))}</li>`).join('')}</ul>` : '<p class="small muted" style="margin-top:6px">Sem desvios marcados nesta vista.</p>'}</div>`; }).join('')}</div>
     ${p.observacoes ? `<div class="card" style="margin-top:16px;border-color:rgba(70,214,255,.3)"><span class="eyebrow">Orientações do avaliador</span><p style="margin-top:6px;white-space:pre-line">${esc(p.observacoes)}</p></div>` : ''}
-    <p class="tiny dim" style="margin-top:20px">A avaliação postural por fotos é observacional: registra o alinhamento naquele momento para orientar o treino e acompanhar mudanças. Não é diagnóstico. Desvios com dor ou limitação devem ser avaliados por médico ou fisioterapeuta.</p>`;
+    <p class="tiny dim" style="margin-top:16px">A avaliação postural por fotos é observacional: registra o alinhamento naquele momento para orientar o treino e acompanhar mudanças. Não é diagnóstico. Desvios com dor ou limitação devem ser avaliados por médico ou fisioterapeuta.</p>`;
   document.getElementById('imprimir').onclick = () => window.print();
   document.getElementById('grade-t').onclick = () => $app.querySelectorAll('.post-fotos .grade').forEach((g) => (g.hidden = !g.hidden));
 }
@@ -2087,9 +2132,9 @@ async function secaoNotificacoes(el) {
 function viewTermoLido() {
   const t = (S.cache.saude || {}).termo;
   $app.innerHTML = `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Privacidade</p><h1 class="h1">Termo e seus dados</h1>
-    ${t ? `<span class="tag ok" style="margin-top:10px">Você aceitou em ${fmtDia(t.aceito_em)} · versão ${esc(t.versao)}</span>` : ''}
-    <div class="card termo" style="margin-top:14px">${termoTexto()}</div>
-    <p class="small muted" style="margin-top:14px">Quer uma cópia dos seus dados, corrigir algo ou pedir a exclusão? Escreva para <b>${esc(CONTATO.email)}</b> ou fale com o seu treinador.</p>`;
+    ${t ? `<span class="tag ok" style="margin-top:12px">Você aceitou em ${fmtDia(t.aceito_em)} · versão ${esc(t.versao)}</span>` : ''}
+    <div class="card termo" style="margin-top:16px">${termoTexto()}</div>
+    <p class="small muted" style="margin-top:16px">Quer uma cópia dos seus dados, corrigir algo ou pedir a exclusão? Escreva para <b>${esc(CONTATO.email)}</b> ou fale com o seu treinador.</p>`;
 }
 
 /* ================= CORRIDA: planilha, registros, paces e evolução ================= */
@@ -2248,7 +2293,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
   let rpe = d.rpe ?? null, dor = !!d.dor; const corpo = { cansaco: d.cansaco ?? null, sono: d.sono ?? null };
   openSheet(`<p class="eyebrow">${d.fonte === 'arquivo' ? 'Arquivo lido ✓' : 'Nova corrida'}</p><div class="h2" style="margin-top:4px">Confira e salve</div>
     ${d.fonte === 'arquivo' ? `<div class="mini-stats"><div><b>${fmtKm(d.distancia_m)}</b><span>distância</span></div><div><b>${fmtDur(d.duracao_s)}</b><span>tempo</span></div><div><b>${fmtPace(paceDe(d))}</b><span>pace</span></div></div>${d.rota ? `<div class="rota-box">${rotaSVG(d.rota, 150)}</div>` : ''}` : ''}
-    <form id="f-corr" style="margin-top:14px">
+    <form id="f-corr" style="margin-top:16px">
       <div class="grid2"><label class="field"><span>Data e hora</span><input class="input" type="datetime-local" name="data" value="${dt.toISOString().slice(0, 16)}" required></label><label class="field"><span>Tipo</span><select class="input" name="tipo">${TIPOS_ATIV.map(([k, l]) => `<option value="${k}" ${d.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
       <div class="grid2"><label class="field"><span>Distância (km)</span><input class="input" name="km" data-mask="dec" inputmode="decimal" value="${d.distancia_m ? String(+(d.distancia_m / 1000).toFixed(2)).replace('.', ',') : ''}" placeholder="Ex.: 8,2" required></label><label class="field"><span>Tempo (h:mm:ss)</span><input class="input" name="tempo" data-mask="tempo" inputmode="numeric" value="${d.duracao_s ? fmtDurLongo(d.duracao_s) : ''}" placeholder="Ex.: 45:30" required></label></div>
       <p class="small muted" id="pace-calc" style="margin:-6px 0 12px"></p>
@@ -2256,7 +2301,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
       ${plano.length ? `<label class="field"><span>É de qual treino da planilha?</span><select class="input" name="plano"><option value="">Corrida avulsa</option>${prox.slice(0, 8).map((p) => `<option value="${p.id}" ${(d.plano_id || sugerido?.id) === p.id ? 'selected' : ''}>${fmtData(p.data + 'T12:00:00')} · ${esc(p.titulo || nomeTipo(p.tipo))}${p.distancia_km ? ' · ' + String(p.distancia_km).replace('.', ',') + ' km' : ''}</option>`).join('')}</select></label>` : ''}
       <div class="field"><span>Esforço percebido (0 a 10)</span><div class="effort" id="rpe">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}" class="${rpe === n ? 'on' : ''}" style="${rpe === n ? 'background:' + rpeCor(n) : ''}">${n}</button>`).join('')}</div></div>
       <div class="field"><span>Sentiu alguma dor?</span><div class="seg"><button type="button" class="${dor ? '' : 'on'}" data-dor="0">Não</button><button type="button" class="${dor ? 'on alert' : ''}" data-dor="1">Sim</button></div>
-        <input class="input" id="dor-local" placeholder="Onde? Ex.: panturrilha esquerda" style="margin-top:10px" value="${esc(d.dor_local || '')}" ${dor ? '' : 'hidden'}></div>
+        <input class="input" id="dor-local" placeholder="Onde? Ex.: panturrilha esquerda" style="margin-top:12px" value="${esc(d.dor_local || '')}" ${dor ? '' : 'hidden'}></div>
       ${corpoHTML(corpo)}
       <label class="field"><span>Como foi? (opcional)</span><textarea class="textarea" name="comentario" placeholder="Ex.: calor forte, segurei o pace no fim">${esc(d.comentario || '')}</textarea></label>
       <button class="btn block" type="submit">Salvar corrida ${I.check}</button>
@@ -2285,7 +2330,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
       const { data: novo, error } = await sb.from('nx_corridas').insert(row).select('id').single();
       if (error) { btn.disabled = false; return toast(/duplicate|unique/i.test(error.message || '') ? 'Essa corrida já foi registrada.' : 'Não foi possível salvar. Verifique a internet.', true); }
       if (alunoId === S.user.id) notificar('corrida', novo.id);
-      closeSheet(); toast('Corrida registrada! 🏃');
+      closeSheet(); toast('Corrida registrada!');
       onSalvo ? onSalvo(novo.id) : (location.hash = '#/corrida/' + novo.id);
     };
   });
@@ -2604,7 +2649,7 @@ async function viewCorrida(id) {
     ${analiseBlocos.slice(0, analiseBlocos.length - (c.analise && analiseBlocos.length && analiseBlocos[analiseBlocos.length - 1].includes('Todos os números') ? 1 : 0)).join('')}
     ${parc.length ? `<div class="section"><div class="section-h"><h2 class="h2">Parciais</h2>${slashes}</div><div class="card"><div class="splits">${parc.map((p) => { const v = pk(p); const w = pMax > pMin ? 35 + (65 * (pMax - v)) / (pMax - pMin) : 100; return `<div><span>${p.parcial ? String(p.km).replace('.', ',') : 'km ' + p.km}</span><i style="width:${w.toFixed(0)}%"></i><b>${fmtPace(v).replace('/km', '')}</b><em>${p.fc ? p.fc + ' bpm' : ''}</em></div>`; }).join('')}</div></div></div>` : ''}
     ${analiseBlocos.length && analiseBlocos[analiseBlocos.length - 1].includes('Todos os números') ? analiseBlocos[analiseBlocos.length - 1] : ''}
-    <p class="tiny dim" style="margin-top:18px">Fonte: ${c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
+    <p class="tiny dim" style="margin-top:16px">Fonte: ${c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
   const gc = document.getElementById('gerar-card'); if (gc) gc.onclick = () => abrirCardCorrida(c);
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = () => marcarVisto(b));
   ['coment-tr', 'coment-tr-ed'].forEach((k) => { const e = document.getElementById(k); if (e) e.onclick = () => comentarTreino(c, nome); });
@@ -2620,7 +2665,7 @@ function formPerfilCorrida(m, onSalvo) {
   const c = m.corrida || {};
   openSheet(`<p class="eyebrow">Perfil de corrida</p><div class="h2" style="margin-top:4px">${esc(firstName(m.nome))}</div>
     <p class="small muted" style="margin-top:6px">Use uma prova ou teste recente feito no limite (ideal: 3 a 10 km). O app calcula o VDOT, os paces de treino e as previsões de prova.</p>
-    <form id="f-pc" style="margin-top:14px">
+    <form id="f-pc" style="margin-top:16px">
       <div class="grid2"><label class="field"><span>Distância do teste (km)</span><input class="input" name="km" data-mask="dec" inputmode="decimal" value="${esc(c.teste_km != null ? String(c.teste_km).replace('.', ',') : '')}" placeholder="5"></label><label class="field"><span>Tempo (h:mm:ss)</span><input class="input" name="tempo" data-mask="tempo" inputmode="numeric" value="${c.teste_seg ? fmtDurLongo(c.teste_seg) : ''}" placeholder="25:30"></label></div>
       <label class="field"><span>Data do teste</span><input class="input" type="date" name="data" value="${esc(c.teste_data || hojeISO())}"></label>
       <div class="grid2"><label class="field"><span>FC máxima medida (opcional)</span><input class="input" name="fcmax" data-mask="num" inputmode="numeric" value="${esc(c.fc_max ?? '')}" placeholder="se souber"></label><label class="field"><span>FC de repouso</span><input class="input" name="fcrep" data-mask="num" inputmode="numeric" value="${esc(c.fc_rep ?? '')}"></label></div>
@@ -2827,7 +2872,7 @@ async function relatorioMes(alunoId, box, staff, m) {
   const [y, mm] = st.comp.split('-').map(Number);
   const ini = isoDia(new Date(y, mm - 1, 1, 12)), fim = isoDia(new Date(y, mm, 0, 12));
   const iniAnt = isoDia(new Date(y, mm - 2, 1, 12)), fimAnt = isoDia(new Date(y, mm - 1, 0, 12));
-  box.innerHTML = '<div class="boot-bar" style="margin:30px auto"><i></i></div>';
+  box.innerHTML = esqBloco();
   const ate = (d) => d + 'T23:59:59';
   const [corrs, corrsAnt, sess, sessAnt, plano, regs, provas] = await Promise.all([
     sb.from('nx_corridas').select('data,distancia_m,duracao_s,plano_id').eq('aluno_id', alunoId).gte('data', ini).lte('data', ate(fim)).order('data').then((r) => r.data || []).catch(() => []),
@@ -2871,7 +2916,7 @@ async function relatorioMes(alunoId, box, staff, m) {
       </div>
       ${fC && corrs.length ? `<div class="rm-sec"><h3>Quilômetros por semana</h3><div class="rm-barras">${porSem.map((x) => `<div><i style="height:${Math.max(3, (x.km / maxKm) * 100)}%"></i><b>${f1(x.km)}</b><small>${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small></div>`).join('')}</div></div>
       <div class="rm-sec"><h3>Pace médio por semana</h3><div class="rm-paces">${porSem.filter((x) => x.pace).map((x) => `<div><small>semana de ${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small><b>${fmtPace(x.pace)}</b></div>`).join('') || '<p class="small muted">Sem corridas de 2,5 km ou mais no mês.</p>'}</div></div>
-      <div class="rm-sec"><h3>Destaques</h3><ul class="rm-dest">${longa ? `<li>Corrida mais longa: <b>${fmtKm(longa.distancia_m, 1)}</b> em ${fmtDia(longa.data)}</li>` : ''}${rapida ? `<li>Melhor pace (3 km ou mais): <b>${fmtPace(paceDe(rapida))}</b> em ${fmtDia(rapida.data)}</li>` : ''}${provas.map((p) => `<li>🏁 Prova: <b>${esc(p.titulo)}</b>${p.distancia ? ' · ' + esc(p.distancia) : ''}</li>`).join('')}</ul></div>` : ''}
+      <div class="rm-sec"><h3>Destaques</h3><ul class="rm-dest">${longa ? `<li>Corrida mais longa: <b>${fmtKm(longa.distancia_m, 1)}</b> em ${fmtDia(longa.data)}</li>` : ''}${rapida ? `<li>Melhor pace (3 km ou mais): <b>${fmtPace(paceDe(rapida))}</b> em ${fmtDia(rapida.data)}</li>` : ''}${provas.map((p) => `<li>${icT(I.flag)}Prova: <b>${esc(p.titulo)}</b>${p.distancia ? ' · ' + esc(p.distancia) : ''}</li>`).join('')}</ul></div>` : ''}
       ${fM && cargas.length ? `<div class="rm-sec"><h3>Evolução de cargas</h3><div class="rm-cargas">${cargas.map(([n, e]) => `<div><span>${esc(n)}</span><b>${e.antes && e.antes !== e.mes ? `${fmtKg(e.antes)} → ` : ''}${fmtKg(e.mes)}</b>${!e.antes ? '<em class="nv">novo</em>' : e.mes > e.antes ? `<em>+${fmtKg(e.mes - e.antes)}</em>` : e.mes === e.antes ? '<em class="nv">mantida</em>' : ''}</div>`).join('')}</div></div>` : ''}
       ${!corrs.length && !sess.length ? '<p class="small muted" style="margin:14px 0">Nenhum treino registrado neste mês.</p>' : ''}
       <div class="rm-msg" id="rm-msg-out" ${st.msg ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(st.msg)}</p>${treinador ? `<b>${esc(firstName(treinador.nome))}</b>` : ''}</div>
@@ -2901,10 +2946,10 @@ async function relatorioMes(alunoId, box, staff, m) {
       if (staff) {
         const tel = telWa(m.telefone);
         openSheet(`<p class="eyebrow">Relatório de ${esc(nomeMesTxt)}</p><div class="h2" style="margin-top:4px">PDF pronto</div><p class="small muted" style="margin-top:6px">Compartilhe direto no WhatsApp do aluno ou baixe o arquivo.</p>
-          <div class="stack" style="margin-top:14px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="rm-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
+          <div class="stack" style="margin-top:16px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="rm-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
           <button class="btn ghost block" id="rm-down">Baixar o PDF</button>
           ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o seu relatório de ${nomeMesTxt} da Nexos 💪`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>
-          <p class="tiny dim" style="margin-top:10px">No computador: baixe o PDF, abra a conversa e arraste o arquivo para o WhatsApp.</p>`, (r) => {
+          <p class="tiny dim" style="margin-top:12px">No computador: baixe o PDF, abra a conversa e arraste o arquivo para o WhatsApp.</p>`, (r) => {
           const sh = r.querySelector('#rm-share'); if (sh) sh.onclick = () => navigator.share({ files: [arq], title: nomeArq, text: `Relatório de ${nomeMesTxt} · Nexos` }).catch(() => {});
           r.querySelector('#rm-down').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nomeArq; a.click(); };
         });
@@ -2926,9 +2971,9 @@ function guiaPlanilha() {
   const draw = (r) => {
     const [n, t, d, k] = passos[i];
     r.querySelector('#gp').innerHTML = `<div class="gp-ilu gp-${k}"><span class="gp-card"></span><span class="gp-dia"></span><span class="gp-mao"></span></div>
-      <p class="eyebrow" style="margin-top:14px">Passo ${n} de ${passos.length}</p><div class="h2" style="margin-top:4px">${t}</div><p class="small muted" style="margin-top:6px">${d}</p>
+      <p class="eyebrow" style="margin-top:16px">Passo ${n} de ${passos.length}</p><div class="h2" style="margin-top:4px">${t}</div><p class="small muted" style="margin-top:6px">${d}</p>
       <div class="gp-dots">${passos.map((_, j) => `<i class="${j === i ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="grid2" style="margin-top:14px"><button class="btn ghost" id="gp-a">${i ? 'Voltar' : 'Pular'}</button><button class="btn" id="gp-p">${i === passos.length - 1 ? 'Entendi' : 'Próximo'}</button></div>`;
+      <div class="grid2" style="margin-top:16px"><button class="btn ghost" id="gp-a">${i ? 'Voltar' : 'Pular'}</button><button class="btn" id="gp-p">${i === passos.length - 1 ? 'Entendi' : 'Próximo'}</button></div>`;
     r.querySelector('#gp-a').onclick = () => { if (!i) { store.set('nx_guia_plan', true); return closeSheet(); } i--; draw(r); };
     r.querySelector('#gp-p').onclick = () => { if (i === passos.length - 1) { store.set('nx_guia_plan', true); return closeSheet(); } i++; draw(r); };
   };
@@ -3022,14 +3067,14 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
   };
   const pega = (cam) => { const [a, b] = String(cam).split('.').map(Number); return b == null ? { lista: t.estrutura, i: a } : { lista: t.estrutura[a].passos, i: b }; };
   openSheet(`<p class="eyebrow">${sessao ? 'Editar treino' : 'Novo treino'} · ${fmtDia(base.data)}</p>
-    <div class="grid2" style="margin-top:10px"><label class="field"><span>Nome do treino</span><input class="input" id="t-nome" value="${esc(t.titulo || '')}" placeholder="Ex.: 6 × 800 m"></label><label class="field"><span>Tipo</span><select class="input" id="t-tipo">${TIPOS_CORRIDA.map(([k, l]) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    <div class="grid2" style="margin-top:12px"><label class="field"><span>Nome do treino</span><input class="input" id="t-nome" value="${esc(t.titulo || '')}" placeholder="Ex.: 6 × 800 m"></label><label class="field"><span>Tipo</span><select class="input" id="t-tipo">${TIPOS_CORRIDA.map(([k, l]) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <p class="small muted sobre-ed" id="t-sobre">${esc(sobreTreino(t.tipo))}</p>
     <div class="card perf-card"><div id="perf"></div><div class="row between" style="margin-top:8px"><span class="small" id="tot"></span><span class="legenda">${Object.entries(ZONAS_INFO).map(([, z]) => `<i style="background:${z.c}" title="${z.n}"></i>`).join('')}</span></div><p class="tiny dim" id="desc-auto" style="margin-top:6px"></p></div>
     <div id="passos" class="passos"></div>
     <div class="add-passos">${Object.entries(PASSOS).map(([k, l]) => `<button type="button" class="chip" data-add="${k}">+ ${l}</button>`).join('')}<button type="button" class="chip" data-add="rep">+ Série (repetir)</button></div>
-    <label class="field" style="margin-top:14px"><span>Sua observação para o aluno (opcional)</span><textarea class="textarea" id="t-desc" placeholder="Ex.: terreno plano, hidrate a cada 20 min">${esc(t.descricao || '')}</textarea></label>
+    <label class="field" style="margin-top:16px"><span>Sua observação para o aluno (opcional)</span><textarea class="textarea" id="t-desc" placeholder="Ex.: terreno plano, hidrate a cada 20 min">${esc(t.descricao || '')}</textarea></label>
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn grow" id="t-salvar">Salvar treino ${I.check}</button>${sessao ? '<button class="btn ghost" id="t-dup">Duplicar</button>' : ''}</div>
-    <div class="row between" style="margin-top:10px"><button class="link-btn small" id="t-modelo">Salvar como modelo</button>${sessao ? '<button class="link-btn small" id="t-del" style="color:var(--err)">Excluir treino</button>' : ''}</div>`, (r) => {
+    <div class="row between" style="margin-top:12px"><button class="link-btn small" id="t-modelo">Salvar como modelo</button>${sessao ? '<button class="link-btn small" id="t-del" style="color:var(--err)">Excluir treino</button>' : ''}</div>`, (r) => {
     desenhar(r);
     const pc = r.querySelector('#passos');
     pc.addEventListener('change', (e) => {
@@ -3100,7 +3145,7 @@ function verTreinoPlanilha(p, perfil, feito) {
     <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px">${(() => { const t = estimaTotal(est, perfil); return `<b>${t.soDist ? '' : '≈ '}${t.km}</b> · ${t.soTempo ? '' : '≈ '}${t.tempo}`; })()}</p></div>
     <div class="stack" style="margin-top:12px">${est.map((s) => s.k === 'rep' ? `<div class="serie-v"><b>Repita ${s.n} vezes:</b>${(s.passos || []).map((x) => passoH(x)).join('')}</div>` : passoH(s)).join('')}</div>
     ${p.descricao ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Observação do treinador</span><p style="margin-top:6px;white-space:pre-line">${esc(p.descricao)}</p></div>` : ''}
-    ${feito ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:14px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>` : `<button class="btn block" id="reg-agora" style="margin-top:14px">${I.plus} Registrar esta corrida</button>`}
+    ${feito ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:16px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>` : `<button class="btn block" id="reg-agora" style="margin-top:16px">${I.plus} Registrar esta corrida</button>`}
     ${!feito && !S.staff && p.data >= hojeISO() && est.length ? `<button class="btn ghost block gar-btn" id="gar-env" style="margin-top:8px" hidden>${RELOGIO_IC} ${p.garmin_enviado_em ? 'Já está no seu Garmin ✓ · reenviar' : 'Enviar para o meu Garmin'}</button>` : ''}
     <button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`, (r) => {
     const b = r.querySelector('#reg-agora'); if (b) b.onclick = () => registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; });
@@ -3150,7 +3195,7 @@ function provasBannerHTML(provas, staff, semPol) {
     const outra = provas[i + 1] && Math.round((dia(provas[i + 1].data) - dia(p.data)) / 864e5);
     const fase = !staff || semPol ? '' : d <= jan ? '<span class="pa-fase">Janela de polimento</span>' : `<span class="pa-fase off">Janela de polimento a partir de ${fmtCurto(isoDia(dia(p.data).getTime() - jan * 864e5) + 'T12:00:00')}</span>`;
     return `<div class="prova-alerta"><div class="pa-n"><b>${t.big}</b><span>${t.un}</span></div>
-      <div class="grow" style="min-width:0"><span class="pa-ey">🏁 ${staff ? 'Aluno tem prova' : 'Você tem prova'}</span><b class="pa-t">${esc(p.titulo)}</b>
+      <div class="grow" style="min-width:0"><span class="pa-ey">${icT(I.flag)}${staff ? 'Aluno tem prova' : 'Você tem prova'}</span><b class="pa-t">${esc(p.titulo)}</b>
         <span class="pa-s">${fmtDiaSem(p.data)}${p.distancia ? ' · ' + esc(p.distancia) : ''}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span>
         <span class="pa-s pa-falta">${t.txt}</span>
         ${staff && outra && outra <= 14 ? `<span class="pa-s" style="color:var(--prova);font-weight:700">Outra prova ${outra} dia${outra > 1 ? 's' : ''} depois</span>` : ''}${fase}
@@ -3186,11 +3231,11 @@ async function polimentoSheet(alunoId, prova, perfil, aoAplicar) {
   openSheet(`<p class="eyebrow">Sugestão de polimento · ${esc(prova.titulo)}</p><div class="h2" style="margin-top:4px">Semana${jan > 7 ? 's' : ''} mais leve${jan > 7 ? 's' : ''} antes da prova?</div><p class="small" style="margin-top:6px;color:var(--prova);font-weight:700">É só uma sugestão. Nada muda na planilha até você tocar em “Aplicar”.</p>
     <p class="small muted" style="margin-top:6px">Prova de ${f1(km)} km em ${fmtDiaSem(prova.data).toLowerCase()}. Sugestão: reduzir o <b>volume</b> nos ${jan} dias antes e manter a <b>intensidade</b> (os tiros e ritmos continuam no mesmo pace, só com menos repetições). Isso chega o aluno descansado sem perder o ritmo.</p>
     <div class="pol-regra"><span>8 a 14 dias antes</span><b>−20%</b><span>3 a 7 dias antes</span><b>−40%</b><span>1 e 2 dias antes</span><b>−55%</b></div>
-    ${linhas.length ? `<div class="stack" style="margin-top:14px">${linhas.map((l) => `<div class="pol-l ${l.ja ? 'ja' : ''}"><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(l.p.titulo || nomeTipo(l.p.tipo))}</b><span class="small muted">${DIAS[dia(l.p.data).getDay()]} ${dia(l.p.data).getDate()} · ${l.da} dia${l.da > 1 ? 's' : ''} antes</span></div>${l.ja ? '<span class="tag ok">já ajustado</span>' : `<span class="pol-km"><s>${f1(l.antes)} km</s> → <b>${f1(l.depois)} km</b></span>`}</div>`).join('')}</div>
+    ${linhas.length ? `<div class="stack" style="margin-top:16px">${linhas.map((l) => `<div class="pol-l ${l.ja ? 'ja' : ''}"><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(l.p.titulo || nomeTipo(l.p.tipo))}</b><span class="small muted">${DIAS[dia(l.p.data).getDay()]} ${dia(l.p.data).getDate()} · ${l.da} dia${l.da > 1 ? 's' : ''} antes</span></div>${l.ja ? '<span class="tag ok">já ajustado</span>' : `<span class="pol-km"><s>${f1(l.antes)} km</s> → <b>${f1(l.depois)} km</b></span>`}</div>`).join('')}</div>
       <p class="small" style="margin-top:12px">Volume nesses dias: <b>${f1(totA)} km → ${f1(totD)} km</b></p>
-      <label class="aceite" style="margin-top:10px"><input type="checkbox" id="pol-avisar" checked><span>Avisar o aluno que a planilha mudou</span></label>
-      ${linhas.some((l) => !l.ja) ? '<button class="btn block" id="pol-ok" style="margin-top:10px">Aplicar polimento</button>' : '<p class="small muted" style="margin-top:10px">O polimento já está aplicado nesses treinos.</p>'}`
-      : `<div class="card" style="margin-top:14px"><b>Ainda não há treinos nesses dias</b><p class="small muted" style="margin:4px 0 10px">Posso montar uma semana de polimento pronta para ${f1(km)} km. Depois é só ajustar arrastando.</p>
+      <label class="aceite" style="margin-top:12px"><input type="checkbox" id="pol-avisar" checked><span>Avisar o aluno que a planilha mudou</span></label>
+      ${linhas.some((l) => !l.ja) ? '<button class="btn block" id="pol-ok" style="margin-top:12px">Aplicar polimento</button>' : '<p class="small muted" style="margin-top:12px">O polimento já está aplicado nesses treinos.</p>'}`
+      : `<div class="card" style="margin-top:16px"><b>Ainda não há treinos nesses dias</b><p class="small muted" style="margin:4px 0 10px">Posso montar uma semana de polimento pronta para ${f1(km)} km. Depois é só ajustar arrastando.</p>
         ${padrao.length ? `<div class="stack">${padrao.map((x) => `<div class="pol-l"><div class="grow"><b>${esc(x.titulo)}</b><span class="small muted" style="display:block">${x.d} dias antes · ${f1(resumoEstrutura(x.estrutura, perfil).km)} km</span></div>${perfilHTML(x.estrutura, perfil)}</div>`).join('')}</div><button class="btn block" id="pol-criar" style="margin-top:12px">Montar semana de polimento</button>` : '<p class="small muted">A prova está muito próxima para montar treinos.</p>'}</div>`}
     <p class="tiny dim" style="margin-top:12px">Base: polimento com redução de volume de 40–60% e intensidade mantida (Bosquet e col., 2007; Mujika e Padilla, 2003).</p>`, (r) => {
     const ok = r.querySelector('#pol-ok');
@@ -3236,7 +3281,7 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
     const km = doPlano.reduce((a, p) => a + resumoEstrutura(estruturaDe(p), perfil).km, 0);
     const feitoKm = corridas.filter((c) => { const k = isoDia(c.data); return k >= isoDia(dias[0]) && k <= isoDia(dias[6]); }).reduce((a, c) => a + c.distancia_m / 1000, 0);
     const prSem = provas.filter((p) => p.data >= isoDia(dias[0]) && p.data <= isoDia(dias[6]));
-    h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''}">${prSem.length ? `<div class="sem-prova-l">🏁 Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div>${staff && doPlano.length ? (() => { const nLib = doPlano.filter((p) => p.liberado !== false).length; const de = isoDia(dias[0]), ate = isoDia(dias[6]);
+    h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''}">${prSem.length ? `<div class="sem-prova-l">${icT(I.flag)}Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div>${staff && doPlano.length ? (() => { const nLib = doPlano.filter((p) => p.liberado !== false).length; const de = isoDia(dias[0]), ate = isoDia(dias[6]);
       return nLib === doPlano.length
         ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" data-desliberar="${de}|${ate}">Cancelar liberação</button></div>${S.cache.garmOn ? (() => { const tr = doPlano.filter((p) => p.tipo !== 'folga' && estruturaDe(p).length && p.data >= hojeISO()); const env = tr.filter((p) => p.garmin_enviado_em).length; const err = tr.some((p) => p.garmin_erro); return tr.length ? `<div class="gar-bar ${env === tr.length ? 'ok' : err ? 'err' : ''}"><span>${RELOGIO_IC} ${env === tr.length ? 'No Garmin e no relógio do aluno ✓' : err ? 'Não consegui enviar ao Garmin' : `${tr.length - env} treino${tr.length - env > 1 ? 's' : ''} ainda não enviado${tr.length - env > 1 ? 's' : ''} ao Garmin`}</span><button type="button" class="link-btn small" data-garmin="${de}|${ate}">${env ? 'Reenviar' : 'Enviar ao Garmin'}</button></div>` : ''; })() : ''}`
         : `<div class="lib-bar"><span>${nLib ? `${doPlano.length - nLib} treino${doPlano.length - nLib > 1 ? 's' : ''} ainda não liberado${doPlano.length - nLib > 1 ? 's' : ''}` : 'Rascunho: o aluno ainda não vê esta semana'}</span><button type="button" class="btn sm lib-btn" data-liberar="${de}|${ate}">Liberar semana</button></div>`; })() : ''}<div class="cal-dias">`;
@@ -3245,7 +3290,7 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
       const av = corridas.filter((c) => !c.plano_id && isoDia(c.data) === k);
       const pr = provas.filter((p) => p.data === k);
       h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${staff ? `<span class="disp-cal">${dispIcones(m, (d.getDay() + 6) % 7)}</span>` : ''}${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
-        ${pr.map((p) => `<a class="ses prova" href="${staff ? '#/eventos/equipe' : '#/eventos/minhas'}"><div class="ses-t"><b>🏁 ${esc(p.titulo)}</b></div><span class="ses-m">${esc(p.distancia || 'Prova')}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span></a>`).join('')}
+        ${pr.map((p) => `<a class="ses prova" href="${staff ? '#/eventos/equipe' : '#/eventos/minhas'}"><div class="ses-t"><b>${icT(I.flag)}${esc(p.titulo)}</b></div><span class="ses-m">${esc(p.distancia || 'Prova')}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span></a>`).join('')}
         ${itens.map((p) => cartaoSessao(p, perfil, corridas.find((c) => c.plano_id === p.id), staff)).join('')}
         ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-t"><b>Corrida avulsa</b><span class="ses-ok">✓</span></div><span class="ses-f">${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}</span></a>`).join('')}
         ${!itens.length && !av.length && !pr.length ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
@@ -3259,7 +3304,7 @@ function calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas = [
 async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   // silencioso: atualiza sem piscar a tela nem perder a rolagem (depois de arrastar, salvar etc.)
   const sv = silencioso && box.isConnected ? { y: scrollY, h: box.offsetHeight, bl: (box.querySelector('.biblio-l') || {}).scrollLeft || 0 } : null;
-  if (sv) box.style.minHeight = sv.h + 'px'; else box.innerHTML = '<div class="boot-bar" style="margin:30px auto"><i></i></div>';
+  if (sv) box.style.minHeight = sv.h + 'px'; else box.innerHTML = esqBloco('cal');
   if (!m || m.user_id !== alunoId) { const { data } = await sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); m = data || {}; }
   const st = S.cache.semCorr || (S.cache.semCorr = { off: 0, sub: 'planilha' });
   if (st.aluno !== alunoId) { st.aluno = alunoId; st.off = 0; st.sub = 'planilha'; st.todas = false; }
@@ -3294,8 +3339,8 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         ${staff ? `<aside class="biblio ${store.get('nx_bib_aberta', false) ? 'aberta' : ''}"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span><button type="button" class="bib-tog" id="bib-tog" aria-label="Mostrar ou esconder a biblioteca"><span class="bt-abrir">Abrir</span><span class="bt-fechar">Fechar</span>${I.chev}</button></div><p class="bib-dica">Toque em <b>+</b> no dia para escolher um treino, ou abra a biblioteca para arrastar.</p>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
         <div class="cal">${calendarioHTML(ini, semanas, plano, corridas, perfil, staff, provas, m)}</div>
       </div>
-      ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:10px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
-      ${!staff && !plano.length ? '<p class="small muted" style="margin-top:10px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
+      ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:12px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
+      ${!staff && !plano.length ? '<p class="small muted" style="margin-top:12px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
   } else if (sub === 'evolucao') {
     const c3 = cargaHTML3(cargaCorrida(corridas, perfil));
     const sem = Array(12).fill(0); const base = inicioSemana();
@@ -3314,9 +3359,9 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       ${!corridas.length ? '<div class="empty" style="margin-top:12px"><div class="h3">Sem corridas ainda</div><p class="small">A evolução aparece conforme as corridas forem registradas.</p></div>' : ''}`;
   } else if (sub === 'corridas') {
     corpo = `${staff ? '' : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}
-      ${corridas.length ? `<div class="stack" style="margin-top:12px">${corridas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span></div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${corridas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:10px">Ver todas as ${corridas.length} corridas</button>` : ''}`
+      ${corridas.length ? `<div class="stack" style="margin-top:12px">${corridas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span></div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${corridas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:12px">Ver todas as ${corridas.length} corridas</button>` : ''}`
         : `<div class="empty" style="margin-top:12px"><div class="h3">Nenhuma corrida registrada</div><p class="small">${staff ? 'As corridas do aluno aparecem aqui.' : 'Depois de correr, toque em “Registrar corrida”. Dá para enviar o arquivo do relógio.'}</p></div>`}
-      ${staff ? `<p class="small muted" style="margin-top:14px">${I.watch.replace('<svg', '<svg class="rel-ic"')} ${garm ? 'Garmin conectado: as corridas chegam sozinhas e os treinos liberados vão para o relógio.' : integ ? 'Relógio conectado pelo Intervals.icu.' : 'O aluno ainda não conectou um relógio (ele faz isso na aba Conexões).'}</p>` : `<a class="list-item" href="#/conexoes" style="margin-top:14px">${I.watch}<div class="grow"><b>${garm || integ ? 'Relógio conectado ✓' : 'Conectar o seu relógio'}</b><div class="small muted">${garm || integ ? 'Gerencie na aba Conexões' : 'Garmin, Coros, Polar e outros: as corridas chegam sozinhas'}</div></div>${I.chev}</a>`}`;
+      ${staff ? `<p class="small muted" style="margin-top:16px">${I.watch.replace('<svg', '<svg class="rel-ic"')} ${garm ? 'Garmin conectado: as corridas chegam sozinhas e os treinos liberados vão para o relógio.' : integ ? 'Relógio conectado pelo Intervals.icu.' : 'O aluno ainda não conectou um relógio (ele faz isso na aba Conexões).'}</p>` : `<a class="list-item" href="#/conexoes" style="margin-top:16px">${I.watch}<div class="grow"><b>${garm || integ ? 'Relógio conectado ✓' : 'Conectar o seu relógio'}</b><div class="small muted">${garm || integ ? 'Gerencie na aba Conexões' : 'Garmin, Coros, Polar e outros: as corridas chegam sozinhas'}</div></div>${I.chev}</a>`}`;
   } else {
     const ZT = [['rec', 'Z1 · Recuperação (trote)'], ...ZONAS_PACE];
     const faixaDe = (k) => (perfil.paces && perfil.paces[k]) || (k === 'rec' && perfil.paces && perfil.paces.leve ? [Math.round(perfil.paces.leve[1] * 1.08), Math.round(perfil.paces.leve[1] * 1.16)] : [ZONAS_INFO[k].pd - 10, ZONAS_INFO[k].pd + 10]);
@@ -3333,7 +3378,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         <p class="tiny dim" style="margin-top:8px">Paces automáticos pelo VDOT de Jack Daniels; previsões pela fórmula de Riegel. São estimativas para provas no plano e com treino específico.</p>` : ''}</div>`
       : `<div class="empty"><div class="h3">Ritmos ainda não calculados</div><p class="small">Seu treinador vai cadastrar um teste para calcular os seus paces.</p></div>`}
       ${staff ? `<button class="btn ${perfil.paces ? 'ghost' : ''} sm" id="ed-perfil" style="margin-top:12px">${perfil.paces ? 'Atualizar teste' : 'Cadastrar teste'}</button>` : ''}
-      ${perfil.fcMax ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}</span><div class="zonas" style="margin-top:10px">${zonasFC(perfil.fcMax, perfil.fcRep).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
+      ${perfil.fcMax ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}</span><div class="zonas" style="margin-top:12px">${zonasFC(perfil.fcMax, perfil.fcRep).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
   }
   box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${corpo}</div>`;
   if (sv) { const bl = box.querySelector('.biblio-l'); if (bl) bl.scrollLeft = sv.bl; scrollTo(scrollX, sv.y); requestAnimationFrame(() => { box.style.minHeight = ''; }); }
@@ -3404,7 +3449,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       const nv = e.target.closest('[data-novo]'), se = e.target.closest('[data-ses]');
       if (nv) return escolherModelo(nv.dataset.novo);
       if (se) { const p = plano.find((x) => x.id === se.dataset.ses); if (!p) return;
-        if (p.tipo === 'folga') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Day off</div><p class="small muted" style="margin-top:6px">Dia de descanso de corrida. O aluno vê “Hoje é day off” na tela inicial.</p><button class="btn danger block" id="off-del" style="margin-top:14px">Tirar o day off</button>`, (r) => { r.querySelector('#off-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Day off removido.'); recarregar(); }; }) : toast('Day off: dia de descanso.');
+        if (p.tipo === 'folga') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Day off</div><p class="small muted" style="margin-top:6px">Dia de descanso de corrida. O aluno vê “Hoje é day off” na tela inicial.</p><button class="btn danger block" id="off-del" style="margin-top:16px">Tirar o day off</button>`, (r) => { r.querySelector('#off-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Day off removido.'); recarregar(); }; }) : toast('Day off: dia de descanso.');
         staff ? editorTreino({ alunoId, perfil, sessao: p, aoSalvar: recarregar, modelos: modelosOrg }) : verTreinoPlanilha(p, perfil, corridas.find((c) => c.plano_id === p.id)); }
     });
     const escolherModelo = (data) => openSheet(`<p class="eyebrow">${fmtDia(data)}</p><div class="h2" style="margin-top:4px">Escolha um ponto de partida</div><div style="margin-top:12px">${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'pick-niv')}</div><div class="sheet-mods" id="pick-l"></div>`, (r) => {
@@ -3459,7 +3504,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         const ja = plano.filter((p) => p.data >= isoDia(ini) && p.data <= isoDia(fimC)).length;
         openSheet(`<p class="eyebrow">Colar ${clip.semanas > 1 ? 'semanas' : 'semana'}</p><div class="h2" style="margin-top:4px">${clip.itens.length} treino${clip.itens.length > 1 ? 's' : ''} de ${esc(clip.origem)}</div>
           <p class="small muted" style="margin-top:6px">Vão para ${esc(firstName(m.nome || 'o aluno'))}, a partir de ${fmtDia(isoDia(ini))}, nos mesmos dias da semana.${ja ? ` Essa semana já tem ${ja} treino${ja > 1 ? 's' : ''}.` : ''}</p>
-          <div class="stack" style="margin-top:14px">${ja ? `<button class="btn block" data-modo="trocar">Substituir os ${ja} treinos que já estão lá</button><button class="btn ghost block" data-modo="somar">Somar aos que já estão</button>` : '<button class="btn block" data-modo="somar">Colar aqui</button>'}
+          <div class="stack" style="margin-top:16px">${ja ? `<button class="btn block" data-modo="trocar">Substituir os ${ja} treinos que já estão lá</button><button class="btn ghost block" data-modo="somar">Somar aos que já estão</button>` : '<button class="btn block" data-modo="somar">Colar aqui</button>'}
           <button class="link-btn small" data-modo="limpar" style="color:var(--err)">Descartar a cópia</button></div>`, (r) => {
           r.onclick = async (e) => {
             const b2 = e.target.closest('[data-modo]'); if (!b2) return; const modo = b2.dataset.modo;
@@ -3494,7 +3539,7 @@ function intervalsCardHTML(integ, staff) {
   if (staff) return '<div class="card"><p class="small muted">O aluno ainda não conectou o relógio. Ele faz isso aqui mesmo, na aba de corrida dele. Enquanto isso, as corridas podem ser enviadas por arquivo.</p></div>';
   return `<div class="card"><b>Corridas chegando sozinhas</b><p class="small muted" style="margin-top:4px">Conecte o seu relógio (Coros, Polar, Suunto, Wahoo e outros) ao <b>Intervals.icu</b>, que é gratuito, e depois conecte o Intervals.icu aqui. As corridas passam a aparecer no app sem você fazer nada.</p>
     <ol class="small muted passos-int"><li>Crie uma conta grátis em intervals.icu e conecte o seu relógio lá (Configurações → Conexões).</li><li>Volte aqui e toque em “Conectar Intervals.icu”.</li></ol>
-    <button class="btn sm" id="int-on" style="margin-top:10px">Conectar Intervals.icu</button>
+    <button class="btn sm" id="int-on" style="margin-top:12px">Conectar Intervals.icu</button>
     <p class="tiny dim" style="margin-top:8px">Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.</p></div>`;
 }
 /* ---------- ciclo menstrual (opcional, só a aluna e os treinadores veem) ---------- */
@@ -3595,19 +3640,19 @@ function abrirMarca(k, garm, integ, marcaInt, recarregar) {
   const nome = MARCA_NOME[k];
   const fechar = () => { closeSheet(); recarregar(); };
   if (k === 'garmin') {
-    openSheet(`<div class="marca-topo">${marcaLogo(k, nome)}</div><div class="h2" style="margin-top:10px">Garmin</div>
+    openSheet(`<div class="marca-topo">${marcaLogo(k, nome)}</div><div class="h2" style="margin-top:12px">Garmin</div>
       ${integ && !garm ? `<p class="aviso-dup">Você já conectou um relógio pelo Intervals.icu. Se esse relógio também for Garmin, use só uma das conexões para as corridas não entrarem duas vezes.</p>` : ''}
       <div id="m-box" style="margin-top:12px">${garminCardHTML(garm, false)}</div>`, (r) => bindGarmin(r.querySelector('#m-box'), fechar));
     return;
   }
   if (k === 'outro') {
     openSheet(`<div class="h2">Outro relógio</div><p class="small muted" style="margin-top:6px">Amazfit, Apple Watch, Samsung, Xiaomi ou app de celular: envie o arquivo da corrida ou digite os dados.</p>
-      <button class="btn block" id="m-arq" style="margin-top:14px">${I.plus} Registrar uma corrida</button>
-      <p class="tiny dim" style="margin-top:10px"><b>Apple Watch:</b> o app HealthFit (iPhone) exporta a corrida em .FIT. <b>Amazfit/Zepp:</b> exporte pelo Strava ou pelo próprio app em .GPX.</p>`, (r) => { r.querySelector('#m-arq').onclick = () => { closeSheet(); registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; }); }; });
+      <button class="btn block" id="m-arq" style="margin-top:16px">${I.plus} Registrar uma corrida</button>
+      <p class="tiny dim" style="margin-top:12px"><b>Apple Watch:</b> o app HealthFit (iPhone) exporta a corrida em .FIT. <b>Amazfit/Zepp:</b> exporte pelo Strava ou pelo próprio app em .GPX.</p>`, (r) => { r.querySelector('#m-arq').onclick = () => { closeSheet(); registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; }); }; });
     return;
   }
   const ligado = integ && (!marcaInt || marcaInt === k);
-  openSheet(`<div class="marca-topo">${marcaLogo(k, nome)}</div><div class="h2" style="margin-top:10px">${nome}</div>
+  openSheet(`<div class="marca-topo">${marcaLogo(k, nome)}</div><div class="h2" style="margin-top:12px">${nome}</div>
     ${garm ? `<p class="aviso-dup">Você já conectou um Garmin. Se for usar o ${nome}, desconecte o Garmin para as corridas não entrarem duas vezes.</p>` : ''}
     ${ligado ? `<div id="m-box" style="margin-top:12px">${intervalsCardHTML(integ, false).replace('Intervals.icu conectado ✓', `${nome} conectado ✓ <span class="tiny dim">pelo Intervals.icu</span>`)}</div>`
       : integ ? `<p class="aviso-dup">Você já tem um relógio conectado pelo Intervals.icu. Para trocar para o ${nome}, conecte o ${nome} lá no Intervals (Configurações → Conexões). As corridas dele já vão chegar por esta mesma conexão.</p>`
@@ -3661,7 +3706,7 @@ function garminCardHTML(g, staff) {
   if (g) return `<div class="card garmin-card on"><div class="row between" style="gap:12px"><div style="min-width:0"><b>Garmin conectado ✓</b><p class="small muted">${g.erro ? `<span style="color:var(--warn)">${esc(g.erro)}</span>` : g.ultima_sync ? 'Última corrida recebida ' + quando(g.ultima_sync) + ' às ' + fmtHora(g.ultima_sync) : 'As próximas corridas do relógio chegam aqui sozinhas.'}</p></div>${staff ? '' : '<button class="link-btn small" id="gar-off">Desconectar</button>'}</div></div>`;
   if (staff) return '<div class="card"><p class="small muted">O aluno ainda não conectou o Garmin. Ele faz isso na aba Conexões, com um toque.</p></div>';
   return `<div class="card garmin-card"><b>Tem relógio Garmin?</b><p class="small muted" style="margin-top:4px">Conecte uma vez e cada corrida que você terminar no relógio entra sozinha aqui, já ligada ao treino do dia, com pace, frequência cardíaca, parciais e percurso.</p>
-    <button class="btn sm" id="gar-on" style="margin-top:10px">Conectar Garmin</button>
+    <button class="btn sm" id="gar-on" style="margin-top:12px">Conectar Garmin</button>
     <p class="tiny dim" style="margin-top:8px">Você autoriza na tela oficial da Garmin e pode desconectar quando quiser. Só entram as atividades feitas depois da conexão.</p></div>`;
 }
 async function chamarGarmin(body) {
@@ -3857,11 +3902,11 @@ function detalheCobranca(c, aluno, depois) {
   const s = statusCob(c); depois = depois || staffFinanceiro;
   openSheet(`<p class="eyebrow">${esc(c.descricao || nomeMes(c.competencia))}</p><div class="h2" style="margin-top:4px">${esc(aluno.nome || 'Aluno')}</div>
     <div class="cob-det"><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span></div><p class="small muted">${quandoVence(c)}${c.informada_em && s.k === 'informada' ? ` · avisou ${quando(c.informada_em)}` : ''}${c.lembrete_em ? ` · último lembrete ${quando(c.lembrete_em)}` : ''}</p>
-    ${s.k !== 'paga' ? `<div class="card" style="margin-top:14px"><b>Registrar pagamento</b><div class="seg four" id="formas" style="margin-top:10px">${FORMAS.map(([k, l]) => `<button type="button" data-forma="${k}">${l}</button>`).join('')}</div></div>
-      <button class="btn ghost block" id="d-lemb" style="margin-top:10px">${I.bell} Lembrar o aluno</button>`
-      : '<button class="btn ghost block" id="d-desf" style="margin-top:14px">Desfazer pagamento</button>'}
-    <details class="ajuda" style="margin-top:14px"><summary>Editar valor ou vencimento</summary>
-      <div class="grid2" style="margin-top:10px"><label class="field"><span>Valor (R$)</span><input class="input" id="d-val" data-mask="dec" inputmode="decimal" value="${String(c.valor).replace('.', ',')}"></label><label class="field"><span>Vencimento</span><input class="input" type="date" id="d-ven" value="${c.vencimento}"></label></div>
+    ${s.k !== 'paga' ? `<div class="card" style="margin-top:16px"><b>Registrar pagamento</b><div class="seg four" id="formas" style="margin-top:12px">${FORMAS.map(([k, l]) => `<button type="button" data-forma="${k}">${l}</button>`).join('')}</div></div>
+      <button class="btn ghost block" id="d-lemb" style="margin-top:12px">${I.bell} Lembrar o aluno</button>`
+      : '<button class="btn ghost block" id="d-desf" style="margin-top:16px">Desfazer pagamento</button>'}
+    <details class="ajuda" style="margin-top:16px"><summary>Editar valor ou vencimento</summary>
+      <div class="grid2" style="margin-top:12px"><label class="field"><span>Valor (R$)</span><input class="input" id="d-val" data-mask="dec" inputmode="decimal" value="${String(c.valor).replace('.', ',')}"></label><label class="field"><span>Vencimento</span><input class="input" type="date" id="d-ven" value="${c.vencimento}"></label></div>
       <div class="row between"><button class="btn sm" id="d-salvar">Salvar</button><button class="link-btn small" id="d-canc" style="color:var(--err)">Cancelar esta cobrança</button></div></details>`, (r) => {
     const fm = r.querySelector('#formas'); if (fm) fm.onclick = (e) => { const b = e.target.closest('[data-forma]'); if (b) marcarPaga(c, b.dataset.forma, depois); };
     const lb = r.querySelector('#d-lemb'); if (lb) lb.onclick = () => lembrarCobranca(c, aluno);
@@ -3963,7 +4008,7 @@ async function pagarComPix(c) {
     <label class="field"><span>Pix copia e cola</span><textarea class="textarea mono" id="pix-cod" readonly rows="3">${esc(codigo)}</textarea></label>
     <button class="btn block" id="copiar-pix">Copiar código Pix</button>
     <p class="tiny dim center" style="margin-top:8px">No app do banco: Pix → Pagar → Pix copia e cola (ou ler QR Code).</p>
-    <button class="btn ghost block" id="ja-paguei" style="margin-top:14px">${I.check} Já paguei</button>`, async (r) => {
+    <button class="btn ghost block" id="ja-paguei" style="margin-top:16px">${I.check} Já paguei</button>`, async (r) => {
     try { r.querySelector('#qr').innerHTML = await qrSVG(codigo); } catch { r.querySelector('#qr').remove(); }
     r.querySelector('#copiar-pix').onclick = async () => { try { await navigator.clipboard.writeText(codigo); toast('Código copiado! Cole no app do banco.'); } catch { r.querySelector('#pix-cod').select(); toast('Selecione e copie o código.', true); } };
     r.querySelector('#ja-paguei').onclick = async () => {
@@ -4056,7 +4101,7 @@ async function staffHoje() {
     const an = anams.find((a) => a.aluno_id === id);
     if (an && an.parq_positivo && !an.visto_treinador) l.push({ p: 1, t: 'PAR-Q com “sim”', cls: 'err', ir: `#/aluno/${id}/saude` });
     const pv = provasEq.find((x) => x.aluno_id === id);
-    if (pv) { const dd = diasAte(pv.data); l.push({ p: 2, t: `🏁 Prova ${dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : dd < 7 ? `em ${dd} dias` : `em ${dd} dias`}`, cls: 'prova', ir: `#/aluno/${id}/corrida` }); }
+    if (pv) { const dd = diasAte(pv.data); l.push({ p: 2, t: `Prova ${dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : dd < 7 ? `em ${dd} dias` : `em ${dd} dias`}`, cls: 'prova', ir: `#/aluno/${id}/corrida` }); }
     const msgs = (S.cache.msgPorAluno || {})[id];
     if (msgs) l.push({ p: 2, t: `${msgs} mensage${msgs > 1 ? 'ns' : 'm'}`, cls: 'acc', ir: `#/aluno/${id}/conversa` });
     const inf = cobs.find((c) => c.aluno_id === id && c.status === 'informada');
@@ -4111,7 +4156,7 @@ async function staffHoje() {
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
-    <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : alOutros.length ? 'Seus alunos estão em dia. 🎉' : 'Tudo em dia por aqui. 🎉'}</p>
+    <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : alOutros.length ? 'Seus alunos estão em dia.' : 'Tudo em dia por aqui.'}</p>
     ${pendentes.length ? `<div class="section"><div class="section-h"><h2 class="h2">Novos alunos para aprovar</h2><span class="tag acc">${pendentes.length}</span></div><div class="stack">${pendentes.map((m) => `<div class="card aprovar" data-pend="${m.user_id}">
       <div class="row" style="gap:12px">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small muted ellip" style="display:block">${esc(m.email || '')}</span></div><span class="tiny dim">${m.pedido_em ? quando(m.pedido_em) : ''}</span></div>
       ${(() => { const md = m.modalidades || [], c = md.includes('corrida'), f = md.includes('musculacao'); const ic = (c ? selo('corrida', 'sm') : '') + (f ? selo('forca', 'sm') : ''); const t = (ic ? `<span class="pend-ic">${ic}</span>` : '') + `<span>${c && f ? 'Este aluno é de <b>corrida e musculação</b>' : c ? 'Este aluno é <b>só de corrida</b>' : f ? 'Este aluno é <b>só de musculação</b>' : 'Não marcou a modalidade'}</span>`; return `<div class="pend-mod">${t}</div>`; })()}
@@ -4124,11 +4169,11 @@ async function staffHoje() {
     ${(() => { const aniv = ativos.filter((m) => ehAniversario(m.nascimento)); const prox = ativos.filter((m) => !ehAniversario(m.nascimento) && [1, 2, 3, 4, 5, 6].some((d) => ehAniversario(m.nascimento, d)));
       if (!aniv.length && !prox.length) return '';
       const msg = (m) => encodeURIComponent(`Parabéns, ${firstName(m.nome)}! 🎉 Toda a equipe Nexos deseja um novo ano cheio de saúde, treinos e conquistas. Bora pra cima! 💪`);
-      return `<div class="section"><div class="section-h"><h2 class="h2">Aniversários 🎂</h2>${slashes}</div><div class="stack">${aniv.map((m) => `<div class="list-item aniv">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small" style="color:var(--acc);font-weight:700">Faz aniversário hoje${m.nascimento ? ` · ${idadeEm(m.nascimento)} anos` : ''}</span></div>${m.telefone ? `<a class="btn sm" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}?text=${msg(m)}" target="_blank" rel="noopener">Parabéns</a>` : `<a class="btn sm" href="#/aluno/${m.user_id}/conversa">Parabéns</a>`}</div>`).join('')}
+      return `<div class="section"><div class="section-h"><h2 class="h2">Aniversários</h2>${slashes}</div><div class="stack">${aniv.map((m) => `<div class="list-item aniv">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small" style="color:var(--acc);font-weight:700">Faz aniversário hoje${m.nascimento ? ` · ${idadeEm(m.nascimento)} anos` : ''}</span></div>${m.telefone ? `<a class="btn sm" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}?text=${msg(m)}" target="_blank" rel="noopener">Parabéns</a>` : `<a class="btn sm" href="#/aluno/${m.user_id}/conversa">Parabéns</a>`}</div>`).join('')}
         ${prox.length ? `<p class="small muted" style="margin-top:4px">Esta semana: ${prox.map((m) => `${esc(firstName(m.nome))} (${fmtCurto(isoDia(new Date()).slice(0, 4) + m.nascimento.slice(4, 10) + 'T12:00:00')})`).join(', ')}</p>` : ''}</div></div>`; })()}
     ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}${m.treinador_id && m.treinador_id !== S.user.id && eqNomeH[m.treinador_id] ? ` <span class="tag" style="vertical-align:2px">de ${esc(eqNomeH[m.treinador_id])}</span>` : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : '')
-        + (alOutros.length ? `<div class="section"><details class="outros-al"${alMeus.length ? '' : ' open'}><summary><span class="h2" style="font-size:1rem">Alunos dos outros treinadores</span><span class="tag">${alOutros.length} · opcional</span></summary><div class="stack" style="margin-top:10px">${alOutros.map(card).join('')}</div></details></div>` : ''); })()}
+        + (alOutros.length ? `<div class="section"><details class="outros-al"${alMeus.length ? '' : ' open'}><summary><span class="h2" style="font-size:1rem">Alunos dos outros treinadores</span><span class="tag">${alOutros.length} · opcional</span></summary><div class="stack" style="margin-top:12px">${alOutros.map(card).join('')}</div></details></div>` : ''); })()}
     ${ehSeg ? '' : resumoHTML}
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><a class="link-btn" href="#/feed">Ver retornos</a></div>
       ${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`).join('')}
@@ -4216,11 +4261,11 @@ function viewPerfil() {
     </div><div>
     <div class="section"><div class="section-h"><h2 class="h2">Configurações</h2></div>
       <div id="notif"></div>
-      <div class="card" style="margin-top:10px"><b>Cor de fundo</b><p class="small muted">O claro é melhor para ler no sol e na academia.</p>
+      <div class="card" style="margin-top:12px"><b>Cor de fundo</b><p class="small muted">O claro é melhor para ler no sol e na academia.</p>
         <div class="tema-seg seg" id="tema">${[['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button type="button" data-tema="${k}" class="${(document.documentElement.dataset.tema || 'claro') === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
-      <details class="list-item acc-item" style="margin-top:10px"><summary><span class="ativ-ic">${I.home}</span><div class="grow"><b>Instalar no celular</b><div class="small muted">Ter o app na tela de início</div></div>${I.chev}</summary><p class="small muted" style="margin-top:10px">No navegador, toque em “Compartilhar” ou no menu ⋮ e escolha “Adicionar à tela de início”.</p></details></div>
-    <button class="btn danger block" id="sair" style="margin-top:18px">Sair da conta</button>
-    <p class="tiny dim center" style="margin-top:18px">Nexos Performance e Saúde · app v1.9 · <a href="../privacidade.html" target="_blank" rel="noopener" class="dim">Política de Privacidade</a></p>
+      <details class="list-item acc-item" style="margin-top:12px"><summary><span class="ativ-ic">${I.home}</span><div class="grow"><b>Instalar no celular</b><div class="small muted">Ter o app na tela de início</div></div>${I.chev}</summary><p class="small muted" style="margin-top:12px">No navegador, toque em “Compartilhar” ou no menu ⋮ e escolha “Adicionar à tela de início”.</p></details></div>
+    <button class="btn danger block" id="sair" style="margin-top:16px">Sair da conta</button>
+    <p class="tiny dim center" style="margin-top:16px">Nexos Performance e Saúde · app v1.9 · <a href="../privacidade.html" target="_blank" rel="noopener" class="dim">Política de Privacidade</a></p>
     </div></div>`;
   document.getElementById('sair').onclick = async () => { await sb.auth.signOut(); location.hash = '#/'; };
   const tf = document.getElementById('trocar-foto'); if (tf) tf.onclick = trocarFoto;
@@ -4362,7 +4407,7 @@ async function staffAlunos() {
       return `<div class="atl ${sel.has(m.user_id) ? 'sel' : ''}" data-aluno="${m.user_id}">
         <div class="atl-id">${m.ativo ? `<label class="atl-chk" data-chk="${m.user_id}"><input type="checkbox" ${sel.has(m.user_id) ? 'checked' : ''}></label>` : ''}${avAluno(m, stc)}<div class="grow" style="min-width:0"><div class="atl-nome"><b class="ellip">${esc(m.nome)}</b>${iconesAtl(m)}${si ? `<span class="tag ${si[1]} sit-tag">${si[0]}</span>` : ''}</div>
           <div class="atl-sub">${deOutro ? `<span class="tag">de ${esc(eqNome[m.treinador_id])}</span>` : ''}${alerta}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${modoF ? `<span class="${nTr[m.user_id] ? '' : 'pl-err'}">${nTr[m.user_id] ? `${nTr[m.user_id]} treino${nTr[m.user_id] > 1 ? 's' : ''}${(fDias[m.user_id] || new Set()).size ? ' · ' + diasTxt([...fDias[m.user_id]]) : ' · sem dia fixo'}` : 'Sem treino de força'}</span>${ultMu[m.user_id] ? `<span class="dim">último ${diasDesde(ultMu[m.user_id]) === 0 ? 'hoje' : 'há ' + diasDesde(ultMu[m.user_id]) + 'd'}</span>` : ''}` : sp ? `<span class="pl-${sp.cls}">${esc(sp.t)}</span>` : ''}</div>
-          ${pv && !modoF ? `<div class="atl-prova">🏁 ${esc(pv.titulo)} · ${fmtCurto(pv.data + 'T12:00:00')}${pv.distancia ? ' · ' + esc(pv.distancia) : ''} · <b>${faltam(pv.data)}</b></div>` : ''}</div></div>
+          ${pv && !modoF ? `<div class="atl-prova">${icT(I.flag)}${esc(pv.titulo)} · ${fmtCurto(pv.data + 'T12:00:00')}${pv.distancia ? ' · ' + esc(pv.distancia) : ''} · <b>${faltam(pv.data)}</b></div>` : ''}</div></div>
         ${m.ativo ? pontos(m.user_id) : '<div class="atl-inativo dim small">Inativo</div>'}
         <div class="atl-ac">${faz('corrida', m) ? `<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/corrida" aria-label="Planilha de corrida" title="Planilha de corrida">${I.run}</button>` : ''}${faz('musculacao', m) ? `<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/forca" aria-label="Planilha de força" title="Planilha de força">${I.lib}</button>` : ''}<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/conversa" aria-label="Conversa" title="Conversa">${I.feed}</button></div>
       </div>`;
@@ -4416,7 +4461,7 @@ function formPessoa(tipo, pre = {}, aoCriar) {
   const aluno = tipo === 'aluno'; const pv = (k) => esc(pre[k] || '');
   openSheet(`
     <p class="eyebrow">${aluno ? 'Novo aluno' : 'Novo treinador'}</p><div class="h2" style="margin-top:4px">${aluno ? 'Cadastrar aluno' : 'Adicionar treinador'}</div>
-    <form id="f-pessoa" style="margin-top:18px">
+    <form id="f-pessoa" style="margin-top:16px">
       <label class="field"><span>Nome completo</span><input class="input" name="nome" required autofocus value="${pv('nome')}"></label>
       <label class="field"><span>E-mail (será o login)</span><input class="input" type="email" name="email" required inputmode="email" value="${pv('email')}"></label>
       ${aluno ? `<div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999" value="${pv('telefone')}"></label><label class="field"><span>Nascimento</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${dataBR(pv('nascimento'))}"></label></div>
@@ -4456,7 +4501,7 @@ async function enviarEmailNexos(body, btn) {
     if (error) { erro = 'Não foi possível enviar o e-mail agora.'; try { const j = await error.context.json(); if (j?.erro) erro = j.erro; } catch {} }
     if (data && data.configurado === false) { toast('O envio por e-mail ainda não foi configurado (falta a senha de app do Gmail).', true); return false; }
     if (erro) { toast(erro, true); return false; }
-    toast(`E-mail enviado para ${body.para} ✉️`);
+    toast(`E-mail enviado para ${body.para}`);
     if (btn) { btn.innerHTML = `${I.check} E-mail enviado`; }
     return true;
   } finally { if (btn && btn.textContent === 'Enviando…') { btn.disabled = false; btn.innerHTML = txt; } }
@@ -4469,7 +4514,7 @@ function mostrarCredenciais(d, existente, aluno = true, tipo = 'acesso') {
   const tel = String(d.telefone || '').replace(/\D/g, '');
   const wa = `https://wa.me/${tel ? (tel.length <= 11 ? '55' + tel : tel) : ''}?text=${encodeURIComponent(msg)}`;
   openSheet(`
-    <div class="center"><div style="font-size:2.4rem">✅</div><div class="h2" style="margin-top:6px">${aluno ? 'Aluno cadastrado' : 'Treinador adicionado'}</div>
+    <div class="center">${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">${aluno ? 'Aluno cadastrado' : 'Treinador adicionado'}</div>
     <p class="small muted" style="margin:6px 0 16px">${existente ? 'Esse e-mail já tinha conta: a pessoa entra com a senha que já usa.' : 'Envie os dados de acesso:'}</p></div>
     <div class="cred">Acesso: <b>${esc(url)}</b><br>E-mail: <b>${esc(d.email)}</b>${existente ? '' : `<br>Senha: <b>${esc(d.senha)}</b>`}</div>
     <a class="btn block" style="margin-top:16px;background:#25d366;color:#04122b" href="${esc(wa)}" target="_blank" rel="noopener">${I.wa} Enviar pelo WhatsApp</a>
@@ -4510,7 +4555,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['relmes', 'Relatório do mês', I.ficha, 'PDF para mandar ao aluno', true],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
     ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],
-    ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? '⚠️ PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
+    ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? 'PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
     ['conversa', 'Conversa', I.feed, (S.cache.msgPorAluno || {})[alunoId] ? `${S.cache.msgPorAluno[alunoId]} mensagem nova` : 'Falar com o aluno', true],
     ['dados', 'Dados e plano', I.money, 'Cadastro, plano e acesso', true],
   ].filter((x) => x[4]);
@@ -4548,7 +4593,7 @@ async function staffAluno(alunoId, aba, extra) {
           ${feitos.filter((x) => !doDia.some((t) => t.id === x.treino_id)).map((x) => `<div class="ftr extra"><span class="grow"><b>${esc(x.treino_titulo || 'Treino')}</b><small>✓ feito fora do dia${x.esforco != null ? ', esforço ' + x.esforco : ''}</small></span></div>`).join('')}
           ${offF.includes(i) ? `<div class="ftr folga"><span class="off-ic">${OFF_IC}</span><span class="grow"><b>Day off</b><small>Descanso de força</small></span><button class="sd-x" data-froff="${i}" aria-label="Tirar o day off">${I.x}</button></div>` : ''}
           ${!doDia.length && !feitos.length && !offF.includes(i) ? '<span class="cal-vazio">sem treino</span>' : ''}</div></div>`; }).join('')}</div>
-      ${semDia.length ? `<p class="small muted" style="margin-top:10px">Sem dia fixo (o aluno faz na sequência): ${semDia.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}. Toque no + de um dia para fixar.</p>` : ''}
+      ${semDia.length ? `<p class="small muted" style="margin-top:12px">Sem dia fixo (o aluno faz na sequência): ${semDia.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}. Toque no + de um dia para fixar.</p>` : ''}
       <div class="section"><div class="section-h"><h2 class="h2">Treinos do aluno</h2>${slashes}</div><div class="stack">` + (treinos.length ? treinos.map((t, i) => { const ex = ultData(t); return `
       <div class="card tr-card"><div class="row between" style="align-items:flex-start;gap:10px"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
         <div><div class="h3">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} ${t.nx_treino_itens.length === 1 ? 'exercício' : 'exercícios'}${!t.ativo ? ' · <span style="color:var(--warn)">pausado</span>' : ''}</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:4px">${diasTxt(t.dias)}</span>` : ''}</div></div>
@@ -4556,9 +4601,9 @@ async function staffAluno(alunoId, aba, extra) {
         <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Executado ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, última execução ${fmtData(ex[0].iniciado_em)}` : 'O aluno ainda não executou este treino'}</p>
         <div class="grid3 tr-acoes"><a class="btn sm" href="#/aluno/${alunoId}/treino/${t.id}">Editar</a><a class="btn ghost sm" href="#/aluno/${alunoId}/cargas">${I.hist} Evolução</a><a class="btn ghost sm" href="#/aluno/${alunoId}/historico">${I.feed} Feedbacks</a></div></div>`; }).join('')
       : '<div class="empty"><div class="h3">Nenhum treino ainda</div><p class="small">Monte o primeiro treino deste aluno.</p></div>')
-      + `<div class="grid2" style="margin-top:14px"><a class="btn" href="#/aluno/${alunoId}/treino/novo">${I.plus} Novo treino</a><button class="btn ghost" id="treino-modelo">${I.lib} Usar modelo</button></div></div></div>`;
+      + `<div class="grid2" style="margin-top:16px"><a class="btn" href="#/aluno/${alunoId}/treino/novo">${I.plus} Novo treino</a><button class="btn ghost" id="treino-modelo">${I.lib} Usar modelo</button></div></div></div>`;
   } else if (aba === 'historico') {
-    corpo = sess.length ? sess.map((s) => sessaoCard(s).replace(/<\/div><\/div>$/, `<a class="btn ghost sm" href="#/aluno/${alunoId}/conversa/${s.id}" style="margin-top:10px">${I.feed} Responder</a></div></div>`)).join('') : '<div class="empty"><div class="h3">Sem treinos registrados</div><p class="small">Os check-ins do aluno aparecem aqui.</p></div>';
+    corpo = sess.length ? sess.map((s) => sessaoCard(s).replace(/<\/div><\/div>$/, `<a class="btn ghost sm" href="#/aluno/${alunoId}/conversa/${s.id}" style="margin-top:12px">${I.feed} Responder</a></div></div>`)).join('') : '<div class="empty"><div class="h3">Sem treinos registrados</div><p class="small">Os check-ins do aluno aparecem aqui.</p></div>';
   } else if (aba === 'cargas') {
     grupos = agruparCargas(await buscarRegistros(alunoId));
     corpo = `<div id="cargas">${cargasHTML(grupos, true)}</div>`;
@@ -4582,7 +4627,7 @@ async function staffAluno(alunoId, aba, extra) {
       <button class="btn block">Salvar dados</button></form>
       <div class="card"><b>Acesso ao app</b><p class="small muted" style="margin:4px 0 12px">Login: ${esc(m.email || '')}</p>
         <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost sm" id="reset-senha">Gerar nova senha</button><button class="btn ${m.ativo ? 'danger' : ''} sm" id="ativo">${m.ativo ? 'Desativar aluno' : 'Reativar aluno'}</button></div>
-        <p class="tiny dim" style="margin-top:10px">Aluno desativado não consegue ver os treinos, mas o histórico fica guardado.</p></div>`;
+        <p class="tiny dim" style="margin-top:12px">Aluno desativado não consegue ver os treinos, mas o histórico fica guardado.</p></div>`;
     planoInfo = await planoDoAlunoHTML(m);
     const eqD = await carregarEquipe();
     corpo = `<div class="card"><b>Treinador responsável</b><p class="small muted" style="margin:4px 0 10px">É quem tem a obrigação de acompanhar e responder este aluno. Os outros treinadores também podem responder, se quiserem. O aluno vê o responsável na conversa.</p>
@@ -4595,13 +4640,13 @@ async function staffAluno(alunoId, aba, extra) {
     <div class="row" style="gap:16px">${avAluno(m, 'lg ' + (u && diasDesde(u.iniciado_em) <= 3 ? 'st-ok' : u && diasDesde(u.iniciado_em) <= 7 ? 'st-warn' : ''))}
       <div class="grow"><h1 class="h2">${esc(m.nome)}</h1><div class="small muted">${m.objetivo ? esc(m.objetivo) : 'Sem objetivo cadastrado'}</div>
       <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${u ? `<span class="tag">Último treino ${quando(u.iniciado_em)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</div></div></div>
-    ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">⚠️ PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
+    ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">${icT(I.alerta, 'warn')}PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
 `;
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
       <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a><a class="tag acc" data-ficha-ins="${alunoId}" hidden>Ficha de inscrição ✎</a>${(setTimeout(() => preencherFichaIns(alunoId), 0), '')}</div>
         <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div>
         <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : `+ Marcar dias de treino ${selo('corrida', 'sm')} ${selo('forca', 'sm')}`} <span class="dim">· editar</span></button>${cicloA ? cicloLinhaHTML(cicloA, true) : ''}</div></div>
-        ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>🏁 ${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
+        ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>${icT(I.flag)}${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
       ${fM && fC ? `<div class="subtabs mod-tabs" style="margin-top:12px"><a class="${aba === 'corrida' ? 'on' : ''}" href="#/aluno/${alunoId}/corrida">${I.run} Corrida</a><a class="${aba === 'forca' ? 'on' : ''}" href="#/aluno/${alunoId}/forca">${I.lib} Força</a></div>` : ''}`;
   $app.innerHTML = aba === 'inicio'
     ? cabecalho + `<div class="stack" style="margin-top:16px">${corpo}</div>`
@@ -4736,7 +4781,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
           const resumo = det ? esc(resumoDet(det)) : [it.series && it.repeticoes ? `${it.series} × ${it.repeticoes}` : it.series ? `${it.series} séries` : '', it.carga, it.descanso_seg ? `${it.descanso_seg}s` : ''].filter(Boolean).map(esc).join(' · ');
           if (!it._aberto) return `<div class="ex-li" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span>${exFig(ex, 'thumb')}<span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${resumo || 'toque para definir séries e carga'}</small></span><span class="ex-chev">${I.chev}</span></button></div>`;
           return `<div class="ex-li aberto card" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span><span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${esc(ex.grupo || '')}</small></span><span class="ex-chev up">${I.chev}</span></button>
-            <div class="item-row" style="margin-top:10px"><div class="ex-fig-g">${exFig(ex, '')}</div>
+            <div class="item-row" style="margin-top:12px"><div class="ex-fig-g">${exFig(ex, '')}</div>
             <div class="row" style="gap:6px;align-items:flex-start"><div class="reorder"><button type="button" data-mv="-1" aria-label="Subir">${I.up}</button><button type="button" data-mv="1" aria-label="Descer">${I.down}</button></div><button type="button" class="icon-btn" data-rm aria-label="Remover" style="width:36px;height:36px">${I.x}</button></div></div>
             ${det ? `<div class="ser-det"><div class="sd-h"><span></span><span class="tiny dim">Reps</span><span class="tiny dim">Carga</span><span class="tiny dim">Desc. (s)</span><span></span></div>${det.map((d, k) => `<div class="sd-l" data-k="${k}"><b class="mono">${k + 1}ª</b><input class="input c" data-d="reps" value="${esc(d.reps ?? '')}" placeholder="12"><input class="input c" data-d="carga" value="${esc(d.carga ?? '')}" placeholder="20 kg"><input class="input c" inputmode="numeric" data-d="desc" data-mask="num" value="${esc(d.desc ?? '')}" placeholder="60"><button type="button" class="sd-x" data-sdrm="${k}" aria-label="Remover série">${I.x}</button></div>`).join('')}
               <div class="sd-acoes"><button type="button" class="link-btn small" data-sdadd>${I.plus} Adicionar série</button><button type="button" class="link-btn small" data-sdoff style="color:var(--mute)">Voltar para séries iguais</button></div></div>`
@@ -4858,8 +4903,8 @@ async function buscarModelosTreino() {
 async function escolherModeloTreino(aoEscolher) {
   const mods = await buscarModelosTreino();
   openSheet(`<p class="eyebrow">Modelos de treino</p><div class="h2" style="margin-top:4px">Escolha um modelo</div>
-    ${mods.length ? `<div class="stack" style="margin-top:14px" id="ml">${mods.map((m) => `<button class="list-item" data-m="${m.id}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(m.nome)}</b><div class="small muted">${m.foco ? esc(m.foco) + ' · ' : ''}${(m.itens || []).length} exercícios</div></div>${I.chev}</button>`).join('')}</div>`
-      : '<div class="empty" style="margin-top:14px"><div class="h3">Nenhum modelo ainda</div><p class="small">Monte um treino e toque em “Salvar como modelo”, ou crie em Exercícios → Modelos.</p></div>'}`, (r) => {
+    ${mods.length ? `<div class="stack" style="margin-top:16px" id="ml">${mods.map((m) => `<button class="list-item" data-m="${m.id}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(m.nome)}</b><div class="small muted">${m.foco ? esc(m.foco) + ' · ' : ''}${(m.itens || []).length} exercícios</div></div>${I.chev}</button>`).join('')}</div>`
+      : '<div class="empty" style="margin-top:16px"><div class="h3">Nenhum modelo ainda</div><p class="small">Monte um treino e toque em “Salvar como modelo”, ou crie em Exercícios → Modelos.</p></div>'}`, (r) => {
     const l = r.querySelector('#ml'); if (l) l.onclick = (e) => { const b = e.target.closest('[data-m]'); if (b) { closeSheet(); aoEscolher(mods.find((m) => m.id === b.dataset.m)); } };
   });
 }
@@ -4927,15 +4972,15 @@ function escolherExercicio(exs, onPick) {
   let g = 'Todos', q = '', n = LIM;
   openSheet(`
     <div class="row between"><div class="h2">Biblioteca</div><button class="icon-btn" data-close aria-label="Fechar">${I.x}</button></div>
-    <div class="search" style="margin-top:14px">${I.search}<input class="input" id="pq" placeholder="Buscar: agachamento, remada, halter…" autofocus></div>
+    <div class="search" style="margin-top:16px">${I.search}<input class="input" id="pq" placeholder="Buscar: agachamento, remada, halter…" autofocus></div>
     <div class="chips" id="pg">${grupos.map((x) => `<button class="chip ${x === g ? 'on' : ''}" data-g="${esc(x)}">${esc(x)}</button>`).join('')}</div>
-    <p class="tiny dim" id="pc" style="margin-top:10px"></p>
+    <p class="tiny dim" id="pc" style="margin-top:12px"></p>
     <div id="pl" style="margin-top:8px"></div>`, (root) => {
     const draw = () => {
       const l = filtrarEx(exs, g, q);
       root.querySelector('#pc').textContent = `${l.length} exercício${l.length === 1 ? '' : 's'}`;
       root.querySelector('#pl').innerHTML = (l.slice(0, n).map((e) => exLinha(e, `<span class="icon-btn" style="width:36px;height:36px;flex:none">${I.plus}</span>`)).join('') || '<p class="small muted center">Nada encontrado. Tente outro termo.</p>')
-        + (l.length > n ? `<button class="btn ghost block" id="pmais" style="margin-top:10px">Mostrar mais (${l.length - n})</button>` : '');
+        + (l.length > n ? `<button class="btn ghost block" id="pmais" style="margin-top:12px">Mostrar mais (${l.length - n})</button>` : '');
     };
     draw();
     root.querySelector('#pq').oninput = (e) => { q = e.target.value; n = LIM; draw(); };
@@ -4959,8 +5004,8 @@ async function staffFeed() {
   $app.innerHTML = `
     <p class="eyebrow">Retornos</p><h1 class="h1">Retornos dos alunos</h1>
     <p class="muted small" style="margin-top:6px">${novos.length || porAluno.length ? [novos.length ? `${novos.length} check-in${novos.length > 1 ? 's' : ''} novo${novos.length > 1 ? 's' : ''}` : '', S.cache.msgNovas ? `${S.cache.msgNovas} mensage${S.cache.msgNovas > 1 ? 'ns' : 'm'} sem resposta` : ''].filter(Boolean).join(' · ') : 'Tudo em dia por aqui.'}</p>
-    ${porAluno.length ? `<div class="section" style="margin-top:18px"><div class="section-h"><h2 class="h2">Mensagens</h2>${slashes}</div>${porAluno.map(([id, n]) => `<a class="list-item" href="#/aluno/${id}/conversa" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[id] || 'Aluno')}</b><span class="small muted">${n} mensage${n > 1 ? 'ns' : 'm'} nova${n > 1 ? 's' : ''}</span></div><span class="tag acc">Responder</span></a>`).join('')}</div>` : ''}
-    ${corrNovas.length ? `<div class="section" style="margin-top:18px"><div class="section-h"><h2 class="h2">Corridas novas</h2>${slashes}</div>${corrNovas.map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[c.aluno_id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[c.aluno_id] || 'Aluno')}</b><span class="small muted">${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))} · ${quando(c.data)}</span></div>${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">${c.rpe}</span>` : ''}${I.chev}</a>`).join('')}</div>` : ''}
+    ${porAluno.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Mensagens</h2>${slashes}</div>${porAluno.map(([id, n]) => `<a class="list-item" href="#/aluno/${id}/conversa" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[id] || 'Aluno')}</b><span class="small muted">${n} mensage${n > 1 ? 'ns' : 'm'} nova${n > 1 ? 's' : ''}</span></div><span class="tag acc">Responder</span></a>`).join('')}</div>` : ''}
+    ${corrNovas.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Corridas novas</h2>${slashes}</div>${corrNovas.map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[c.aluno_id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[c.aluno_id] || 'Aluno')}</b><span class="small muted">${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))} · ${quando(c.data)}</span></div>${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">${c.rpe}</span>` : ''}${I.chev}</a>`).join('')}</div>` : ''}
     <div class="section" style="margin-top:22px"><div class="section-h"><h2 class="h2">Check-ins</h2>${novos.length ? '<button class="link-btn" id="todos-vistos">Marcar todos como vistos</button>' : slashes}</div>
     <div class="stack" id="feed">${sess.length ? sess.map((s) => sessaoCard(s, nomes[s.aluno_id] || 'Aluno').replace(/<\/div><\/div>$/, `<div class="row" style="gap:8px;margin-top:10px"><button class="btn ghost sm" data-resp="${s.id}">${I.feed} Responder</button><button class="link-btn small" data-ver="${s.id}">Ver aluno</button></div></div></div>`)).join('') : '<div class="empty"><div class="h3">Nenhum treino registrado ainda</div><p class="small">Quando os alunos finalizarem treinos, os check-ins aparecem aqui.</p></div>'}</div></div>`;
   document.getElementById('feed').onclick = async (e) => {
@@ -4974,7 +5019,7 @@ async function staffFeed() {
 }
 
 /* ---------- montagem de treino: modelos de musculação e de corrida ---------- */
-const treinosAbas = (k) => `<div class="subtabs" style="margin-top:14px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
+const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
   if (aba !== 'corrida') return staffBiblioteca('modelos');
   loading();
@@ -4994,7 +5039,7 @@ async function staffTreinos(aba) {
       <p class="muted small">Biblioteca de corrida organizada por nível. A maior parte segue o <b>método norueguês</b> (limiar controlado com pausas curtas, duplo limiar e muito volume leve). Para usar, abra a planilha do aluno e arraste o treino para o dia.</p>
       <div class="niv-tabs" id="niv-tabs">${[...NIVEIS_CORR, ['todos', 'Todos'], ['meus', 'Meus']].map(([k, l]) => `<button type="button" class="${sel === k ? 'on' : ''}" data-niv="${k}"><b>${l}</b><span>${cont(k)} treinos</span></button>`).join('')}</div>
       ${GUIA_NIV[sel] ? `<div class="card guia-niv"><span class="eyebrow">Como montar a semana · ${nomeNiv[sel]}</span><ul>${GUIA_NIV[sel].map((t) => `<li>${t}</li>`).join('')}</ul></div>` : ''}
-      ${sel === 'meus' ? (org.length ? `<div class="cols" style="margin-top:14px">${org.map((m2) => card(m2, true)).join('')}</div>` : '<div class="empty" style="margin-top:14px"><div class="h3">Nenhum modelo seu ainda</div><p class="small">Monte um treino na planilha de um aluno e toque em “Salvar como modelo”.</p></div>')
+      ${sel === 'meus' ? (org.length ? `<div class="cols" style="margin-top:16px">${org.map((m2) => card(m2, true)).join('')}</div>` : '<div class="empty" style="margin-top:16px"><div class="h3">Nenhum modelo seu ainda</div><p class="small">Monte um treino na planilha de um aluno e toque em “Salvar como modelo”.</p></div>')
         : grupos.map(([k, l, l2]) => `<div class="section"><div class="section-h"><h2 class="h2">${l}</h2><span class="tiny dim">${l2.length}</span></div><div class="cols">${l2.map((m2) => card(m2, false)).join('')}</div></div>`).join('')}
       <a class="btn ghost block" href="#/alunos" style="margin-top:16px">${I.users} Abrir a planilha de um aluno</a>`;
     document.getElementById('niv-tabs').onclick = (e) => { const b = e.target.closest('[data-niv]'); if (!b) return; st.niv = b.dataset.niv; store.set('nx_lib_niv', st.niv); desenhar(); };
@@ -5023,7 +5068,7 @@ function staffMais() {
 /* ---------- biblioteca de exercícios ---------- */
 async function staffBiblioteca(aba) {
   loading();
-  const abasBib = (k) => `<div class="subtabs" style="margin-top:14px">${[['exercicios', 'Exercícios'], ['modelos', 'Modelos de treino']].map(([x, l]) => `<a class="${k === x ? 'on' : ''}" href="#/biblioteca${x === 'modelos' ? '/modelos' : ''}">${l}</a>`).join('')}</div>`;
+  const abasBib = (k) => `<div class="subtabs" style="margin-top:16px">${[['exercicios', 'Exercícios'], ['modelos', 'Modelos de treino']].map(([x, l]) => `<a class="${k === x ? 'on' : ''}" href="#/biblioteca${x === 'modelos' ? '/modelos' : ''}">${l}</a>`).join('')}</div>`;
   if (aba === 'modelos') {
     const mods = await buscarModelosTreino();
     dockStaff();
@@ -5031,7 +5076,7 @@ async function staffBiblioteca(aba) {
     const exMap0 = Object.fromEntries(exs0.map((e) => [e.id, e]));
     $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('musculacao')}
       <p class="muted small">Monte uma vez e use com quantos alunos quiser. Ao aplicar, cada aluno recebe a própria cópia, que você pode ajustar depois.</p>
-      <div class="cols" style="margin-top:14px" id="mods">${mods.map((m) => { const its = m.itens || []; const grupos = [...new Set(its.map((i) => (exMap0[i.exercicio_id] || {}).grupo).filter(Boolean))].slice(0, 3); return `<div class="card modelo-t" data-mt="${m.id}"><div class="row between" style="align-items:flex-start;gap:10px"><div style="min-width:0"><b class="h3" style="display:block">${esc(m.nome)}</b><div class="small muted">${its.length} exercício${its.length === 1 ? '' : 's'}${grupos.length ? ' · ' + grupos.map(esc).join(', ') : ''}</div></div>${I.chev}</div>
+      <div class="cols" style="margin-top:16px" id="mods">${mods.map((m) => { const its = m.itens || []; const grupos = [...new Set(its.map((i) => (exMap0[i.exercicio_id] || {}).grupo).filter(Boolean))].slice(0, 3); return `<div class="card modelo-t" data-mt="${m.id}"><div class="row between" style="align-items:flex-start;gap:10px"><div style="min-width:0"><b class="h3" style="display:block">${esc(m.nome)}</b><div class="small muted">${its.length} exercício${its.length === 1 ? '' : 's'}${grupos.length ? ' · ' + grupos.map(esc).join(', ') : ''}</div></div>${I.chev}</div>
         <div class="mt-fotos">${its.slice(0, 5).map((i) => exFig(exMap0[i.exercicio_id] || {}, 'thumb')).join('')}</div>
         <button class="btn ghost sm" data-aplicar="${m.id}" style="margin-top:12px">${I.users} Aplicar a alunos</button></div>`; }).join('')
         || '<div class="empty" style="grid-column:1/-1"><div class="h3">Nenhum modelo ainda</div><p class="small">Crie no + ou, dentro do treino de um aluno, toque em “Salvar como modelo”.</p></div>'}</div>
@@ -5090,7 +5135,7 @@ async function formExercicio(exLista, grupos) {
     ${novo ? '' : `<div class="h2" style="margin-top:4px">${esc(ex.nome)}</div>${ex.nome_en ? `<p class="tiny dim">${esc(ex.nome_en)}</p>` : ''}
       ${ex.imagens && ex.imagens.length ? exFig(ex, 'big') : ''}
       <div class="ex-detail">${exDetalhe(ex)}</div>
-      <div class="tabs" style="margin-top:18px"><button class="on" type="button">Editar</button></div>`}
+      <div class="tabs" style="margin-top:16px"><button class="on" type="button">Editar</button></div>`}
     <form id="f-ex" style="margin-top:${novo ? 14 : 4}px">
       <label class="field"><span>Nome</span><input class="input" name="nome" value="${esc(ex.nome)}" required ${novo ? 'autofocus' : ''}></label>
       <div class="grid2"><label class="field"><span>Grupo</span><input class="input" name="grupo" value="${esc(ex.grupo)}" list="grupos-l" required placeholder="Pernas"><datalist id="grupos-l">${grupos.filter((x) => x !== 'Todos').map((x) => `<option value="${esc(x)}">`).join('')}</datalist></label>
@@ -5143,11 +5188,11 @@ async function staffMensagens(alunoId) {
   const listaHTML = () => {
     const q = semAcento(st.q);
     const l = conversas.filter((id) => (st.dono === 'todos' || porId[id].treinador_id === S.user.id) && (!q || semAcento(porId[id].nome).includes(q)));
-    return l.length ? l.map(itemHTML).join('') : `<div class="empty" style="margin-top:10px"><div class="h3">${conversas.length ? 'Nenhuma conversa aqui' : 'Nenhuma mensagem ainda'}</div><p class="small">${conversas.length ? 'Tente “Todos” ou outra busca.' : 'Quando um aluno mandar mensagem, a conversa aparece aqui.'}</p></div>`;
+    return l.length ? l.map(itemHTML).join('') : `<div class="empty" style="margin-top:12px"><div class="h3">${conversas.length ? 'Nenhuma conversa aqui' : 'Nenhuma mensagem ainda'}</div><p class="small">${conversas.length ? 'Tente “Todos” ou outra busca.' : 'Quando um aluno mandar mensagem, a conversa aparece aqui.'}</p></div>`;
   };
   const painelLista = `<div class="cv-top"><div><p class="eyebrow">Conversas</p><h1 class="h1" style="margin:2px 0 0">Mensagens</h1></div><button class="btn sm" id="cv-nova">${I.plus} Nova</button></div>
     <div class="search" style="margin-top:12px">${I.search}<input class="input" id="cv-q" placeholder="Buscar aluno" value="${esc(st.q)}"></div>
-    <div class="seg" id="cv-dono" style="margin-top:10px"><button type="button" data-d="meus" class="${st.dono === 'meus' ? 'on' : ''}">Meus alunos</button><button type="button" data-d="todos" class="${st.dono === 'todos' ? 'on' : ''}">Todos</button></div>
+    <div class="seg" id="cv-dono" style="margin-top:12px"><button type="button" data-d="meus" class="${st.dono === 'meus' ? 'on' : ''}">Meus alunos</button><button type="button" data-d="todos" class="${st.dono === 'todos' ? 'on' : ''}">Todos</button></div>
     <div class="cv-lista" id="cv-lista">${listaHTML()}</div>`;
   const aluno = alunoId && porId[alunoId];
   const cabChat = aluno ? `<div class="cv-chat-h">${largo ? '' : `<a class="icon-btn sm" href="#/mensagens" aria-label="Voltar">${I.back}</a>`}${avAluno(aluno)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(aluno.nome)}</b><span class="tiny dim">Aluno${aluno.treinador_id && aluno.treinador_id !== S.user.id ? '' : ' seu'}</span></div><a class="btn ghost sm" href="#/aluno/${alunoId}">Ver atleta</a></div><div id="cv-box"></div>` : '';
@@ -5202,7 +5247,7 @@ function editarDisponibilidade(m, aoSalvar) {
   const dp = dispDe(m);
   const linha = (k, ic, l) => `<div class="field"><span>${ic} ${l}</span><div class="chips wrap">${DSEM.map((d, i) => `<label class="chipc"><input type="checkbox" name="${k}" value="${i}" ${(dp[k] || []).includes(i) ? 'checked' : ''}><span>${d.slice(0, 3)}</span></label>`).join('')}</div></div>`;
   openSheet(`<p class="eyebrow">${esc(firstName(m.nome))}</p><div class="h2" style="margin-top:4px">Dias de treino</div><p class="small muted" style="margin-top:4px">Os dias aparecem com ${selo('corrida', 'sm')} e ${selo('forca', 'sm')} nas planilhas, para você encaixar os treinos certinho.</p>
-    <form id="f-disp" style="margin-top:14px">${faz('corrida', m) ? linha('corrida', selo('corrida', 'sm'), 'Corrida') : ''}${faz('musculacao', m) ? linha('forca', selo('forca', 'sm'), 'Força') : ''}
+    <form id="f-disp" style="margin-top:16px">${faz('corrida', m) ? linha('corrida', selo('corrida', 'sm'), 'Corrida') : ''}${faz('musculacao', m) ? linha('forca', selo('forca', 'sm'), 'Força') : ''}
     <label class="field"><span>Comentário sobre a disponibilidade</span><textarea class="textarea" name="obs">${esc(dp.obs || '')}</textarea></label><button class="btn block" type="submit">Salvar</button></form>`, (r) => {
     r.querySelector('#f-disp').onsubmit = async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
@@ -5226,7 +5271,7 @@ async function viewFicha(token) {
   let info;
   try { info = await chamarForm({ acao: 'abrir', token }); }
   catch (e) { $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="empty" style="margin-top:30px"><div class="h3">Link indisponível</div><p class="small">${esc(e.message)}</p></div>`; return; }
-  if (info.respondido) { $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:26px 18px"><div style="font-size:2rem">✅</div><div class="h2" style="margin-top:6px">Ficha já enviada</div><p class="small muted" style="margin-top:6px">Recebemos suas respostas. O seu treinador vai falar com você pelo WhatsApp.</p></div>`; return; }
+  if (info.respondido) { $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:26px 18px">${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">Ficha já enviada</div><p class="small muted" style="margin-top:6px">Recebemos suas respostas. O seu treinador vai falar com você pelo WhatsApp.</p></div>`; return; }
   const chips = (name, ops, tipo = 'checkbox') => `<div class="chips wrap">${ops.map(([k, l]) => `<label class="chipc"><input type="${tipo}" name="${name}" value="${k}"><span>${l}</span></label>`).join('')}</div>`;
   const sn = (name) => `<div class="radios"><label><input type="radio" name="${name}" value="nao"><span>Não</span></label><label><input type="radio" name="${name}" value="sim"><span>Sim</span></label></div>`;
   const sn3 = (name) => `<div class="radios r3"><label><input type="radio" name="${name}" value="sim"><span>Sim</span></label><label><input type="radio" name="${name}" value="nao"><span>Não</span></label><label><input type="radio" name="${name}" value="naosei"><span>Não sei</span></label></div>`;
@@ -5341,18 +5386,18 @@ async function viewFicha(token) {
     try {
       const env = await chamarForm({ acao: 'enviar', token, dados: d });
       window.scrollTo(0, 0);
-      $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:28px 18px"><div style="font-size:2.2rem">🙌</div><div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">O seu treinador da Nexos já recebeu as suas respostas.</p></div>
-        ${env && env.resposta ? `<div class="card acesso-card" id="acesso-card" style="margin-top:14px"><div class="center"><div class="h3">Enviando o seu pedido de acesso…</div></div></div>` : ''}`;
+      $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:28px 18px">${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">O seu treinador da Nexos já recebeu as suas respostas.</p></div>
+        ${env && env.resposta ? `<div class="card acesso-card" id="acesso-card" style="margin-top:16px"><div class="center"><div class="h3">Enviando o seu pedido de acesso…</div></div></div>` : ''}`;
       // o pedido de acesso sai sozinho junto com a ficha (antes dependia de mais um toque e muita gente saía da página)
       const pedir = async () => {
         const box = document.getElementById('acesso-card'); if (!box) return;
         try {
           const r = await chamarForm({ acao: 'criar_acesso', token, resposta: env.resposta });
           box.innerHTML = r.pendente
-            ? `<div class="center"><div style="font-size:2rem">⏳</div><div class="h3" style="margin-top:6px">Pedido de acesso enviado!</div><p class="small muted" style="margin:6px 0 4px">Assim que o seu treinador aprovar, o login e a senha do app chegam em <b>${esc(r.email)}</b>.</p><p class="tiny dim">Pode fechar esta página. Se o e-mail não aparecer, olhe também no Spam ou em Promoções.</p></div>`
+            ? `<div class="center">${estIc(I.espera, 'warn')}<div class="h3" style="margin-top:6px">Pedido de acesso enviado!</div><p class="small muted" style="margin:6px 0 4px">Assim que o seu treinador aprovar, o login e a senha do app chegam em <b>${esc(r.email)}</b>.</p><p class="tiny dim">Pode fechar esta página. Se o e-mail não aparecer, olhe também no Spam ou em Promoções.</p></div>`
             : r.senha
-            ? `<div class="center"><div style="font-size:2rem">✅</div><div class="h3" style="margin-top:6px">Acesso criado!</div><p class="small muted" style="margin:6px 0 12px">Anote os seus dados:</p></div><div class="cred">E-mail: <b>${esc(r.email)}</b><br>Senha: <b>${esc(r.senha)}</b></div><a class="btn block" href="${esc(loginURL())}" style="margin-top:12px">Entrar no app</a>`
-            : `<div class="center"><div style="font-size:2rem">📬</div><div class="h3" style="margin-top:6px">Você já tem acesso!</div><p class="small muted" style="margin:6px 0 12px">Entre no app com <b>${esc(r.email)}</b> e a senha que você já usa.</p></div><a class="btn block" href="${esc(loginURL())}">Ir para o app</a>`;
+            ? `<div class="center">${estIc(I.okc, 'ok')}<div class="h3" style="margin-top:6px">Acesso criado!</div><p class="small muted" style="margin:6px 0 12px">Anote os seus dados:</p></div><div class="cred">E-mail: <b>${esc(r.email)}</b><br>Senha: <b>${esc(r.senha)}</b></div><a class="btn block" href="${esc(loginURL())}" style="margin-top:12px">Entrar no app</a>`
+            : `<div class="center">${estIc(I.caixa)}<div class="h3" style="margin-top:6px">Você já tem acesso!</div><p class="small muted" style="margin:6px 0 12px">Entre no app com <b>${esc(r.email)}</b> e a senha que você já usa.</p></div><a class="btn block" href="${esc(loginURL())}">Ir para o app</a>`;
         } catch (er) {
           box.innerHTML = `<div class="center"><div class="h3">Falta só um passo</div><p class="small muted" style="margin:6px 0 12px">${esc(er.message || 'Não conseguimos enviar o pedido de acesso agora.')}</p></div><button class="btn block mail-btn" id="receber">${I.mail} Pedir meu acesso de novo</button>`;
           box.querySelector('#receber').onclick = () => { box.innerHTML = '<div class="center"><div class="h3">Enviando…</div></div>'; pedir(); };
@@ -5389,10 +5434,10 @@ async function staffFormularios(id) {
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a>
     <p class="eyebrow">Formulários</p><h1 class="h1">Ficha de entrada</h1>
     <p class="muted small" style="margin-top:6px">Gere o link, mande no WhatsApp e a pessoa preenche pelo celular, sem precisar de login. As respostas chegam aqui.</p>
-    <div class="grid2" style="margin-top:14px"><button class="btn" id="gerar">${I.plus} Gerar link</button><button class="btn ghost" id="geral">${I.feed} Link geral</button></div>
+    <div class="grid2" style="margin-top:16px"><button class="btn" id="gerar">${I.plus} Gerar link</button><button class="btn ghost" id="geral">${I.feed} Link geral</button></div>
     <div class="section"><div class="section-h"><h2 class="h2">Respostas</h2>${slashes}</div>
       <div class="stack">${(resps || []).length ? resps.map(linhaResp).join('') : '<div class="empty"><div class="h3">Nenhuma ficha ainda</div><p class="small">Quando alguém preencher, aparece aqui e você recebe uma notificação.</p></div>'}</div></div>
-    ${aguardando.length ? `<div class="section"><div class="section-h"><h2 class="h2">Aguardando resposta</h2></div><div class="stack">${aguardando.map((f) => `<div class="list-item"><span class="ativ-ic">⏳</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(f.nome || 'Link sem nome')}</b><div class="small muted">${f.telefone ? esc(f.telefone) + ' · ' : ''}enviado ${quando(f.criado_em)}</div></div>
+    ${aguardando.length ? `<div class="section"><div class="section-h"><h2 class="h2">Aguardando resposta</h2></div><div class="stack">${aguardando.map((f) => `<div class="list-item"><span class="ativ-ic">${I.espera}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(f.nome || 'Link sem nome')}</b><div class="small muted">${f.telefone ? esc(f.telefone) + ' · ' : ''}enviado ${quando(f.criado_em)}</div></div>
       <button class="icon-btn sm" data-wa="${f.id}" aria-label="Mandar de novo no WhatsApp" title="WhatsApp">${I.feed}</button><button class="icon-btn sm" data-del="${f.id}" aria-label="Cancelar link" title="Cancelar link">${I.x}</button></div>`).join('')}</div></div>` : ''}`;
   const mostrar = (f) => {
     const link = fichaLink(f.token); const msg = fichaMsg(f.nome, link); const tel = telWa(f.telefone);
@@ -5409,7 +5454,7 @@ async function staffFormularios(id) {
     });
   };
   document.getElementById('gerar').onclick = () => openSheet(`<p class="eyebrow">Ficha de entrada</p><div class="h2" style="margin-top:4px">Gerar link</div>
-    <form id="f-gl" style="margin-top:14px"><label class="field"><span>Nome da pessoa (opcional)</span><input class="input" name="nome" placeholder="Já aparece preenchido para ela"></label>
+    <form id="f-gl" style="margin-top:16px"><label class="field"><span>Nome da pessoa (opcional)</span><input class="input" name="nome" placeholder="Já aparece preenchido para ela"></label>
     <label class="field"><span>WhatsApp (opcional)</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999"></label>
     <p class="tiny dim" style="margin:-4px 0 14px">Com o número, o WhatsApp já abre na conversa dela.</p><button class="btn block" type="submit">Gerar link</button></form>`, (r) => {
     r.querySelector('#f-gl').onsubmit = async (e) => {
@@ -5522,11 +5567,11 @@ async function staffFichaResposta(id) {
   const diasT = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', ');
   $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a>
     <div class="card plan-head"><div class="ph-id"><div class="av lg">${esc(initials(d.nome || '?'))}</div><div class="grow" style="min-width:0"><h1 class="h2">${esc(d.nome || 'Sem nome')}</h1><div class="small muted">Ficha enviada ${fmtData(r.criado_em)}${rs.mods ? ' · ' + esc(rs.mods) : ''}</div></div></div>
-      ${pend ? `<div class="aviso-acesso"><b>Esta pessoa ainda não tem acesso ao app.</b><span class="small muted">${r.aluno_id ? 'O pedido está esperando a sua aprovação.' : 'Ela mandou a ficha, mas não chegou a pedir o acesso.'}</span><button class="btn block" id="ap-acesso" style="margin-top:10px">${I.mail} Aprovar e enviar acesso por e-mail</button></div>` : ''}
+      ${pend ? `<div class="aviso-acesso"><b>Esta pessoa ainda não tem acesso ao app.</b><span class="small muted">${r.aluno_id ? 'O pedido está esperando a sua aprovação.' : 'Ela mandou a ficha, mas não chegou a pedir o acesso.'}</span><button class="btn block" id="ap-acesso" style="margin-top:12px">${I.mail} Aprovar e enviar acesso por e-mail</button></div>` : ''}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" id="ed-ficha">✎ Editar ficha</button>${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div></div>
-    ${rs.sim.length ? `<div class="card ficha-alerta"><b>⚠️ PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
+    ${rs.sim.length ? `<div class="card ficha-alerta"><b>${icT(I.alerta, 'warn')}PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
     <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos 💪 Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id || pend ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
-    <div class="stack" style="margin-top:14px">
+    <div class="stack" style="margin-top:16px">
       <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Altura e peso', esc([d.altura && d.altura + ' m', d.peso && d.peso + ' kg'].filter(Boolean).join(' · ')))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
       <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Objetivos pessoais', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
       <div class="card"><span class="eyebrow">Disponibilidade</span>${lin(selo('corrida', 'sm') + ' Corrida', diasT(dp.corrida))}${lin(selo('forca', 'sm') + ' Força', diasT(dp.forca))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}${lin('Comentário', esc(d.disp_obs || ''))}</div>
@@ -5582,5 +5627,6 @@ async function staffFichaResposta(id) {
   document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };
 }
 
+if (window.NX_DEMO) window.__nx = { loading, toast };
 iniciar();
 })();
