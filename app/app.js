@@ -2426,7 +2426,8 @@ async function climaDe(c) {
   const doRelogio = E.temp_med != null ? { temp: Math.round(E.temp_med), fonte: 'relogio' } : null;
   let res = doRelogio;
   try {
-    const p0 = c.rota && c.rota[0]; if (!p0) throw 0;
+    // dados vindos da Garmin não saem do app (compromisso da política de privacidade): nesses casos fica a temperatura do relógio
+    const p0 = c.fonte !== 'garmin' && c.rota && c.rota[0]; if (!p0) throw 0;
     const dt = new Date(c.data), dia = isoDia(dt), antigo = Date.now() - dt.getTime() > 80 * 864e5;
     const base = antigo ? 'https://archive-api.open-meteo.com/v1/archive' : 'https://api.open-meteo.com/v1/forecast';
     const url = `${base}?latitude=${p0[0]}&longitude=${p0[1]}&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&start_date=${dia}&end_date=${dia}&timezone=auto`;
@@ -3621,7 +3622,16 @@ function cartaoSessao(p, perfil, feito, staff) {
     ${feito ? `<div class="ses-res"><div><small>Distância</small><b>${fmtKm(feito.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(feito)).replace('/km', '')}<em>/km</em></b></div></div>` : ''}
     <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km ? f1(rs.km) + ' km' : ''}${rs.seg ? ' · ' + fmtDur(rs.seg) : ''}</span></div>`;
 }
-function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null) {
+// etiqueta de força (Nexos) no dia da semana de corrida: prevista, feita ou rascunho (só o treinador vê)
+function forcaDiaHTML(fc, k, semana, staff) {
+  if (!fc) return '';
+  const i = dsemIdx(k), lib = fc.lib.includes(semana), feitos = fc.se.filter((x) => isoDia(x.iniciado_em) === k);
+  const prev = (lib || staff) && !fc.off.includes(i) ? fc.tr.filter((t) => (t.dias || []).includes(i)) : [];
+  const itens = [...prev.map((t) => ({ t: t.titulo, ok: feitos.some((x) => x.treino_id === t.id), rasc: !lib })), ...feitos.filter((x) => !prev.some((t) => t.id === x.treino_id)).map((x) => ({ t: x.treino_titulo || 'Treino', ok: true }))];
+  const hoje = hojeISO();
+  return itens.map((x) => `<div class="forca-tag ${x.ok ? 'ok' : k < hoje ? 'perdeu' : ''} ${x.rasc && !x.ok ? 'rasc' : ''}" title="Força · ${esc(x.t)}${x.ok ? ' (feito)' : x.rasc ? ' (semana de força ainda não liberada)' : ''}"><span class="ft-ic">${FORCA_IC}</span><span class="ellip">${esc(x.t)}</span>${x.ok ? `<i class="ft-ok">${I.check}</i>` : ''}</div>`).join('');
+}
+function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null, fc = null) {
   const corridas = ativs.filter(ehCorr), outras = ativs.filter((c) => !ehCorr(c));
   const hoje = isoDia(new Date()); let h = '';
   for (let w = 0; w < semanas; w++) {
@@ -3640,12 +3650,14 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
       const av = corridas.filter((c) => !c.plano_id && isoDia(c.data) === k);
       const ou = outras.filter((c) => isoDia(c.data) === k);
       const pr = provas.filter((p) => p.data === k);
+      const fTag = forcaDiaHTML(fc, k, isoDia(dias[0]), staff);
       h += `<div class="cal-dia ${k === hoje ? 'hoje' : ''} ${k < hoje ? 'passado' : ''}" data-dia="${k}"><div class="cal-dia-h"><b>${DIAS[d.getDay()]}</b><span>${d.getDate()}</span>${staff ? `<span class="disp-cal">${dispIcones(m, (d.getDay() + 6) % 7)}</span>` : ''}${staff ? `<button class="cal-add" data-novo="${k}" aria-label="Novo treino">${I.plus}</button>` : ''}</div><div class="cal-dia-c">
+        ${fTag}
         ${pr.map((p) => `<a class="ses prova" href="${staff ? '#/eventos/equipe' : '#/eventos/minhas'}"><div class="ses-t"><b>${icT(I.flag)}${esc(p.titulo)}</b></div><span class="ses-m">${esc(p.distancia || 'Prova')}${p.meta ? ' · meta ' + esc(p.meta) : ''}</span></a>`).join('')}
         ${itens.map((p) => cartaoSessao(p, perfil, corridas.find((c) => c.plano_id === p.id), staff)).join('')}
         ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-conc"><i>${I.check}</i>Treino extra</div><div class="ses-t"><b>${c.tipo === 'caminhada' ? 'Caminhada' : 'Corrida avulsa'}</b></div><div class="ses-res"><div><small>Distância</small><b>${fmtKm(c.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(c)).replace('/km', '')}<em>/km</em></b></div></div></a>`).join('')}
         ${ou.map((c) => `<a class="ses feito ${c.tipo === 'forca' ? 'ativ-fo' : 'ativ-ou'}" href="#/corrida/${c.id}"><div class="ses-conc ${c.tipo === 'forca' ? 'fo' : ''}"><i>${I.check}</i>Do relógio</div><div class="ses-t"><b>${esc(nomeAtiv(c))}</b></div><div class="ses-res"><div><small>${comDist(c) ? 'Distância' : 'Duração'}</small><b>${comDist(c) ? fmtKm(c.distancia_m, 1) : fmtDur(c.duracao_s)}</b></div>${c.fc_media ? `<div><small>FC média</small><b>${c.fc_media}<em>bpm</em></b></div>` : ''}</div></a>`).join('')}
-        ${!itens.length && !av.length && !pr.length && !ou.length ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
+        ${!itens.length && !av.length && !pr.length && !ou.length && !fTag ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
     });
     h += '</div></div>';
   }
@@ -3665,13 +3677,19 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   const semanas = innerWidth >= 900 ? 2 : 1;
   const ini = inicioSemana(); ini.setDate(ini.getDate() + st.off * 7);
   const fim = new Date(ini); fim.setDate(ini.getDate() + semanas * 7 - 1);
-  const [ativsTodas, plano, integs, modelosOrg, provas, provasProx] = await Promise.all([
+  const comForca = faz('musculacao', m);
+  const [ativsTodas, plano, integs, modelosOrg, provas, provasProx, forcaTr, forcaSe, forcaLib] = await Promise.all([
     buscarCorridas(alunoId), buscarPlano(alunoId, isoDia(ini), isoDia(fim)),
     sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em').eq('user_id', alunoId).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []),
     staff ? sb.from('nx_modelos_corrida').select('*').eq('org_id', S.org.id).order('criado_em').then((r) => r.data || []).catch(() => []) : Promise.resolve([]),
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', isoDia(ini)).lte('data', isoDia(fim)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', hojeISO()).order('data').limit(3).then((r) => r.data || []).catch(() => []),
+    // força da Nexos no mesmo dia (etiqueta na semana de corrida)
+    comForca ? sb.from('nx_treinos').select('id,titulo,dias').eq('aluno_id', alunoId).eq('ativo', true).then((r) => r.data || [], () => []) : Promise.resolve([]),
+    comForca ? sb.from('nx_sessoes').select('id,treino_id,treino_titulo,iniciado_em').eq('aluno_id', alunoId).not('finalizado_em', 'is', null).gte('iniciado_em', isoDia(ini)).lte('iniciado_em', isoDia(fim) + 'T23:59:59').then((r) => r.data || [], () => []) : Promise.resolve([]),
+    comForca ? sb.from('nx_forca_semanas').select('semana').eq('aluno_id', alunoId).gte('semana', isoDia(ini)).lte('semana', isoDia(fim)).then((r) => (r.data || []).map((x) => x.semana), () => []) : Promise.resolve([]),
   ]);
+  const forcaCal = comForca ? { tr: forcaTr, se: forcaSe, lib: forcaLib, off: dispDe(m).off_forca || [] } : null;
   const corridas = ativsTodas.filter(ehCorr); // força, pedal etc. do relógio aparecem na planilha e na lista, mas não entram nos km
   const integ = integs.find((x) => x.provedor === 'intervals') || null, garm = integs.find((x) => x.provedor === 'garmin') || null;
   S.cache.garmOn = !!garm;
@@ -3690,7 +3708,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           <button type="button" class="tool-ic" id="avisar" title="Avisar aluno da planilha" aria-label="Avisar aluno">${I.bell}</button><button type="button" class="tool-ic" id="guia-plan" title="Como usar a planilha" aria-label="Como usar a planilha">?</button></div>`; })() : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}</div>
       <div class="${staff ? 'pl-grid' : ''}">
         ${staff ? `<aside class="biblio ${store.get('nx_bib_aberta', false) ? 'aberta' : ''}"><div class="biblio-h"><b>Biblioteca</b><span class="tiny dim">arraste para um dia</span><button type="button" class="bib-tog" id="bib-tog" aria-label="Mostrar ou esconder a biblioteca"><span class="bt-abrir">Abrir</span><span class="bt-fechar">Fechar</span>${I.chev}</button></div><p class="bib-dica">Toque em <b>+</b> no dia para escolher um treino, ou abra a biblioteca para arrastar.</p>${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'bib-niv')}<div class="biblio-l">${modelos.slice().sort((x, y) => ordemCat(x) - ordemCat(y)).map((md) => md.tipo === 'folga' ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>` : md.tipo === 'forca' ? `<div class="mod mod-forca" data-mod="${md.id}"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></div>` : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc(((CATS_CORR.find((c) => c[0] === md.cat) || [])[1]) || '')}</span></div>`).join('')}</div></aside>` : ''}
-        <div class="cal">${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m)}</div>
+        <div class="cal">${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m, forcaCal)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:12px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
       ${!staff && !plano.length ? '<p class="small muted" style="margin-top:12px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;

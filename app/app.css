@@ -1716,3 +1716,13 @@ html{touch-action:manipulation}
 .erro-acoes [data-copiar-erro]{margin-right:auto;display:inline-flex;align-items:center;gap:6px}
 .erro-acoes [data-copiar-erro] svg{width:16px;height:16px}
 .erro-acoes button{white-space:nowrap}
+/* etiqueta de força (Nexos) na semana de corrida */
+.forca-tag{display:flex;align-items:center;gap:7px;margin:0 0 6px;padding:6px 9px;border-radius:10px;font-size:.74rem;font-weight:700;line-height:1.2;color:var(--frc-ac);background:linear-gradient(135deg,var(--frc-1),var(--frc-2));min-width:0}
+.forca-tag .ft-ic{flex:none;display:grid;place-items:center}
+.forca-tag .ft-ic svg{width:14px;height:14px}
+.forca-tag .ellip{flex:1;min-width:0;color:#f4efe2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.forca-tag .ft-ok{flex:none;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--frc-ac);color:#161b26}
+.forca-tag .ft-ok svg{width:11px;height:11px;stroke-width:3}
+.forca-tag.perdeu{opacity:.55}
+.forca-tag.rasc{background:transparent;border:1.5px dashed color-mix(in srgb,var(--frc-ac) 55%,transparent);color:color-mix(in srgb,var(--frc-ac) 80%,var(--muted,#888))}
+.forca-tag.rasc .ellip{color:inherit}

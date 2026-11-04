@@ -50,7 +50,9 @@ th{color:var(--ink);font-weight:700}
     <tr><td>Anamnese, PAR-Q, avaliação física (medidas, dobras, pressão, frequência cardíaca)</td><td>Treinar com segurança e medir a sua evolução</td><td>Consentimento específico e destacado (art. 11, I)</td></tr>
     <tr><td>Ciclo menstrual (opcional, só para quem ativar): início da menstruação, duração do ciclo e situação</td><td>Mostrar a fase do ciclo e ajudar o treinador a ajustar a intensidade dos treinos</td><td>Consentimento específico e destacado (art. 11, I): você ativa e desativa na sua ficha de saúde, e ao desativar os registros são apagados</td></tr>
     <tr><td>Fotos de progresso e de avaliação postural</td><td>Comparar a evolução e orientar exercícios</td><td>Consentimento específico e destacado (art. 11, I)</td></tr>
+    <tr><td>Atividades do relógio ou de arquivo (corrida, caminhada, força, bike e outras): data, duração, distância, ritmo, frequência cardíaca, cadência, altimetria, voltas, temperatura e percurso de GPS</td><td>Registrar o treino feito, comparar com o previsto na planilha e acompanhar a sua evolução</td><td>Execução de contrato (art. 7º, V) e, quando envolvem saúde, consentimento (art. 11, I)</td></tr>
     <tr><td>Inscrição de notificações do aparelho</td><td>Avisar sobre treino novo, mensagens e relatórios</td><td>Consentimento (art. 7º, I): você ativa e desativa no app</td></tr>
+    <tr><td>Registros técnicos de erro do app: mensagem do erro, tela em que aconteceu, modelo de navegador e sistema do aparelho, data e hora</td><td>Encontrar e corrigir falhas do app. Só a equipe da Nexos vê esses registros</td><td>Legítimo interesse (art. 7º, IX)</td></tr>
   </table>
 
   <h2>3. Fotos</h2>
@@ -62,6 +64,8 @@ th{color:var(--ink);font-weight:700}
     <li><b>Supabase</b>: banco de dados, login e armazenamento das fotos, em servidores localizados em <b>São Paulo, Brasil</b>.</li>
     <li><b>Netlify</b>: hospedagem do site e do app. Não guarda os seus dados de treino ou saúde.</li>
     <li><b>Garmin</b>: só se você conectar o seu relógio. Veja a seção 10.</li>
+    <li><b>Intervals.icu</b>: só se você conectar por ele um relógio de outra marca (Coros, Polar, Suunto, Wahoo e outros). Veja a seção 12.</li>
+    <li><b>Open-Meteo</b> (serviço público de previsão do tempo): quando você gera um card de compartilhar com o clima, o app consulta a temperatura do dia e da hora da corrida usando só o ponto de largada e a data. Nenhum nome, e-mail ou dado de saúde é enviado. Isso não é feito com atividades vindas da Garmin; nesses casos o card usa a temperatura registrada pelo próprio relógio.</li>
     <li><b>Serviços de notificação do seu navegador</b> (Google, Apple ou Mozilla): entregam o aviso no seu aparelho. Recebem apenas o texto curto da notificação.</li>
   </ul>
   <p>Os dados também podem ser fornecidos a autoridades quando houver obrigação legal ou ordem judicial.</p>
@@ -94,10 +98,11 @@ th{color:var(--ink);font-weight:700}
   <p>Se você quiser, pode conectar a sua conta <b>Garmin Connect</b> ao app da Nexos. A conexão é opcional, feita por você no próprio app, e só começa depois que você autoriza na tela oficial da Garmin.</p>
   <ul>
     <li><b>O que recebemos:</b> os dados das atividades feitas depois da conexão: data e hora, tipo de atividade, distância, duração, ritmo (pace), velocidade, frequência cardíaca, cadência, altimetria, voltas (parciais) e o percurso de GPS. Não recebemos dados de sono, estresse, peso ou saúde da mulher.</li>
-    <li><b>Para que usamos:</b> registrar automaticamente as suas corridas e caminhadas no app, ligar cada atividade ao treino da sua planilha e permitir que os treinadores da Nexos acompanhem a sua evolução e ajustem o seu treino. Também usamos esses dados nos seus relatórios mensais dentro do app.</li>
+    <li><b>Para que usamos:</b> registrar automaticamente as suas atividades no app (corridas, caminhadas, treinos de força e outras), ligar cada atividade ao treino da sua planilha e permitir que os treinadores da Nexos acompanhem a sua evolução e ajustem o seu treino. Também usamos esses dados nos seus relatórios mensais dentro do app.</li>
     <li><b>Quem recebe:</b> apenas você e os treinadores da Nexos. Os dados ficam no nosso banco de dados no <b>Supabase</b> (servidores em São Paulo, Brasil), que atua como operador em nosso nome. A <b>Netlify</b> hospeda o site e o app, mas não guarda dados da Garmin. Nenhum outro parceiro, fornecedor de tecnologia ou serviço de processamento de dados recebe os seus dados da Garmin.</li>
     <li><b>Venda e compartilhamento:</b> <b>não vendemos</b> dados da Garmin e não compartilhamos com terceiros, nem para publicidade.</li>
     <li><b>Inteligência artificial:</b> os dados recebidos da Garmin <b>não são processados por sistemas de inteligência artificial</b> e nunca são usados para treinar, avaliar ou melhorar modelos de IA. Se um dia isso mudar, publicaremos uma declaração de transparência e só faremos com o seu consentimento explícito, que você poderá retirar a qualquer momento pelo app.</li>
+    <li><b>Treinos enviados ao relógio:</b> com a conexão ativa, os treinos da sua planilha liberados pelo treinador são enviados ao seu Garmin Connect e ao relógio, com os passos, as zonas e a faixa de ritmo.</li>
     <li><b>Como desconectar:</b> a qualquer momento, pelo botão “Desconectar Garmin” no seu perfil do app ou pelo próprio Garmin Connect. Depois disso, nenhum dado novo é recebido.</li>
     <li><b>Acesso, correção, exportação e exclusão:</b> você vê todas as suas atividades no app e pode apagar qualquer uma delas. Para receber uma cópia de tudo ou pedir a exclusão completa dos dados vindos da Garmin, escreva para <a href="mailto:nexosperformanceesaude@gmail.com">nexosperformanceesaude@gmail.com</a>. Respondemos em até 15 dias.</li>
   </ul>
@@ -106,6 +111,14 @@ th{color:var(--ink);font-weight:700}
   <p>Connecting a Garmin Connect account is optional and requires the user's explicit authorization on Garmin's consent screen. Nexos Performance e Saúde receives only activity data recorded after the connection (date and time, activity type, distance, duration, pace, speed, heart rate, cadence, elevation, laps and GPS track). This data is used solely to log the athlete's workouts in the Nexos app, match them to the training plan and allow the athlete's Nexos coaches to monitor progress and adjust training.</p>
   <p>Garmin data is stored in our database hosted by <b>Supabase</b> (servers in São Paulo, Brazil), acting as our data processor; <b>Netlify</b> hosts the website and app but does not store Garmin data. No other third party, integration partner, technology vendor or data-processing service receives Garmin user data. <b>We do not sell or share Garmin data</b> with any third party. Garmin data is <b>not processed by AI systems</b> and is never used to train, evaluate or improve AI models; should this ever change, we will publish an AI transparency statement and require the user's explicit consent, which can be withdrawn at any time in the app.</p>
   <p>Users can disconnect at any time in the app (“Desconectar Garmin”) or in Garmin Connect, view and delete their activities in the app, and request access, correction, export or full deletion of their data, or withdraw consent, by writing to <a href="mailto:nexosperformanceesaude@gmail.com">nexosperformanceesaude@gmail.com</a>. Requests are answered within 15 days.</p>
+
+  <h2 id="intervals">12. Outros relógios (Intervals.icu)</h2>
+  <p>Relógios de outras marcas chegam ao app pelo <b>Intervals.icu</b>, um serviço gratuito que você mesmo conecta ao seu relógio. A ligação com o app da Nexos é opcional e só começa depois que você autoriza na tela do Intervals.icu.</p>
+  <ul>
+    <li><b>O que recebemos:</b> só leitura das atividades (data e hora, tipo, distância, duração, ritmo, frequência cardíaca, cadência, altimetria, voltas e percurso de GPS). O app não envia nada para o Intervals.icu.</li>
+    <li><b>Para que usamos e quem vê:</b> igual às atividades da Garmin: registrar o treino, ligar à planilha e permitir o acompanhamento pelos treinadores da Nexos.</li>
+    <li><b>Como desconectar:</b> pelo app da Nexos ou nas configurações do próprio Intervals.icu. O que você guarda no Intervals.icu segue a política de privacidade dele.</li>
+  </ul>
 
   <p class="foot">Nexos Performance e Saúde · São Luís–MA · nexosperformanceesaude.com.br</p>
 </main>
