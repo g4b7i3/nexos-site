@@ -1480,3 +1480,40 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
   .dock .dock-eu{padding:8px;justify-content:center}
   .app.wide{padding-left:28px;padding-right:28px}
 }
+
+/* ===================== CELULAR (acabamento) ===================== */
+.bib-tog,.bib-dica{display:none}
+@media (max-width:899px){
+  /* biblioteca recolhível: não empurra as semanas para baixo */
+  .biblio{padding:12px 14px}
+  .biblio-h{align-items:center;margin-bottom:0;gap:10px}
+  .biblio-h .tiny{display:none}
+  .bib-tog{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:7px 10px 7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--s1);font-weight:800;font-size:.78rem;color:var(--acc)}
+  .bib-tog svg{width:14px;height:14px;transform:rotate(90deg);transition:transform .2s}
+  .biblio.aberta .bib-tog svg{transform:rotate(-90deg)}
+  .bib-tog .bt-fechar,.biblio.aberta .bib-tog .bt-abrir{display:none}
+  .biblio.aberta .bib-tog .bt-fechar{display:inline}
+  .bib-dica{display:block;margin:6px 0 0;font-size:.8rem;color:var(--mute);line-height:1.4}
+  .bib-dica b{color:var(--acc)}
+  .biblio.aberta .bib-dica{display:none}
+  .biblio:not(.aberta) .niv-chips,.biblio:not(.aberta) .biblio-l{display:none}
+  .biblio.aberta .niv-chips{margin-top:12px}
+  /* dia da planilha: cabeçalho em linha, treino embaixo em largura total */
+  .cal-dia{flex-direction:column;gap:8px;padding:10px 12px}
+  .cal-dia-h{flex-direction:row;align-items:center;width:auto;gap:8px}
+  .cal-dia-h b{font-size:.74rem}
+  .cal-dia-h span{font-size:1.02rem}
+  .cal-add{margin:0 0 0 auto;width:30px;height:30px}
+  .cal-dia-c{justify-content:flex-start}
+  .cal-dia:not(:has(.ses)){flex-direction:row;align-items:center;padding:8px 12px}
+  .cal-dia:not(:has(.ses)) .cal-dia-h{flex:1}
+  .cal-dia:not(:has(.ses)) .cal-dia-c{flex:0 1 auto;order:0}
+  .cal-dia:not(:has(.ses)) .cal-vazio{padding:0;white-space:nowrap}
+  .ses .ses-ok,.ses .ses-x{position:static}
+}
+@media (max-width:1099px){
+  /* filtros: todas as opções à vista */
+  .app .chips:not(.biblio-l),.app .niv-chips{flex-wrap:wrap;overflow:visible}
+  .sit-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:899px){.cal-dia:not(:has(.ses)):has(.cal-add) .cal-vazio{display:none}}
