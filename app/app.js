@@ -2791,8 +2791,26 @@ async function desenharCard(cv, c, o) {
     ctx.save(); ctx.fillStyle = branco ? 'rgba(255,255,255,.35)' : 'rgba(11,24,52,.2)'; ctx.fillRect(80, y - 40, W - 160, 2); ctx.restore();
     grade(lista, y + 10, px, 80, W - 80, 3, 'left');
   }
+  if (o.local) { // localização escolhida pelo atleta: alfinete + nome do lugar
+    const fl = `700 ${post ? 30 : 34}px ${FB}`, maxW = L === 'recibo' ? W - 200 : W - 70 - 250;
+    let t = String(o.local); while (t.length > 3 && larg(t, fl, 1) > maxW) t = t.slice(0, -2).trimEnd() + '…';
+    const ic = post ? 34 : 38, w = ic + 12 + larg(t, fl, 1);
+    const x0 = L === 'recibo' ? (W - w) / 2 : 70, yb = L === 'recibo' ? H - (post ? 46 : 104) : (post ? 66 : 96) + 42;
+    if (window.Path2D) { ctx.save(); ctx.translate(x0, yb - ic * .86); ctx.scale(ic / 24, ic / 24); ctx.fillStyle = AC; if (sombra) { ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 8; } ctx.fill(new Path2D('M12 23s-7.5-6.9-7.5-12.6a7.5 7.5 0 0 1 15 0C19.5 16.1 12 23 12 23zm0-9.4a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z'), 'evenodd'); ctx.restore(); }
+    txt(t, x0 + ic + 12, yb, fl, tx, 'left', 1);
+  }
   ctx.restore();
   assinatura();
+}
+// localização do card: busca no OpenStreetMap (só quando o atleta pede; nada é enviado sozinho)
+const locCurto = (r) => { const a = r.address || {}; const nome = r.name || a.amenity || a.leisure || a.tourism || a.road || ''; const cid = a.city || a.town || a.village || a.municipality || a.city_district || ''; const uf = (a['ISO3166-2-lvl4'] || '').replace(/^BR-/, ''); return [...new Set([nome, cid].filter(Boolean))].join(', ') + (uf && cid && uf.length === 2 ? ` - ${uf}` : '') || r.display_name || ''; };
+async function locBuscar(q) {
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&accept-language=pt-BR&q=${encodeURIComponent(q)}`); if (!r.ok) throw 0;
+  return (await r.json()).map(locCurto).filter((x, i, a) => x && a.indexOf(x) === i);
+}
+async function locReversa(lat, lon) {
+  const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=16&accept-language=pt-BR&lat=${lat}&lon=${lon}`); if (!r.ok) throw 0;
+  return locCurto(await r.json());
 }
 async function abrirCardCorrida(c, plano) {
   c._serie = serieDe(c, plano);
@@ -2802,6 +2820,7 @@ async function abrirCardCorrida(c, plano) {
   const o = { layout: st.layout || 'classico', fundo: st.fundo || 'transparente', cor: st.cor || 'branco', formato: st.formato || 'story', img: null,
     stats: Object.assign({ dist: true, pace: true, tempo: true, fc: false, elev: false, cad: false, kcal: false, rota: true, data: false, logo: true }, st.stats || {}) };
   if (!CARD_LAYOUTS.some(([k]) => k === o.layout)) o.layout = 'classico';
+  try { o.local = localStorage.getItem('nx-card-loc-' + c.id) || ''; } catch { o.local = ''; }
   const temParc = (c.parciais || []).length >= 2;
   const temTiros = tirosDe(c).length >= (c._serie.qual ? 1 : 2), temClima = !!((c.rota && c.rota.length) || (c.analise && c.analise.extras && c.analise.extras.temp_med != null));
   const modelos = CARD_LAYOUTS.map(([k, l]) => [k, k === 'tiros' ? c._serie.titulo : k === 'nome' ? c._serie.nome : l]).filter(([k]) => (k !== 'parciais' || temParc) && (k !== 'tiros' || temTiros) && (k !== 'nome' || !!c._serie.nome) && (!k.startsWith('clima') || temClima) && (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)));
@@ -2816,6 +2835,7 @@ async function abrirCardCorrida(c, plano) {
     <div class="field"><span>Modelo</span><div class="card-gal" id="cd-gal">${modelos.map(([k, l]) => `<button type="button" class="cg-it ${k === o.layout ? 'on' : ''}" data-lay="${k}"><span class="cg-cv"><canvas></canvas></span><small>${l}</small></button>`).join('')}</div></div>
     <div class="grid2"><div class="field"><span>Formato</span>${seg('formato', [['story', 'Story'], ['post', 'Post']], o.formato)}</div><div class="field"><span>Cor do texto</span>${seg('cor', [['branco', 'Branco'], ['preto', 'Preto']], o.cor)}</div></div>
     <div class="field"><span>O que aparece</span><div class="chips wrap" id="cd-stats">${CARD_STATS.filter(([k]) => disponivel0(k)).map(([k, l]) => `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="field"><span>Localização</span><div id="cd-loc"></div></div>
     <div class="row" style="gap:8px;margin-top:6px"><button class="btn grow" id="cd-share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> Compartilhar</button></div><div class="row" style="gap:8px;margin-top:8px"><button class="btn ghost grow" id="cd-copy"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg> Copiar</button><button class="btn ghost grow" id="cd-down">Baixar</button></div>
     <p class="tiny dim" style="margin-top:8px" id="cd-dica"></p>`, (r) => {
     const cv = r.querySelector('#cd-cv'), prev = r.querySelector('#cd-prev'), inp = r.querySelector('#cd-foto'), dica = r.querySelector('#cd-dica');
@@ -2868,6 +2888,48 @@ async function abrirCardCorrida(c, plano) {
     cv.addEventListener('wheel', (e) => { e.preventDefault(); o.zoom *= e.deltaY < 0 ? 1.06 : 1 / 1.06; limita(); redesenha(); }, { passive: false });
     r.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => { o.zoom *= Number(b.dataset.z) > 0 ? 1.12 : 1 / 1.12; limita(); redesenha(); });
     r.querySelector('#cd-reset').onclick = () => { o.zoom = 1; o.dx = 0; o.dy = 0; redesenha(); };
+    // localização: só aparece se o atleta escolher
+    const locBox = r.querySelector('#cd-loc');
+    const recentes = () => { try { return JSON.parse(localStorage.getItem('nx-card-locs') || '[]'); } catch { return []; } };
+    const usarLoc = (t) => {
+      o.local = String(t || '').trim().slice(0, 60);
+      try { o.local ? localStorage.setItem('nx-card-loc-' + c.id, o.local) : localStorage.removeItem('nx-card-loc-' + c.id); if (o.local) localStorage.setItem('nx-card-locs', JSON.stringify([o.local, ...recentes().filter((x) => x !== o.local)].slice(0, 5))); } catch {}
+      locUI(); pinta();
+    };
+    const PIN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path fill-rule="evenodd" d="M12 23s-7.5-6.9-7.5-12.6a7.5 7.5 0 0 1 15 0C19.5 16.1 12 23 12 23zm0-9.4a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg>';
+    const locUI = (aberto) => {
+      if (o.local && !aberto) { locBox.innerHTML = `<div class="loc-on">${PIN}<b class="grow ellip">${esc(o.local)}</b><button type="button" class="link-btn small" data-l="trocar">Trocar</button><button type="button" class="icon-btn sm" data-l="tirar" aria-label="Tirar a localização">✕</button></div>`; return; }
+      if (!aberto) { locBox.innerHTML = `<button type="button" class="btn ghost sm" data-l="abrir">${PIN} Adicionar localização</button>`; return; }
+      const rec = recentes();
+      locBox.innerHTML = `<div class="loc-box"><form class="row" style="gap:8px" id="loc-f"><input class="input grow" id="loc-q" placeholder="Ex.: Lagoa da Jansen, São Luís" value="${esc(o.local || '')}" autocomplete="off"><button class="btn sm" type="submit">Buscar</button></form>
+        <div class="chips wrap" style="margin-top:10px"><button type="button" class="chip" data-l="aqui">${PIN} Onde estou agora</button>${c.rota && c.rota.length && c.fonte !== 'garmin' ? `<button type="button" class="chip" data-l="corrida">${PIN} Onde foi a corrida</button>` : ''}${rec.map((x) => `<button type="button" class="chip" data-usar="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+        <div id="loc-res" class="loc-res"></div>
+        <div class="row" style="gap:8px;margin-top:8px"><button type="button" class="link-btn small" data-l="escrito">Usar do jeito que escrevi</button><span class="grow"></span><button type="button" class="link-btn small" data-l="fechar">Cancelar</button></div>
+        <p class="tiny dim" style="margin-top:6px">A busca usa o OpenStreetMap e só acontece quando você toca em Buscar.</p></div>`;
+      const q = locBox.querySelector('#loc-q'); setTimeout(() => q.focus(), 50);
+      locBox.querySelector('#loc-f').onsubmit = async (e) => {
+        e.preventDefault(); const t = q.value.trim(); if (t.length < 3) return toast('Digite pelo menos 3 letras.', true);
+        const res = locBox.querySelector('#loc-res'); res.innerHTML = '<p class="small muted">Buscando…</p>';
+        try { const l = await locBuscar(t); res.innerHTML = l.length ? l.map((x) => `<button type="button" class="loc-it" data-usar="${esc(x)}">${PIN}<span>${esc(x)}</span></button>`).join('') : '<p class="small muted">Nada encontrado. Você pode usar do jeito que escreveu.</p>'; }
+        catch { res.innerHTML = '<p class="small muted">Não foi possível buscar agora. Você pode usar do jeito que escreveu.</p>'; }
+      };
+    };
+    locBox.onclick = async (e) => {
+      const u = e.target.closest('[data-usar]'); if (u) return usarLoc(u.dataset.usar);
+      const b = e.target.closest('[data-l]'); if (!b) return; const a = b.dataset.l;
+      if (a === 'abrir' || a === 'trocar') return locUI(true);
+      if (a === 'fechar') return locUI(false);
+      if (a === 'tirar') return usarLoc('');
+      if (a === 'escrito') { const t = locBox.querySelector('#loc-q').value.trim(); return t ? usarLoc(t) : toast('Escreva o nome do lugar.', true); }
+      if (a === 'corrida') { b.disabled = true; try { usarLoc(await locReversa(c.rota[0][0], c.rota[0][1])); } catch { b.disabled = false; toast('Não foi possível achar o lugar agora.', true); } return; }
+      if (a === 'aqui') {
+        if (!navigator.geolocation) return toast('Este aparelho não tem localização disponível.', true);
+        b.disabled = true; b.lastChild.textContent = ' Procurando…';
+        navigator.geolocation.getCurrentPosition(async (pos) => { try { usarLoc(await locReversa(pos.coords.latitude.toFixed(5), pos.coords.longitude.toFixed(5))); } catch { b.disabled = false; toast('Não foi possível achar o lugar agora.', true); } },
+          () => { b.disabled = false; b.lastChild.textContent = ' Onde estou agora'; toast('Permita a localização para usar onde você está.', true); }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
+      }
+    };
+    locUI(false);
     r.querySelector('#cd-stats').onchange = (e) => { o.stats[e.target.value] = e.target.checked; salvar(); pinta(); };
     // a imagem salva sai em alta definição (2160 × 3840 no story), mesmo a prévia sendo menor
     const blob = async () => { const hd = document.createElement('canvas'); await desenharCard(hd, c, { ...o, escala: 2 }); return await new Promise((res) => hd.toBlob(res, 'image/png')); };

@@ -1828,3 +1828,12 @@ html{touch-action:manipulation}
 .gps-trava .btn{min-height:60px;padding:0 28px;position:relative;overflow:hidden;background:rgba(255,255,255,.1);color:#eef3ff}
 .gps-trava .btn.segurando::after{content:'';position:absolute;inset:0;background:rgba(70,214,255,.35);transform-origin:left;animation:gps-seg .9s linear forwards}
 @keyframes gps-seg{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* localização no card */
+.loc-on{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:var(--s1);border:1px solid var(--line2)}
+.loc-on svg{flex:none;color:var(--acc)}
+.loc-box{padding:12px;border-radius:16px;background:var(--s1);border:1px solid var(--line2)}
+.loc-box .chip svg{vertical-align:-3px;color:var(--acc)}
+.loc-res{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.loc-res:empty{display:none}
+.loc-it{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:10px 12px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);color:var(--ink);font:inherit;font-size:.9rem;cursor:pointer}
+.loc-it svg{flex:none;color:var(--acc)}
