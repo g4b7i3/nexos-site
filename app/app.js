@@ -4765,8 +4765,10 @@ async function viewGps(id, modo) {
   const recuperado = !!(ant && ant.id === id && !!ant.est === est && ant.inicio);
   let btsChave = '', nTick = 0, podeSemSinal = false, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = est;
   // esteira: detector de passos (pico da aceleração) e passada calibrada pelo painel nas corridas anteriores
-  const PASSADA_KEY = 'nx-passada-esteira';
-  const passada = () => { const v = +store.get(PASSADA_KEY, 0); return v >= 0.5 && v <= 2 ? v : 1.0; };
+  // onde está o celular: no corpo (bolso/braçadeira) sente a pisada; na mão sente o balanço do braço. Cada jeito tem a sua passada calibrada.
+  if (est && !st.local) st.local = store.get('nx-esteira-local', 'corpo') === 'mao' ? 'mao' : 'corpo';
+  const passadaKey = () => 'nx-passada-esteira' + (st.local === 'mao' ? '-mao' : '');
+  const passada = () => { const v = +store.get(passadaKey(), 0); return v >= 0.5 && v <= 2 ? v : 1.0; };
   let sensOn = false, sensVisto = 0, lp = 9.8, mMed = 9.8, mVar = 1, acima = false, ultPasso = 0, passosJan = [];
   const cadAgora = () => { const ag = Date.now(), j = passosJan.filter((x) => ag - x < 15000); passosJan = j; return j.length >= 6 ? Math.round(j.length * 4) : 0; };
   const salvar = () => { st.salvoEm = Date.now(); store.set(GPS_KEY, st); };
@@ -4777,6 +4779,7 @@ async function viewGps(id, modo) {
     <div class="gps-passo" id="g-passo"></div>
     <div class="gps-num"><div><span>Tempo</span><b id="g-tempo">0:00</b></div><div><span>Distância</span><b id="g-dist">0,00<small> km</small></b></div><div><span>${est ? 'Cadência' : 'Pace agora'}</span><b id="g-pace">–</b></div><div><span>${est ? 'Passos' : 'Pace médio'}</span><b id="g-pm">–</b></div></div>
     <div class="gps-prox" id="g-prox"></div>
+    ${est ? '<div class="est-local" id="g-local"></div>' : ''}
     <div class="gps-bts" id="g-bts"></div>
     <p class="tiny dim center" id="g-dica" style="margin-top:10px"></p>
     <div class="gps-trava" id="g-trava" hidden><div class="gps-trava-c"><div class="h3">Tela travada</div><p class="small" style="margin:6px 0 18px">Os toques estão desligados para não atrapalhar a corrida.</p><button class="btn ghost" id="g-dest">Segure para destravar</button></div></div>
@@ -4828,14 +4831,19 @@ async function viewGps(id, modo) {
       $('g-passo').innerHTML = `<div class="gps-p-h"><span class="gps-z">${est ? 'Esteira livre' : 'Corrida livre'}</span><span class="tiny">Volta ${v}</span></div><div class="gps-p-f">${(fD / 1000).toFixed(2).replace('.', ',')}<small> km nesta volta</small></div><div class="gps-bar"><i style="width:${Math.min(100, fD / 10).toFixed(1)}%"></i></div>`;
       $('g-prox').innerHTML = '';
     }
-    const E = st.estado, chave = E + gpsOk + podeSemSinal + !!passoAtual();
-    if (chave === btsChave) return; btsChave = chave; // botões só mudam quando o estado muda (não some no meio do toque)
+    const E = st.estado, chave = E + gpsOk + podeSemSinal + !!passoAtual() + (st.local || '');
+    if (chave === btsChave) return;
+    if (est) {
+      const gl = $('g-local'); gl.hidden = E !== 'pronto';
+      gl.innerHTML = `<span>Onde está o celular?</span><div class="est-seg"><button type="button" data-loc="corpo" class="${st.local === 'corpo' ? 'on' : ''}">Bolso ou braçadeira</button><button type="button" data-loc="mao" class="${st.local === 'mao' ? 'on' : ''}">Na mão</button></div>${st.local === 'mao' ? '<p class="tiny">Na mão a contagem é um pouco menos precisa. Evite segurar no corrimão.</p>' : '<p class="tiny">Mais preciso: o celular sente cada pisada.</p>'}`;
+      gl.querySelectorAll('[data-loc]').forEach((b) => b.onclick = () => { st.local = b.dataset.loc; store.set('nx-esteira-local', st.local); salvar(); desenha(); });
+    } btsChave = chave; // botões só mudam quando o estado muda (não some no meio do toque)
     $('g-bts').innerHTML = E === 'pronto'
       ? (gpsOk ? `<button class="btn block gps-go" id="g-ini">${I.play} Começar</button>` : podeSemSinal ? `<button class="btn block ghost" id="g-ini">${I.play} Começar mesmo assim</button>` : `<button class="btn block gps-go" id="g-ini" disabled>Esperando o GPS…</button>`)
       : E === 'correndo'
         ? `<button class="btn ghost" id="g-trv" aria-label="Travar a tela">${GPS_IC.trava}</button><button class="btn grow gps-pausa" id="g-pau">Pausar</button>${passos.length && passoAtual() ? `<button class="btn ghost" id="g-pul">Pular ›</button>` : ''}`
         : `<button class="btn grow gps-go" id="g-con">${I.play} Continuar</button><button class="btn ghost grow" id="g-fim">Terminar</button>`;
-    $('g-dica').textContent = E === 'pronto' ? (est ? 'Coloque o celular no bolso ou na braçadeira (preso ao corpo, não no suporte da esteira) e toque em Começar.' : gpsOk ? 'Fique em um lugar aberto. Toque em Começar quando for sair.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Ao ar livre o GPS acha o sinal mais rápido.') : E === 'pausado' ? (recuperado && !marcaMov ? 'Treino recuperado. Toque em Continuar para seguir.' : 'Treino pausado.') : est ? 'Distância estimada pelos passos. No fim, confirme com o painel da esteira.' : 'Mantenha a tela ligada.';
+    $('g-dica').textContent = E === 'pronto' ? (est ? (st.local === 'mao' ? 'Corra com o celular na mão, balançando o braço normalmente (não no suporte da esteira), e toque em Começar.' : 'Coloque o celular no bolso ou na braçadeira (preso ao corpo, não no suporte da esteira) e toque em Começar.') : gpsOk ? 'Fique em um lugar aberto. Toque em Começar quando for sair.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Ao ar livre o GPS acha o sinal mais rápido.') : E === 'pausado' ? (recuperado && !marcaMov ? 'Treino recuperado. Toque em Continuar para seguir.' : 'Treino pausado.') : est ? 'Distância estimada pelos passos. No fim, confirme com o painel da esteira.' : 'Mantenha a tela ligada.';
     liga();
   };
   const liga = () => {
@@ -4895,10 +4903,11 @@ async function viewGps(id, modo) {
     const a = ev.accelerationIncludingGravity; if (!a || a.x == null) return;
     sensVisto = Date.now();
     const m = Math.hypot(a.x, a.y, a.z);
-    lp = lp * 0.7 + m * 0.3; mMed = mMed * 0.98 + lp * 0.02;
+    const mao = st.local === 'mao';
+    lp = mao ? lp * 0.75 + m * 0.25 : lp * 0.7 + m * 0.3; mMed = mMed * 0.98 + lp * 0.02;
     const dv = lp - mMed; mVar = mVar * 0.98 + dv * dv * 0.02;
-    const lim = Math.max(1.1, Math.sqrt(mVar) * 0.6), ag = performance.now();
-    if (!acima && dv > lim && ag - ultPasso > 250) { // um pico = um passo (no máximo 240 por minuto)
+    const lim = mao ? Math.max(1.0, Math.sqrt(mVar) * 0.65) : Math.max(1.1, Math.sqrt(mVar) * 0.6), ag = performance.now();
+    if (!acima && dv > lim && ag - ultPasso > (mao ? 270 : 250)) { // um pico = um passo (no máximo 240 por minuto)
       acima = true; ultPasso = ag;
       if (st.estado === 'correndo') { st.passos = (st.passos || 0) + 1; passosJan.push(Date.now()); st.dist = st.passos * passada(); }
     } else if (acima && dv < 0) acima = false;
@@ -4959,7 +4968,7 @@ async function viewGps(id, modo) {
         const km = parseFloat(String(f.km.value).replace(/\./g, '').replace(',', '.'));
         if (!(km > 0.05 && km < 100)) return toast('Digite a distância do painel, por exemplo 5,2.', true);
         const novo = km * 1000, fator = st.dist > 0 ? novo / st.dist : 0;
-        if (st.passos > 200) { const pd = novo / st.passos; if (pd >= 0.5 && pd <= 2) store.set(PASSADA_KEY, +pd.toFixed(3)); } // calibra a passada
+        if (st.passos > 200) { const pd = novo / st.passos; if (pd >= 0.5 && pd <= 2) store.set(passadaKey(), +pd.toFixed(3)); } // calibra a passada
         if (fator) { st.serie.d = st.serie.d.map((x) => Math.round(x * fator)); st.serie.vel = st.serie.vel.map((x) => +(x * fator).toFixed(2)); st.voltas = st.voltas.map((v) => ({ ...v, d: Math.round(v.d * fator) })); st.pIni = { ...st.pIni, d: st.pIni.d * fator }; }
         else { st.serie = { t: [0, mov], d: [0, Math.round(novo)], vel: [+(novo / mov).toFixed(2), +(novo / mov).toFixed(2)] }; st.voltas = []; st.pIni = { t: 0, d: 0 }; }
         st.dist = novo; salvarTreino();
@@ -4977,7 +4986,7 @@ async function viewGps(id, modo) {
       parciais: !est && st.parciais.length ? st.parciais : null, plano_id: p ? p.id : null, titulo: titulo, fonte: 'celular',
       ext_id: 'cel-' + new Date(st.inicio).getTime(),
       cadencia: est && st.passos > 100 ? Math.round(st.passos / (mov / 60)) : null,
-      analise: { v: 1, serie: st.serie, voltas, extras: { dispositivo: est ? 'Celular (esteira, sensor de movimento)' : 'Celular (GPS)', total_s: Math.round((Date.now() - new Date(st.inicio)) / 1000), lacunas: st.lacunas, ...(est ? { passos: st.passos } : {}) } },
+      analise: { v: 1, serie: st.serie, voltas, extras: { dispositivo: est ? `Celular (esteira, ${st.local === 'mao' ? 'na mão' : 'no corpo'})` : 'Celular (GPS)', total_s: Math.round((Date.now() - new Date(st.inicio)) / 1000), lacunas: st.lacunas, ...(est ? { passos: st.passos } : {}) } },
     };
     st.estado = 'pausado'; salvar();
     const plano = p ? [p] : [];

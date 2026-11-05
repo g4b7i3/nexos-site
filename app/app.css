@@ -1972,3 +1972,10 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.esp-p.on>span{animation:none}}
 .esp-tr .esp-wa{flex:none;width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:14px;color:#25d366}
 .esp-tr .esp-wa svg{width:22px;height:22px}
+/* esteira: onde está o celular */
+.est-local{margin-top:12px;padding:12px 14px;border-radius:16px;background:#0b1426;border:1px solid rgba(140,180,255,.12);color:#eef3ff}
+.est-local>span{display:block;font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8fa1c4;margin-bottom:8px}
+.est-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border-radius:12px;background:rgba(255,255,255,.05)}
+.est-seg button{min-height:42px;border-radius:9px;font-weight:700;font-size:.9rem;color:#b7c4dd;background:transparent;border:0}
+.est-seg button.on{background:var(--acc);color:#fff}
+.est-local .tiny{margin-top:8px;color:#8fa1c4}
