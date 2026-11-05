@@ -3219,13 +3219,100 @@ function bindGraficos(root, c) {
   box.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') setTimeout(sair, 1800); });
 }
 
+/* ---------- Nexos Inteligência: leitura automática de cada corrida ----------
+   Roda no próprio aparelho com regras de fisiologia (zonas, FC, parciais, histórico e planilha):
+   não depende de servidor, então funciona igual com 5 ou 5 mil alunos. */
+const N1 = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
+function zonaDoPace(pace, perfil) {
+  const P = perfil && perfil.paces; if (!P || !pace) return null;
+  const ordem = ['tiros', 'intervalado', 'limiar', 'maratona', 'leve'];
+  for (const k of ordem) { const f = P[k]; if (f && pace <= Math.max(f[0], f[1]) + 3) return k; }
+  return 'rec';
+}
+function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
+  if (!c || !comDist(c) || !c.duracao_s) return null;
+  const km = c.distancia_m / 1000, pace = paceDe(c), tipo = (plano && plano.tipo) || c.tipo;
+  const leveP = ['rodagem', 'regenerativo', 'longao'].includes(tipo) || (plano && !plano.tipo && (plano.zona || 'leve') === 'leve');
+  const misto = ['intervalado', 'tiros', 'fartlek'].includes(tipo);
+  const det = []; // detalhes do "Ver mais"
+  // 1) esforço: FC (melhor), depois esforço marcado, depois zona do pace
+  let esf = null, esfN = 0;
+  const pctFc = c.fc_media && perfil.fcMax ? c.fc_media / perfil.fcMax : null;
+  if (pctFc) { esfN = pctFc < 0.75 ? 1 : pctFc < 0.83 ? 2 : pctFc < 0.9 ? 3 : 4; det.push(`Frequência cardíaca média de ${c.fc_media} bpm, cerca de ${Math.round(pctFc * 100)}% da sua máxima.`); }
+  else if (c.rpe != null) esfN = c.rpe <= 3 ? 1 : c.rpe <= 5 ? 2 : c.rpe <= 7 ? 3 : 4;
+  else { const z = zonaDoPace(pace, perfil); esfN = { rec: 1, leve: 1, maratona: 2, limiar: 3, intervalado: 4, tiros: 4 }[z] || 0; }
+  if (esfN) esf = ['', 'esforço leve', 'esforço moderado', 'esforço relativo elevado', 'esforço muito alto'][esfN];
+  const zp = !misto && zonaDoPace(pace, perfil);
+  if (zp) det.push(`Ritmo médio de ${fmtPace(pace)}, dentro da sua zona ${ZONAS_INFO[zp].n}.`);
+  // 2) distribuição do ritmo pelas parciais (só km inteiros)
+  const sp = (c.parciais || []).filter((p) => !p.parcial && p.seg > 0).map((p) => ({ s: p.seg, fc: p.fc || null }));
+  let ritmo = '';
+  if (sp.length >= 4 && !misto) {
+    const med = sp.reduce((a, p) => a + p.s, 0) / sp.length;
+    const h = Math.floor(sp.length / 2), m1 = sp.slice(0, h).reduce((a, p) => a + p.s, 0) / h, m2 = sp.slice(-h).reduce((a, p) => a + p.s, 0) / h;
+    const cv = Math.sqrt(sp.reduce((a, p) => a + (p.s - med) ** 2, 0) / sp.length) / med;
+    const fim = sp.slice(-Math.min(3, Math.ceil(sp.length / 4))), mFim = fim.reduce((a, p) => a + p.s, 0) / fim.length;
+    const dif = (m2 - m1) / m1;
+    if (dif < -0.02) ritmo = 'terminou mais forte do que começou (split negativo)';
+    else if (mFim > med * 1.05 && esfN >= 3) ritmo = 'manteve o ritmo apesar da fadiga nos últimos quilômetros';
+    else if (mFim > med * 1.05) ritmo = 'perdeu ritmo nos últimos quilômetros';
+    else if (cv < 0.035) ritmo = 'manteve ritmo muito consistente';
+    else if (dif > 0.04) ritmo = 'começou forte e foi caindo';
+    else ritmo = 'manteve ritmo regular';
+    det.push(`Primeira metade em ${fmtPace(m1)} e segunda em ${fmtPace(m2)}; últimos ${fim.length} km em ${fmtPace(mFim)}.`);
+    const f1 = sp.slice(0, h).filter((p) => p.fc), f2 = sp.slice(-h).filter((p) => p.fc);
+    if (f1.length >= 2 && f2.length >= 2) {
+      const a = f1.reduce((x, p) => x + p.fc, 0) / f1.length, b = f2.reduce((x, p) => x + p.fc, 0) / f2.length;
+      if (b > a * 1.06 && m2 >= m1 * 0.99) det.push(`A frequência subiu ${Math.round(b - a)} bpm sem você acelerar (deriva cardíaca): sinal de calor, hidratação ou fadiga.`);
+    }
+  }
+  // 3) planilha
+  let planTxt = '';
+  if (plano) {
+    const prev = Number(plano.distancia_km) || 0;
+    if (prev) { const pc = km / prev; planTxt = pc >= 0.95 ? (pc > 1.15 ? `foi além do previsto (${N1(km)} de ${N1(prev)} km)` : 'cumpriu a distância prevista') : `fez ${Math.round(pc * 100)}% da distância prevista`; det.push(`Previsto: ${N1(prev)} km. Feito: ${N1(km)} km.`); }
+    if (leveP && perfil.paces && perfil.paces.leve && pace < Math.min(...perfil.paces.leve) * 0.95) det.push(`Para um treino leve, o ritmo ficou acima da zona Z2 (${faixaPace(perfil.paces.leve)}). Rodar leve de verdade ajuda a recuperar e a evoluir.`);
+  }
+  // 4) histórico de 90 dias
+  const ant = hist.filter((x) => x.id !== c.id && ehCorr(x) && Date.parse(x.data) < Date.parse(c.data) && Date.parse(x.data) > Date.parse(c.data) - 90 * 864e5);
+  let marco = '';
+  if (ant.length >= 3) {
+    const maxKm = Math.max(...ant.map((x) => x.distancia_m)) / 1000;
+    const rap = ant.filter((x) => x.distancia_m >= Math.min(5000, c.distancia_m * 0.9)).map(paceDe).filter(Boolean);
+    if (km > maxKm + 0.2 && km >= 5) marco = 'sua corrida mais longa dos últimos 3 meses';
+    else if (rap.length && c.distancia_m >= 5000 && pace < Math.min(...rap) - 1) marco = `seu melhor ritmo dos últimos 3 meses em ${N1(km)} km`;
+    const sem = ant.filter((x) => Date.parse(x.data) > Date.parse(c.data) - 28 * 864e5).reduce((a, x) => a + x.distancia_m, 0) / 4000;
+    if (sem > 0) det.push(`Sua média recente é de ${N1(sem)} km por semana.`);
+  }
+  // 5) corpo
+  let alerta = '';
+  if (c.dor) alerta = `Você relatou dor${c.dor_local ? ' (' + c.dor_local + ')' : ''}: se continuar nos próximos treinos, avise o seu treinador.`;
+  else if (c.sono === 1 || c.cansaco === 2) det.push('Você marcou sono ruim ou cansaço alto: dê atenção à recuperação nos próximos dias.');
+  // frase principal no estilo de um resumo de treinador
+  const nome = tipo === 'ritmo' ? 'Treino de ritmo' : TIPOS_CORRIDA.some((t) => t[0] === tipo) && tipo !== 'folga' ? nomeTipo(tipo) : 'Corrida';
+  let txt = `${nome} de ${N1(km)} km${esf ? ` com ${esf}` : ''}`;
+  txt += ritmo ? `; ${ritmo}.` : '.';
+  const extra = [marco && `Foi ${marco}`, planTxt && (marco ? `e ${planTxt}` : `Você ${planTxt}`)].filter(Boolean).join(' ');
+  if (extra) txt += ` ${extra}.`;
+  if (alerta) txt += ` ${alerta}`;
+  return { txt: txt.charAt(0).toUpperCase() + txt.slice(1), det };
+}
+const NI_LOGO = '<span class="ni-logo" aria-hidden="true"><i></i><i></i><i></i></span>';
+function nexosIntHTML(r) {
+  if (!r) return '';
+  return `<div class="ni-card"><div class="ni-h">${NI_LOGO}<b>Nexos Inteligência</b></div><p class="ni-txt">${esc(r.txt)}</p>
+    ${r.det.length ? `<details class="ni-mais"><summary><span class="ni-a">Ver mais</span><span class="ni-b">Ver menos</span></summary><ul>${r.det.map((d) => `<li>${esc(d)}</li>`).join('')}</ul></details>` : ''}</div>`;
+}
+const buscarHist90 = (alunoId, ate) => sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s').eq('aluno_id', alunoId).gte('data', new Date(Date.parse(ate) - 92 * 864e5).toISOString()).lte('data', ate).then((r) => r.data || [], () => []);
+
 async function viewCorrida(id) {
   loading();
   const { data: c } = await sb.from('nx_corridas').select('*').eq('id', id).maybeSingle();
   if (!c) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Corrida não encontrada</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
-  const [plano, nome] = await Promise.all([
+  const [plano, nome, hist90] = await Promise.all([
     c.plano_id ? sb.from('nx_plano_corrida').select('*').eq('id', c.plano_id).maybeSingle().then((r) => r.data) : Promise.resolve(null),
     S.staff ? sb.from('nx_membros').select('nome,corrida,nascimento').eq('org_id', S.org.id).eq('user_id', c.aluno_id).maybeSingle().then((r) => r.data || { nome: 'Aluno' }) : Promise.resolve(null),
+    ehCorr(c) ? buscarHist90(c.aluno_id, c.data) : Promise.resolve([]),
   ]);
   const membroC = S.staff ? nome : S.me; const pc = perfilCorrida(membroC || {});
   const fcMaxFonte = membroC && membroC.corrida && membroC.corrida.fc_max ? 'medida no perfil de corrida' : pc.fcMax ? 'estimada pela idade' : '';
@@ -3250,6 +3337,7 @@ async function viewCorrida(id) {
       ${c.cadencia ? `<div class="metric"><span>Cadência</span><b>${c.cadencia}<small>ppm</small></b></div>` : ''}
       ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
     </div>
+    ${ehCorr(c) ? nexosIntHTML(nexosInteligencia(c, { plano, perfil: pc, hist: hist90 })) : ''}
     ${c.dor ? `<div class="card" style="margin-top:12px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor${c.dor_local ? ': ' + esc(c.dor_local) : ''}</span></div>` : ''}
     ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
     ${c.comentario ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Como foi</span><p style="margin-top:6px">“${esc(c.comentario)}”</p></div>` : ''}
@@ -3671,8 +3759,9 @@ async function montarFeito(r, feitoBase, plano) {
   const box = r.querySelector('#ed-feito');
   const [{ data: c }, { data: al }] = await Promise.all([
     sb.from('nx_corridas').select('*').eq('id', feitoBase.id).maybeSingle(),
-    sb.from('nx_membros').select('nome').eq('org_id', S.org.id).eq('user_id', feitoBase.aluno_id || plano.aluno_id).maybeSingle(),
+    sb.from('nx_membros').select('nome,corrida,nascimento').eq('org_id', S.org.id).eq('user_id', feitoBase.aluno_id || plano.aluno_id).maybeSingle(),
   ]);
+  const hist90 = c ? await buscarHist90(c.aluno_id, c.data) : [];
   if (!c) { box.innerHTML = '<p class="small muted">Não foi possível carregar o treino do aluno.</p>'; return; }
   const pace = paceDe(c), parc = c.parciais || [];
   const pk = (x) => x.seg / (x.parcial ? (x.km % 1 || 1) : 1);
@@ -3689,6 +3778,7 @@ async function montarFeito(r, feitoBase, plano) {
       ${c.elevacao_m ? `<div class="metric"><span>Subida</span><b>${Math.round(c.elevacao_m)}<small>m</small></b></div>` : ''}
       ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
     </div>
+    ${nexosIntHTML(nexosInteligencia(c, { plano, perfil: perfilCorrida(al || {}), hist: hist90 }))}
     ${c.dor ? `<div class="card" style="margin-top:10px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor${c.dor_local ? ': ' + esc(c.dor_local) : ''}</span></div>` : ''}
     ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
     ${c.comentario ? `<div class="card" style="margin-top:10px"><span class="eyebrow">Como foi, nas palavras do aluno</span><p style="margin-top:6px">“${esc(c.comentario)}”</p></div>` : ''}
