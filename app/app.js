@@ -4777,7 +4777,7 @@ async function viewGps(id, modo) {
   $app.innerHTML = `<div class="gps">
     <div class="gps-top"><button class="icon-btn sm" id="g-sair" aria-label="Sair">${I.back}</button><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(titulo)}</b><span class="tiny" id="g-sinal">${est ? 'Esteira · sensor de movimento' : 'Procurando GPS…'}</span></div><button class="icon-btn sm" id="g-voz" aria-label="Voz">${st.voz ? GPS_IC.som : GPS_IC.mudo}</button></div>
     <div class="gps-passo" id="g-passo"></div>
-    <div class="gps-num"><div><span>Tempo</span><b id="g-tempo">0:00</b></div><div><span>Distância</span><b id="g-dist">0,00<small> km</small></b></div><div><span>${est ? 'Cadência' : 'Pace agora'}</span><b id="g-pace">–</b></div><div><span>${est ? 'Passos' : 'Pace médio'}</span><b id="g-pm">–</b></div></div>
+    <div class="gps-num"><div><span>Tempo</span><b id="g-tempo">0:00</b></div><div><span>Distância</span><b id="g-dist">0,00<small> km</small></b></div><div><span>Pace agora</span><b id="g-pace">–</b></div><div><span>Pace médio</span><b id="g-pm">–</b></div>${est ? '<div><span>Cadência</span><b id="g-cad">–</b></div><div><span>Passos</span><b id="g-np">0</b></div>' : ''}</div>
     <div class="gps-prox" id="g-prox"></div>
     ${est ? '<div class="est-local" id="g-local"></div>' : ''}
     <div class="gps-bts" id="g-bts"></div>
@@ -4798,17 +4798,31 @@ async function viewGps(id, modo) {
   const soltarTela = () => { try { lock && lock.release(); } catch {} lock = null; };
 
   const passoAtual = () => passos[st.passo] || null;
+  const paceAgora = () => {
+    let pa = null;
+    if (est) { const cd = cadAgora(); if (cd) pa = 1000 / ((cd / 60) * passada()); }
+    else { const j = janela.filter((x) => Date.now() - x.t < 20000); if (j.length > 1) pa = (j[j.length - 1].t - j[0].t) / 1000 / ((j[j.length - 1].d - j[0].d) / 1000); }
+    return pa && isFinite(pa) && pa > 120 && pa < 1200 ? pa : null;
+  };
+  // de vez em quando (a cada 2 min) a voz diz o pace atual e se está no ritmo do treino
+  let ultFalaPace = Date.now(), ultTroca = 0;
+  const falarPace = () => {
+    if (st.estado !== 'correndo' || !st.voz) return;
+    const ag = Date.now(); if (ag - ultFalaPace < 120000 || ag - ultTroca < 20000) return;
+    const pa = paceAgora(); if (!pa) return;
+    ultFalaPace = ag;
+    const s = passoAtual(); let txt = `Pace ${est ? 'aproximado ' : ''}${paceFala(pa)}.`;
+    if (s && s.pa && s.pb) txt += pa < s.pa * 0.97 ? (est ? ' Acima do alvo, confira a velocidade da esteira.' : ' Rápido demais, segure um pouco.') : pa > s.pb * 1.03 ? (est ? ' Abaixo do alvo, confira a velocidade da esteira.' : ' Abaixo do alvo, acelere um pouco.') : ' No ritmo.';
+    falar(txt);
+  };
   const desenha = () => {
     const mov = movAgora() / 1000, s = passoAtual();
     $('g-tempo').textContent = fmtDurLongo(mov);
     $('g-dist').innerHTML = `${est ? '~' : ''}${(st.dist / 1000).toFixed(2).replace('.', ',')}<small> km</small>`;
-    // pace dos últimos ~20 s
-    const j = janela.filter((x) => Date.now() - x.t < 20000); const pa = est ? null : j.length > 1 ? (j[j.length - 1].t - j[0].t) / 1000 / ((j[j.length - 1].d - j[0].d) / 1000) : null;
-    if (est) { const cd = cadAgora(); $('g-pace').innerHTML = cd ? `${cd}<small> ppm</small>` : '–'; $('g-pm').textContent = String(st.passos || 0); }
-    else {
-      $('g-pm').textContent = st.dist > 50 ? fmtPace(mov / (st.dist / 1000)).replace('/km', '') : '–';
-      $('g-pace').textContent = pa && isFinite(pa) && pa < 1200 && pa > 120 ? fmtPace(pa).replace('/km', '') : '–';
-    }
+    const pa = paceAgora();
+    $('g-pm').textContent = st.dist > 50 ? (est ? '~' : '') + fmtPace(mov / (st.dist / 1000)).replace('/km', '') : '–';
+    $('g-pace').textContent = pa ? (est ? '~' : '') + fmtPace(pa).replace('/km', '') : '–';
+    if (est) { const cd = cadAgora(); $('g-cad').innerHTML = cd ? `${cd}<small> ppm</small>` : '–'; $('g-np').textContent = String(st.passos || 0); }
     if (s) {
       const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve, fT = mov - st.pIni.t, fD = st.dist - st.pIni.d;
       const falta = s.t ? Math.max(0, s.t - fT) : Math.max(0, s.d - fD), pr = s.t ? fT / s.t : fD / s.d;
@@ -4853,6 +4867,7 @@ async function viewGps(id, modo) {
 
   // fecha a parte atual (volta) e passa para a próxima
   const fecharPasso = () => {
+    ultTroca = Date.now();
     const mov = movAgora() / 1000;
     const v = { d: Math.round(st.dist - st.pIni.d), seg: Math.round(mov - st.pIni.t) };
     if (v.seg > 0) st.voltas.push(v);
@@ -5008,7 +5023,7 @@ async function viewGps(id, modo) {
   const sol = () => { clearTimeout(segura); dest.classList.remove('segurando'); };
   dest.addEventListener('pointerdown', ini); dest.addEventListener('pointerup', sol); dest.addEventListener('pointerleave', sol); dest.addEventListener('contextmenu', (e) => e.preventDefault());
   // relógio da tela + checagem das partes por tempo
-  const tick = () => { if (!document.getElementById('g-tempo')) return encerrar(); if (est && st.estado === 'correndo') serieEsteira(); verificaPasso(); if (est) sinalEsteira(); if (st.estado === 'correndo') { desenha(); if (++nTick % 5 === 0) salvar(); } };
+  const tick = () => { if (!document.getElementById('g-tempo')) return encerrar(); if (est && st.estado === 'correndo') serieEsteira(); verificaPasso(); if (est) sinalEsteira(); if (st.estado === 'correndo') { falarPace(); desenha(); if (++nTick % 5 === 0) salvar(); } };
   tickRef = setInterval(tick, 1000);
   ligarGPS(); desenha();
   setTimeout(() => { podeSemSinal = true; if (document.getElementById('g-bts')) desenha(); }, 15000); // sem sinal bom em 15 s: libera começar assim mesmo
