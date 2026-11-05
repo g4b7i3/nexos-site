@@ -3231,81 +3231,200 @@ function zonaDoPace(pace, perfil) {
   for (const k of ordem) { const f = P[k]; if (f && pace <= Math.max(f[0], f[1]) + 3) return k; }
   return 'rec';
 }
-function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
-  if (!c || !comDist(c) || !c.duracao_s) return null;
-  const km = c.distancia_m / 1000, pace = paceDe(c), tipo = (plano && plano.tipo) || c.tipo;
-  const leveP = ['rodagem', 'regenerativo', 'longao'].includes(tipo) || (plano && !plano.tipo && (plano.zona || 'leve') === 'leve');
-  const misto = ['intervalado', 'tiros', 'fartlek'].includes(tipo);
-  const det = []; // detalhes do "Ver mais"
-  // 1) esforço: FC (melhor), depois esforço marcado, depois zona do pace
-  let esf = null, esfN = 0;
-  const pctFc = c.fc_media && perfil.fcMax ? c.fc_media / perfil.fcMax : null;
-  if (pctFc) { esfN = pctFc < 0.75 ? 1 : pctFc < 0.83 ? 2 : pctFc < 0.9 ? 3 : 4; det.push(`Frequência cardíaca média de ${c.fc_media} bpm, cerca de ${Math.round(pctFc * 100)}% da sua máxima.`); }
-  else if (c.rpe != null) esfN = c.rpe <= 3 ? 1 : c.rpe <= 5 ? 2 : c.rpe <= 7 ? 3 : 4;
-  else { const z = zonaDoPace(pace, perfil); esfN = { rec: 1, leve: 1, maratona: 2, limiar: 3, intervalado: 4, tiros: 4 }[z] || 0; }
-  if (esfN) esf = ['', 'esforço leve', 'esforço moderado', 'esforço relativo elevado', 'esforço muito alto'][esfN];
-  const zp = !misto && zonaDoPace(pace, perfil);
-  if (zp) det.push(`Ritmo médio de ${fmtPace(pace)}, dentro da sua zona ${ZONAS_INFO[zp].n}.`);
-  // 2) distribuição do ritmo pelas parciais (só km inteiros)
-  const sp = (c.parciais || []).filter((p) => !p.parcial && p.seg > 0).map((p) => ({ s: p.seg, fc: p.fc || null }));
-  let ritmo = '';
-  if (sp.length >= 4 && !misto) {
-    const med = sp.reduce((a, p) => a + p.s, 0) / sp.length;
-    const h = Math.floor(sp.length / 2), m1 = sp.slice(0, h).reduce((a, p) => a + p.s, 0) / h, m2 = sp.slice(-h).reduce((a, p) => a + p.s, 0) / h;
-    const cv = Math.sqrt(sp.reduce((a, p) => a + (p.s - med) ** 2, 0) / sp.length) / med;
-    const fim = sp.slice(-Math.min(3, Math.ceil(sp.length / 4))), mFim = fim.reduce((a, p) => a + p.s, 0) / fim.length;
-    const dif = (m2 - m1) / m1;
-    if (dif < -0.02) ritmo = 'terminou mais forte do que começou (split negativo)';
-    else if (mFim > med * 1.05 && esfN >= 3) ritmo = 'manteve o ritmo apesar da fadiga nos últimos quilômetros';
-    else if (mFim > med * 1.05) ritmo = 'perdeu ritmo nos últimos quilômetros';
-    else if (cv < 0.035) ritmo = 'manteve ritmo muito consistente';
-    else if (dif > 0.04) ritmo = 'começou forte e foi caindo';
-    else ritmo = 'manteve ritmo regular';
-    det.push(`Primeira metade em ${fmtPace(m1)} e segunda em ${fmtPace(m2)}; últimos ${fim.length} km em ${fmtPace(mFim)}.`);
-    const f1 = sp.slice(0, h).filter((p) => p.fc), f2 = sp.slice(-h).filter((p) => p.fc);
-    if (f1.length >= 2 && f2.length >= 2) {
-      const a = f1.reduce((x, p) => x + p.fc, 0) / f1.length, b = f2.reduce((x, p) => x + p.fc, 0) / f2.length;
-      if (b > a * 1.06 && m2 >= m1 * 0.99) det.push(`A frequência subiu ${Math.round(b - a)} bpm sem você acelerar (deriva cardíaca): sinal de calor, hidratação ou fadiga.`);
+const media = (l) => (l.length ? l.reduce((a, b) => a + b, 0) / l.length : null);
+const fmtSeg = (s) => { s = Math.round(Math.abs(s)); return s < 60 ? `${s} s` : `${Math.floor(s / 60)}min${s % 60 ? ' ' + String(s % 60).padStart(2, '0') + 's' : ''}`; };
+/** separa as voltas do relógio em esforço x recuperação (2 grupos pelo pace) */
+function tirosDasVoltas(voltas, comAqDq, repPl) {
+  const L = (voltas || []).map((v, i) => ({ ...v, i, pace: v.d > 30 && v.seg > 8 ? v.seg / (v.d / 1000) : null })).filter((v) => v.pace && v.pace < 1200);
+  if (L.length < 4) return null;
+  // com a planilha: o tiro é a volta com a duração (ou distância) do passo forte; sobrando, ficam os mais rápidos
+  const co = repPl && (repPl.passos || []).find((p) => p.k === 'co'), rc = repPl && (repPl.passos || []).find((p) => p.k !== 'co');
+  if (co) {
+    const alvo = co.med === 'min' ? { k: 'seg', v: co.v * 60 } : { k: 'd', v: co.med === 'km' ? co.v * 1000 : co.v };
+    const alvoRc = rc && (rc.med === 'min' ? { k: 'seg', v: rc.v * 60 } : { k: 'd', v: rc.med === 'km' ? rc.v * 1000 : rc.v });
+    const bate = (v, a, tol) => Math.abs(v[a.k] - a.v) / a.v <= tol;
+    const ambiguo = alvoRc && alvoRc.k === alvo.k && Math.abs(alvoRc.v - alvo.v) / alvo.v < 0.3;
+    if (!ambiguo) {
+      let esf = L.filter((v) => bate(v, alvo, 0.2));
+      if (esf.length >= 2) {
+        if (esf.length > repPl.n) esf = esf.slice().sort((x, y) => x.pace - y.pace).slice(0, repPl.n).sort((x, y) => x.i - y.i);
+        const ids = new Set(esf.map((v) => v.i)), i0 = esf[0].i, i1 = esf[esf.length - 1].i;
+        const rec = L.filter((v) => !ids.has(v.i) && v.i > i0 && v.i < i1);
+        if (rec.length) return { esf, rec };
+      }
     }
   }
-  // 3) planilha
+  const miolo = comAqDq && L.length > 5 ? L.slice(1, -1) : L;
+  let a = Math.min(...miolo.map((v) => v.pace)), b = Math.max(...miolo.map((v) => v.pace));
+  for (let k = 0; k < 12; k++) { const lim = (a + b) / 2; const f = miolo.filter((v) => v.pace <= lim), s = miolo.filter((v) => v.pace > lim); if (!f.length || !s.length) break; a = media(f.map((v) => v.pace)); b = media(s.map((v) => v.pace)); }
+  const lim = (a + b) / 2, esf = miolo.filter((v) => v.pace <= lim), rec = miolo.filter((v) => v.pace > lim);
+  if (esf.length < 2 || !rec.length || a > b * 0.88) return null; // não é um treino de tiros de verdade
+  return { esf, rec };
+}
+/** tempo em cada zona de FC (Z1 a Z5, em % da FC máxima) pela série do relógio */
+function tempoZonasFC(serie, fcMax) {
+  const T = serie && serie.t, F = serie && serie.fc; if (!T || !F || !fcMax || T.length < 20) return null;
+  const z = [0, 0, 0, 0, 0]; let tot = 0;
+  for (let i = 1; i < T.length; i++) { const f = F[i]; const dt = T[i] - T[i - 1]; if (!f || !(dt > 0) || dt > 30) continue; const p = f / fcMax; z[p < 0.6 ? 0 : p < 0.7 ? 1 : p < 0.8 ? 2 : p < 0.9 ? 3 : 4] += dt; tot += dt; }
+  return tot > 300 ? z.map((x) => x / tot) : null;
+}
+function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
+  if (!c || !comDist(c) || !c.duracao_s) return null;
+  const A = c.analise || {}, EX = A.extras || {}, km = c.distancia_m / 1000, pace = paceDe(c);
+  const tipo = (plano && plano.tipo) || c.tipo;
+  const est = plano ? estruturaDe(plano) : [];
+  const repPl = est.find((s) => s.k === 'rep');
+  let misto = !!repPl || ['intervalado', 'tiros', 'fartlek'].includes(tipo);
+  const leveP = ['rodagem', 'regenerativo', 'longao'].includes(tipo);
+  const sec = { exe: [], ritmo: [], fc: [], cond: [], comp: [] }; // detalhes do "Ver mais"
+  const frases = []; let dica = '';
+  const fcMax = perfil.fcMax || null;
+  // ---------- esforço geral ----------
+  let esfN = 0; const pctFc = c.fc_media && fcMax ? c.fc_media / fcMax : null;
+  if (pctFc) esfN = pctFc < 0.75 ? 1 : pctFc < 0.83 ? 2 : pctFc < 0.9 ? 3 : 4;
+  else if (c.rpe != null) esfN = c.rpe <= 3 ? 1 : c.rpe <= 5 ? 2 : c.rpe <= 7 ? 3 : 4;
+  else { const z = !misto && zonaDoPace(pace, perfil); esfN = { rec: 1, leve: 1, maratona: 2, limiar: 3, intervalado: 4, tiros: 4 }[z] || 0; }
+  const esf = ['', 'esforço leve', 'esforço moderado', 'esforço relativo elevado', 'esforço muito alto'][esfN];
+  const nome = tipo === 'ritmo' ? 'Treino de ritmo' : TIPOS_CORRIDA.some((t) => t[0] === tipo) && tipo !== 'folga' ? nomeTipo(tipo) : 'Corrida';
+  let abertura = `${nome} de ${N1(km)} km${esf ? ` com ${esf}` : ''}`;
+  // ---------- 1. execução de treino intervalado ----------
+  let tiros = misto ? tirosDasVoltas(A.voltas, est.some((s) => s.k === 'aq') || !plano, repPl) : null;
+  if (!tiros && !misto && !leveP) { const t = tirosDasVoltas(A.voltas, true); if (t && t.esf.length >= 3 && media(t.esf.map((v) => v.pace)) < media(t.rec.map((v) => v.pace)) * 0.85) tiros = t; } // tiros sem planilha
+  if (tiros) {
+    const { esf: E, rec: R } = tiros, pE = E.map((v) => v.pace), nPl = repPl ? repPl.n : null;
+    const pm = media(pE), melhor = Math.min(...pE), pior = Math.max(...pE), spread = pior - melhor;
+    const ini = media(pE.slice(0, Math.min(2, Math.floor(pE.length / 2)))), fim = media(pE.slice(-Math.min(2, Math.floor(pE.length / 2))));
+    const queda = (fim - ini) / ini;
+    const alvoPasso = repPl && (repPl.passos || []).find((p) => p.k === 'co');
+    if (!misto) { misto = true; }
+    abertura = repPl && plano.titulo
+      ? `${plano.titulo}: ${E.length >= nPl ? `fez ${nPl === E.length ? 'as' : 'mais que as'} ${nPl} repetições` : `${E.length} de ${nPl} repetições`}${esf ? `, com ${esf}` : ''}`
+      : `${tipo === 'corrida' ? 'Treino intervalado' : nome} com ${E.length} ${E.length === 1 ? 'tiro' : 'tiros'}${nPl ? ` de ${nPl} previstos` : ''}${esf ? `, ${esf}` : ''}`;
+    sec.exe.push(`${E.length} ${E.length === 1 ? 'esforço' : 'esforços'} identificados nas voltas do relógio${nPl ? ` (planilha: ${nPl})` : ''}. Pace médio nos tiros: ${fmtPace(pm)}; o mais rápido em ${fmtPace(melhor)} e o mais lento em ${fmtPace(pior)}.`);
+    sec.exe.push(`Tiros: ${E.map((v, k) => `${k + 1}º ${v.d >= 950 ? N1(v.d / 1000) + ' km' : Math.round(v.d) + ' m'} em ${fmtSeg(v.seg)}${v.fc ? ` (${v.fc} bpm)` : ''}`).join(' · ')}.`);
+    if (alvoPasso) {
+      const alvoQ = alvoPasso.med === 'm' ? alvoPasso.v : alvoPasso.med === 'km' ? alvoPasso.v * 1000 : null, alvoT = alvoPasso.med === 'min' ? alvoPasso.v * 60 : null;
+      if (alvoQ) { const dm = media(E.map((v) => v.d)); if (Math.abs(dm - alvoQ) / alvoQ > 0.12) sec.exe.push(`Os tiros tiveram em média ${Math.round(dm)} m, e a planilha pedia ${Math.round(alvoQ)} m.`); }
+      if (alvoT) { const tm = media(E.map((v) => v.seg)); if (Math.abs(tm - alvoT) / alvoT > 0.15) sec.exe.push(`Os tiros duraram em média ${fmtSeg(tm)}, e a planilha pedia ${fmtSeg(alvoT)}.`); }
+      const fx = perfil.paces && perfil.paces[alvoPasso.z];
+      if (fx) {
+        const rap = Math.min(...fx), len = Math.max(...fx);
+        if (pm < rap - 4) { sec.exe.push(`Os tiros saíram ${fmtSeg(rap - pm)}/km mais rápidos que a zona pedida (${ZONAS_INFO[alvoPasso.z].n}: ${faixaPace(fx)}).`); dica = dica || `nos próximos tiros, segure no alvo de ${faixaPace(fx)}: correr acima da zona aumenta o desgaste sem trazer mais adaptação`; }
+        else if (pm > len + 4) { sec.exe.push(`Os tiros ficaram ${fmtSeg(pm - len)}/km mais lentos que a zona pedida (${ZONAS_INFO[alvoPasso.z].n}: ${faixaPace(fx)}).`); }
+        else sec.exe.push(`Os tiros ficaram dentro da zona pedida (${ZONAS_INFO[alvoPasso.z].n}: ${faixaPace(fx)}).`);
+      }
+    }
+    if (nPl && E.length < nPl && !(repPl && plano.titulo)) { frases.push(`Faltaram ${nPl - E.length} ${nPl - E.length === 1 ? 'tiro' : 'tiros'} em relação à planilha.`); }
+    if (queda > 0.04) { frases.push(`Os últimos tiros ficaram ${fmtSeg(fim - ini)}/km mais lentos que os primeiros, sinal de que a largada foi forte demais ou a recuperação curta.`); dica = dica || 'comece os primeiros tiros 3 a 5 s/km mais devagar para chegar inteiro no fim'; }
+    else if (queda < -0.02) frases.push(`Terminou os tiros mais rápido do que começou, ótima distribuição de esforço.`);
+    else if (spread / pm < 0.04) frases.push(`Tiros muito regulares: diferença de só ${fmtSeg(spread)}/km entre o mais rápido e o mais lento.`);
+    else frases.push(`Variação de ${fmtSeg(spread)}/km entre o tiro mais rápido e o mais lento.`);
+    const fE = E.filter((v) => v.fc).map((v) => v.fc), fR = R.filter((v) => v.fc).map((v) => v.fc);
+    if (fE.length && fR.length) {
+      const queda2 = media(fE) - media(fR), pico = Math.max(...E.map((v) => v.fcmax || v.fc || 0));
+      sec.fc.push(`FC média nos tiros: ${Math.round(media(fE))} bpm${pico ? ` (pico de ${pico})` : ''}; nas recuperações: ${Math.round(media(fR))} bpm.`);
+      if (queda2 < 8) { sec.fc.push(`A frequência quase não baixou entre os tiros (${queda2 > 0 ? Math.round(queda2) + ' bpm' : 'ficou igual'}): as recuperações ficaram curtas ou rápidas demais.`); dica = dica || 'nas recuperações, trote bem leve ou caminhe até a respiração voltar'; }
+      else sec.fc.push(`A frequência baixou ${Math.round(queda2)} bpm nas recuperações: boa recuperação entre os tiros.`);
+    }
+  }
+  // ---------- 2. ritmo e fadiga em corrida contínua ----------
+  const sp = (c.parciais || []).filter((p) => !p.parcial && p.seg > 0);
+  if (!tiros && sp.length >= 4) {
+    const med = media(sp.map((p) => p.seg)), h = Math.floor(sp.length / 2);
+    const m1 = media(sp.slice(0, h).map((p) => p.seg)), m2 = media(sp.slice(-h).map((p) => p.seg));
+    const cv = Math.sqrt(media(sp.map((p) => (p.seg - med) ** 2))) / med;
+    const fimN = Math.min(3, Math.ceil(sp.length / 4)), mFim = media(sp.slice(-fimN).map((p) => p.seg));
+    const rapido = sp.reduce((a, p) => (p.seg < a.seg ? p : a)), lento = sp.reduce((a, p) => (p.seg > a.seg ? p : a));
+    const dif = (m2 - m1) / m1;
+    let r;
+    if (misto) r = `ritmo variando entre ${fmtPace(rapido.seg)} e ${fmtPace(lento.seg)}, como pede o treino`;
+    else if (dif < -0.02) r = 'terminou mais forte do que começou (split negativo)';
+    else if (mFim > med * 1.05 && esfN >= 3) r = 'manteve o ritmo apesar da fadiga nos últimos quilômetros';
+    else if (mFim > med * 1.05) r = `perdeu ${fmtSeg(mFim - med)}/km nos últimos ${fimN} km`;
+    else if (cv < 0.03) r = 'ritmo muito consistente do início ao fim';
+    else if (dif > 0.04) r = 'começou forte e foi caindo';
+    else r = 'ritmo regular';
+    abertura += `; ${r}`;
+    sec.ritmo.push(`Primeira metade em ${fmtPace(m1)} e segunda em ${fmtPace(m2)} (${m2 > m1 ? '+' : '−'}${fmtSeg(m2 - m1)}/km). Km mais rápido: o ${rapido.km}º em ${fmtPace(rapido.seg)}; mais lento: o ${lento.km}º em ${fmtPace(lento.seg)}.`);
+    sec.ritmo.push(`Variação entre os quilômetros: ${Math.round(cv * 100)}% (${cv < 0.03 ? 'muito estável' : cv < 0.06 ? 'estável' : 'oscilou bastante'}).`);
+    if (!misto && mFim > med * 1.05 && !dica) dica = 'no próximo treino parecido, largue um pouco mais devagar e guarde energia para o fim';
+    // desacoplamento aeróbico (Friel): eficiência = velocidade ÷ FC, 1ª x 2ª metade
+    const f1 = sp.slice(0, h).filter((p) => p.fc), f2 = sp.slice(-h).filter((p) => p.fc);
+    if (!misto && f1.length >= 2 && f2.length >= 2) {
+      const ef1 = media(f1.map((p) => 1000 / p.seg / p.fc)), ef2 = media(f2.map((p) => 1000 / p.seg / p.fc));
+      const dec = (ef1 - ef2) / ef1;
+      sec.fc.push(`Desacoplamento aeróbico de ${N1(dec * 100)}% (relação entre ritmo e frequência da 1ª para a 2ª metade). ${dec < 0.05 ? 'Abaixo de 5%: boa base aeróbica para esse ritmo e distância.' : 'Acima de 5%: o coração precisou trabalhar mais para manter o ritmo no fim.'}`);
+      if (dec >= 0.08 && km >= 8) frases.push(`A frequência subiu ${Math.round(media(f2.map((p) => p.fc)) - media(f1.map((p) => p.fc)))} bpm na segunda metade sem ganho de ritmo (deriva cardíaca), típico de calor, hidratação curta ou base aeróbica ainda em construção.`);
+    }
+  } else if (!tiros) abertura += '';
+  // ---------- 3. zonas de frequência ----------
+  const zf = tempoZonasFC(A.serie, fcMax);
+  if (zf) {
+    sec.fc.push(`Tempo em cada zona de FC: ${zf.map((x, i) => `Z${i + 1} ${Math.round(x * 100)}%`).join(' · ')}.`);
+    if (leveP && zf[2] + zf[3] + zf[4] > 0.35) { frases.push(`Para um treino leve, ${Math.round((zf[2] + zf[3] + zf[4]) * 100)}% do tempo ficou acima da Z2: virou um treino moderado.`); dica = dica || `no leve, mantenha a frequência abaixo de ${Math.round(fcMax * 0.75)} bpm, mesmo que precise caminhar nas subidas`; }
+  } else if (pctFc) sec.fc.push(`FC média de ${c.fc_media} bpm, cerca de ${Math.round(pctFc * 100)}% da sua máxima${c.fc_max ? `; pico de ${c.fc_max}` : ''}.`);
+  if (leveP && !zf && perfil.paces && perfil.paces.leve && pace < Math.min(...perfil.paces.leve) * 0.95) { frases.push(`O ritmo ficou acima da zona leve (${faixaPace(perfil.paces.leve)}).`); dica = dica || `no próximo leve, fique entre ${faixaPace(perfil.paces.leve)}: o leve de verdade é o que constrói a base`; }
+  if (!misto) { const zp = zonaDoPace(pace, perfil); if (zp) sec.ritmo.push(`Ritmo médio de ${fmtPace(pace)}, que fica na sua zona ${ZONAS_INFO[zp].n}.`); }
+  // ---------- 4. condições: calor, subida, cadência ----------
+  const temp = EX.temp_med != null ? EX.temp_med : null, sub = EX.sub != null ? EX.sub : c.elevacao_m;
+  if (temp != null && temp >= 27) { sec.cond.push(`Temperatura média de ${N1(temp)} °C. No calor, a frequência sobe de 5 a 10 bpm e o ritmo cai alguns segundos por km para o mesmo esforço.`); if (temp >= 29 && esfN >= 3) frases.push(`Os ${Math.round(temp)} °C pesaram no esforço.`); }
+  if (sub != null && km > 0) { const m = sub / km; if (m >= 10) { sec.cond.push(`Percurso com ${Math.round(sub)} m de subida (${Math.round(m)} m por km): o ritmo em plano seria cerca de ${Math.round(m * 0.8)} s/km mais rápido.`); if (m >= 15) frases.push(`Percurso com bastante subida (${Math.round(sub)} m), o que explica parte do ritmo.`); } else if (sub > 0) sec.cond.push(`Percurso quase plano (${Math.round(sub)} m de subida).`); }
+  const cad = c.cadencia || (A.voltas && media(A.voltas.filter((v) => v.cad > 100).map((v) => v.cad)));
+  if (cad) { sec.cond.push(`Cadência média de ${Math.round(cad)} passos por minuto${cad < 160 && !misto ? ': passos um pouco mais curtos e rápidos (perto de 165–175) costumam aliviar o impacto' : ''}.`); }
+  if (EX.te_aer != null) sec.cond.push(`Efeito de treino do relógio: aeróbico ${N1(EX.te_aer)}${EX.te_ana != null ? ` e anaeróbico ${N1(EX.te_ana)}` : ''} (escala de 0 a 5).`);
+  // ---------- 5. planilha ----------
   let planTxt = '';
   if (plano) {
     const prev = Number(plano.distancia_km) || 0;
-    if (prev) { const pc = km / prev; planTxt = pc >= 0.95 ? (pc > 1.15 ? `foi além do previsto (${N1(km)} de ${N1(prev)} km)` : 'cumpriu a distância prevista') : `fez ${Math.round(pc * 100)}% da distância prevista`; det.push(`Previsto: ${N1(prev)} km. Feito: ${N1(km)} km.`); }
-    if (leveP && perfil.paces && perfil.paces.leve && pace < Math.min(...perfil.paces.leve) * 0.95) det.push(`Para um treino leve, o ritmo ficou acima da zona Z2 (${faixaPace(perfil.paces.leve)}). Rodar leve de verdade ajuda a recuperar e a evoluir.`);
+    if (prev) { const pc = km / prev; planTxt = pc >= 0.95 ? (pc > 1.15 ? `foi além do previsto (${N1(km)} de ${N1(prev)} km)` : 'cumpriu a distância prevista') : `fez ${Math.round(pc * 100)}% da distância prevista`; sec.exe.unshift(`Planilha: ${plano.titulo || nomeTipo(plano.tipo)}, ${N1(prev)} km previstos; feito ${N1(km)} km.`); }
   }
-  // 4) histórico de 90 dias
-  const ant = hist.filter((x) => x.id !== c.id && ehCorr(x) && Date.parse(x.data) < Date.parse(c.data) && Date.parse(x.data) > Date.parse(c.data) - 90 * 864e5);
+  // ---------- 6. comparação com o próprio atleta (90 dias) ----------
+  const t0 = Date.parse(c.data);
+  const ant = hist.filter((x) => x.id !== c.id && ehCorr(x) && x.distancia_m >= 2000 && Date.parse(x.data) < t0 && Date.parse(x.data) > t0 - 90 * 864e5);
   let marco = '';
   if (ant.length >= 3) {
     const maxKm = Math.max(...ant.map((x) => x.distancia_m)) / 1000;
     const rap = ant.filter((x) => x.distancia_m >= Math.min(5000, c.distancia_m * 0.9)).map(paceDe).filter(Boolean);
     if (km > maxKm + 0.2 && km >= 5) marco = 'sua corrida mais longa dos últimos 3 meses';
-    else if (rap.length && c.distancia_m >= 5000 && pace < Math.min(...rap) - 1) marco = `seu melhor ritmo dos últimos 3 meses em ${N1(km)} km`;
-    const sem = ant.filter((x) => Date.parse(x.data) > Date.parse(c.data) - 28 * 864e5).reduce((a, x) => a + x.distancia_m, 0) / 4000;
-    if (sem > 0) det.push(`Sua média recente é de ${N1(sem)} km por semana.`);
+    else if (!misto && rap.length && c.distancia_m >= 5000 && pace < Math.min(...rap) - 1) marco = `seu melhor ritmo dos últimos 3 meses em ${N1(km)} km ou mais`;
+    // eficiência aeróbica: ritmo na mesma frequência, comparado com as corridas aeróbicas anteriores
+    if (!misto && c.fc_media && fcMax && pctFc < 0.86) {
+      const ef = (x) => (x.distancia_m / x.duracao_s) / x.fc_media;
+      const base = ant.filter((x) => x.fc_media && x.fc_media / fcMax < 0.86 && x.duracao_s > 900).map(ef);
+      if (base.length >= 3) {
+        const d = (ef(c) - media(base)) / media(base);
+        const sKm = Math.round(pace - 1000 / (media(base) * c.fc_media));
+        if (d > 0.03) { sec.comp.push(`Na mesma frequência cardíaca, você correu cerca de ${fmtSeg(-sKm)}/km mais rápido que a média das suas corridas leves e moderadas dos últimos 3 meses.`); frases.push('Comparado com as suas corridas anteriores, você está mais rápido na mesma frequência cardíaca: sinal claro de evolução aeróbica.'); }
+        else if (d < -0.05) sec.comp.push(`Hoje o ritmo para a mesma frequência ficou ${fmtSeg(sKm)}/km abaixo da sua média recente: calor, cansaço acumulado ou sono costumam explicar.`);
+        else sec.comp.push('Eficiência (ritmo para a mesma frequência) igual à sua média recente.');
+      }
+    }
+    const sem4 = ant.filter((x) => Date.parse(x.data) > t0 - 28 * 864e5).reduce((a, x) => a + x.distancia_m, 0) / 4000;
+    if (sem4 > 0) sec.comp.push(`Sua média nas últimas 4 semanas é de ${N1(sem4)} km por semana; este treino representa ${Math.round((km / sem4) * 100)}% disso.`);
+    if (sem4 > 0 && km > sem4 * 0.45 && km >= 10) sec.comp.push('Corrida longa para o seu volume atual: priorize sono, alimentação e um dia leve depois.');
   }
-  // 5) corpo
+  // ---------- 7. corpo ----------
   let alerta = '';
   if (c.dor) alerta = `Você relatou dor${c.dor_local ? ' (' + c.dor_local + ')' : ''}: se continuar nos próximos treinos, avise o seu treinador.`;
-  else if (c.sono === 1 || c.cansaco === 2) det.push('Você marcou sono ruim ou cansaço alto: dê atenção à recuperação nos próximos dias.');
-  // frase principal no estilo de um resumo de treinador
-  const nome = tipo === 'ritmo' ? 'Treino de ritmo' : TIPOS_CORRIDA.some((t) => t[0] === tipo) && tipo !== 'folga' ? nomeTipo(tipo) : 'Corrida';
-  let txt = `${nome} de ${N1(km)} km${esf ? ` com ${esf}` : ''}`;
-  txt += ritmo ? `; ${ritmo}.` : '.';
+  else if (c.sono === 1 || c.cansaco === 2) sec.comp.push('Você marcou sono ruim ou cansaço alto: dê atenção à recuperação nos próximos dias.');
+  // ---------- texto final ----------
+  let txt = abertura + '.';
   const extra = [marco && `Foi ${marco}`, planTxt && (marco ? `e ${planTxt}` : `Você ${planTxt}`)].filter(Boolean).join(' ');
   if (extra) txt += ` ${extra}.`;
-  if (alerta) txt += ` ${alerta}`;
+  frases.slice(0, 2).forEach((f) => { txt += ' ' + f; });
+  if (alerta) txt += ' ' + alerta;
+  else if (dica) txt += ` Dica: ${dica}.`;
+  else if (esfN >= 3 && !misto) txt += ' Depois de um esforço assim, um dia leve ou de descanso ajuda a absorver o treino.';
+  const det = [['Execução do treino', sec.exe], ['Ritmo', sec.ritmo], ['Frequência cardíaca', sec.fc], ['Condições', sec.cond], ['Comparado com você mesmo', sec.comp]].filter(([, l]) => l.length);
   return { txt: txt.charAt(0).toUpperCase() + txt.slice(1), det };
 }
 const NI_LOGO = '<span class="ni-logo" aria-hidden="true"><i></i><i></i><i></i></span>';
 function nexosIntHTML(r) {
   if (!r) return '';
   return `<div class="ni-card"><div class="ni-h">${NI_LOGO}<b>Leitura Nexos</b></div><p class="ni-txt">${esc(r.txt)}</p>
-    ${r.det.length ? `<details class="ni-mais"><summary><span class="ni-a">Ver mais</span><span class="ni-b">Ver menos</span></summary><ul>${r.det.map((d) => `<li>${esc(d)}</li>`).join('')}</ul></details>` : ''}</div>`;
+    ${r.det.length ? `<details class="ni-mais"><summary><span class="ni-a">Ver mais</span><span class="ni-b">Ver menos</span></summary>${r.det.map(([t, l]) => `<div class="ni-sec"><b>${t}</b><ul>${l.map((d) => `<li>${esc(d)}</li>`).join('')}</ul></div>`).join('')}</details>` : ''}</div>`;
 }
-const buscarHist90 = (alunoId, ate) => sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s').eq('aluno_id', alunoId).gte('data', new Date(Date.parse(ate) - 92 * 864e5).toISOString()).lte('data', ate).then((r) => r.data || [], () => []);
+const buscarHist90 = (alunoId, ate) => sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fc_media').eq('aluno_id', alunoId).gte('data', new Date(Date.parse(ate) - 92 * 864e5).toISOString()).lte('data', ate).then((r) => r.data || [], () => []);
 
 async function viewCorrida(id) {
   loading();

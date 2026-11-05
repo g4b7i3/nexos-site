@@ -1944,3 +1944,5 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .rel-c.rel-nome{flex-direction:row;align-items:center;text-align:left;gap:10px}
 .rel-c.rel-al{flex-direction:row;align-items:center;justify-content:flex-start}
 .rel-nome .av{flex:none}
+.ni-sec{margin-top:12px}.ni-sec b{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--acc2);font-weight:800}
+.ni-sec ul{margin:6px 0 0}
