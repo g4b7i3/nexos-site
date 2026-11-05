@@ -331,7 +331,7 @@ async function router() {
     if (a === 'relatorio' && b) return await viewRelatorio(b);
     if (a === 'conversa') return await viewConversa(S.user.id, $app, false);
     if (a === 'conexoes') return await viewConexoes(b);
-    if (a === 'previsoes' && faz('corrida')) return await viewPrevisoes();
+    if (a === 'previsoes') { location.replace('#/historico/previsoes'); return; }
     if (a === 'gps' && faz('corrida')) return b ? await viewGps(b) : await viewGpsLista();
     if (a === 'postural' && b) return await viewPostural(b);
     if (a === 'corrida' && b) return await viewCorrida(b);
@@ -881,8 +881,8 @@ function constanciaHTML(datas, titulo = 'Sua constância') {
 }
 async function alunoHistorico(aba) {
   loading();
-  const abasH = [['relatorio', 'Relatório'], ['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => k !== 'corrida' || faz('corrida'));
-  const INFO = { relatorio: [I.ficha, 'Relatório do mês', 'Seu resumo mensal em PDF'], treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
+  const abasH = [['previsoes', 'Previsões'], ['relatorio', 'Relatório'], ['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => (k !== 'corrida' && k !== 'previsoes') || faz('corrida'));
+  const INFO = { previsoes: [I.flag, 'Previsões de desempenho', 'Seus tempos estimados para 5K, 10K, meia e maratona'], relatorio: [I.ficha, 'Relatório do mês', 'Seu resumo mensal em PDF'], treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
   if (!aba || !abasH.some(([k]) => k === aba)) {
     const [ses, cor] = await Promise.all([buscarSessoes(S.user.id, 200), sb.from('nx_corridas').select('data').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 60 * 864e5)).then((r) => r.data || []).catch(() => [])]);
     const datas = [...ses.map((x) => x.iniciado_em), ...cor.map((c) => c.data)];
@@ -893,6 +893,7 @@ async function alunoHistorico(aba) {
   }
   const head = `<a class="back" href="#/historico">${I.back} Evolução</a><div class="sec-tit"><span class="st-ic">${INFO[aba][0]}</span><div><p class="eyebrow">Sua evolução</p><h1 class="h2">${INFO[aba][1]}</h1></div></div>`;
   const bindTabs = () => {};
+  if (aba === 'previsoes') { $app.innerHTML = head + '<div id="pv-box" style="margin-top:14px"></div>'; return previsoesCard(document.getElementById('pv-box'), await buscarCorridasPrev(S.user.id), perfilCorrida(S.me), { titulo: false }); }
   if (aba === 'relatorio') { $app.innerHTML = head + '<div id="relm"></div>'; return relatorioMes(S.user.id, document.getElementById('relm'), false, S.me); }
   if (aba === 'cargas') {
     const grupos = agruparCargas(await buscarRegistros(S.user.id));
@@ -2374,7 +2375,8 @@ function previsoesCard(box, corridas, perfil, { titulo = true } = {}) {
       ${previsoesGrade(at, an, '30 dias antes')}
       <div class="seg pv-per">${PV_PER.map(([k, l]) => `<button type="button" data-pv="${k}" class="${k === per ? 'on' : ''}">${l}</button>`).join('')}</div>
       ${hist.length > 2 ? `<div style="margin-top:14px"><span class="small muted" style="font-weight:700">Previsão dos 10 km nos últimos 6 meses · menor é melhor</span>${grafico(hist, { fmt: (v) => fmtDurLongo(v * 60) })}</div>` : ''}
-      <details class="ajuda" style="margin-top:10px"><summary>Como a Nexos calcula?</summary><p>Usamos as suas corridas das últimas 6 semanas: o ritmo de cada uma e quanto ela exigiu de você (pela frequência cardíaca do relógio ou pelo esforço que você marcou). Isso estima o seu condicionamento (VDOT) e vira o tempo de cada prova. Meia e maratona também dependem do seu longão e do seu volume semanal. É uma estimativa para prova em percurso plano, com o treino específico; quanto mais corridas com relógio, mais precisa.</p></details>
+      <p class="pv-cred">Baseado nas equações de Jack Daniels e em estudos de fisiologia do exercício.</p>
+      <details class="ajuda" style="margin-top:6px"><summary>Como a Nexos calcula?</summary><p>Usamos as suas corridas das últimas 6 semanas: o ritmo de cada uma e quanto ela exigiu de você (pela frequência cardíaca do relógio ou pelo esforço que você marcou). Isso estima o seu condicionamento (VDOT) e vira o tempo de cada prova. Meia e maratona também dependem do seu longão e do seu volume semanal. É uma estimativa para prova em percurso plano, com o treino específico; quanto mais corridas com relógio, mais precisa.</p></details>
     </div>`;
     box.querySelector('.pv-per').onclick = (e) => { const b = e.target.closest('[data-pv]'); if (b) { per = b.dataset.pv; desenhar(); } };
   };
@@ -2384,12 +2386,6 @@ async function buscarCorridasPrev(alunoId, ate = Date.now()) {
   const { data } = await sb.from('nx_corridas').select('data,tipo,distancia_m,duracao_s,fc_media,rpe').eq('aluno_id', alunoId)
     .gte('data', new Date(ate - 260 * 864e5).toISOString()).lte('data', new Date(ate).toISOString()).order('data').limit(1000).then((r) => r, () => ({ data: [] }));
   return data || [];
-}
-async function viewPrevisoes() {
-  loading();
-  const corridas = await buscarCorridasPrev(S.user.id);
-  $app.innerHTML = `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Corrida</p><h1 class="h1">Previsões de desempenho</h1><div id="pv-box" style="margin-top:14px"></div>`;
-  previsoesCard(document.getElementById('pv-box'), corridas, perfilCorrida(S.me), { titulo: false });
 }
 
 /* Fitness (carga crônica, 42 dias), Fadiga (aguda, 7 dias) e Forma (diferença) — modelo de Banister/Coggan com rTSS */
@@ -3500,9 +3496,6 @@ async function relatorioMes(alunoId, box, staff, m) {
     sb.from('nx_registros').select('exercicio_nome,carga_kg,criado_em').eq('aluno_id', alunoId).not('carga_kg', 'is', null).lte('criado_em', ate(fim)).order('criado_em').limit(3000).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => r.data || []).catch(() => []),
   ]);
-  const fimMs = Math.min(Date.now(), Date.parse(ate(fim))), fimAntMs = Date.parse(ate(fimAnt));
-  const corrPrev = faz('corrida', m) ? await buscarCorridasPrev(alunoId, fimMs) : [];
-  const perfPrev = perfilCorrida(m), prevMes = previsaoEm(corrPrev, perfPrev, fimMs), prevAnt = previsaoEm(corrPrev, perfPrev, fimAntMs);
   const km = corrs.reduce((a, c) => a + c.distancia_m, 0) / 1000, kmAnt = corrsAnt.reduce((a, c) => a + c.distancia_m, 0) / 1000;
   const diasT = new Set([...corrs.map((c) => isoDia(c.data)), ...sess.map((x) => isoDia(x.iniciado_em))]).size;
   const diasAnt = new Set([...corrsAnt.map((c) => isoDia(c.data)), ...sessAnt.map((x) => isoDia(x.iniciado_em))]).size;
@@ -3537,7 +3530,6 @@ async function relatorioMes(alunoId, box, staff, m) {
       ${fC && corrs.length ? `<div class="rm-sec"><h3>Quilômetros por semana</h3><div class="rm-barras">${porSem.map((x) => `<div><i style="height:${Math.max(3, (x.km / maxKm) * 100)}%"></i><b>${f1(x.km)}</b><small>${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small></div>`).join('')}</div></div>
       <div class="rm-sec"><h3>Pace médio por semana</h3><div class="rm-paces">${porSem.filter((x) => x.pace).map((x) => `<div><small>semana de ${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small><b>${fmtPace(x.pace)}</b></div>`).join('') || '<p class="small muted">Sem corridas de 2,5 km ou mais no mês.</p>'}</div></div>
       <div class="rm-sec"><h3>Destaques</h3><ul class="rm-dest">${longa ? `<li>Corrida mais longa: <b>${fmtKm(longa.distancia_m, 1)}</b> em ${fmtDia(longa.data)}</li>` : ''}${rapida ? `<li>Melhor pace (3 km ou mais): <b>${fmtPace(paceDe(rapida))}</b> em ${fmtDia(rapida.data)}</li>` : ''}${provas.map((p) => `<li>${icT(I.flag)}Prova: <b>${esc(p.titulo)}</b>${p.distancia ? ' · ' + esc(p.distancia) : ''}</li>`).join('')}</ul></div>` : ''}
-      ${fC && prevMes ? `<div class="rm-sec"><h3>Previsões de desempenho</h3><p class="rm-pv-sub">Tempos estimados no fim de ${esc(nomeMesTxt.toLowerCase().replace(' ', ' de '))}${prevAnt ? ', comparados com o fim do mês anterior' : ''}.</p>${previsoesGrade(prevMes, prevAnt, 'o mês anterior')}</div>` : ''}
       ${fM && cargas.length ? `<div class="rm-sec"><h3>Evolução de cargas</h3><div class="rm-cargas">${cargas.map(([n, e]) => `<div><span>${esc(n)}</span><b>${e.antes && e.antes !== e.mes ? `${fmtKg(e.antes)} → ` : ''}${fmtKg(e.mes)}</b>${!e.antes ? '<em class="nv">novo</em>' : e.mes > e.antes ? `<em>+${fmtKg(e.mes - e.antes)}</em>` : e.mes === e.antes ? '<em class="nv">mantida</em>' : ''}</div>`).join('')}</div></div>` : ''}
       ${!corrs.length && !sess.length ? '<p class="small muted" style="margin:14px 0">Nenhum treino registrado neste mês.</p>' : ''}
       <div class="rm-msg" id="rm-msg-out" ${st.msg ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(st.msg)}</p>${treinador ? `<b>${esc(firstName(treinador.nome))}</b>` : ''}</div>
@@ -4048,7 +4040,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const paceMed = c30.length ? c30.reduce((a, c) => a + c.duracao_s, 0) / (km30 / 1000) : null;
     const longa = corridas.reduce((a, c) => (!a || c.distancia_m > a.distancia_m ? c : a), null);
     const tend = corridas.filter((c) => c.distancia_m >= 3000 && c.tipo !== 'caminhada').slice(0, 16).reverse().map((c) => ({ x: fmtCurto(c.data), y: +(paceDe(c) / 60).toFixed(2) }));
-    corpo = c3 + `<div id="pv-evo" style="margin-top:${c3 ? 12 : 0}px"></div><div class="stats" style="margin-top:12px"><div class="stat"><b>${f1(km30 / 1000)}</b><span>km em 30 dias</span></div><div class="stat"><b>${c30.length}</b><span>corridas em 30 dias</span></div><div class="stat"><b>${paceMed ? fmtPace(paceMed).replace('/km', '') : '–'}</b><span>pace médio (30 dias)</span></div></div>
+    corpo = c3 + `${staff ? `<div id="pv-evo" style="margin-top:${c3 ? 12 : 0}px"></div>` : ''}<div class="stats" style="margin-top:${c3 || staff ? 12 : 0}px"><div class="stat"><b>${f1(km30 / 1000)}</b><span>km em 30 dias</span></div><div class="stat"><b>${c30.length}</b><span>corridas em 30 dias</span></div><div class="stat"><b>${paceMed ? fmtPace(paceMed).replace('/km', '') : '–'}</b><span>pace médio (30 dias)</span></div></div>
       <div class="grid2 g-charts">
         <div class="card" style="padding:14px"><div class="row between"><span class="small muted" style="font-weight:700">Km por semana</span><span class="tiny dim">12 semanas</span></div><div style="display:flex;gap:5px;margin-top:12px;align-items:flex-end;height:110px">${sem.map((v, i) => `<div title="${f1(v)} km" style="flex:1;height:${(v / maxS) * 100}%;min-height:${v ? 6 : 2}px;border-radius:5px;background:${i === 11 ? 'linear-gradient(180deg,var(--acc),var(--acc2))' : 'var(--s3)'}"></div>`).join('')}</div><div class="row between tiny dim" style="margin-top:6px"><span>12 semanas atrás</span><span>esta semana: ${f1(sem[11])} km</span></div></div>
         ${tend.length > 1 ? `<div class="card" style="padding:12px 8px;margin-top:0"><span class="small muted" style="padding-left:6px;font-weight:700">Pace médio por corrida · menor é melhor</span>${grafico(tend, { fmt: (v) => fmtPace(v * 60).replace('/km', '') })}</div>` : ''}
@@ -5282,7 +5274,6 @@ function viewPerfil() {
     ${S.staff ? '' : `<div class="section"><div class="section-h"><h2 class="h2">Saúde e pagamentos</h2></div>
       <a class="list-item" href="#/saude" style="color:inherit"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Minha ficha de saúde</b><div class="small muted">Anamnese e PAR-Q</div></div>${I.chev}</a>
       ${S.me.sexo !== 'M' ? `<button type="button" class="list-item" id="perf-ciclo" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Registrar a menstruação ou ativar o acompanhamento</div></div>${I.chev}</button>` : ''}
-      ${faz('corrida') ? `<a class="list-item" href="#/previsoes" style="color:inherit"><span class="ativ-ic">${I.flag}</span><div class="grow"><b>Previsões de desempenho</b><div class="small muted">Seus tempos estimados para 5K, 10K, meia e maratona</div></div>${I.chev}</a>` : ''}
       <a class="list-item" href="#/pagamentos" style="color:inherit"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Pagamentos</b><div class="small muted">Mensalidades e Pix</div></div>${I.chev}</a>
       <a class="list-item" href="#/termo" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Termo e meus dados</b><div class="small muted">O que guardamos e seus direitos (LGPD)</div></div>${I.chev}</a></div>`}
     ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button></div></div>` : ''}

@@ -1872,3 +1872,4 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .rm-folha .pv-selo:before{background:#0b62d6;box-shadow:none}.rm-folha .pv-selo:after{background:#46d6ff}
 .rm-folha .pv-dif.pior,.rm-folha .pv-dif.igual{color:#5b6b88}
 .rm-pv-sub{font-size:.78rem;color:#5b6b88;margin:-4px 0 0}
+.pv-cred{margin-top:14px;font-size:.7rem;color:var(--dim);text-align:center;letter-spacing:.01em}
