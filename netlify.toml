@@ -64,3 +64,10 @@
   to = "/app/#/ficha/07a9a8d4aeba1eb6c6"
   status = 302
   force = true
+
+# Link curto da campanha (card do Instagram): leva direto para a seção da Pré-temporada
+[[redirects]]
+  from = "/pretemporada"
+  to = "/#pretemporada"
+  status = 302
+  force = true
