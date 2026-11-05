@@ -259,6 +259,7 @@ const dockStaff = () => setDock([
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
+  { href: '#/relatorios', match: ['#/relatorios'], icon: I.hist, label: 'Relatórios' },
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
@@ -314,6 +315,7 @@ async function router() {
       if (a === 'modelo' && b) return await staffTreinoEditor(null, b, 'modelo');
       if (a === 'biblioteca') return b === 'modelos' ? (location.hash = '#/treinos') : await staffBiblioteca();
       if (a === 'treinos') return await staffTreinos(b);
+      if (a === 'relatorios') return await staffRelatorios();
       if (a === 'mais') return staffMais();
       if (a === 'erros') return await staffErros();
       if (a === 'formularios') return await staffFormularios(b);
@@ -7418,6 +7420,133 @@ async function staffTreinos(aba) {
     error ? toast('Não foi possível excluir.', true) : (toast('Modelo excluído.'), staffTreinos('corrida'));
   };
 }
+/* ---------- Relatórios do treinador: evolução de todos os SEUS alunos num lugar só ---------- */
+async function todasAsLinhas(fab) { // busca em páginas de 1000 (o limite do banco)
+  let tudo = [], de = 0;
+  for (;;) { const { data, error } = await fab().range(de, de + 999); if (error) throw error; tudo = tudo.concat(data || []); if (!data || data.length < 1000) break; de += 1000; }
+  return tudo;
+}
+const REL_PER = [['4s', '4 semanas', 28], ['3m', '3 meses', 91], ['6m', '6 meses', 182]];
+async function staffRelatorios() {
+  loading();
+  const st = S.cache.relSt || (S.cache.relSt = { per: '4s', ord: 'atencao', f: 'todos', q: '' });
+  const dias = REL_PER.find((p) => p[0] === st.per)[2];
+  const agora = Date.now(), t1 = agora, t0 = agora - dias * 864e5, tA = t0 - dias * 864e5;
+  const iso = (t) => new Date(t).toISOString();
+  const [membrosT, corrT, sessT, planoT] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento,criado_em').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome').then((r) => r.data || []),
+    todasAsLinhas(() => sb.from('nx_corridas').select('id,aluno_id,data,tipo,distancia_m,duracao_s,fc_media,rpe,dor,plano_id').eq('org_id', S.org.id).gte('data', iso(tA - 42 * 864e5)).order('data')),
+    todasAsLinhas(() => sb.from('nx_sessoes').select('aluno_id,iniciado_em').eq('org_id', S.org.id).not('finalizado_em', 'is', null).gte('iniciado_em', iso(tA)).order('iniciado_em')),
+    todasAsLinhas(() => sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo,liberado').eq('org_id', S.org.id).gte('data', isoDia(t0)).lte('data', hojeISO()).order('data')),
+  ]);
+  const alunos = membrosT.filter((m) => ehMeuAluno(m) && m.ativo && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
+  const vis = new Set(alunos.map((m) => m.user_id));
+  const corr = corrT.filter((c) => vis.has(c.aluno_id) && ehCorr(c)), sess = sessT.filter((x) => vis.has(x.aluno_id));
+  const plano = planoT.filter((p) => vis.has(p.aluno_id) && !semCorrida(p) && p.liberado !== false);
+  const feitos = new Set(corr.map((c) => c.plano_id).filter(Boolean));
+  const noPer = (t, a, b) => t > a && t <= b;
+  const linhas = alunos.map((m) => {
+    const cs = corr.filter((c) => c.aluno_id === m.user_id), ss = sess.filter((x) => x.aluno_id === m.user_id);
+    const cP = cs.filter((c) => noPer(Date.parse(c.data), t0, t1)), cA = cs.filter((c) => noPer(Date.parse(c.data), tA, t0));
+    const km = cP.reduce((a, c) => a + c.distancia_m, 0) / 1000, kmA = cA.reduce((a, c) => a + c.distancia_m, 0) / 1000;
+    const paceM = (l) => { const x = l.filter((c) => c.distancia_m >= 3000); const d = x.reduce((a, c) => a + c.distancia_m, 0); return d ? x.reduce((a, c) => a + c.duracao_s, 0) / (d / 1000) : null; };
+    const forca = ss.filter((x) => noPer(Date.parse(x.iniciado_em), t0, t1)).length, forcaA = ss.filter((x) => noPer(Date.parse(x.iniciado_em), tA, t0)).length;
+    const pl = plano.filter((p) => p.aluno_id === m.user_id), plF = pl.filter((p) => feitos.has(p.id)).length;
+    const perfil = perfilCorrida(m);
+    const pv1 = faz('corrida', m) ? previsaoEm(cs, perfil, t1) : null, pv0 = faz('corrida', m) ? previsaoEm(cs, perfil, t0) : null;
+    const ult = [...cs.map((c) => Date.parse(c.data)), ...ss.map((x) => Date.parse(x.iniciado_em))].reduce((a, b) => Math.max(a, b), 0);
+    const parado = ult ? Math.floor((agora - ult) / 864e5) : null;
+    const dor = cP.filter((c) => c.dor).length;
+    const ader = pl.length ? Math.round((plF / pl.length) * 100) : null;
+    const alertas = [];
+    if (parado == null || parado >= 7) alertas.push(parado == null ? 'Nenhum treino registrado' : `Sem treinar há ${parado} dias`);
+    if (dor) alertas.push(`Relatou dor ${dor === 1 ? '1 vez' : dor + ' vezes'}`);
+    if (ader != null && pl.length >= 3 && ader < 50) alertas.push(`Cumpriu só ${ader}% da planilha`);
+    if (kmA >= 10 && km < kmA * 0.6) alertas.push(`Volume caiu ${Math.round((1 - km / kmA) * 100)}%`);
+    return { m, km, kmA, corridas: cP.length, forca, forcaA, ader, plTot: pl.length, plF, pace: paceM(cP), paceA: paceM(cA), p10: pv1 && pv1.tempos[1], p10A: pv0 && pv0.tempos[1], ult, parado, dor, alertas };
+  });
+  // números da equipe
+  const soma = (k) => linhas.reduce((a, l) => a + (l[k] || 0), 0);
+  const kmT = soma('km'), kmTA = soma('kmA'), forT = soma('forca'), forTA = soma('forcaA'), corT = soma('corridas');
+  const plTot = soma('plTot'), plF = soma('plF'), treinando = linhas.filter((l) => l.parado != null && l.parado < 7).length;
+  const pct = (a, b) => (b ? Math.round(((a - b) / b) * 100) : null);
+  const dTag = (v, inverso) => v == null || !isFinite(v) || v === 0 ? '' : `<em class="rel-d ${(v > 0) !== !!inverso ? 'bom' : 'ruim'}">${v > 0 ? '▲' : '▼'} ${Math.abs(v)}%</em>`;
+  // km e força por semana (equipe)
+  const nSem = Math.round(dias / 7), semIni = inicioSemana(new Date(t1)); semIni.setDate(semIni.getDate() - (nSem - 1) * 7);
+  const semanas = Array.from({ length: nSem }, (_, i) => { const a = new Date(semIni); a.setDate(a.getDate() + i * 7); const b = new Date(a); b.setDate(b.getDate() + 7);
+    return { ini: a, km: corr.filter((c) => Date.parse(c.data) >= a && Date.parse(c.data) < b).reduce((s, c) => s + c.distancia_m, 0) / 1000, fo: sess.filter((x) => Date.parse(x.iniciado_em) >= a && Date.parse(x.iniciado_em) < b).length }; });
+  const maxKm = Math.max(10, ...semanas.map((s) => s.km)), maxFo = Math.max(3, ...semanas.map((s) => s.fo));
+  const evol = linhas.filter((l) => l.p10 && l.p10A && l.p10A - l.p10 >= 5).sort((a, b) => (b.p10A - b.p10) - (a.p10A - a.p10)).slice(0, 5);
+  const volume = linhas.filter((l) => l.km > 0).sort((a, b) => b.km - a.km).slice(0, 5);
+  const consta = linhas.filter((l) => l.ader != null && l.plTot >= 3).sort((a, b) => b.ader - a.ader || b.plTot - a.plTot).slice(0, 5);
+  const atencao = linhas.filter((l) => l.alertas.length);
+  const nomeLink = (l, extra) => `<a class="rel-mini" href="#/aluno/${l.m.user_id}" style="color:inherit">${avAluno(l.m, 'sm')}<span class="grow ellip">${esc(l.m.nome)}</span><b>${extra}</b></a>`;
+  const per = REL_PER.find((p) => p[0] === st.per)[1];
+  dockStaff();
+  $app.innerHTML = `
+    <p class="eyebrow">Relatórios</p><h1 class="h1">Evolução dos seus alunos</h1>
+    <p class="muted small" style="margin-top:6px">${alunos.length} aluno${alunos.length === 1 ? '' : 's'} ativo${alunos.length === 1 ? '' : 's'} sob a sua responsabilidade. Comparação com as ${per} anteriores.</p>
+    <div class="row between" style="gap:10px;flex-wrap:wrap;margin-top:14px"><div class="seg rel-per">${REL_PER.map(([k, l]) => `<button type="button" data-per="${k}" class="${st.per === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <button type="button" class="btn ghost sm" id="rel-csv">${I.ficha} Baixar planilha (CSV)</button></div>
+    <div class="rel-kpis">
+      <div><span>Km corridos</span><b>${f1(kmT, 0)}</b>${dTag(pct(kmT, kmTA))}</div>
+      <div><span>Corridas</span><b>${corT}</b></div>
+      <div><span>Treinos de força</span><b>${forT}</b>${dTag(pct(forT, forTA))}</div>
+      <div><span>Planilha cumprida</span><b>${plTot ? Math.round((plF / plTot) * 100) + '%' : '–'}</b><small>${plF} de ${plTot} treinos</small></div>
+      <div><span>Treinaram na última semana</span><b>${treinando}<small>/${alunos.length}</small></b></div>
+      <div class="${atencao.length ? 'alerta' : ''}"><span>Precisam de atenção</span><b>${atencao.length}</b></div>
+    </div>
+    <div class="card rel-graf"><div class="row between"><b class="small">Volume da equipe por semana</b><span class="rel-leg"><i class="km"></i>km <i class="fo"></i>força</span></div>
+      <div class="rel-barras">${semanas.map((s) => `<div title="Semana de ${fmtCurto(isoDia(s.ini))}: ${f1(s.km)} km · ${s.fo} treino${s.fo === 1 ? '' : 's'} de força"><div class="rel-bb"><i class="km" style="height:${Math.max(2, (s.km / maxKm) * 100)}%"></i><i class="fo" style="height:${Math.max(2, (s.fo / maxFo) * 100)}%"></i></div>${nSem <= 13 || s.ini.getDate() <= 7 ? `<small>${fmtCurto(isoDia(s.ini))}</small>` : '<small></small>'}</div>`).join('')}</div></div>
+    <div class="rel-dest">
+      <div class="card"><b class="small">Maior evolução (previsão dos 10 km)</b>${evol.map((l) => nomeLink(l, `−${difTxt(l.p10A - l.p10)}`)).join('') || '<p class="tiny dim" style="margin-top:8px">Ainda sem dados suficientes de corrida.</p>'}</div>
+      <div class="card"><b class="small">Mais quilômetros</b>${volume.map((l) => nomeLink(l, f1(l.km) + ' km')).join('') || '<p class="tiny dim" style="margin-top:8px">Nenhuma corrida no período.</p>'}</div>
+      <div class="card"><b class="small">Mais fiéis à planilha</b>${consta.map((l) => nomeLink(l, l.ader + '%')).join('') || '<p class="tiny dim" style="margin-top:8px">Sem planilhas liberadas no período.</p>'}</div>
+    </div>
+    ${atencao.length ? `<div class="section"><div class="section-h"><h2 class="h2">Precisam de atenção</h2>${slashes}</div><div class="stack">${atencao.map((l) => `<a class="list-item" href="#/aluno/${l.m.user_id}" style="color:inherit">${avAluno(l.m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(l.m.nome)}</b><div class="row" style="gap:5px;flex-wrap:wrap;margin-top:4px">${l.alertas.map((a) => `<span class="tag warn">${esc(a)}</span>`).join('')}</div></div>${I.chev}</a>`).join('')}</div></div>` : ''}
+    <div class="section"><div class="section-h"><h2 class="h2">Aluno por aluno</h2>${slashes}</div>
+      <div class="rel-filtros"><div class="search">${I.search}<input class="input" id="rel-q" placeholder="Buscar aluno" value="${esc(st.q)}"></div>
+        <select class="select" id="rel-ord">${[['atencao', 'Precisam de atenção primeiro'], ['nome', 'Nome'], ['km', 'Mais km'], ['evol', 'Maior evolução nos 10 km'], ['ader', 'Planilha cumprida'], ['forca', 'Mais treinos de força'], ['parado', 'Mais tempo sem treinar']].map(([k, l]) => `<option value="${k}" ${st.ord === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="rel-tab" id="rel-tab"></div></div>
+    <p class="tiny dim" style="margin-top:14px">Km e pace contam só corridas. Pace médio considera corridas de 3 km ou mais. A previsão dos 10 km usa as equações de Jack Daniels com as corridas das 6 semanas anteriores a cada data. Planilha cumprida: treinos liberados até hoje que têm corrida ligada.</p>`;
+  const linhaHTML = (l) => {
+    const dKm = l.kmA ? pct(l.km, l.kmA) : null, dPace = l.pace && l.paceA ? Math.round(l.pace - l.paceA) : null, d10 = l.p10 && l.p10A ? Math.round(l.p10 - l.p10A) : null;
+    const seta = (v, txt) => v == null || Math.abs(v) < 1 ? '' : `<em class="rel-d ${v < 0 ? 'bom' : 'ruim'}">${v < 0 ? '▼' : '▲'} ${txt}</em>`;
+    return `<a class="rel-row" href="#/aluno/${l.m.user_id}">
+      <div class="rel-c rel-nome">${avAluno(l.m, 'sm')}<div style="min-width:0"><b class="ellip" style="display:block">${esc(l.m.nome)}</b><small>${l.parado == null ? 'sem treinos' : l.parado === 0 ? 'treinou hoje' : `último treino ${quando(new Date(l.ult).toISOString())}`}</small></div></div>
+      <div class="rel-c"><span>Km</span><b>${f1(l.km)}</b>${dKm != null ? `<em class="rel-d ${dKm >= 0 ? 'bom' : 'ruim'}">${dKm >= 0 ? '▲' : '▼'} ${Math.abs(dKm)}%</em>` : ''}</div>
+      <div class="rel-c"><span>Corridas</span><b>${l.corridas}</b></div>
+      <div class="rel-c"><span>Força</span><b>${l.forca}</b></div>
+      <div class="rel-c"><span>Planilha</span><b>${l.ader != null ? l.ader + '%' : '–'}</b>${l.ader != null ? `<i class="rel-bar"><i style="width:${l.ader}%"></i></i>` : ''}</div>
+      <div class="rel-c"><span>Pace médio</span><b>${l.pace ? fmtPace(l.pace).replace('/km', '') : '–'}</b>${seta(dPace, Math.abs(dPace) + 's')}</div>
+      <div class="rel-c"><span>10 km previsto</span><b>${l.p10 ? fmtDurLongo(l.p10) : '–'}</b>${seta(d10, d10 ? difTxt(d10) : '')}</div>
+      <div class="rel-c rel-al">${l.alertas.length ? `<span class="tag warn">${l.alertas.length} alerta${l.alertas.length > 1 ? 's' : ''}</span>` : '<span class="tag ok">em dia</span>'}</div></a>`;
+  };
+  const ordenar = {
+    atencao: (a, b) => b.alertas.length - a.alertas.length || a.m.nome.localeCompare(b.m.nome, 'pt'), nome: (a, b) => a.m.nome.localeCompare(b.m.nome, 'pt'),
+    km: (a, b) => b.km - a.km, evol: (a, b) => ((b.p10A && b.p10 ? b.p10A - b.p10 : -1e9) - (a.p10A && a.p10 ? a.p10A - a.p10 : -1e9)),
+    ader: (a, b) => (b.ader ?? -1) - (a.ader ?? -1), forca: (a, b) => b.forca - a.forca, parado: (a, b) => (b.parado ?? 1e9) - (a.parado ?? 1e9),
+  };
+  const tabela = () => {
+    const nq = semAcento(st.q);
+    const l = linhas.filter((x) => !nq || semAcento(x.m.nome).includes(nq)).sort(ordenar[st.ord]);
+    document.getElementById('rel-tab').innerHTML = `<div class="rel-head"><span>Aluno</span><span>Km</span><span>Corridas</span><span>Força</span><span>Planilha</span><span>Pace médio</span><span>10 km previsto</span><span></span></div>`
+      + (l.map(linhaHTML).join('') || '<div class="empty"><p class="small">Nenhum aluno encontrado.</p></div>');
+  };
+  tabela();
+  document.getElementById('rel-q').oninput = (e) => { st.q = e.target.value; tabela(); };
+  document.getElementById('rel-ord').onchange = (e) => { st.ord = e.target.value; tabela(); };
+  $app.querySelector('.rel-per').onclick = (e) => { const b = e.target.closest('[data-per]'); if (b && b.dataset.per !== st.per) { st.per = b.dataset.per; staffRelatorios(); } };
+  document.getElementById('rel-csv').onclick = () => {
+    const cab = ['Aluno', 'Km', 'Km período anterior', 'Corridas', 'Treinos de força', 'Planilha cumprida (%)', 'Pace médio (min/km)', 'Pace anterior (min/km)', '10 km previsto', '10 km previsto no início', 'Dias sem treinar', 'Alertas'];
+    const cel = (v) => { const t = String(v ?? ''); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const linhasCsv = linhas.slice().sort(ordenar.nome).map((l) => [l.m.nome, f1(l.km), f1(l.kmA), l.corridas, l.forca, l.ader ?? '', l.pace ? fmtPace(l.pace).replace('/km', '') : '', l.paceA ? fmtPace(l.paceA).replace('/km', '') : '', l.p10 ? fmtDurLongo(l.p10) : '', l.p10A ? fmtDurLongo(l.p10A) : '', l.parado ?? '', l.alertas.join(' | ')].map(cel).join(';'));
+    const blob = new Blob(['﻿' + [cab.join(';'), ...linhasCsv].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Relatorio-Nexos-${per.replace(' ', '-')}-${hojeISO()}.csv`; document.body.appendChild(a); a.click(); a.remove();
+    toast('Planilha baixada! Abre no Excel ou no Google Planilhas.');
+  };
+}
+
 function staffMais() {
   dockStaff();
   if (S.cache.fichasNovas == null) Promise.all([sb.from('nx_form_respostas').select('form_id').eq('org_id', S.org.id).eq('visto', false), sb.from('nx_formularios').select('id,criado_por').eq('org_id', S.org.id)]).then(([r, f]) => { const meus = new Set((f.data || []).filter(formMeu).map((x) => x.id)); S.cache.fichasNovas = (r.data || []).filter((x) => !x.form_id || meus.has(x.form_id)).length; if (S.cache.fichasNovas && location.hash === '#/mais') staffMais(); }).catch(() => {});
