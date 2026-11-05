@@ -877,13 +877,15 @@ html[data-tema="escuro"] .pt.plan i,html[data-tema="escuro"] .pt-l.plan{backgrou
 .ph-ev b{font-size:.92rem}
 /* semana de força */
 .fsem{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg2)}
-.fdia{display:grid;grid-template-columns:150px 1fr;border-top:1px solid var(--line);min-height:54px}
+.fdia{display:grid;grid-template-columns:210px 1fr;border-top:1px solid var(--line);min-height:54px}
 .fdia:first-child{border-top:0}
 .fdia.hoje{background:color-mix(in srgb,var(--acc) 7%,transparent)}
 .fdia.hoje .fdia-n{background:var(--acc);color:var(--on-acc)}
 .fdia-h{display:flex;align-items:center;gap:8px;padding:10px;border-right:1px solid var(--line)}
-.fdia-h span{font-weight:700;font-size:.86rem}
-.fdia.passado .fdia-h span{color:var(--mute)}
+.fdia-h .fdia-d{font-weight:700;font-size:.86rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fdia-ic{display:inline-flex;gap:4px;flex:none}
+.fdia-ic:empty{display:none}
+.fdia.passado .fdia-h .fdia-d{color:var(--mute)}
 .fdia-n{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:.8rem;background:var(--s1);flex:none}
 .fdia-h .cal-add{margin-left:auto}
 .fdia-c{display:flex;flex-direction:column;gap:6px;padding:8px 10px;justify-content:center;min-width:0}
@@ -1979,3 +1981,5 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .est-seg button{min-height:42px;border-radius:9px;font-weight:700;font-size:.9rem;color:#b7c4dd;background:transparent;border:0}
 .est-seg button.on{background:var(--acc);color:#fff}
 .est-local .tiny{margin-top:8px;color:#8fa1c4}
+.fdia .fdia-h .cal-add{margin:0 0 0 auto;flex:none}
+.fdia-h{min-width:0}
