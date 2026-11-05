@@ -685,11 +685,12 @@ async function planilhaForcaAluno(box, soLista) {
     const fs = S.cache.fsemA || (S.cache.fsemA = { off: 0 }); const iniF = inicioSemana(); iniF.setDate(iniF.getDate() + fs.off * 7);
     const diasF = Array.from({ length: 7 }, (_, i) => { const d = new Date(iniF); d.setDate(iniF.getDate() + i); return isoDia(d); });
     const hojeF = hojeISO(); const temDias = ativos.some((t) => t.dias && t.dias.length);
-    const libA = await sb.from('nx_forca_semanas').select('id').eq('aluno_id', S.user.id).eq('semana', diasF[0]).maybeSingle().then((r) => !!r.data).catch(() => false);
+    const [libA, faseA] = await Promise.all([sb.from('nx_forca_semanas').select('id').eq('aluno_id', S.user.id).eq('semana', diasF[0]).maybeSingle().then((r) => !!r.data).catch(() => false), faseDaSemana(S.user.id, diasF[0])]);
     const offF = libA ? (dispDe(S.me).off_forca || []) : [];
     const semanaF = `<div class="pl-top" style="margin-top:4px"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fa-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fa-h">${fs.off === 0 ? 'Esta semana' : fs.off === -1 ? 'Semana passada' : fs.off === 1 ? 'Próxima semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fa-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         <span class="small muted">${sessoes.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos</span></div>
       ${temDias && !libA ? '<div class="lib-bar"><span>Seu treinador ainda não liberou esta semana de força.</span></div>' : ''}
+      ${faseA && (libA || !temDias) ? faseCardHTML(faseA) : ''}
       <div class="fsem">${diasF.map((k, i) => { const doDia = libA ? ativos.filter((t) => (t.dias || []).includes(i)) : []; const feitos = sessoes.filter((x) => isoDia(x.iniciado_em) === k);
         return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span></div>
           <div class="fdia-c">${doDia.map((t) => { const ok = feitos.find((x) => x.treino_id === t.id); return `<a class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}" href="#/treino/${t.id}" style="color:inherit"><span class="grow" style="min-width:0">${ok ? `<span class="ses-conc fo"><i>${I.check}</i>Treino concluído</span>` : ''}<b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? '' : k < hojeF ? ' · não feito' : ''}</small></span>${!ok && k >= hojeF ? `<span class="add-ic">${I.play}</span>` : ''}</a>`; }).join('')}
@@ -909,8 +910,11 @@ function sessaoCard(s, nome) {
       ${nome ? `<div class="row" style="gap:8px">${!s.visto_treinador ? '<i class="alert-dot" title="Novo"></i>' : ''}<b class="ellip">${esc(nome)}</b></div>` : ''}
       <div class="${nome ? 'small muted' : 'h3'}">${esc(s.treino_titulo || 'Treino')}</div>
       <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px">
+        ${s.psr != null ? `<span class="rpe" style="background:${psrCor(s.psr)}">PSR ${s.psr}</span>` : ''}
         ${s.esforco != null ? `<span class="rpe" style="background:${rpeCor(s.esforco)}">Esforço ${s.esforco}</span>` : ''}
         ${s.finalizado_em ? `<span class="tag">${minutos(s.iniciado_em, s.finalizado_em)} min</span>` : ''}
+        ${s.finalizado_em && s.esforco != null ? `<span class="tag">${cargaSessao(s.esforco, minutos(s.iniciado_em, s.finalizado_em))} UA</span>` : ''}
+        ${FASES_F[s.fase] ? `<span class="tag" style="color:${FASES_F[s.fase].cor}">${FASES_F[s.fase].n}</span>` : ''}
         ${s.total_itens ? `<span class="tag">${s.itens_feitos.length}/${s.total_itens} exercícios</span>` : ''}
         ${s.dor ? `<span class="tag warn">Dor${s.dor_local ? ': ' + esc(s.dor_local) : ''}</span>` : ''}
         ${corpoTags(s)}
@@ -1034,7 +1038,9 @@ async function viewExecucao(treinoId, preview) {
   if (error) throw error;
   if (!t) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Treino não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
   const itens = (t.nx_treino_itens || []).sort((a, b) => a.ordem - b.ordem);
-  const prevs = await ultimasCargas(t.aluno_id, [...new Set(itens.map((i) => i.exercicio_id))]);
+  const exIdsT = [...new Set(itens.map((i) => i.exercicio_id))];
+  const fase = await faseDaSemana(t.aluno_id, isoDia(inicioSemana()));
+  const [prevs, prevsFase] = await Promise.all([ultimasCargas(t.aluno_id, exIdsT), ultimasCargasFase(t.aluno_id, exIdsT, fase)]);
   const key = 'nx-exec-' + t.id;
   const st = preview ? { feitos: [], cargas: {}, ser: {} } : store.get(key, { feitos: [], ini: null, cargas: {}, ser: {} });
   st.cargas = st.cargas || {}; st.ser = st.ser || {};
@@ -1045,11 +1051,12 @@ async function viewExecucao(treinoId, preview) {
 
   const cargaHTML = (it) => {
     const prev = prevs[it.exercicio_id]; const sg = sug[it.id];
-    if (!prev && !sg && !numCarga(it.carga)) return `<div class="load"><label class="load-in"><span>Carga hoje</span><input data-mask="dec" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="kg" ${preview ? 'disabled' : ''}></label><span class="tiny dim">Sem carga? Deixe em branco.</span></div>`;
+    if (!prev && !sg && !numCarga(it.carga) && !(fase && prevsFase[it.exercicio_id])) return `<div class="load"><label class="load-in"><span>Carga hoje</span><input data-mask="dec" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="kg" ${preview ? 'disabled' : ''}></label><span class="tiny dim">Sem carga? Deixe em branco.</span></div>`;
     return `<div class="load">
       <label class="load-in"><span>Carga hoje</span><input data-mask="dec" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="${sg ? String(sg.kg).replace('.', ',') : 'kg'}" ${preview ? 'disabled' : ''}><em>kg</em></label>
       <div class="load-info">
         ${prev ? `<span class="tiny muted">Última vez: <b>${fmtKg(prev.carga_kg)}</b> · ${quando(prev.criado_em)}</span>` : '<span class="tiny muted">Primeira vez registrando</span>'}
+        ${fase && prevsFase[it.exercicio_id] ? `<span class="tiny fase-prev" style="--fc:${FASES_F[fase].cor}">Última semana de ${FASES_F[fase].n.toLowerCase()}: <b>${fmtKg(prevsFase[it.exercicio_id].carga_kg)}</b> · ${quando(prevsFase[it.exercicio_id].criado_em)}</span>` : ''}
         ${sg ? `<button type="button" class="sug" data-sug="${it.id}" data-kg="${sg.kg}" title="${esc(sg.motivo)}">Sugerida <b>${fmtKg(sg.kg)}</b></button><span class="tiny dim">${esc(sg.motivo)}</span>` : ''}
       </div></div>`;
   };
@@ -1065,6 +1072,7 @@ async function viewExecucao(treinoId, preview) {
         </div>
         <div class="progress"><i style="width:${pct}%"></i></div>
       </div>
+      ${fase ? faseCardHTML(fase, st.psr != null ? `<span class="tiny" style="display:block;margin-top:6px">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></span>` : '') : st.psr != null ? `<p class="small muted">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></p>` : ''}
       ${t.observacoes ? `<div class="card" style="border-color:rgba(70,214,255,.3)"><span class="eyebrow">Recado do treinador</span><p style="margin-top:6px">${esc(t.observacoes)}</p></div>` : ''}
       <div class="stack" style="margin-top:12px">
       ${itens.map((it, i) => {
@@ -1097,6 +1105,24 @@ async function viewExecucao(treinoId, preview) {
       ${preview ? '' : `<div style="height:90px"></div><div class="finish-bar"><button class="btn" id="finalizar">${feitos.size === itens.length && itens.length ? 'Finalizar treino' : `Finalizar treino (${feitos.size}/${itens.length})`} ${I.arrow}</button></div>`}`;
   };
   render();
+  // PSR antes de começar: como o aluno chega recuperado para este treino
+  if (!preview && st.psr == null && !st.psrPulou) {
+    let psr = null;
+    openSheet(`<p class="eyebrow">Antes de começar</p><div class="h2" style="margin-top:4px">Como está a sua recuperação?</div>
+      <p class="small muted" style="margin-top:6px">De 0 (muito cansado) a 10 (totalmente recuperado). Ajuda o treinador a ajustar a carga.</p>
+      <div class="effort" id="psr">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div>
+      <div class="effort-lbl"><span>Muito cansado</span><span id="psr-txt"></span><span>Recuperado</span></div>
+      <button class="btn block" id="psr-ok" style="margin-top:16px">Começar o treino ${I.arrow}</button>
+      <button class="btn ghost block" id="psr-pular" style="margin-top:8px">Pular</button>`, (r) => {
+      r.querySelector('#psr').onclick = (e) => {
+        const b = e.target.closest('[data-n]'); if (!b) return; psr = +b.dataset.n;
+        r.querySelectorAll('#psr button').forEach((x) => { const on = +x.dataset.n === psr; x.classList.toggle('on', on); x.style.background = on ? psrCor(psr) : ''; });
+        r.querySelector('#psr-txt').textContent = PSR_TXT(psr);
+      };
+      r.querySelector('#psr-ok').onclick = () => { if (psr == null) return toast('Escolha de 0 a 10.', true); st.psr = psr; store.set(key, st); closeSheet(); const y = window.scrollY; render(); window.scrollTo(0, y); };
+      r.querySelector('#psr-pular').onclick = () => { st.psrPulou = true; store.set(key, st); closeSheet(); };
+    });
+  }
   $app.oninput = (e) => {
     const inp = e.target.closest('[data-carga]'); if (!inp || preview) return;
     st.cargas[inp.dataset.carga] = inp.value; store.set(key, st);
@@ -1141,8 +1167,68 @@ async function viewExecucao(treinoId, preview) {
       return;
     }
     if (card && e.target.closest('[data-toggle-info]')) { card.classList.toggle('open'); hidratarInstrucoes(card); }
-    if (e.target.closest('#finalizar')) abrirCheckin(t, itens, st, key);
+    if (e.target.closest('#finalizar')) abrirCheckin(t, itens, st, key, fase);
   };
+}
+
+/* ---------- periodização da força: fase da semana (zona de repetições), PSR e carga da sessão ---------- */
+const FASES_F = {
+  resistencia: { n: 'Resistência de força', c: 'R', reps: '15 a 20 repetições', desc: 'Adaptação ao exercício: mais repetições, carga leve a moderada.', desc2: 'descanso de 30 a 60 s', cor: '#1fae78' },
+  hipertrofia: { n: 'Hipertrofia', c: 'H', reps: '8 a 12 repetições', desc: 'Volume com controle do movimento, chegando perto da falha.', desc2: 'descanso de 60 a 90 s', cor: '#2f6bff' },
+  forca: { n: 'Força', c: 'F', reps: '4 a 6 repetições', desc: 'Carga alta e poucas repetições, com técnica impecável.', desc2: 'descanso de 2 a 3 min', cor: '#e39a12' },
+  potencia: { n: 'Potência', c: 'P', reps: '4 a 6 repetições', desc: 'Carga moderada movida o mais rápido possível, com controle.', desc2: 'descanso de 2 a 3 min', cor: '#e5484d' },
+};
+const faseDaSemana = (alunoId, semana) => sb.from('nx_forca_fases').select('fase').eq('aluno_id', alunoId).eq('semana', semana).maybeSingle().then((r) => (r.data && r.data.fase) || null, () => null);
+const faseCardHTML = (f, extra = '') => { const x = FASES_F[f]; if (!x) return ''; return `<div class="fase-card" style="--fc:${x.cor}"><div class="fase-l"><span class="fase-c">${x.c}</span></div><div class="grow" style="min-width:0"><span class="tiny dim">Semana de</span><b>${x.n}</b><div class="fase-meta"><span>${x.reps}</span><span>${x.desc2}</span></div><p class="small muted">${x.desc}</p>${extra}</div></div>`; };
+// PSR: percepção subjetiva de recuperação (Laurent et al., 2011), 0 a 10, antes do treino
+const PSR_TXT = (n) => n == null ? '' : n <= 1 ? 'Muito cansado' : n <= 3 ? 'Mal recuperado' : n <= 5 ? 'Um pouco recuperado' : n <= 7 ? 'Recuperado' : n <= 9 ? 'Bem recuperado' : 'Totalmente recuperado';
+const psrCor = (n) => n == null ? 'var(--dim)' : n <= 3 ? '#ff8a8a' : n <= 5 ? '#ffcf5c' : n <= 7 ? '#46d6ff' : '#3ddc97';
+// carga interna da sessão (Foster, 2001): PSE da sessão × duração em minutos, em unidades arbitrárias (UA)
+const cargaSessao = (pse, min) => (pse == null || !min ? null : Math.round(pse * Math.min(min, 240)));
+async function ultimasCargasFase(alunoId, exIds, fase) {
+  if (!fase || !exIds.length) return {};
+  const { data } = await sb.from('nx_registros').select('exercicio_id,carga_kg,reps,criado_em').eq('aluno_id', alunoId).eq('fase', fase).in('exercicio_id', exIds).not('carga_kg', 'is', null).order('criado_em', { ascending: false }).limit(300).then((r) => r, () => ({ data: [] }));
+  const out = {}; (data || []).forEach((r) => { if (!out[r.exercicio_id]) out[r.exercicio_id] = r; }); return out;
+}
+// painel do treinador: carga semanal de força + corrida, PSR, PSE e cargas por fase
+async function metricasForcaHTML(alunoId, semanaRef, sess) {
+  const ini = somaDias(semanaRef, -49);
+  const [corr, fases, regs] = await Promise.all([
+    sb.from('nx_corridas').select('data,duracao_s,rpe').eq('aluno_id', alunoId).gte('data', ini).then((r) => r.data || [], () => []),
+    sb.from('nx_forca_fases').select('semana,fase').eq('aluno_id', alunoId).gte('semana', ini).then((r) => r.data || [], () => []),
+    sb.from('nx_registros').select('exercicio_id,exercicio_nome,carga_kg,fase,criado_em').eq('aluno_id', alunoId).not('fase', 'is', null).not('carga_kg', 'is', null).order('criado_em', { ascending: false }).limit(800).then((r) => r.data || [], () => []),
+  ]);
+  const semanas = Array.from({ length: 8 }, (_, i) => somaDias(semanaRef, -7 * (7 - i)));
+  const semDe = (iso) => isoDia(inicioSemana(new Date(iso)));
+  const faseDe = Object.fromEntries(fases.map((f) => [f.semana, f.fase]));
+  const W = semanas.map((k) => {
+    const ss = sess.filter((x) => x.finalizado_em && semDe(x.iniciado_em) === k);
+    const cc = corr.filter((c) => semDe(c.data) === k);
+    const uaF = ss.reduce((a, x) => a + (cargaSessao(x.esforco, minutos(x.iniciado_em, x.finalizado_em)) || 0), 0);
+    const uaC = cc.reduce((a, c) => a + (cargaSessao(c.rpe, Math.round((c.duracao_s || 0) / 60)) || 0), 0);
+    const psr = ss.filter((x) => x.psr != null).map((x) => x.psr), pse = [...ss.filter((x) => x.esforco != null).map((x) => x.esforco), ...cc.filter((c) => c.rpe != null).map((c) => c.rpe)];
+    return { k, uaF, uaC, tot: uaF + uaC, nF: ss.length, nC: cc.length, psr: psr.length ? psr.reduce((a, b) => a + b, 0) / psr.length : null, pse: pse.length ? pse.reduce((a, b) => a + b, 0) / pse.length : null, fase: faseDe[k] || null };
+  });
+  const atual = W[W.length - 1], cron = W.slice(-5, -1).filter((w) => w.tot > 0);
+  const acwr = cron.length >= 2 && atual.tot ? atual.tot / (cron.reduce((a, w) => a + w.tot, 0) / cron.length) : null;
+  const acwrTag = acwr == null ? '' : acwr > 1.5 ? 'err' : acwr > 1.3 ? 'warn' : acwr < 0.8 ? 'warn' : 'ok';
+  const mx = Math.max(1, ...W.map((w) => w.tot));
+  const barras = W.map((w) => { const fx = FASES_F[w.fase]; return `<div class="mf-col ${w.k === semanaRef ? 'on' : ''}" title="${fmtCurto(w.k)}: força ${w.uaF} UA · corrida ${w.uaC} UA"><div class="mf-bar"><i class="c" style="height:${(w.uaC / mx) * 100}%"></i><i class="f" style="height:${(w.uaF / mx) * 100}%"></i></div><span class="mf-fase" ${fx ? `style="background:${fx.cor}"` : ''}>${fx ? fx.c : '–'}</span><small>${fmtCurto(w.k)}</small></div>`; }).join('');
+  // última carga de cada exercício em cada fase
+  const porEx = new Map();
+  regs.forEach((r) => { const k = r.exercicio_id || r.exercicio_nome; if (!porEx.has(k)) porEx.set(k, { nome: r.exercicio_nome || 'Exercício', ult: r.criado_em, f: {} }); const e = porEx.get(k); if (!e.f[r.fase]) e.f[r.fase] = r; });
+  const exs = [...porEx.values()].slice(0, 10);
+  const tabela = exs.length ? `<div class="mf-tab"><div class="mf-tr mf-th"><span>Exercício</span>${Object.values(FASES_F).map((x) => `<span style="color:${x.cor}">${x.c}</span>`).join('')}</div>${exs.map((e) => `<div class="mf-tr"><span class="ellip">${esc(e.nome)}</span>${Object.keys(FASES_F).map((f) => `<span>${e.f[f] ? `<b>${fN(+e.f[f].carga_kg)}</b>` : '<em>–</em>'}</span>`).join('')}</div>`).join('')}</div><p class="tiny dim" style="margin-top:6px">Última carga (kg) de cada exercício em cada fase: R resistência, H hipertrofia, F força, P potência.</p>` : '<p class="small muted">As cargas por fase aparecem aqui quando o aluno registrar treinos em semanas com fase definida.</p>';
+  return `<div class="card mf-card"><div class="row between" style="gap:8px;flex-wrap:wrap"><b>Métricas da semana</b><span class="tiny dim">força + corrida</span></div>
+    <div class="mf-kpis">
+      <div><span>PSR antes do treino</span><b style="color:${psrCor(atual.psr)}">${atual.psr == null ? '–' : f1(atual.psr)}</b><small>${atual.psr == null ? 'sem registro' : PSR_TXT(Math.round(atual.psr))}</small></div>
+      <div><span>PSE média</span><b style="color:${rpeCor(atual.pse == null ? null : Math.round(atual.pse))}">${atual.pse == null ? '–' : f1(atual.pse)}</b><small>${atual.nF} força · ${atual.nC} corrida</small></div>
+      <div><span>Carga da semana</span><b>${atual.tot || '–'}</b><small>${atual.tot ? `${atual.uaF} força · ${atual.uaC} corrida (UA)` : 'PSE × minutos'}</small></div>
+      <div><span>Aguda : crônica</span><b>${acwr == null ? '–' : f1(acwr, 2)}</b><small>${acwr == null ? 'precisa de mais semanas' : `<span class="tag ${acwrTag}">${acwr > 1.5 ? 'pico de carga' : acwr > 1.3 ? 'subiu rápido' : acwr < 0.8 ? 'abaixo do habitual' : 'faixa segura'}</span>`}</small></div>
+    </div>
+    <div class="mf-graf"><div class="mf-cols">${barras}</div><div class="mf-leg"><span><i class="f"></i>Força</span><span><i class="c"></i>Corrida</span><span class="dim">letra = fase da semana</span></div></div>
+    <details class="mf-det"><summary>Cargas por fase</summary>${tabela}</details>
+    <p class="tiny dim" style="margin-top:8px">Carga da sessão = PSE × minutos (Foster, 2001). Aguda : crônica = semana atual ÷ média das 4 anteriores; entre 0,8 e 1,3 é a faixa considerada segura (Gabbett, 2016).</p></div>`;
 }
 
 /* termômetro: cansaço e sono (0 bom · 1 médio · 2 ruim) */
@@ -1158,7 +1244,7 @@ function bindCorpo(root, v) {
     g.querySelectorAll('button').forEach((x) => { const on = +x.dataset.v === v[k]; x.classList.toggle('on', on); x.classList.toggle('alert', on && v[k] === 2); });
   });
 }
-function abrirCheckin(t, itens, st, key) {
+function abrirCheckin(t, itens, st, key, fase) {
   let esforco = null, dor = false; const corpo = {};
   openSheet(`
     <p class="eyebrow">Check-in</p><div class="h2" style="margin-top:4px">Como foi o treino?</div>
@@ -1194,19 +1280,20 @@ function abrirCheckin(t, itens, st, key) {
         iniciado_em: st.ini || new Date().toISOString(), finalizado_em: new Date().toISOString(),
         itens_feitos: st.feitos, total_itens: itens.length, esforco, dor,
         dor_local: dor ? (root.querySelector('#dor-local').value.trim() || null) : null, comentario,
-        cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null,
+        cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null, psr: st.psr ?? null, fase: fase || null,
       }).select('id').single();
       if (error || !ses) { btn.disabled = false; return toast('Não foi possível salvar. Verifique a internet.', true); }
       const regs = itens.map((it) => ({
         org_id: S.org.id, aluno_id: S.user.id, sessao_id: ses.id, treino_item_id: it.id, exercicio_id: it.exercicio_id,
         exercicio_nome: (it.nx_exercicios || {}).nome || null, carga_kg: numCarga(st.cargas[it.id]), reps: it.repeticoes || null,
-        feito: st.feitos.includes(it.id),
+        feito: st.feitos.includes(it.id), fase: fase || null,
       })).filter((r) => r.feito || r.carga_kg != null);
       if (regs.length) await sb.from('nx_registros').insert(regs);
       notificar('checkin', ses.id);
       const novasCargas = regs.filter((r) => r.carga_kg != null).length;
+      const ua = cargaSessao(esforco, minutos(st.ini || new Date().toISOString(), new Date().toISOString()));
       store.del(key); closeSheet();
-      $app.innerHTML = `<section class="login center"><div class="slashes" style="justify-content:center;margin:0 auto 18px"><i></i><i></i><i></i></div><h1 class="h1">Treino concluído!</h1><p class="muted" style="margin:10px 0 6px">Seu treinador já recebeu o seu check-in.</p>${novasCargas ? `<p class="small" style="margin-bottom:24px">${novasCargas} carga${novasCargas > 1 ? 's' : ''} registrada${novasCargas > 1 ? 's' : ''} na sua evolução.</p>` : '<div style="height:18px"></div>'}<a class="btn" href="#/">Voltar ao início</a><a class="btn ghost" href="#/historico/cargas" style="margin-top:12px">Ver minha evolução</a></section>`;
+      $app.innerHTML = `<section class="login center"><div class="slashes" style="justify-content:center;margin:0 auto 18px"><i></i><i></i><i></i></div><h1 class="h1">Treino concluído!</h1><p class="muted" style="margin:10px 0 6px">Seu treinador já recebeu o seu check-in.</p>${ua ? `<p class="small" style="margin-bottom:6px">Carga da sessão: <b>${ua} UA</b> <span class="dim">(esforço ${esforco} × ${minutos(st.ini || new Date().toISOString(), new Date().toISOString())} min)</span></p>` : ''}${novasCargas ? `<p class="small" style="margin-bottom:24px">${novasCargas} carga${novasCargas > 1 ? 's' : ''} registrada${novasCargas > 1 ? 's' : ''} na sua evolução.</p>` : '<div style="height:18px"></div>'}<a class="btn" href="#/">Voltar ao início</a><a class="btn ghost" href="#/historico/cargas" style="margin-top:12px">Ver minha evolução</a></section>`;
     };
   });
 }
@@ -6010,11 +6097,16 @@ async function staffAluno(alunoId, aba, extra) {
     const hojeF = hojeISO(); const ativosT = treinos.filter((t) => t.ativo);
     const semDia = ativosT.filter((t) => !(t.dias && t.dias.length));
     const offF = (dispDe(m).off_forca || []);
-    const libF = await sb.from('nx_forca_semanas').select('id').eq('aluno_id', alunoId).eq('semana', diasF[0]).maybeSingle().then((r) => r.data).catch(() => null);
+    const [libF, faseF, metrHTML] = await Promise.all([
+      sb.from('nx_forca_semanas').select('id').eq('aluno_id', alunoId).eq('semana', diasF[0]).maybeSingle().then((r) => r.data).catch(() => null),
+      faseDaSemana(alunoId, diasF[0]),
+      metricasForcaHTML(alunoId, diasF[0], sess).catch((e) => { console.error(e); return ''; }),
+    ]);
     const temFixos = ativosT.some((t) => t.dias && t.dias.length) || offF.length;
     corpo = `<div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fs-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fs-h">${fst.off === 0 ? 'Esta semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fs-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
       <span class="small muted">${sess.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos na semana</span></div>
       ${temFixos ? (libF ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" id="f-desliberar">Cancelar liberação</button></div>` : `<div class="lib-bar"><span>Rascunho: o aluno ainda não vê esta semana</span><button type="button" class="btn sm lib-btn" id="f-liberar">Liberar semana</button></div>`) : ''}
+      <div class="fase-sel"><span class="small muted" style="font-weight:700">Fase desta semana</span><div class="fase-chips">${Object.entries(FASES_F).map(([k, x]) => `<button type="button" data-fase="${k}" class="${faseF === k ? 'on' : ''}" style="--fc:${x.cor}"><b>${x.n}</b><small>${x.reps.replace(' repetições', ' rep.')}</small></button>`).join('')}</div>${faseF ? `<p class="tiny dim">${FASES_F[faseF].desc} O aluno vê a fase e a carga que usou na última semana de ${FASES_F[faseF].n.toLowerCase()}. <button type="button" class="link-btn tiny" data-fase="">Tirar a fase</button></p>` : '<p class="tiny dim">Escolha a fase para o aluno ver a zona de repetições e comparar com a última semana igual.</p>'}</div>
       <div class="fsem ${temFixos && !libF ? 'rasc' : ''}">${diasF.map((k, i) => { const doDia = ativosT.filter((t) => (t.dias || []).includes(i)); const feitos = sess.filter((x) => isoDia(x.iniciado_em) === k);
         return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span class="fdia-d">${DSEM[i]}</span><span class="fdia-ic">${dispIcones(m, i)}</span><button class="cal-add" data-fadd="${i}" aria-label="Pôr treino na ${DSEM[i]}">${I.plus}</button></div>
           <div class="fdia-c">${doDia.map((t) => { const ok = feitos.find((x) => x.treino_id === t.id); return `<div class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}"><a href="#/aluno/${alunoId}/treino/${t.id}" class="grow" style="color:inherit;min-width:0">${ok ? `<span class="ses-conc fo"><i>${I.check}</i>Treino concluído</span>` : ''}<b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? (ok.esforco != null ? ' · esforço ' + ok.esforco + '/10' : '') : k < hojeF ? ' · não fez' : ''}</small></a><button class="sd-x" data-frm="${t.id}" data-d="${i}" aria-label="Tirar deste dia">${I.x}</button></div>`; }).join('')}
@@ -6022,6 +6114,7 @@ async function staffAluno(alunoId, aba, extra) {
           ${offF.includes(i) ? `<div class="ftr folga"><span class="off-ic">${OFF_IC}</span><span class="grow"><b>Day off</b><small>Descanso de força</small></span><button class="sd-x" data-froff="${i}" aria-label="Tirar o day off">${I.x}</button></div>` : ''}
           ${!doDia.length && !feitos.length && !offF.includes(i) ? '<span class="cal-vazio">sem treino</span>' : ''}</div></div>`; }).join('')}</div>
       ${semDia.length ? `<p class="small muted" style="margin-top:12px">Sem dia fixo (o aluno faz na sequência): ${semDia.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}. Toque no + de um dia para fixar.</p>` : ''}
+      ${metrHTML}
       <div class="section"><div class="section-h"><h2 class="h2">Treinos do aluno</h2>${slashes}</div><div class="stack">` + (treinos.length ? treinos.map((t, i) => { const ex = ultData(t); return `
       <div class="card tr-card"><div class="row between" style="align-items:flex-start;gap:10px"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
         <div><div class="h3">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} ${t.nx_treino_itens.length === 1 ? 'exercício' : 'exercícios'}${!t.ativo ? ' · <span style="color:var(--warn)">pausado</span>' : ''}</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:4px">${diasTxt(t.dias)}</span>` : ''}</div></div>
@@ -6102,6 +6195,12 @@ async function staffAluno(alunoId, aba, extra) {
     const iniFs = inicioSemana(); iniFs.setDate(iniFs.getDate() + fst.off * 7); const segF = isoDia(iniFs);
     const fl = document.getElementById('f-liberar'); if (fl) fl.onclick = async () => { fl.disabled = true; const { error } = await sb.from('nx_forca_semanas').insert({ org_id: S.org.id, aluno_id: alunoId, semana: segF, liberado_por: S.user.id }); if (error && !/duplicate/i.test(error.message || '')) { fl.disabled = false; return toast('Não foi possível liberar.', true); } notificarAluno('planilha_forca', alunoId); toast('Semana de força liberada! O aluno foi avisado.'); re(); };
     const fd = document.getElementById('f-desliberar'); if (fd) fd.onclick = async () => { if (!confirm('Cancelar a liberação? O aluno deixa de ver os treinos de força desta semana.')) return; await sb.from('nx_forca_semanas').delete().eq('aluno_id', alunoId).eq('semana', segF); toast('Liberação cancelada. A semana voltou a ser rascunho.'); re(); };
+    $app.querySelectorAll('[data-fase]').forEach((b) => b.onclick = async () => {
+      const f = b.dataset.fase;
+      const { error } = f ? await sb.from('nx_forca_fases').upsert({ org_id: S.org.id, aluno_id: alunoId, semana: segF, fase: f, criado_por: S.user.id }, { onConflict: 'aluno_id,semana' }) : await sb.from('nx_forca_fases').delete().eq('aluno_id', alunoId).eq('semana', segF);
+      if (error) { console.error(error); return toast('Não foi possível salvar a fase.', true); }
+      toast(f ? `Semana de ${FASES_F[f].n.toLowerCase()}.` : 'Fase removida.'); re();
+    });
     const salvarOff = async (lista) => { const nv = { ...dispDe(m), off_forca: lista }; const { error } = await sb.from('nx_membros').update({ disponibilidade: nv }).eq('org_id', S.org.id).eq('user_id', alunoId); if (error) return toast('Não foi possível salvar.', true); m.disponibilidade = nv; re(); };
     $app.querySelectorAll('[data-froff]').forEach((b) => b.onclick = () => salvarOff((dispDe(m).off_forca || []).filter((d) => d !== +b.dataset.froff)));
     $app.querySelectorAll('[data-frm]').forEach((b) => b.onclick = (e) => { e.preventDefault(); const t = treinos.find((x) => x.id === b.dataset.frm); salvarDias(t, (t.dias || []).filter((d) => d !== +b.dataset.d)); });

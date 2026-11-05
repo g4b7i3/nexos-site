@@ -1983,3 +1983,48 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .est-local .tiny{margin-top:8px;color:#8fa1c4}
 .fdia .fdia-h .cal-add{margin:0 0 0 auto;flex:none}
 .fdia-h{min-width:0}
+
+/* ===== força: fase da semana, PSR e métricas ===== */
+.fase-card{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-radius:18px;border:1px solid color-mix(in srgb,var(--fc) 40%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--fc) 14%,transparent),transparent 70%),var(--card);margin-top:10px}
+.fase-card b{display:block;font-family:var(--f-h);font-size:1.12rem;line-height:1.2;color:var(--ink)}
+.fase-c{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--fc);color:#fff;font-family:var(--f-h);font-weight:800;font-size:1.15rem;flex:none;box-shadow:0 8px 20px -8px var(--fc)}
+.fase-meta{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.fase-meta span{font-size:.74rem;font-weight:700;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--fc) 16%,transparent);color:var(--fc)}
+.fase-prev{display:block;margin-top:2px;color:var(--fc)!important;font-weight:600}
+.fase-prev b{color:var(--fc)}
+.fase-sel{margin:10px 0 4px;display:flex;flex-direction:column;gap:8px}
+.fase-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.fase-chips button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);text-align:left;color:var(--ink);transition:border-color .2s,background .2s}
+.fase-chips button b{font-size:.86rem;line-height:1.2}
+.fase-chips button small{font-size:.72rem;color:var(--mute)}
+.fase-chips button:hover{border-color:color-mix(in srgb,var(--fc) 60%,transparent)}
+.fase-chips button.on{border-color:var(--fc);background:color-mix(in srgb,var(--fc) 14%,var(--card))}
+.fase-chips button.on b{color:var(--fc)}
+@media (max-width:640px){.fase-chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mf-card{margin-top:14px}
+.mf-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+.mf-kpis>div{padding:10px 12px;border-radius:14px;background:var(--s1);display:flex;flex-direction:column;gap:2px;min-width:0}
+.mf-kpis span{font-size:.7rem;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.03em}
+.mf-kpis b{font-family:var(--f-h);font-size:1.4rem;line-height:1.15}
+.mf-kpis small{font-size:.74rem;color:var(--mute)}
+@media (max-width:640px){.mf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mf-graf{margin-top:14px}
+.mf-cols{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;align-items:end}
+.mf-col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.mf-bar{width:100%;max-width:34px;height:110px;display:flex;flex-direction:column-reverse;border-radius:8px;overflow:hidden;background:var(--s1)}
+.mf-bar i{display:block;width:100%}
+.mf-bar i.f,.mf-leg i.f{background:var(--acc)}
+.mf-bar i.c,.mf-leg i.c{background:#46d6ff}
+.mf-col.on .mf-bar{outline:2px solid var(--acc);outline-offset:2px}
+.mf-fase{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:.68rem;font-weight:800;color:#fff;background:var(--line2)}
+.mf-col small{font-size:.66rem;color:var(--dim)}
+.mf-leg{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:.76rem;color:var(--mute)}
+.mf-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.mf-det{margin-top:12px}
+.mf-det summary{cursor:pointer;font-weight:700;font-size:.9rem;color:var(--acc)}
+.mf-tab{margin-top:10px;display:flex;flex-direction:column}
+.mf-tr{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,52px);gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:.86rem}
+.mf-tr span:not(:first-child){text-align:center}
+.mf-th{border-top:0;font-size:.72rem;font-weight:800;color:var(--mute)}
+.mf-tr em{color:var(--dim);font-style:normal}
+.fase-card .tiny b,.fase-card .small b{display:inline;font-size:inherit;font-family:inherit;color:inherit}
