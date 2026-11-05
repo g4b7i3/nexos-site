@@ -1946,3 +1946,9 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .rel-nome .av{flex:none}
 .ni-sec{margin-top:12px}.ni-sec b{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--acc2);font-weight:800}
 .ni-sec ul{margin:6px 0 0}
+/* pace e FC juntos, percurso colorido pelo pace */
+.pfc{padding:14px}.pfc-svg{width:100%;height:150px;display:block;margin-top:8px}
+.pfc-leg,.rota-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.76rem;color:var(--mute);font-weight:700}
+.pfc-leg i,.rota-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.rota-leg{margin-top:8px;justify-content:center;align-items:center}
+.rota-grad{width:60px;height:6px;border-radius:3px;background:linear-gradient(90deg,#3ddc97,#46d6ff,#ffcf5c,#ff9f43,#ff6b6b)}

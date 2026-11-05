@@ -2428,7 +2428,21 @@ function perfilCorrida(m) {
 function inicioSemana(d = new Date()) { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 const isoDia = (d) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
 
-function rotaSVG(rota, h = 200) {
+/** cor de cada ponto do percurso pelo pace naquele trecho (zonas do aluno, ou do mais lento ao mais rápido da corrida) */
+function coresRotaPace(c, perfil) {
+  const S = c.analise && c.analise.serie, R = c.rota; if (!S || !S.vel || !R || R.length < 3 || S.vel.length < 10) return null;
+  const nS = S.vel.length, pace = R.map((_, i) => { const k = Math.round((i * (nS - 1)) / (R.length - 1)); const vs = S.vel.slice(Math.max(0, k - 2), k + 3).filter((v) => v > 0.8); return vs.length ? 1000 / (vs.reduce((a, b) => a + b, 0) / vs.length) : null; });
+  if (perfil && perfil.paces) {
+    const cores = pace.map((p) => (p ? ZONAS_INFO[zonaDoPace(p, perfil) || 'rec'].c : '#9aa8c0'));
+    const usadas = [...new Set(pace.filter(Boolean).map((p) => zonaDoPace(p, perfil) || 'rec'))];
+    return { cores, leg: ['rec', 'leve', 'maratona', 'limiar', 'intervalado', 'tiros'].filter((k) => usadas.includes(k)).map((k) => `<span><i style="background:${ZONAS_INFO[k].c}"></i>${ZONAS_INFO[k].z} ${ZONAS_INFO[k].d}</span>`).join('') };
+  }
+  const ok = pace.filter(Boolean).sort((a, b) => a - b); if (ok.length < 5) return null;
+  const q = [0.2, 0.4, 0.6, 0.8].map((f) => ok[Math.floor(ok.length * f)]), PAL = ['#ff6b6b', '#ff9f43', '#ffcf5c', '#46d6ff', '#3ddc97'];
+  const cores = pace.map((p) => (p ? PAL[q.filter((x) => p > x).length] : '#9aa8c0'));
+  return { cores, leg: `<span><i style="background:#3ddc97"></i>mais lento</span><span class="rota-grad"></span><span><i style="background:#ff6b6b"></i>mais rápido</span>` };
+}
+function rotaSVG(rota, h = 200, cores = null) {
   if (!rota || rota.length < 2) return '';
   const lats = rota.map((p) => p[0]), lons = rota.map((p) => p[1]);
   const la0 = Math.min(...lats), la1 = Math.max(...lats), lo0 = Math.min(...lons), lo1 = Math.max(...lons);
@@ -2438,7 +2452,7 @@ function rotaSVG(rota, h = 200) {
   const ox = (W - w * s) / 2, oy = (h - hh * s) / 2;
   const pts = rota.map(([la, lo]) => `${(ox + (lo - lo0) * k * s).toFixed(1)},${(h - oy - (la - la0) * s).toFixed(1)}`);
   const [x0, y0] = pts[0].split(','), [x1, y1] = pts[pts.length - 1].split(',');
-  return `<svg class="rota" viewBox="0 0 ${W} ${h}" role="img" aria-label="Percurso"><polyline points="${pts.join(' ')}" fill="none" style="stroke:var(--acc)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x0}" cy="${y0}" r="6" style="fill:var(--ok)"/><circle cx="${x1}" cy="${y1}" r="6" style="fill:var(--ink)"/></svg>`;
+  return `<svg class="rota" viewBox="0 0 ${W} ${h}" role="img" aria-label="Percurso">${cores ? pts.slice(1).map((pt, i2) => `<line x1="${pts[i2].split(',')[0]}" y1="${pts[i2].split(',')[1]}" x2="${pt.split(',')[0]}" y2="${pt.split(',')[1]}" stroke="${cores[i2 + 1] || cores[i2] || '#2f6bff'}" stroke-width="4" stroke-linecap="round"/>`).join('') : `<polyline points="${pts.join(' ')}" fill="none" style="stroke:var(--acc)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>`}<circle cx="${x0}" cy="${y0}" r="6" style="fill:var(--ok)"/><circle cx="${x1}" cy="${y1}" r="6" style="fill:var(--ink)"/></svg>`;
 }
 
 async function buscarCorridas(alunoId, limit = 300) {
@@ -3110,10 +3124,10 @@ async function abrirCardCorrida(c, plano) {
 }
 
 /* ---------- análise completa da corrida (gráficos, voltas, zonas de FC, números do relógio) ---------- */
-const GR_CORES = { pace: '#2f6bff', fc: '#ff4d6d', cad: '#8b5cf6', alt: '#7f8ea8', pot: '#f59e0b', temp: '#f97316' };
+const GR_CORES = { pace: '#2f6bff', fc: '#ff4d6d', cad: '#8b5cf6', alt: '#7f8ea8', pot: '#f59e0b', temp: '#f97316', gct: '#0ea5a4', osc: '#14b8a6', passo: '#6366f1', bal: '#a855f7', resp: '#0891b2' };
 const ZONAS_FC = [['Z1', 'Recuperação', 0, 0.6, '#9aa8c0'], ['Z2', 'Leve', 0.6, 0.7, '#3ddc97'], ['Z3', 'Moderado', 0.7, 0.8, '#46d6ff'], ['Z4', 'Limiar', 0.8, 0.9, '#ffcf5c'], ['Z5', 'Máximo', 0.9, 9, '#ff6b6b']];
 const paceTxt = (v) => (v && v > 0.5 ? fmtPace(1000 / v).replace('/km', '') : '–');
-function analiseCorridaHTML(c, fcMax, fcMaxFonte) {
+function analiseCorridaHTML(c, fcMax, fcMaxFonte, paces) {
   const A = c.analise || {}, S = A.serie || {}, E = { ...(c.resumo_rel || {}), ...(A.extras || {}) };
   const blocos = [];
   // ---- gráficos (arrastar o dedo mostra os valores do ponto) ----
@@ -3125,6 +3139,9 @@ function analiseCorridaHTML(c, fcMax, fcMaxFonte) {
       ['pace', 'Pace', S.vel, (v) => paceTxt(v), '/km'], ['fc', 'Frequência cardíaca', S.fc, (v) => (v ? Math.round(v) : '–'), 'bpm'],
       ['cad', 'Cadência', S.cad, (v) => (v ? Math.round(v) : '–'), 'ppm'], ['alt', 'Altitude', S.alt, (v) => (v != null ? Math.round(v) : '–'), 'm'],
       ['pot', 'Potência', S.pot, (v) => (v ? Math.round(v) : '–'), 'W'], ['temp', 'Temperatura', S.temp, (v) => (v != null ? f1(v) : '–'), '°C'],
+      ['gct', 'Tempo de contato com o solo', S.gct, (v) => (v ? Math.round(v) : '–'), 'ms'], ['osc', 'Oscilação vertical', S.osc, (v) => (v ? f1(v) : '–'), 'cm'],
+      ['passo', 'Comprimento da passada', S.passo, (v) => (v ? f1(v, 2) : '–'), 'm'], ['bal', 'Equilíbrio de contato (esquerda)', S.bal, (v) => (v ? f1(v) : '–'), '%'],
+      ['resp', 'Respiração', S.resp, (v) => (v ? Math.round(v) : '–'), 'rpm'],
     ].filter(([, , y]) => y && y.filter((v) => v != null).length > 3);
     const W = 600, H = 110;
     const graf = ([k, nome, Y, fmt, un]) => {
@@ -3147,6 +3164,29 @@ function analiseCorridaHTML(c, fcMax, fcMaxFonte) {
     if (graficos) blocos.push(`<div class="section"><div class="section-h"><h2 class="h2">Gráficos</h2>${slashes}</div><div class="card graficos" id="graficos" data-pordist="${porDist ? 1 : 0}">
       <div class="gr-leitura" id="gr-leitura">Arraste o dedo sobre os gráficos para ver cada ponto</div>${graficos}
       <div class="gr-eixo"><span>0</span><span>${porDist ? f1(X[n - 1], 1) + ' km' : Math.round(X[n - 1]) + ' min'}</span></div></div></div>`);
+  }
+  // ---- pace e FC no mesmo gráfico (deriva cardíaca e onde o ritmo caiu) ----
+  if (n > 20 && S.vel && S.fc && S.fc.filter((v) => v).length > 10) {
+    const W = 600, H = 150, porDist = (S.d[n - 1] || 0) > 300, X = porDist ? S.d : S.t, x0 = X[0], x1 = X[n - 1] || 1;
+    const pv = S.vel.map((v) => (v > 0.8 ? 1000 / v : null)), pvv = pv.filter((v) => v).sort((a, b) => a - b);
+    const pLo = pvv[Math.floor(pvv.length * 0.03)], pHi = pvv[Math.ceil(pvv.length * 0.97) - 1];
+    const fv = S.fc.filter((v) => v), fLo = Math.min(...fv) - 3, fHi = Math.max(...fv) + 3;
+    const px = (i) => (((X[i] - x0) / (x1 - x0 || 1)) * W).toFixed(1);
+    const linha = (ys, lo, hi, inv) => { let d = '', ab = false; ys.forEach((v, i) => { if (v == null) { ab = false; return; } const k = (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo || 1); d += `${ab ? 'L' : 'M'}${px(i)},${(inv ? k * H : H - k * H).toFixed(1)}`; ab = true; }); return d; };
+    if (pLo && pHi && pHi > pLo) blocos.push(`<div class="section"><div class="section-h"><h2 class="h2">Pace e frequência juntos</h2>${slashes}</div><div class="card pfc">
+      <div class="pfc-leg"><span><i style="background:${GR_CORES.pace}"></i>Pace (para cima = mais rápido)</span><span><i style="background:${GR_CORES.fc}"></i>Frequência cardíaca</span></div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="pfc-svg"><path d="${linha(pv, pLo, pHi, true)}" fill="none" stroke="${GR_CORES.pace}" stroke-width="2" vector-effect="non-scaling-stroke"/><path d="${linha(S.fc, fLo, fHi, false)}" fill="none" stroke="${GR_CORES.fc}" stroke-width="2" vector-effect="non-scaling-stroke" opacity=".85"/></svg>
+      <div class="gr-eixo"><span>0</span><span>${porDist ? f1(S.d[n - 1] / 1000, 1) + ' km' : Math.round(S.t[n - 1] / 60) + ' min'}</span></div>
+      <p class="tiny dim" style="margin-top:6px">Quando a linha vermelha sobe e a azul não acompanha, o coração está trabalhando mais para o mesmo ritmo.</p></div></div>`);
+  }
+  // ---- tempo em cada zona de pace (as zonas do aluno) ----
+  if (paces && S.vel && n > 10) {
+    const ZP = [['rec', 'Z1'], ['leve', 'Z2'], ['maratona', 'Z3'], ['limiar', 'Z4'], ['intervalado', 'Z5'], ['tiros', 'Z6']];
+    const tz = {}; let tot = 0;
+    for (let i = 1; i < n; i++) { const v = S.vel[i], dt = S.t[i] - S.t[i - 1]; if (!(v > 0.8) || !(dt > 0) || dt > 120) continue; const z = zonaDoPace(1000 / v, { paces }) || 'rec'; tz[z] = (tz[z] || 0) + dt; tot += dt; }
+    if (tot > 120) blocos.push(`<div class="section"><div class="section-h"><h2 class="h2">Zonas de pace</h2>${slashes}</div><div class="card zonas-fc">
+      ${ZP.filter(([k]) => paces[k] || k === 'rec').map(([k, z]) => { const pc = ((tz[k] || 0) / tot) * 100; const inf = ZONAS_INFO[k]; return `<div class="zf"><span class="zf-n"><b>${z}</b> ${inf.d}<em>${paces[k] ? faixaPace(paces[k]) : 'mais lento'}</em></span><div class="zf-bar"><i style="width:${Math.max(pc, pc ? 2 : 0).toFixed(1)}%;background:${inf.c}"></i></div><span class="zf-t">${fmtDur(tz[k] || 0)}<em>${Math.round(pc)}%</em></span></div>`; }).join('')}
+      <p class="tiny dim" style="margin-top:8px">Tempo em movimento em cada zona de pace do perfil de corrida.</p></div></div>`);
   }
   // ---- zonas de FC ----
   if (S.fc && S.fc.filter((v) => v).length > 5) {
@@ -3191,7 +3231,8 @@ function analiseCorridaHTML(c, fcMax, fcMaxFonte) {
     ['Calorias', E.kcal ? Math.round(E.kcal) + ' kcal' : null], ['Passos', E.passos ? Math.round(E.passos).toLocaleString('pt-BR') : null],
     ['Comprimento da passada', E.passada_m ? f1(E.passada_m, 2) + ' m' : null], ['Oscilação vertical', E.oscil_cm ? f1(E.oscil_cm) + ' cm' : null],
     ['Tempo de contato com o solo', E.contato_ms ? E.contato_ms + ' ms' : null], ['Razão vertical', E.razao_vert ? f1(E.razao_vert) + '%' : null],
-    ['Efeito de treino aeróbico', E.te_aer ? f1(E.te_aer) : null], ['Efeito de treino anaeróbico', E.te_ana ? f1(E.te_ana) : null],
+    ['Equilíbrio de contato', E.bal_med ? `${f1(E.bal_med)}% esquerda · ${f1(100 - E.bal_med)}% direita` : null], ['Respiração média', E.resp_med ? Math.round(E.resp_med) + ' respirações/min' : null],
+    ['Efeito de treino aeróbico', E.te_aer ? f1(E.te_aer) : null], ['Efeito de treino anaeróbico', E.te_ana ? f1(E.te_ana) : null], ['Carga do treino (Garmin)', E.carga ? E.carga : null],
     ['Relógio', E.dispositivo || null],
   ].filter(([, v]) => v);
   if (num.length) blocos.push(`<div class="section"><div class="section-h"><h2 class="h2">Todos os números</h2>${slashes}</div><div class="card kv">${num.map(([a, b]) => `<div><span>${a}</span><b>${esc(String(b))}</b></div>`).join('')}</div></div>`);
@@ -3202,8 +3243,9 @@ function bindGraficos(root, c) {
   const S = c.analise.serie, n = S.t.length, porDist = box.dataset.pordist === '1';
   const X = porDist ? S.d.map((d) => d / 1000) : S.t.map((t) => t / 60);
   const leitura = box.querySelector('#gr-leitura');
-  const fmt = { pace: (v) => paceTxt(v) + '/km', fc: (v) => (v ? Math.round(v) + ' bpm' : '–'), cad: (v) => (v ? Math.round(v) + ' ppm' : '–'), alt: (v) => (v != null ? Math.round(v) + ' m' : '–'), pot: (v) => (v ? Math.round(v) + ' W' : '–'), temp: (v) => (v != null ? f1(v) + ' °C' : '–') };
-  const chave = { pace: 'vel', fc: 'fc', cad: 'cad', alt: 'alt', pot: 'pot', temp: 'temp' };
+  const fmt = { pace: (v) => paceTxt(v) + '/km', fc: (v) => (v ? Math.round(v) + ' bpm' : '–'), cad: (v) => (v ? Math.round(v) + ' ppm' : '–'), alt: (v) => (v != null ? Math.round(v) + ' m' : '–'), pot: (v) => (v ? Math.round(v) + ' W' : '–'), temp: (v) => (v != null ? f1(v) + ' °C' : '–'),
+    gct: (v) => (v ? Math.round(v) + ' ms' : '–'), osc: (v) => (v ? f1(v) + ' cm' : '–'), passo: (v) => (v ? f1(v, 2) + ' m' : '–'), bal: (v) => (v ? f1(v) + '% esq.' : '–'), resp: (v) => (v ? Math.round(v) + ' rpm' : '–') };
+  const chave = { pace: 'vel', fc: 'fc', cad: 'cad', alt: 'alt', pot: 'pot', temp: 'temp', gct: 'gct', osc: 'osc', passo: 'passo', bal: 'bal', resp: 'resp' };
   const resumoOrig = {}; box.querySelectorAll('[data-v]').forEach((s) => (resumoOrig[s.dataset.v] = s.textContent));
   const mostrar = (clientX) => {
     const r = box.querySelector('.gr-area').getBoundingClientRect(); const fr = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
@@ -3276,7 +3318,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   const repPl = est.find((s) => s.k === 'rep');
   let misto = !!repPl || ['intervalado', 'tiros', 'fartlek'].includes(tipo);
   const leveP = ['rodagem', 'regenerativo', 'longao'].includes(tipo);
-  const sec = { exe: [], ritmo: [], fc: [], cond: [], comp: [] }; // detalhes do "Ver mais"
+  const sec = { exe: [], ritmo: [], fc: [], tec: [], cond: [], comp: [] }; // detalhes do "Ver mais"
   const frases = []; let dica = '';
   // só usa % da FC máxima quando a máxima foi medida (a estimativa pela idade erra muito de pessoa para pessoa)
   const fcMax = perfil.fc_max || null;
@@ -3372,6 +3414,13 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   if (sub != null && km > 0 && sub > 0) sec.cond.push(`${Math.round(sub)} m de subida no percurso (${N1(sub / km)} m por km).`);
   const cad = c.cadencia || (A.voltas && media(A.voltas.filter((v) => v.cad > 100).map((v) => v.cad)));
   if (cad) sec.cond.push(`Cadência média de ${Math.round(cad)} passos por minuto.`);
+  // técnica (dinâmica de corrida): só quando o relógio ou o sensor mede
+  if (EX.contato_ms) sec.tec.push(`Tempo de contato com o solo: ${EX.contato_ms} ms.`);
+  if (EX.bal_med) sec.tec.push(`Equilíbrio de contato: ${N1(EX.bal_med)}% esquerda e ${N1(100 - EX.bal_med)}% direita${Math.abs(EX.bal_med - 50) >= 2 ? ' (diferença de ' + N1(Math.abs(2 * EX.bal_med - 100)) + ' pontos entre as pernas)' : ''}.`);
+  if (EX.oscil_cm) sec.tec.push(`Oscilação vertical: ${N1(EX.oscil_cm)} cm${EX.razao_vert ? `; razão vertical de ${N1(EX.razao_vert)}%` : ''}.`);
+  if (EX.passada_m) sec.tec.push(`Comprimento médio da passada: ${String(EX.passada_m).replace('.', ',')} m.`);
+  if (EX.resp_med) sec.tec.push(`Respiração média: ${Math.round(EX.resp_med)} respirações por minuto.`);
+  if (EX.carga) sec.cond.push(`Carga do treino calculada pelo Garmin: ${EX.carga}.`);
   if (EX.te_aer != null) sec.cond.push(`Efeito de treino do relógio: aeróbico ${N1(EX.te_aer)}${EX.te_ana != null ? ` e anaeróbico ${N1(EX.te_ana)}` : ''} (escala de 0 a 5).`);
   // ---------- 5. planilha ----------
   let planTxt = '';
@@ -3414,7 +3463,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   frases.slice(0, 2).forEach((f) => { txt += ' ' + f; });
   if (alerta) txt += ' ' + alerta;
   else if (dica) txt += ` Lembrete: ${dica}.`;
-  const det = [['Execução do treino', sec.exe], ['Ritmo', sec.ritmo], ['Frequência cardíaca', sec.fc], ['Condições', sec.cond], ['Comparado com você mesmo', sec.comp]].filter(([, l]) => l.length);
+  const det = [['Execução do treino', sec.exe], ['Ritmo', sec.ritmo], ['Frequência cardíaca', sec.fc], ['Técnica da corrida', sec.tec], ['Condições', sec.cond], ['Comparado com você mesmo', sec.comp]].filter(([, l]) => l.length);
   return { txt: txt.charAt(0).toUpperCase() + txt.slice(1), det };
 }
 const NI_LOGO = '<span class="ni-logo" aria-hidden="true"><i></i><i></i><i></i></span>';
@@ -3436,7 +3485,7 @@ async function viewCorrida(id) {
   ]);
   const membroC = S.staff ? nome : S.me; const pc = perfilCorrida(membroC || {});
   const fcMaxFonte = membroC && membroC.corrida && membroC.corrida.fc_max ? 'medida no perfil de corrida' : pc.fcMax ? 'estimada pela idade' : '';
-  const analiseBlocos = c.analise ? analiseCorridaHTML(c, pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? pc.fcMax : c.fc_max, pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? fcMaxFonte : 'a maior da corrida') : [];
+  const analiseBlocos = c.analise ? analiseCorridaHTML(c, pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? pc.fcMax : c.fc_max, pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? fcMaxFonte : 'a maior da corrida', pc.paces) : [];
   // o treinador marca como visto quando quiser (o aluno é avisado)
   const pace = paceDe(c);
   const parc = c.parciais || [];
@@ -3466,7 +3515,7 @@ async function viewCorrida(id) {
       <div class="pv"><div><span>Previsto</span><b>${plano.distancia_km ? String(plano.distancia_km).replace('.', ',') + ' km' : plano.duracao_min ? plano.duracao_min + ' min' : '–'}</b></div><div><span>Feito</span><b>${fmtKm(c.distancia_m)}</b></div>
       ${plano.distancia_km ? `<div><span>Cumprido</span><b>${Math.round((c.distancia_m / 1000 / plano.distancia_km) * 100)}%</b></div>` : ''}</div>
       ${plano.descricao ? `<p class="small muted" style="margin-top:8px">${esc(plano.descricao)}</p>` : ''}</div>` : ''}
-    ${c.rota ? `<div class="section"><div class="section-h"><h2 class="h2">Percurso</h2>${slashes}</div><div class="card rota-box">${rotaSVG(c.rota)}</div></div>` : ''}
+    ${c.rota ? (() => { const rc = coresRotaPace(c, pc); return `<div class="section"><div class="section-h"><h2 class="h2">Percurso</h2>${slashes}</div><div class="card rota-box">${rotaSVG(c.rota, 200, rc && rc.cores)}${rc ? `<div class="rota-leg">${rc.leg}</div>` : ''}</div></div>`; })() : ''}
     ${analiseBlocos.slice(0, analiseBlocos.length - (c.analise && analiseBlocos.length && analiseBlocos[analiseBlocos.length - 1].includes('Todos os números') ? 1 : 0)).join('')}
     ${parc.length ? `<div class="section"><div class="section-h"><h2 class="h2">Parciais</h2>${slashes}</div><div class="card"><div class="splits">${parc.map((p) => { const v = pk(p); const w = pMax > pMin ? 35 + (65 * (pMax - v)) / (pMax - pMin) : 100; return `<div><span>${p.parcial ? String(p.km).replace('.', ',') : 'km ' + p.km}</span><i style="width:${w.toFixed(0)}%"></i><b>${fmtPace(v).replace('/km', '')}</b><em>${p.fc ? p.fc + ' bpm' : ''}</em></div>`; }).join('')}</div></div></div>` : ''}
     ${analiseBlocos.length && analiseBlocos[analiseBlocos.length - 1].includes('Todos os números') ? analiseBlocos[analiseBlocos.length - 1] : ''}
