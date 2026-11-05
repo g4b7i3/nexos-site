@@ -1952,3 +1952,23 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .pfc-leg i,.rota-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .rota-leg{margin-top:8px;justify-content:center;align-items:center}
 .rota-grad{width:60px;height:6px;border-radius:3px;background:linear-gradient(90deg,#3ddc97,#46d6ff,#ffcf5c,#ff9f43,#ff6b6b)}
+
+/* ===== ficha: acesso ao app · tela de espera da aprovação ===== */
+.fx-login{padding:10px 12px;border-radius:12px;border:1px dashed var(--line2);margin-bottom:6px}
+.fx-login b{color:var(--ink);word-break:break-all}
+.esp-tr{display:flex;align-items:center;gap:12px}
+.esp-tr .btn svg{width:16px;height:16px}
+.esp-passos{display:flex;flex-direction:column;gap:0;padding:6px 16px}
+.esp-p{position:relative;display:flex;align-items:center;gap:12px;padding:12px 0}
+.esp-p+.esp-p{border-top:1px solid var(--line)}
+.esp-p>span{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line2);color:var(--dim);font-family:var(--f-m);font-size:.85rem}
+.esp-p>span svg{width:17px;height:17px}
+.esp-p b{display:block;font-size:.95rem}
+.esp-p small{color:var(--mute);font-size:.8rem}
+.esp-p.ok>span{background:var(--ok);border-color:var(--ok);color:#fff}
+.esp-p.on>span{border-color:var(--acc);color:var(--acc);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 18%,transparent);animation:espPulso 1.8s ease-in-out infinite}
+.esp-p:not(.ok):not(.on) b{color:var(--mute)}
+@keyframes espPulso{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--acc) 6%,transparent)}}
+@media (prefers-reduced-motion:reduce){.esp-p.on>span{animation:none}}
+.esp-tr .esp-wa{flex:none;width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:14px;color:#25d366}
+.esp-tr .esp-wa svg{width:22px;height:22px}

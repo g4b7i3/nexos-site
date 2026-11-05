@@ -417,15 +417,68 @@ function viewOutraArea(destino) {
     <button class="link-btn small" id="sair" style="margin-top:12px">Sair e entrar com outra conta</button></div></section>`;
   document.getElementById('sair').onclick = () => sb.auth.signOut();
 }
-function viewSemAcesso() {
-  $dock.hidden = true; layout('bare');
-  const pinta = (pend) => { $app.innerHTML = pend
-    ? `<section class="login"><div class="empty">${estIc(I.espera, 'warn')}<div class="h3">Seu cadastro está aguardando a aprovação do treinador</div><p class="small" style="margin:8px 0 16px">Assim que ele aprovar, você recebe o acesso no seu e-mail e já pode entrar.</p><button class="btn sm" id="de-novo">Verificar de novo</button> <button class="btn sm ghost" id="sair">Sair</button></div></section>`
-    : `<section class="login"><div class="empty"><div class="h3">Sua conta ainda não está ligada a uma assessoria</div><p class="small" style="margin:8px 0 16px">Peça ao seu treinador para cadastrar o seu e-mail no app da Nexos.</p><button class="btn sm ghost" id="sair">Sair</button></div></section>`;
-    document.getElementById('sair').onclick = () => sb.auth.signOut();
-    const dn = document.getElementById('de-novo'); if (dn) dn.onclick = async () => { await carregarPerfil().catch(() => {}); router(); }; };
-  pinta(false);
-  sb.from('nx_membros').select('aprovacao').eq('user_id', S.user.id).eq('aprovacao', 'pendente').limit(1).then((r) => { if (r.data && r.data.length) pinta(true); }, () => {});
+async function viewSemAcesso() {
+  $dock.hidden = true; layout('bare'); loading();
+  const { data } = await sb.rpc('nx_espera').then((r) => r, () => ({ data: null }));
+  const e = data && data[0];
+  if (!e) {
+    $app.innerHTML = `<section class="login"><div class="empty"><div class="h3">Sua conta ainda não está ligada a uma assessoria</div><p class="small" style="margin:8px 0 16px">Peça ao seu treinador o link da ficha de entrada da Nexos.</p><button class="btn sm ghost" id="sair">Sair</button></div></section>`;
+    document.getElementById('sair').onclick = () => sb.auth.signOut(); return;
+  }
+  S.esperaOrg = { id: e.org_id, nome: e.org_nome };
+  const tr = { nome: e.tr_nome || 'Equipe Nexos', foto_url: e.tr_foto };
+  const mods = e.modalidades || [];
+  const zap = telWa(e.tr_telefone);
+  const pushOk = () => store.get('nx-push-ok') || (pushSuportado() && Notification.permission === 'granted');
+  const pinta = () => {
+    $app.innerHTML = `
+    <div class="ficha-top"><img src="${LOGO.s()}" alt="">${slashes}</div>
+    <p class="eyebrow">${esc(e.org_nome || 'Nexos')}</p>
+    <h1 class="h1" style="margin-top:4px">Ficha recebida, ${esc(firstName(e.nome))}!</h1>
+    <p class="muted small" style="margin-top:8px">Seu treinador está analisando sua ficha. Assim que ele aprovar, você recebe um aviso e seus treinos aparecem aqui.</p>
+    <div class="card esp-tr" style="margin-top:16px">${avAluno(tr)}<div class="grow" style="min-width:0"><span class="tiny dim">Seu treinador</span><b class="ellip" style="display:block">${esc(tr.nome)}</b>${mods.length ? `<span class="small muted">${mods.map((k) => (MODS.find((m) => m[0] === k) || [k, k])[1]).join(' + ')}</span>` : ''}</div>${zap ? `<a class="btn sm ghost esp-wa" href="https://wa.me/${zap}?text=${encodeURIComponent(`Olá! Aqui é ${firstName(e.nome)}, acabei de enviar minha ficha da Nexos.`)}" target="_blank" rel="noopener" aria-label="Falar com o treinador no WhatsApp" title="WhatsApp">${I.wa}</a>` : ''}</div>
+    <div class="card esp-passos" style="margin-top:12px">
+      <div class="esp-p ok"><span>${I.check}</span><div><b>Ficha enviada</b><small>${e.pedido_em ? quando(e.pedido_em) : 'Recebida'}</small></div></div>
+      <div class="esp-p on"><span>${I.espera}</span><div><b>Aprovação do treinador</b><small>Em análise</small></div></div>
+      <div class="esp-p"><span>3</span><div><b>Primeiro treino liberado</b><small>Logo depois da aprovação</small></div></div>
+    </div>
+    <div class="section"><div class="section-h"><h2 class="h2">Enquanto isso</h2></div><div class="stack">
+      <div class="list-item">${'<span class="ativ-ic">' + I.bell + '</span>'}<div class="grow"><b>Ative as notificações</b><div class="small muted">${pushOk() ? 'Ativadas. Você vai saber na hora da aprovação.' : !pushSuportado() && ehIOS() && !instalado() ? 'No iPhone, adicione o app à tela de início (Compartilhar, Adicionar à Tela de Início) e abra por lá.' : 'Para saber na hora em que o acesso for liberado.'}</div></div>${!pushOk() && pushSuportado() ? '<button class="btn sm" id="esp-push">Ativar</button>' : ''}</div>
+      <div class="list-item"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Coloque sua foto</b><div class="small muted">${e.foto_url ? 'Foto enviada. Seu treinador já vê.' : 'Aparece para o seu treinador.'}</div></div><button class="btn sm ${e.foto_url ? 'ghost' : ''}" id="esp-foto">${e.foto_url ? 'Trocar' : 'Enviar'}</button></div>
+      <div class="list-item"><span class="ativ-ic">${I.watch}</span><div class="grow"><b>Relógio</b><div class="small muted">Depois da aprovação, conecte o seu Garmin ou outro relógio em Perfil, Conexões. As corridas chegam sozinhas.</div></div></div>
+    </div></div>
+    <div class="row" style="gap:8px;margin-top:18px;justify-content:center"><button class="btn sm ghost" id="de-novo">Verificar aprovação</button><button class="link-btn small" id="sair">Sair</button></div>
+    <p class="tiny dim center" style="margin-top:8px">Login: ${esc(S.user.email || e.email || '')}</p>`;
+    document.getElementById('sair').onclick = () => { clearInterval(S.msgT); sb.auth.signOut(); };
+    document.getElementById('de-novo').onclick = () => verificar(true);
+    const bp = document.getElementById('esp-push');
+    if (bp) bp.onclick = async () => { bp.disabled = true; try { await ativarPush(); toast('Notificações ativadas!'); } catch (er) { toast(er.message, true); } pinta(); };
+    document.getElementById('esp-foto').onclick = () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = async () => {
+        const fl = inp.files && inp.files[0]; if (!fl) return;
+        try {
+          toast('Enviando foto…'); const blob = await reduzirImagem(fl);
+          const caminho = `${S.user.id}/foto-${Date.now()}.jpg`;
+          const { error } = await sb.storage.from('nx-avatares').upload(caminho, blob, { contentType: 'image/jpeg', cacheControl: '31536000' }); if (error) throw error;
+          const url = sb.storage.from('nx-avatares').getPublicUrl(caminho).data.publicUrl;
+          const { error: e2 } = await sb.rpc('nx_definir_foto', { p_url: url }); if (e2) throw e2;
+          e.foto_url = url; toast('Foto enviada!'); pinta();
+        } catch (er) { console.error(er); toast('Não foi possível enviar a foto. Tente outra imagem.', true); }
+      };
+      inp.click();
+    };
+  };
+  const verificar = async (manual) => {
+    await carregarPerfil().catch(() => {});
+    if (S.me) { clearInterval(S.msgT); document.removeEventListener('visibilitychange', S.esperaVis); toast('Acesso liberado! Bem-vindo(a) à Nexos.'); return router(); }
+    if (manual) toast('Ainda aguardando a aprovação do treinador.');
+  };
+  pinta();
+  clearInterval(S.msgT); S.msgT = setInterval(() => { if (!document.hidden) verificar(false); }, 30000);
+  document.removeEventListener('visibilitychange', S.esperaVis);
+  S.esperaVis = () => { if (!document.hidden && location.hash.replace(/^#\/?/, '') === '' && !S.me && S.user) verificar(false); };
+  document.addEventListener('visibilitychange', S.esperaVis);
 }
 
 /* ================= EVENTOS: provas do Radar + eventos da Nexos ================= */
@@ -2201,7 +2254,7 @@ async function ativarPushInterno() {
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUB) });
   const j = sub.toJSON();
-  const { data, error } = await sb.functions.invoke('nx-push', { body: { acao: 'inscrever', org_id: S.org.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, dispositivo: navigator.userAgent.slice(0, 120) } });
+  const { data, error } = await sb.functions.invoke('nx-push', { body: { acao: 'inscrever', org_id: (S.org || S.esperaOrg).id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, dispositivo: navigator.userAgent.slice(0, 120) } });
   if (error || data?.erro) throw new ErroPT('Não foi possível ativar agora. Tente de novo.');
   sb.functions.invoke('nx-push', { body: { acao: 'teste' } }).catch(() => {});
   store.set('nx-push-ok', 1);
@@ -7926,7 +7979,7 @@ async function viewFicha(token) {
   $app.innerHTML = `
     <div class="ficha-top"><img src="${LOGO.s()}" alt="">${slashes}</div>
     <p class="eyebrow">${esc(info.org)}</p><h1 class="h1" style="margin-top:4px">Ficha de entrada</h1>
-    <p class="muted small" style="margin:8px 0 0">São 7 etapas rápidas, uns 5 minutos. Com essas respostas o treinador monta um treino certo para você, com segurança. Campos com * são obrigatórios.</p>
+    <p class="muted small" style="margin:8px 0 0">São 8 etapas rápidas, uns 5 minutos. Com essas respostas o treinador monta um treino certo para você, com segurança. Campos com * são obrigatórios.</p>
     <form id="f-ficha" class="stack" style="margin-top:16px" novalidate>
       ${sec(1, 'Seus dados', '', `
         <label class="field"><span>Nome completo *</span><input class="input" name="nome" required value="${esc(info.nome)}" autocomplete="name"></label>
@@ -7966,6 +8019,12 @@ async function viewFicha(token) {
         <label class="ficha-aceite"><input type="checkbox" name="aceite"><span>Li e aceito o termo de responsabilidade acima. *</span></label>
         <div class="field" style="margin-top:12px"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
         <label class="field"><span>Quer contar mais alguma coisa?</span><textarea class="textarea" name="obs"></textarea></label>`)}
+      ${sec(8, 'Seu acesso ao app', 'Crie a senha que você vai usar para entrar no app da Nexos. Ao enviar, você já entra.', `
+        <div class="fx-login small muted">Seu login: <b id="fx-login">o e-mail da etapa 1</b></div>
+        <label class="field"><span>Confirme o seu e-mail *</span><input class="input" type="email" name="email2" inputmode="email" autocomplete="off" autocapitalize="off" placeholder="digite o e-mail de novo"></label>
+        <label class="field"><span>Crie uma senha *</span><div class="pass-wrap"><input class="input" type="password" name="senha" autocomplete="new-password" placeholder="mínimo de 6 caracteres"><button type="button" class="icon-btn" id="fx-ver" aria-label="Mostrar senha">${I.eye}</button></div></label>
+        <label class="field"><span>Repita a senha *</span><input class="input" type="password" name="senha2" autocomplete="new-password" placeholder="a mesma senha"></label>
+        <p class="tiny dim">Guarde essa senha: é com ela e com o seu e-mail que você entra no app.</p>`)}
       <button class="btn block" type="submit">Enviar ficha ${I.check}</button>
       <p class="tiny dim center">Suas respostas vão só para a equipe de treinadores da Nexos.</p>
     </form>`;
@@ -7986,6 +8045,16 @@ async function viewFicha(token) {
   });
   aplicarMascaras(f);
   ajustar();
+  const fxLogin = f.querySelector('#fx-login');
+  f.querySelector('[name=email]').addEventListener('input', (e) => { fxLogin.textContent = e.target.value.trim() || 'o e-mail da etapa 1'; });
+  f.querySelector('#fx-ver').onclick = () => { const vis = f.querySelector('[name=senha]').type === 'password'; f.querySelectorAll('[name=senha],[name=senha2]').forEach((x) => (x.type = vis ? 'text' : 'password')); };
+  const erroAcesso = (fd) => {
+    const v = (n) => String(fd.get(n) || '').trim();
+    if (v('email2').toLowerCase() !== v('email').toLowerCase()) return { msg: 'Os e-mails não são iguais. Confira o e-mail.', sel: '[name=email2]' };
+    if (String(fd.get('senha') || '').length < 6) return { msg: 'A senha precisa ter pelo menos 6 caracteres.', sel: '[name=senha]' };
+    if (fd.get('senha') !== fd.get('senha2')) return { msg: 'As senhas não são iguais.', sel: '[name=senha2]' };
+    return null;
+  };
   etapas(f, (el) => {
     const fd = new FormData(f), v = (n) => String(fd.get(n) || '').trim(), k = el.dataset.k;
     const mods = fd.getAll('modalidades');
@@ -8004,6 +8073,7 @@ async function viewFicha(token) {
     if (k === '5') { const iq = PARQ.findIndex((_, i) => !fd.get('q' + (i + 1))); return iq >= 0 ? { msg: `Responda a pergunta ${iq + 1} do PAR-Q.`, sel: `[name=q${iq + 1}]` } : null; }
     if (k === '6') { const c = mods.includes('corrida') ? fd.getAll('d_corrida') : [], fo = mods.includes('musculacao') ? fd.getAll('d_forca') : []; return c.length || fo.length ? null : { msg: 'Marque os dias em que pode treinar.', sel: '.disp-l:not([hidden]) input' }; }
     if (k === '7') return fd.get('aceite') ? null : { msg: 'Aceite o termo de responsabilidade.', sel: '[name=aceite]' };
+    if (k === '8') return erroAcesso(fd);
     return null;
   });
   f.onsubmit = async (e) => {
@@ -8028,28 +8098,32 @@ async function viewFicha(token) {
     if (!d.disponibilidade.corrida.length && !d.disponibilidade.forca.length) return falta('.disp-l:not([hidden]) input', 'Marque os dias em que pode treinar.');
     if (!fd.get('aceite')) return falta('[name=aceite]', 'Aceite o termo de responsabilidade no final.');
     if (!d.nascimento) return falta('[name=nascimento]', 'Confira a data de nascimento.');
+    const ea = erroAcesso(fd); if (ea) return falta(ea.sel, ea.msg);
+    const senha = String(fd.get('senha'));
     d.aceite = true; btn.disabled = true; btn.textContent = 'Enviando…';
     try {
       const env = await chamarForm({ acao: 'enviar', token, dados: d });
       window.scrollTo(0, 0);
-      $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:28px 18px">${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">O seu treinador da Nexos já recebeu as suas respostas.</p></div>
-        ${env && env.resposta ? `<div class="card acesso-card" id="acesso-card" style="margin-top:16px"><div class="center"><div class="h3">Enviando o seu pedido de acesso…</div></div></div>` : ''}`;
-      // o pedido de acesso sai sozinho junto com a ficha (antes dependia de mais um toque e muita gente saía da página)
-      const pedir = async () => {
-        const box = document.getElementById('acesso-card'); if (!box) return;
+      const tela = (corpo) => { $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:28px 18px">${corpo}</div>`; };
+      const irLogin = (email, txt) => tela(`${estIc(I.caixa)}<div class="h3" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin:8px 0 14px">${txt}</p><a class="btn block" href="${esc(loginURL())}">Entrar no app</a><p class="tiny dim" style="margin-top:10px">Login: <b>${esc(email)}</b></p>`);
+      // cria a conta com a senha que o aluno escolheu e já entra no app (fica aguardando a aprovação do treinador)
+      const criar = async () => {
+        tela(`${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">Criando o seu acesso ao app…</p>`);
         try {
-          const r = await chamarForm({ acao: 'criar_acesso', token, resposta: env.resposta });
-          box.innerHTML = r.pendente
-            ? `<div class="center">${estIc(I.espera, 'warn')}<div class="h3" style="margin-top:6px">Pedido de acesso enviado!</div><p class="small muted" style="margin:6px 0 4px">Assim que o seu treinador aprovar, o login e a senha do app chegam em <b>${esc(r.email)}</b>.</p><p class="tiny dim">Pode fechar esta página. Se o e-mail não aparecer, olhe também no Spam ou em Promoções.</p></div>`
-            : r.senha
-            ? `<div class="center">${estIc(I.okc, 'ok')}<div class="h3" style="margin-top:6px">Acesso criado!</div><p class="small muted" style="margin:6px 0 12px">Anote os seus dados:</p></div><div class="cred">E-mail: <b>${esc(r.email)}</b><br>Senha: <b>${esc(r.senha)}</b></div><a class="btn block" href="${esc(loginURL())}" style="margin-top:12px">Entrar no app</a>`
-            : `<div class="center">${estIc(I.caixa)}<div class="h3" style="margin-top:6px">Você já tem acesso!</div><p class="small muted" style="margin:6px 0 12px">Entre no app com <b>${esc(r.email)}</b> e a senha que você já usa.</p></div><a class="btn block" href="${esc(loginURL())}">Ir para o app</a>`;
+          const r = await chamarForm({ acao: 'criar_acesso', token, resposta: env.resposta, senha });
+          if (r.existente) return irLogin(r.email, 'Você já tem acesso ao app da Nexos. Entre com o seu e-mail e a senha que você já usa.');
+          if (r.conta_existente) return irLogin(r.email, 'Este e-mail já tinha uma conta. Entre com a senha que você já usa (ou toque em “Esqueci minha senha”). Seu treinador vai aprovar o seu acesso.');
+          const { data: li, error: le } = await sb.auth.signInWithPassword({ email: r.email, password: senha });
+          if (le || !li || !li.user) return irLogin(r.email, 'Seu acesso foi criado. Entre com o seu e-mail e a senha que você acabou de criar.');
+          S.user = li.user; try { await carregarPerfil(); } catch {}
+          if (location.hash !== '#/') location.hash = '#/'; else router(); // a troca do endereço chama o router
         } catch (er) {
-          box.innerHTML = `<div class="center"><div class="h3">Falta só um passo</div><p class="small muted" style="margin:6px 0 12px">${esc(er.message || 'Não conseguimos enviar o pedido de acesso agora.')}</p></div><button class="btn block mail-btn" id="receber">${I.mail} Pedir meu acesso de novo</button>`;
-          box.querySelector('#receber').onclick = () => { box.innerHTML = '<div class="center"><div class="h3">Enviando…</div></div>'; pedir(); };
+          tela(`<div class="h3">Falta só um passo</div><p class="small muted" style="margin:6px 0 12px">${esc(er.message || 'Não conseguimos criar o seu acesso agora.')}</p><button class="btn block" id="receber">Tentar de novo</button>`);
+          document.getElementById('receber').onclick = criar;
         }
       };
-      if (env && env.resposta) pedir();
+      if (env && env.resposta) await criar();
+      else tela(`${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">Ficha enviada, ${esc(firstName(d.nome))}!</div><p class="small muted" style="margin-top:8px">O seu treinador da Nexos já recebeu as suas respostas.</p>`);
     } catch (err) { btn.disabled = false; btn.textContent = 'Enviar ficha'; toast(err.message, true); }
   };
 }
