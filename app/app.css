@@ -1839,3 +1839,7 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .arq-btn b{flex:none;padding:14px 16px;background:var(--bg2);border-right:1px solid var(--line);font-weight:800;font-size:.9rem}
 .arq-btn i{flex:1;min-width:0;padding:0 14px;font-style:normal;color:var(--mute);font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arq-btn.ok{border-color:var(--acc)}.arq-btn.ok i{color:var(--ink);font-weight:700}
+.ed-modo button{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:.9rem}
+.ed-modo button svg{width:16px;height:16px}
+.ed-modo{margin-right:44px}
+#ed-plan{margin-top:16px}

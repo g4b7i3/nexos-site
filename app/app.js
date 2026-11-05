@@ -3567,8 +3567,56 @@ function arrastar(root, { item, alvo, soltar, handle }) {
   root.addEventListener('contextmenu', (e) => { if (st || e.target.closest(item)) e.preventDefault(); });
 }
 
+/* ---------- planilha do treinador: o que o aluno fez naquele treino (aparece junto do editor) ---------- */
+async function montarFeito(r, feitoBase, plano) {
+  const plan = document.createElement('div'); plan.id = 'ed-plan'; plan.hidden = true;
+  while (r.firstChild) plan.appendChild(r.firstChild);
+  r.innerHTML = `<p class="eyebrow">${fmtDia(plano.data)} · ${esc(plano.titulo || nomeTipo(plano.tipo))}</p>
+    <div class="seg ed-modo" style="margin-top:10px"><button type="button" data-modo="feito" class="on">${I.check} Feito pelo aluno</button><button type="button" data-modo="plan">Treino prescrito</button></div>
+    <div id="ed-feito" style="margin-top:14px"><p class="small muted">Carregando o treino do aluno…</p></div>`;
+  r.appendChild(plan);
+  r.querySelector('.ed-modo').onclick = (e) => {
+    const b = e.target.closest('[data-modo]'); if (!b) return;
+    r.querySelectorAll('.ed-modo button').forEach((x) => x.classList.toggle('on', x === b));
+    r.querySelector('#ed-feito').hidden = b.dataset.modo !== 'feito'; plan.hidden = b.dataset.modo !== 'plan';
+  };
+  const box = r.querySelector('#ed-feito');
+  const [{ data: c }, { data: al }] = await Promise.all([
+    sb.from('nx_corridas').select('*').eq('id', feitoBase.id).maybeSingle(),
+    sb.from('nx_membros').select('nome').eq('org_id', S.org.id).eq('user_id', feitoBase.aluno_id || plano.aluno_id).maybeSingle(),
+  ]);
+  if (!c) { box.innerHTML = '<p class="small muted">Não foi possível carregar o treino do aluno.</p>'; return; }
+  const pace = paceDe(c), parc = c.parciais || [];
+  const pk = (x) => x.seg / (x.parcial ? (x.km % 1 || 1) : 1);
+  const pMin = parc.length ? Math.min(...parc.map(pk)) : 0, pMax = parc.length ? Math.max(...parc.map(pk)) : 0;
+  const prevKm = plano.distancia_km ? Number(plano.distancia_km) : null;
+  box.innerHTML = `
+    <div class="row between" style="gap:8px;flex-wrap:wrap"><b>${fmtDia(c.data)} · ${fmtHora(c.data)}${c.fonte === 'garmin' ? ' · Garmin' : c.fonte === 'celular' ? ' · GPS do celular' : ''}</b>
+      ${c.comentario_treinador ? `<span class="tag ok">${I.check} Comentado</span>` : c.visto_treinador ? `<span class="tag ok">${I.check} Visto</span>` : '<span class="tag warn">Ainda não visto</span>'}</div>
+    <div class="metrics" style="margin-top:10px">
+      ${comDist(c) ? `<div class="metric"><span>Distância</span><b>${fmtKm(c.distancia_m).replace(' km', '')}<small>km</small></b>${prevKm ? `<em>previsto ${String(prevKm).replace('.', ',')} km · ${Math.round((c.distancia_m / 1000 / prevKm) * 100)}%</em>` : ''}</div>` : ''}
+      <div class="metric"><span>Tempo</span><b>${fmtDurLongo(c.duracao_s)}</b></div>
+      ${comDist(c) ? `<div class="metric"><span>Pace médio</span><b>${fmtPace(pace).replace('/km', '')}<small>/km</small></b></div>` : ''}
+      ${c.fc_media ? `<div class="metric"><span>FC média</span><b>${c.fc_media}<small>bpm</small></b>${c.fc_max ? `<em>máx ${c.fc_max}</em>` : ''}</div>` : ''}
+      ${c.elevacao_m ? `<div class="metric"><span>Subida</span><b>${Math.round(c.elevacao_m)}<small>m</small></b></div>` : ''}
+      ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
+    </div>
+    ${c.dor ? `<div class="card" style="margin-top:10px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor${c.dor_local ? ': ' + esc(c.dor_local) : ''}</span></div>` : ''}
+    ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
+    ${c.comentario ? `<div class="card" style="margin-top:10px"><span class="eyebrow">Como foi, nas palavras do aluno</span><p style="margin-top:6px">“${esc(c.comentario)}”</p></div>` : ''}
+    ${c.comentario_treinador ? `<div class="card coment-tr" style="margin-top:10px"><span class="eyebrow">${I.feed} Seu comentário</span><p style="margin-top:6px;white-space:pre-line">${esc(c.comentario_treinador)}</p></div>` : ''}
+    ${parc.length ? `<div class="card" style="margin-top:10px"><span class="eyebrow">Parciais</span><div class="splits" style="margin-top:8px">${parc.slice(0, 30).map((x) => { const v = pk(x); const w = pMax > pMin ? 35 + (65 * (pMax - v)) / (pMax - pMin) : 100; return `<div><span>${x.parcial ? String(x.km).replace('.', ',') : 'km ' + x.km}</span><i style="width:${w.toFixed(0)}%"></i><b>${fmtPace(v).replace('/km', '')}</b><em>${x.fc ? x.fc + ' bpm' : ''}</em></div>`; }).join('')}</div></div>` : ''}
+    <div class="grid2" style="margin-top:14px">${c.visto_treinador ? '' : `<button type="button" class="btn ghost" data-visto="corrida|${c.id}">${I.check} Visto</button>`}<button type="button" class="btn ghost" id="fe-coment">${I.feed} ${c.comentario_treinador ? 'Editar comentário' : 'Comentar'}</button></div>
+    <a class="btn block" href="#/corrida/${c.id}" style="margin-top:8px">Ver análise completa (gráficos, mapa e voltas)</a>
+    <button type="button" class="link-btn small" id="fe-editar" style="display:block;margin:12px auto 0">Editar o treino prescrito</button>`;
+  const vb = box.querySelector('[data-visto]'); if (vb) vb.onclick = () => marcarVisto(vb);
+  box.querySelector('#fe-coment').onclick = () => comentarTreino(c, al || { nome: 'Aluno' });
+  box.querySelector('#fe-editar').onclick = () => r.querySelector('[data-modo="plan"]').click();
+  box.querySelector('a[href^="#/corrida/"]').onclick = () => closeSheet(true);
+}
+
 /* ---------- editor de treino estruturado ---------- */
-function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos }) {
+function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos, feito }) {
   const base = sessao ? { ...sessao, estrutura: clone(estruturaDe(sessao)) } : { data, tipo: (modelo && modelo.tipo) || 'rodagem', titulo: modelo ? modelo.nome : '', estrutura: clone(modelo ? modelo.estrutura : [passo('co', 6, 'km', 'leve')]), descricao: '' };
   const t = base;
   const zonaSel = (z, cam) => `<select class="input zsel" data-cam="${cam}" data-f="z" style="--zc:${(ZONAS_INFO[z] || ZONAS_INFO.leve).c}">${Object.entries(ZONAS_INFO).map(([k, i]) => `<option value="${k}" ${z === k ? 'selected' : ''}>${i.n}</option>`).join('')}</select>`;
@@ -3600,6 +3648,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn grow" id="t-salvar">Salvar treino ${I.check}</button>${sessao ? '<button class="btn ghost" id="t-dup">Duplicar</button>' : ''}</div>
     <div class="row between" style="margin-top:12px"><button class="link-btn small" id="t-modelo">Salvar como modelo</button>${sessao ? '<button class="link-btn small" id="t-del" style="color:var(--err)">Excluir treino</button>' : ''}</div>`, (r) => {
     desenhar(r);
+    if (feito && sessao) montarFeito(r, feito, sessao);
     const pc = r.querySelector('#passos');
     pc.addEventListener('change', (e) => {
       const el = e.target.closest('[data-cam]'); if (!el || !el.dataset.f) return;
@@ -4004,7 +4053,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       if (se) { const p = plano.find((x) => x.id === se.dataset.ses); if (!p) return;
         if (p.tipo === 'forca') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Dia de força</div><p class="small muted" style="margin-top:6px">O aluno faz força por conta própria e não tem corrida nesse dia. Ele vê “Hoje é dia de força” na tela inicial.</p><label class="field" style="margin-top:14px"><span>Recado para o aluno (opcional)</span><input class="input" id="fo-obs" maxlength="120" placeholder="Ex.: academia às 18h, foco em pernas" value="${esc(p.descricao || '')}"></label><button class="btn block" id="fo-ok" style="margin-top:12px">Salvar</button><button class="btn ghost danger block" id="fo-del" style="margin-top:8px">Tirar o dia de força</button>`, (r) => { r.querySelector('#fo-ok').onclick = async () => { const { error } = await sb.from('nx_plano_corrida').update({ descricao: r.querySelector('#fo-obs').value.trim() || null }).eq('id', p.id); closeSheet(); error ? toast('Não foi possível salvar.', true) : (toast('Dia de força salvo.'), recarregar()); }; r.querySelector('#fo-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Dia de força removido.'); recarregar(); }; }) : toast(p.descricao ? `Dia de força: ${p.descricao}` : 'Dia de força: treino de força por sua conta, sem corrida.');
         if (p.tipo === 'folga') return staff ? openSheet(`<p class="eyebrow">${fmtDia(p.data)}</p><div class="h2" style="margin-top:4px">Day off</div><p class="small muted" style="margin-top:6px">Dia de descanso de corrida. O aluno vê “Hoje é day off” na tela inicial.</p><button class="btn danger block" id="off-del" style="margin-top:16px">Tirar o day off</button>`, (r) => { r.querySelector('#off-del').onclick = async () => { await sb.from('nx_plano_corrida').delete().eq('id', p.id); closeSheet(); toast('Day off removido.'); recarregar(); }; }) : toast('Day off: dia de descanso.');
-        staff ? editorTreino({ alunoId, perfil, sessao: p, aoSalvar: recarregar, modelos: modelosOrg }) : verTreinoPlanilha(p, perfil, corridas.find((c) => c.plano_id === p.id)); }
+        staff ? editorTreino({ alunoId, perfil, sessao: p, aoSalvar: recarregar, modelos: modelosOrg, feito: corridas.find((c) => c.plano_id === p.id) }) : verTreinoPlanilha(p, perfil, corridas.find((c) => c.plano_id === p.id)); }
     });
     const escolherModelo = (data) => openSheet(`<p class="eyebrow">${fmtDia(data)}</p><div class="h2" style="margin-top:4px">Escolha um ponto de partida</div><div style="margin-top:12px">${chipsNivHTML(store.get('nx_bib_niv', 'todos'), 'pick-niv')}</div><div class="sheet-mods" id="pick-l"></div>`, (r) => {
       const desenhaPick = () => { const sel = store.get('nx_bib_niv', 'todos'); const lst = modelos.filter((md) => !semCorrida(md) && passaNiv(md, sel));
