@@ -1887,3 +1887,12 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .ni-mais[open] summary{background:var(--bg2);color:var(--mute);border:1px solid var(--line)}
 .ni-mais ul{margin:10px 0 2px;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:.9rem;color:var(--mute)}
 .ni-mais .ni-b,.ni-mais[open] .ni-a{display:none}.ni-mais[open] .ni-b{display:inline}
+/* corte de vídeo (vira um trecho curto em loop) */
+.corte{margin:4px 0 12px;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--bg2)}
+.corte-v{border-radius:12px;overflow:hidden;background:#000;max-height:260px;display:flex;justify-content:center}
+.corte-v video{max-width:100%;max-height:260px;display:block}
+.corte-faixa{position:relative;height:10px;border-radius:6px;background:var(--line);margin:12px 0 4px;overflow:hidden}
+.corte-faixa i{position:absolute;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.corte-r{display:flex;flex-direction:column;gap:2px;margin-top:8px;font-size:.84rem;color:var(--mute);font-weight:700}
+.corte-r b{color:var(--ink);font-family:var(--f-m)}
+.corte-r input{width:100%;accent-color:var(--acc2)}

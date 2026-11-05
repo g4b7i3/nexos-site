@@ -104,7 +104,7 @@ const selo = (k, extra = '') => `<span class="selo ${k === 'corrida' ? 'selo-c' 
 const imgURL = (p) => (/^https?:/.test(p) ? p : 'ex/' + p);
 function exFig(ex, cls = '') {
   const im = (ex && ex.imagens) || [];
-  if (!im.length && ex && ehVideoArquivo(ex.video_url)) return `<div class="exfig ${cls}"><video src="${esc(ex.video_url)}#t=0.5" muted playsinline preload="metadata" aria-hidden="true"></video></div>`;
+  if (!im.length && ex && ehVideoArquivo(ex.video_url)) return `<div class="exfig ${cls}"><video src="${esc(ex.video_url.split('#')[0])}#t=0.5" muted playsinline preload="metadata" aria-hidden="true"></video></div>`;
   if (!im.length) return `<div class="exfig empty ${cls}" aria-hidden="true"><span>${esc((ex && ex.grupo) || '')}</span></div>`;
   return `<div class="exfig ${im.length > 1 ? 'anim' : ''} ${cls}">${im.slice(0, 2).map((p, k) => `<img src="${esc(imgURL(p))}" alt="${k ? '' : esc(ex.nome)}" loading="lazy" decoding="async">`).join('')}</div>`;
 }
@@ -123,7 +123,7 @@ async function hidratarInstrucoes(root = document) {
 // vídeo em arquivo (mp4/mov/webm ou do armazenamento) toca dentro do app; link de YouTube etc. abre fora
 const ehVideoArquivo = (u) => /\.(mp4|mov|m4v|webm)(\?|$)/i.test(u || '') || /\/storage\/v1\/object\//.test(u || '');
 const exVideoHTML = (ex) => ex && ex.video_url && ehVideoArquivo(ex.video_url)
-  ? `<div class="ex-vid"><video src="${esc(ex.video_url)}" controls playsinline ${ex.com_audio ? '' : 'muted'} loop preload="none"></video>${ex.video_credito ? `<p class="tiny dim">Vídeo: ${esc(ex.video_credito).replace('CC BY-SA 4.0', '<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" target="_blank" rel="noopener" class="dim">CC BY-SA 4.0</a>')}</p>` : ''}</div>` : '';
+  ? `<div class="ex-vid">${/#loop$/.test(ex.video_url) ? `<video src="${esc(ex.video_url.split('#')[0])}" autoplay muted loop playsinline preload="metadata" disablepictureinpicture></video>` : `<video src="${esc(ex.video_url)}" controls playsinline ${ex.com_audio ? '' : 'muted'} loop preload="none"></video>`}${ex.video_credito ? `<p class="tiny dim">Vídeo: ${esc(ex.video_credito).replace('CC BY-SA 4.0', '<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" target="_blank" rel="noopener" class="dim">CC BY-SA 4.0</a>')}</p>` : ''}</div>` : '';
 function exDetalhe(ex) {
   const passos = (ex.instrucoes && ex.instrucoes.length) ? passosHTML(ex.instrucoes)
     : ex.ref_externa ? `<div data-instr-ref="${esc(ex.ref_externa)}"><p class="dim small">Carregando instruções…</p></div>`
@@ -6154,6 +6154,80 @@ async function escolherExercicio(exs, onPick) {
   });
   abrir();
 }
+/** corta um trecho do vídeo no próprio aparelho (sem servidor): toca o trecho num canvas e grava.
+ *  Sai um clipe curto, leve e sem som, que o app toca em loop como um GIF. */
+async function cortarVideo(src, ini, fim, aoProgresso) {
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.crossOrigin = 'anonymous'; v.preload = 'auto';
+  v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0';
+  document.body.appendChild(v);
+  const url = src instanceof Blob ? URL.createObjectURL(src) : src;
+  try {
+    v.src = url;
+    await new Promise((ok, erro) => { v.onloadedmetadata = ok; v.onerror = () => erro(new Error('vídeo')); });
+    const k = Math.min(1, 720 / Math.max(v.videoWidth || 720, v.videoHeight || 720));
+    const cv = document.createElement('canvas'); cv.width = Math.round(((v.videoWidth || 720) * k) / 2) * 2; cv.height = Math.round(((v.videoHeight || 1280) * k) / 2) * 2;
+    const ctx = cv.getContext('2d');
+    const tipo = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+    if (!tipo || !cv.captureStream) throw new Error('sem suporte');
+    v.currentTime = ini; await new Promise((ok) => { v.onseeked = ok; });
+    ctx.drawImage(v, 0, 0, cv.width, cv.height);
+    const rec = new MediaRecorder(cv.captureStream(30), { mimeType: tipo, videoBitsPerSecond: 2500000 });
+    const partes = []; rec.ondataavailable = (e) => { if (e.data && e.data.size) partes.push(e.data); };
+    const fimRec = new Promise((ok) => { rec.onstop = ok; });
+    rec.start(250); await v.play();
+    await new Promise((ok) => {
+      const passo = () => {
+        ctx.drawImage(v, 0, 0, cv.width, cv.height);
+        if (aoProgresso) aoProgresso(Math.min(1, (v.currentTime - ini) / (fim - ini)));
+        if (v.currentTime >= fim || v.ended) { v.pause(); ok(); return; }
+        v.requestVideoFrameCallback ? v.requestVideoFrameCallback(passo) : requestAnimationFrame(passo);
+      };
+      passo();
+    });
+    rec.stop(); await fimRec;
+    const mime = tipo.split(';')[0];
+    return new File([new Blob(partes, { type: mime })], `trecho.${mime === 'video/mp4' ? 'mp4' : 'webm'}`, { type: mime });
+  } finally { if (src instanceof Blob) URL.revokeObjectURL(url); v.remove(); }
+}
+const mmssC = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}${t % 1 >= 0.05 ? ',' + Math.floor((t % 1) * 10) : ''}`;
+/** painel de corte: prévia, começo/fim e atalhos de 5, 10 e 15 s. Devolve { ativo, ini, fim } atualizado */
+function painelCorte(box, src, cortarPadrao) {
+  const st = { ativo: false, ini: 0, fim: 0, dur: 0 };
+  const url = src instanceof Blob ? URL.createObjectURL(src) : src;
+  box.hidden = false;
+  box.innerHTML = `<div class="corte-v"><video src="${esc(url)}" muted playsinline preload="metadata" crossorigin="anonymous"></video></div>
+    <label class="aceite" style="margin-top:10px"><input type="checkbox" data-c="on"><span><b>Cortar o vídeo</b> (vira um trecho curto, em loop, como um GIF)</span></label>
+    <div data-c="ctl" hidden>
+      <div class="corte-faixa"><i data-c="sel"></i></div>
+      <label class="corte-r"><span>Começa em <b data-c="ti">0:00</b></span><input type="range" data-c="ini" min="0" step="0.1" value="0"></label>
+      <label class="corte-r"><span>Termina em <b data-c="tf">0:00</b></span><input type="range" data-c="fim" min="0" step="0.1" value="0"></label>
+      <div class="row between" style="gap:8px;flex-wrap:wrap;margin-top:6px"><div class="row" style="gap:6px">${[5, 10, 15].map((n) => `<button type="button" class="chip" data-dur="${n}">${n} s</button>`).join('')}</div>
+        <button type="button" class="btn ghost sm" data-c="ver">${I.play} Ver trecho</button></div>
+      <p class="tiny dim" data-c="info" style="margin-top:8px"></p>
+    </div>`;
+  const v = box.querySelector('video'), q = (k) => box.querySelector(`[data-c="${k}"]`);
+  const desenhar = () => {
+    q('ti').textContent = mmssC(st.ini); q('tf').textContent = mmssC(st.fim);
+    q('ini').value = st.ini; q('fim').value = st.fim;
+    q('sel').style.left = (st.ini / st.dur) * 100 + '%'; q('sel').style.width = ((st.fim - st.ini) / st.dur) * 100 + '%';
+    q('info').textContent = `Trecho de ${(Math.round((st.fim - st.ini) * 10) / 10).toString().replace('.', ',')} s de um vídeo de ${mmssC(st.dur)}. O trecho fica sem som e leve para o aluno abrir rápido.`;
+  };
+  const ligar = (on) => { st.ativo = on; q('on').checked = on; q('ctl').hidden = !on; box.closest('form').querySelector('[name="sem_audio"]').closest('label').hidden = on; };
+  v.onloadedmetadata = () => {
+    st.dur = v.duration || 0; if (!isFinite(st.dur) || !st.dur) return;
+    q('ini').max = st.dur; q('fim').max = st.dur; st.fim = Math.min(st.dur, 10);
+    desenhar(); ligar(cortarPadrao || st.dur > 20);
+  };
+  q('on').onchange = () => ligar(q('on').checked);
+  q('ini').oninput = () => { st.ini = Math.min(+q('ini').value, st.dur - 1); if (st.fim <= st.ini + 1) st.fim = Math.min(st.dur, st.ini + 1); if (st.fim - st.ini > 30) st.fim = st.ini + 30; v.currentTime = st.ini; desenhar(); };
+  q('fim').oninput = () => { st.fim = Math.max(+q('fim').value, st.ini + 1); if (st.fim - st.ini > 30) st.ini = st.fim - 30; v.currentTime = st.fim; desenhar(); };
+  box.onclick = (e) => {
+    const d = e.target.closest('[data-dur]'); if (d) { st.fim = Math.min(st.dur, st.ini + +d.dataset.dur); desenhar(); return; }
+    if (e.target.closest('[data-c="ver"]')) { v.currentTime = st.ini; v.play().catch(() => {}); const ate = () => { if (v.currentTime >= st.fim) { v.pause(); v.currentTime = st.ini; return; } requestAnimationFrame(ate); }; ate(); }
+  };
+  return st;
+}
 async function enviarMidiaEx(file) {
   const ext = (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '') || (file.type.split('/')[1] || 'bin');
   const path = `${S.org.id}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -6187,8 +6261,9 @@ async function formExercicio(exLista, opts = {}) {
       <label class="field"><span>Mídia</span><select class="select" name="midia">${MIDIAS.map(([k, l]) => `<option value="${k}" ${k === md0 ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <div class="ex-midia" data-m="foto" hidden><div class="field"><span>Foto ou GIF</span><label class="arq-btn"><input type="file" name="foto" accept="image/jpeg,image/png,image/webp,image/gif"><b>Escolher arquivo</b><i>nenhum arquivo selecionado</i></label></div>
         ${md0 === 'foto' ? '<p class="tiny dim" style="margin-top:-6px">Já tem uma foto. Escolha outra só se quiser trocar.</p>' : ''}</div>
-      <div class="ex-midia" data-m="video" hidden><div class="field"><span>Vídeo do celular (até 50 MB)</span><label class="arq-btn"><input type="file" name="video" accept="video/mp4,video/quicktime,video/webm"><b>Escolher arquivo</b><i>nenhum arquivo selecionado</i></label></div>
-        ${md0 === 'video' ? '<p class="tiny dim" style="margin-top:-6px">Já tem um vídeo. Escolha outro só se quiser trocar.</p>' : ''}
+      <div class="ex-midia" data-m="video" hidden><div class="field"><span>Vídeo do celular</span><label class="arq-btn"><input type="file" name="video" accept="video/mp4,video/quicktime,video/webm"><b>Escolher arquivo</b><i>nenhum arquivo selecionado</i></label></div>
+        ${md0 === 'video' ? '<p class="tiny dim" style="margin-top:-6px">Já tem um vídeo. Escolha outro só se quiser trocar, ou <button type="button" class="link-btn small" id="corte-atual">corte o vídeo atual</button>.</p>' : ''}
+        <div class="corte" id="corte" hidden></div>
         <label class="aceite" style="margin-top:4px"><input type="checkbox" name="sem_audio" ${ex.com_audio ? '' : 'checked'}><span>Remover áudio (o vídeo toca sem som para o aluno)</span></label></div>
       <div class="ex-midia" data-m="youtube" hidden><label class="field"><span>Link do YouTube</span><input class="input" type="url" name="yt" value="${md0 === 'youtube' ? esc(ex.video_url) : ''}" placeholder="https://youtube.com/…"></label></div>
       <label class="field"><span>Grupo muscular</span><select class="select" name="grupo"><option value="">Selecione o grupo muscular</option>${grupos.map((x) => `<option ${x === ex.grupo ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select><small class="campo-erro" data-err="grupo" hidden>Campo obrigatório</small></label>
@@ -6203,7 +6278,12 @@ async function formExercicio(exLista, opts = {}) {
     const f = root.querySelector('#f-ex');
     const mostrar = () => root.querySelectorAll('.ex-midia').forEach((d) => { d.hidden = d.dataset.m !== f.midia.value; });
     mostrar(); f.midia.onchange = mostrar;
-    root.querySelectorAll('.arq-btn input').forEach((inp) => { inp.onchange = () => { inp.parentNode.querySelector('i').textContent = inp.files[0] ? inp.files[0].name : 'nenhum arquivo selecionado'; inp.parentNode.classList.toggle('ok', !!inp.files[0]); }; });
+    let corte = null, corteSrc = null;
+    root.querySelectorAll('.arq-btn input').forEach((inp) => { inp.onchange = () => {
+      inp.parentNode.querySelector('i').textContent = inp.files[0] ? inp.files[0].name : 'nenhum arquivo selecionado'; inp.parentNode.classList.toggle('ok', !!inp.files[0]);
+      if (inp.name === 'video') { if (inp.files[0]) { corteSrc = inp.files[0]; corte = painelCorte(root.querySelector('#corte'), corteSrc, inp.files[0].size > 50 * 1024 * 1024); } else { corte = null; root.querySelector('#corte').hidden = true; } }
+    }; });
+    const ca = root.querySelector('#corte-atual'); if (ca) ca.onclick = () => { corteSrc = ex.video_url; corte = painelCorte(root.querySelector('#corte'), corteSrc, true); };
     f.grupo.onchange = () => { root.querySelector('[data-err="grupo"]').hidden = !!f.grupo.value; };
     const vt = root.querySelector('#ex-voltar'); if (vt) vt.onclick = opts.voltar;
     f.onsubmit = async (e) => {
@@ -6214,18 +6294,25 @@ async function formExercicio(exLista, opts = {}) {
       const arq = midia === 'foto' ? f.foto.files[0] : midia === 'video' ? f.video.files[0] : null;
       if (midia === 'foto' && !arq && md0 !== 'foto') return toast('Escolha a foto ou o GIF.', true);
       if (midia === 'video' && !arq && md0 !== 'video') return toast('Escolha o vídeo.', true);
-      if (arq && arq.size > 50 * 1024 * 1024) return toast('O arquivo passa de 50 MB. Grave um vídeo mais curto.', true);
+      const vaiCortar = midia === 'video' && corte && corte.ativo && corte.fim > corte.ini;
+      if (arq && !vaiCortar && arq.size > 50 * 1024 * 1024) return toast('O vídeo passa de 50 MB. Marque “Cortar o vídeo” e escolha um trecho.', true);
       const yt = f.yt.value.trim();
       if (midia === 'youtube' && !/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i.test(yt)) return toast('Cole um link do YouTube válido.', true);
       const btn = root.querySelector('#ex-salvar'); btn.disabled = true; btn.textContent = arq ? 'Enviando a mídia…' : 'Salvando…';
+      let arqFinal = arq;
       try {
+        if (vaiCortar) {
+          try { arqFinal = await cortarVideo(corteSrc, corte.ini, corte.fim, (p) => { btn.textContent = `Cortando o vídeo… ${Math.round(p * 100)}%`; }); }
+          catch (er) { console.error(er); btn.disabled = false; btn.textContent = 'Salvar'; return toast('Este celular não conseguiu cortar o vídeo. Tente pelo Chrome ou envie um vídeo mais curto.', true); }
+          btn.textContent = 'Enviando a mídia…';
+        }
         const linhas = f.instrucoes.value.split('\n').map((x) => x.trim()).filter(Boolean);
         const proprias = (ex.imagens || []).filter((p) => /nx-exvideos/.test(p)), daBib = (ex.imagens || []).filter((p) => !/nx-exvideos/.test(p));
         const d = { nome, grupo: f.grupo.value, categoria: f.categoria.value || null, equipamento: f.equipamento.value.trim() || null, instrucoes: linhas, descricao: linhas[0] || null };
-        const url = arq ? await enviarMidiaEx(arq) : null;
+        const url = arqFinal ? (await enviarMidiaEx(arqFinal)) + (vaiCortar ? '#loop' : '') : null;
         if (midia === 'nenhuma') Object.assign(d, { video_url: null, imagens: daBib });
         else if (midia === 'foto') Object.assign(d, { video_url: null, imagens: url ? [url] : proprias.length ? proprias : daBib });
-        else if (midia === 'video') Object.assign(d, { video_url: url || ex.video_url, imagens: proprias.length ? [] : daBib, com_audio: !f.sem_audio.checked });
+        else if (midia === 'video') Object.assign(d, { video_url: url || ex.video_url, imagens: proprias.length ? [] : daBib, com_audio: !vaiCortar && !f.sem_audio.checked });
         else Object.assign(d, { video_url: yt, imagens: proprias.length ? [] : daBib });
         if (!d.video_url || midia !== 'video') d.com_audio = false;
         const r = novo ? await sb.from('nx_exercicios').insert({ ...d, org_id: S.org.id, criado_por: S.user.id }).select('*').single()
