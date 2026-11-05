@@ -331,6 +331,7 @@ async function router() {
     if (a === 'relatorio' && b) return await viewRelatorio(b);
     if (a === 'conversa') return await viewConversa(S.user.id, $app, false);
     if (a === 'conexoes') return await viewConexoes(b);
+    if (a === 'previsoes' && faz('corrida')) return await viewPrevisoes();
     if (a === 'gps' && faz('corrida')) return b ? await viewGps(b) : await viewGpsLista();
     if (a === 'postural' && b) return await viewPostural(b);
     if (a === 'corrida' && b) return await viewCorrida(b);
@@ -2300,6 +2301,97 @@ const statusPlanilha = (fimData) => {
 };
 const ehAniversario = (nasc, dias = 0) => { if (!nasc) return false; const h = new Date(Date.now() + dias * 864e5); return nasc.slice(5, 10) === isoDia(h).slice(5, 10); };
 
+/* Previsões de desempenho (5K, 10K, meia e maratona), no estilo do Strava e calculadas pela Nexos.
+   1) Para cada corrida dos 42 dias anteriores à data: VO2 pela velocidade (Jack Daniels) e o quanto do VO2máx ela
+      exigiu, pela frequência cardíaca média (relação de Swain: %FCmáx = 0,64 × %VO2máx + 37) ou, sem FC, pelo esforço (0–10).
+   2) Junta com o VDOT direto das corridas e do teste do perfil (desempenho real é piso).
+   3) Converte o VDOT no tempo de cada prova (inverso da fórmula de Daniels) e ajusta meia e maratona pela
+      corrida mais longa e pelo volume semanal recentes (sem base de longão, a previsão fica mais conservadora). */
+const PROVAS_PREV = [[5000, '5K', '5 km'], [10000, '10K', '10 km'], [21097, '21,1', 'Meia maratona'], [42195, '42,2', 'Maratona']];
+function tempoPorVdot(vdot, d) {
+  let lo = (d / 1000) * 90, hi = (d / 1000) * 1200;
+  for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (vdotDe(d, m) > vdot) lo = m; else hi = m; }
+  return (lo + hi) / 2;
+}
+function previsaoEm(corridas, perfil, ate) {
+  const t1 = typeof ate === 'number' ? ate : Date.parse(ate), t0 = t1 - 42 * 864e5;
+  const diretos = [], ests = []; let longa = 0, km42 = 0, n = 0;
+  corridas.forEach((c) => {
+    const t = Date.parse(c.data); if (!(t <= t1 && t > t0 - 14 * 864e5) || !ehCorr(c) || c.tipo === 'caminhada' || !c.distancia_m || !c.duracao_s) return;
+    if (t > t1 - 56 * 864e5) longa = Math.max(longa, c.distancia_m / 1000);
+    if (t <= t0) return;
+    km42 += c.distancia_m / 1000;
+    if (c.distancia_m < 2000 || c.duracao_s < 480) return;
+    const v = c.distancia_m / (c.duracao_s / 60); if (v < 100 || v > 450) return; // m/min (entre 10:00 e 2:13 /km)
+    n++;
+    diretos.push(vdotDe(c.distancia_m, c.duracao_s));
+    let pct = null;
+    if (c.fc_media && perfil.fcMax) { const f = (c.fc_media / perfil.fcMax) * 100; if (f >= 62 && f <= 102) pct = Math.min(1, (f - 37) / 64); }
+    else if (c.rpe != null && c.rpe > 0) pct = Math.min(1, 0.55 + c.rpe * 0.045);
+    if (pct && pct >= 0.4) ests.push({ v: (-4.6 + 0.182258 * v + 0.000104 * v * v) / pct, p: Math.min(2, c.duracao_s / 1800) });
+  });
+  if (perfil.vdot && perfil.teste_data) { const tt = Date.parse(perfil.teste_data + 'T12:00:00'); if (tt <= t1 && tt > t1 - 90 * 864e5) diretos.push(perfil.vdot); }
+  if (!diretos.length && !ests.length) return null;
+  const dir = diretos.length ? Math.max(...diretos) : 0;
+  let fis = 0;
+  if (ests.length) { // média ponderada da metade de cima (os treinos que melhor mostram o condicionamento)
+    ests.sort((a, b) => b.v - a.v); const top = ests.slice(0, Math.ceil(ests.length / 2));
+    fis = top.reduce((a, x) => a + x.v * x.p, 0) / top.reduce((a, x) => a + x.p, 0);
+  }
+  let vdot = dir ? Math.max(dir, Math.min(fis, dir * 1.2)) : fis;
+  vdot = Math.max(20, Math.min(80, vdot));
+  const semana = km42 / 6;
+  const tempos = PROVAS_PREV.map(([d]) => {
+    let s = tempoPorVdot(vdot, d);
+    if (d > 20000 && d < 22000 && longa < 16) s *= 1 + ((16 - longa) / 16) * 0.05;
+    if (d > 40000) s *= 1 + (longa < 30 ? ((30 - longa) / 30) * 0.1 : 0) + (semana < 40 ? ((40 - semana) / 40) * 0.05 : 0);
+    return s;
+  });
+  return { vdot, tempos, n };
+}
+const difTxt = (s) => { s = Math.round(Math.abs(s)); return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}min${s % 60 ? ' ' + (s % 60) + 's' : ''}` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}min`; };
+/** os quatro selos (5K, 10K, meia e maratona) com o tempo, o pace e quanto mudou. Sem SVG: também vai para o PDF. */
+function previsoesGrade(atual, antes, rotAntes) {
+  if (!atual) return '<p class="small muted">Ainda não há corridas suficientes para calcular. Registre corridas de 2 km ou mais (com frequência cardíaca ou esforço) e as previsões aparecem aqui.</p>';
+  return `<div class="pv-grade">${PROVAS_PREV.map(([d, selo, nome], i) => {
+    const s = atual.tempos[i], dif = antes ? s - antes.tempos[i] : null;
+    const pill = dif == null ? '' : Math.abs(dif) < 1 ? '<span class="pv-dif igual">= igual</span>' : `<span class="pv-dif ${dif < 0 ? 'melhor' : 'pior'}" title="${dif < 0 ? 'Mais rápido' : 'Mais lento'} que ${esc(rotAntes)}"><i></i>${difTxt(dif)}</span>`;
+    return `<div class="pv-it"><span class="pv-selo"><b>${selo}</b>${d > 20000 ? '<small>KM</small>' : ''}</span><strong>${fmtDurLongo(s)}</strong><span class="pv-pace">${fmtPace(s / (d / 1000))}</span>${pill}<span class="pv-nome">${nome}</span></div>`;
+  }).join('')}</div>`;
+}
+const PV_PER = [['hoje', 'Hoje', 0], ['1m', '1 M', 30], ['3m', '3 M', 90], ['6m', '6 M', 180]];
+/** cartão completo para a tela: abas Hoje/1M/3M/6M e a curva dos 10 km nos últimos 6 meses */
+function previsoesCard(box, corridas, perfil, { titulo = true } = {}) {
+  let per = 'hoje';
+  const agora = Date.now();
+  const desenhar = () => {
+    const off = PV_PER.find((p) => p[0] === per)[2];
+    const t = agora - off * 864e5, at = previsaoEm(corridas, perfil, t), an = previsaoEm(corridas, perfil, t - 30 * 864e5);
+    const hist = []; for (let w = 25; w >= 0; w--) { const p = previsaoEm(corridas, perfil, agora - w * 7 * 864e5); if (p) hist.push({ x: fmtCurto(new Date(agora - w * 7 * 864e5).toISOString()), y: +(p.tempos[1] / 60).toFixed(2) }); }
+    box.innerHTML = `<div class="card pv-card">
+      ${titulo ? `<div class="row between" style="gap:8px"><b class="h3">Previsões de desempenho</b>${slashes}</div>` : ''}
+      <p class="small muted" style="margin-top:4px">${off ? `Como estavam há ${off === 30 ? '1 mês' : off === 90 ? '3 meses' : '6 meses'}, comparadas com os 30 dias anteriores.` : 'Suas previsões atuais em comparação com as de 30 dias atrás.'}</p>
+      ${previsoesGrade(at, an, '30 dias antes')}
+      <div class="seg pv-per">${PV_PER.map(([k, l]) => `<button type="button" data-pv="${k}" class="${k === per ? 'on' : ''}">${l}</button>`).join('')}</div>
+      ${hist.length > 2 ? `<div style="margin-top:14px"><span class="small muted" style="font-weight:700">Previsão dos 10 km nos últimos 6 meses · menor é melhor</span>${grafico(hist, { fmt: (v) => fmtDurLongo(v * 60) })}</div>` : ''}
+      <details class="ajuda" style="margin-top:10px"><summary>Como a Nexos calcula?</summary><p>Usamos as suas corridas das últimas 6 semanas: o ritmo de cada uma e quanto ela exigiu de você (pela frequência cardíaca do relógio ou pelo esforço que você marcou). Isso estima o seu condicionamento (VDOT) e vira o tempo de cada prova. Meia e maratona também dependem do seu longão e do seu volume semanal. É uma estimativa para prova em percurso plano, com o treino específico; quanto mais corridas com relógio, mais precisa.</p></details>
+    </div>`;
+    box.querySelector('.pv-per').onclick = (e) => { const b = e.target.closest('[data-pv]'); if (b) { per = b.dataset.pv; desenhar(); } };
+  };
+  desenhar();
+}
+async function buscarCorridasPrev(alunoId, ate = Date.now()) {
+  const { data } = await sb.from('nx_corridas').select('data,tipo,distancia_m,duracao_s,fc_media,rpe').eq('aluno_id', alunoId)
+    .gte('data', new Date(ate - 260 * 864e5).toISOString()).lte('data', new Date(ate).toISOString()).order('data').limit(1000).then((r) => r, () => ({ data: [] }));
+  return data || [];
+}
+async function viewPrevisoes() {
+  loading();
+  const corridas = await buscarCorridasPrev(S.user.id);
+  $app.innerHTML = `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Corrida</p><h1 class="h1">Previsões de desempenho</h1><div id="pv-box" style="margin-top:14px"></div>`;
+  previsoesCard(document.getElementById('pv-box'), corridas, perfilCorrida(S.me), { titulo: false });
+}
+
 /* Fitness (carga crônica, 42 dias), Fadiga (aguda, 7 dias) e Forma (diferença) — modelo de Banister/Coggan com rTSS */
 function cargaCorrida(corridas, perfil) {
   const lim = perfil && perfil.paces && perfil.paces.limiar ? (perfil.paces.limiar[0] + perfil.paces.limiar[1]) / 2 : null;
@@ -3408,6 +3500,9 @@ async function relatorioMes(alunoId, box, staff, m) {
     sb.from('nx_registros').select('exercicio_nome,carga_kg,criado_em').eq('aluno_id', alunoId).not('carga_kg', 'is', null).lte('criado_em', ate(fim)).order('criado_em').limit(3000).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', alunoId).gte('data', ini).lte('data', fim).then((r) => r.data || []).catch(() => []),
   ]);
+  const fimMs = Math.min(Date.now(), Date.parse(ate(fim))), fimAntMs = Date.parse(ate(fimAnt));
+  const corrPrev = faz('corrida', m) ? await buscarCorridasPrev(alunoId, fimMs) : [];
+  const perfPrev = perfilCorrida(m), prevMes = previsaoEm(corrPrev, perfPrev, fimMs), prevAnt = previsaoEm(corrPrev, perfPrev, fimAntMs);
   const km = corrs.reduce((a, c) => a + c.distancia_m, 0) / 1000, kmAnt = corrsAnt.reduce((a, c) => a + c.distancia_m, 0) / 1000;
   const diasT = new Set([...corrs.map((c) => isoDia(c.data)), ...sess.map((x) => isoDia(x.iniciado_em))]).size;
   const diasAnt = new Set([...corrsAnt.map((c) => isoDia(c.data)), ...sessAnt.map((x) => isoDia(x.iniciado_em))]).size;
@@ -3442,6 +3537,7 @@ async function relatorioMes(alunoId, box, staff, m) {
       ${fC && corrs.length ? `<div class="rm-sec"><h3>Quilômetros por semana</h3><div class="rm-barras">${porSem.map((x) => `<div><i style="height:${Math.max(3, (x.km / maxKm) * 100)}%"></i><b>${f1(x.km)}</b><small>${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small></div>`).join('')}</div></div>
       <div class="rm-sec"><h3>Pace médio por semana</h3><div class="rm-paces">${porSem.filter((x) => x.pace).map((x) => `<div><small>semana de ${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small><b>${fmtPace(x.pace)}</b></div>`).join('') || '<p class="small muted">Sem corridas de 2,5 km ou mais no mês.</p>'}</div></div>
       <div class="rm-sec"><h3>Destaques</h3><ul class="rm-dest">${longa ? `<li>Corrida mais longa: <b>${fmtKm(longa.distancia_m, 1)}</b> em ${fmtDia(longa.data)}</li>` : ''}${rapida ? `<li>Melhor pace (3 km ou mais): <b>${fmtPace(paceDe(rapida))}</b> em ${fmtDia(rapida.data)}</li>` : ''}${provas.map((p) => `<li>${icT(I.flag)}Prova: <b>${esc(p.titulo)}</b>${p.distancia ? ' · ' + esc(p.distancia) : ''}</li>`).join('')}</ul></div>` : ''}
+      ${fC && prevMes ? `<div class="rm-sec"><h3>Previsões de desempenho</h3><p class="rm-pv-sub">Tempos estimados no fim de ${esc(nomeMesTxt.toLowerCase().replace(' ', ' de '))}${prevAnt ? ', comparados com o fim do mês anterior' : ''}.</p>${previsoesGrade(prevMes, prevAnt, 'o mês anterior')}</div>` : ''}
       ${fM && cargas.length ? `<div class="rm-sec"><h3>Evolução de cargas</h3><div class="rm-cargas">${cargas.map(([n, e]) => `<div><span>${esc(n)}</span><b>${e.antes && e.antes !== e.mes ? `${fmtKg(e.antes)} → ` : ''}${fmtKg(e.mes)}</b>${!e.antes ? '<em class="nv">novo</em>' : e.mes > e.antes ? `<em>+${fmtKg(e.mes - e.antes)}</em>` : e.mes === e.antes ? '<em class="nv">mantida</em>' : ''}</div>`).join('')}</div></div>` : ''}
       ${!corrs.length && !sess.length ? '<p class="small muted" style="margin:14px 0">Nenhum treino registrado neste mês.</p>' : ''}
       <div class="rm-msg" id="rm-msg-out" ${st.msg ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(st.msg)}</p>${treinador ? `<b>${esc(firstName(treinador.nome))}</b>` : ''}</div>
@@ -3952,7 +4048,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const paceMed = c30.length ? c30.reduce((a, c) => a + c.duracao_s, 0) / (km30 / 1000) : null;
     const longa = corridas.reduce((a, c) => (!a || c.distancia_m > a.distancia_m ? c : a), null);
     const tend = corridas.filter((c) => c.distancia_m >= 3000 && c.tipo !== 'caminhada').slice(0, 16).reverse().map((c) => ({ x: fmtCurto(c.data), y: +(paceDe(c) / 60).toFixed(2) }));
-    corpo = c3 + `<div class="stats" style="margin-top:${c3 ? 12 : 0}px"><div class="stat"><b>${f1(km30 / 1000)}</b><span>km em 30 dias</span></div><div class="stat"><b>${c30.length}</b><span>corridas em 30 dias</span></div><div class="stat"><b>${paceMed ? fmtPace(paceMed).replace('/km', '') : '–'}</b><span>pace médio (30 dias)</span></div></div>
+    corpo = c3 + `<div id="pv-evo" style="margin-top:${c3 ? 12 : 0}px"></div><div class="stats" style="margin-top:12px"><div class="stat"><b>${f1(km30 / 1000)}</b><span>km em 30 dias</span></div><div class="stat"><b>${c30.length}</b><span>corridas em 30 dias</span></div><div class="stat"><b>${paceMed ? fmtPace(paceMed).replace('/km', '') : '–'}</b><span>pace médio (30 dias)</span></div></div>
       <div class="grid2 g-charts">
         <div class="card" style="padding:14px"><div class="row between"><span class="small muted" style="font-weight:700">Km por semana</span><span class="tiny dim">12 semanas</span></div><div style="display:flex;gap:5px;margin-top:12px;align-items:flex-end;height:110px">${sem.map((v, i) => `<div title="${f1(v)} km" style="flex:1;height:${(v / maxS) * 100}%;min-height:${v ? 6 : 2}px;border-radius:5px;background:${i === 11 ? 'linear-gradient(180deg,var(--acc),var(--acc2))' : 'var(--s3)'}"></div>`).join('')}</div><div class="row between tiny dim" style="margin-top:6px"><span>12 semanas atrás</span><span>esta semana: ${f1(sem[11])} km</span></div></div>
         ${tend.length > 1 ? `<div class="card" style="padding:12px 8px;margin-top:0"><span class="small muted" style="padding-left:6px;font-weight:700">Pace médio por corrida · menor é melhor</span>${grafico(tend, { fmt: (v) => fmtPace(v * 60).replace('/km', '') })}</div>` : ''}
@@ -3986,6 +4082,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   if (sv) { const bl = box.querySelector('.biblio-l'); if (bl) bl.scrollLeft = sv.bl; scrollTo(scrollX, sv.y); requestAnimationFrame(() => { box.style.minHeight = ''; }); }
   if (SUBS.length > 1) box.querySelector('.subtabs').onclick = (e) => { const b = e.target.closest('[data-sub]'); if (b) { st.sub = b.dataset.sub; recarregar(); } };
   const q = (s) => box.querySelector(s);
+  if (q('#pv-evo')) previsoesCard(q('#pv-evo'), corridas, perfil);
   if (q('#reg-c')) q('#reg-c').onclick = () => registrarCorrida(alunoId, (id) => { location.hash = '#/corrida/' + id; });
   if (q('#ver-todas')) q('#ver-todas').onclick = () => { st.todas = true; recarregar(); };
   if (q('#pz-salvar')) q('#pz-salvar').onclick = async () => {
@@ -5185,6 +5282,7 @@ function viewPerfil() {
     ${S.staff ? '' : `<div class="section"><div class="section-h"><h2 class="h2">Saúde e pagamentos</h2></div>
       <a class="list-item" href="#/saude" style="color:inherit"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Minha ficha de saúde</b><div class="small muted">Anamnese e PAR-Q</div></div>${I.chev}</a>
       ${S.me.sexo !== 'M' ? `<button type="button" class="list-item" id="perf-ciclo" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Registrar a menstruação ou ativar o acompanhamento</div></div>${I.chev}</button>` : ''}
+      ${faz('corrida') ? `<a class="list-item" href="#/previsoes" style="color:inherit"><span class="ativ-ic">${I.flag}</span><div class="grow"><b>Previsões de desempenho</b><div class="small muted">Seus tempos estimados para 5K, 10K, meia e maratona</div></div>${I.chev}</a>` : ''}
       <a class="list-item" href="#/pagamentos" style="color:inherit"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Pagamentos</b><div class="small muted">Mensalidades e Pix</div></div>${I.chev}</a>
       <a class="list-item" href="#/termo" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Termo e meus dados</b><div class="small muted">O que guardamos e seus direitos (LGPD)</div></div>${I.chev}</a></div>`}
     ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button></div></div>` : ''}
