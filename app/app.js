@@ -3219,7 +3219,7 @@ function bindGraficos(root, c) {
   box.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') setTimeout(sair, 1800); });
 }
 
-/* ---------- Nexos Inteligência: leitura automática de cada corrida ----------
+/* ---------- Leitura Nexos: leitura automática de cada corrida ----------
    Roda no próprio aparelho com regras de fisiologia (zonas, FC, parciais, histórico e planilha):
    não depende de servidor, então funciona igual com 5 ou 5 mil alunos. */
 const N1 = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
@@ -3300,7 +3300,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
 const NI_LOGO = '<span class="ni-logo" aria-hidden="true"><i></i><i></i><i></i></span>';
 function nexosIntHTML(r) {
   if (!r) return '';
-  return `<div class="ni-card"><div class="ni-h">${NI_LOGO}<b>Nexos Inteligência</b></div><p class="ni-txt">${esc(r.txt)}</p>
+  return `<div class="ni-card"><div class="ni-h">${NI_LOGO}<b>Leitura Nexos</b></div><p class="ni-txt">${esc(r.txt)}</p>
     ${r.det.length ? `<details class="ni-mais"><summary><span class="ni-a">Ver mais</span><span class="ni-b">Ver menos</span></summary><ul>${r.det.map((d) => `<li>${esc(d)}</li>`).join('')}</ul></details>` : ''}</div>`;
 }
 const buscarHist90 = (alunoId, ate) => sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s').eq('aluno_id', alunoId).gte('data', new Date(Date.parse(ate) - 92 * 864e5).toISOString()).lte('data', ate).then((r) => r.data || [], () => []);
