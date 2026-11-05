@@ -489,6 +489,3 @@ $('#lightbox').addEventListener('touchend', e => { const d = e.changedTouches[0]
   requestAnimationFrame(tick);
 })();
 
-// Pré-temporada 2027: abre o WhatsApp já perguntando sobre os valores
-const ptZap = document.getElementById('pt-zap');
-if (ptZap) ptZap.href = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent('Olá! Vi no site a Pré-temporada Nexos 2027 e quero saber os valores e as vagas.')}`;
