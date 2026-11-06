@@ -776,7 +776,14 @@ function letraTreino(t, i) {
 
 /* ---------- mapa do corpo (onde dói): modelo anatômico frente e costas ---------- */
 const REG_DOR = { pescoco: 'Pescoço e trapézio', ombro: 'Ombro', braco: 'Braço (bíceps)', triceps: 'Braço (tríceps)', antebraco: 'Antebraço', mao: 'Punho e mão', peito: 'Peito', abdomen: 'Abdômen', quadril: 'Quadril e virilha', coxa_f: 'Coxa (frente)', joelho: 'Joelho', canela: 'Canela', tornozelo: 'Tornozelo', pe: 'Pé', costas: 'Costas', lombar: 'Lombar', gluteo: 'Glúteo', coxa_t: 'Coxa (posterior)', panturrilha: 'Panturrilha', aquiles: 'Tendão de Aquiles', calcanhar: 'Calcanhar e sola' };
-const nomeRegDor = (k) => { const m = /^(.*)_(d|e)$/.exec(k); const b = m && REG_DOR[m[1]] ? m[1] : k, l = m && REG_DOR[m[1]] ? m[2] : ''; return (REG_DOR[b] || b) + (l === 'd' ? ' direito' : l === 'e' ? ' esquerdo' : ''); };
+const REG_FEM = ['canela', 'panturrilha', 'coxa_f', 'coxa_t'];
+const nomeRegDor = (k) => {
+  const m = /^(.*)_(d|e)$/.exec(k); const b = m && REG_DOR[m[1]] ? m[1] : k, l = m && REG_DOR[m[1]] ? m[2] : ''; const n = REG_DOR[b] || b;
+  if (!l) return n;
+  const lado = (REG_FEM.includes(b) ? (l === 'd' ? 'direita' : 'esquerda') : (l === 'd' ? 'direito' : 'esquerdo'));
+  if (/ e /.test(n)) return `${n} (lado ${l === 'd' ? 'direito' : 'esquerdo'})`;
+  const i = n.indexOf(' ('); return i > 0 ? `${n.slice(0, i)} ${lado}${n.slice(i)}` : `${n} ${lado}`;
+};
 // metade direita do desenho (x >= 100); a outra metade é espelhada. B = braço (deslocado junto com o ombro)
 const CORPO_F = {
   frente: [
@@ -971,6 +978,142 @@ async function viewProntAluno() {
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Saúde</p><h1 class="h1">Check-in e dores</h1>
     ${hoje ? '' : `<button class="btn block" id="pr-agora" style="margin-top:16px">${PRONT_IC} Fazer o check-in de hoje</button>`}<div style="margin-top:16px">${h}</div>`;
   const b = document.getElementById('pr-agora'); if (b) b.onclick = () => abrirProntidao(() => viewProntAluno());
+}
+
+
+/* ---------- sugestões do app quando o aluno relata dor (só a equipe vê) ---------- */
+// base: literatura de lesões na corrida e no treino de força. O app não diagnostica: aponta padrões e cuidados.
+const SUG_DOR = {
+  joelho: { c: ['Padrão compatível com dor patelofemoral ou sobrecarga do trato iliotibial, as queixas de joelho mais comuns na corrida.', ['Reduzir o volume e evitar descidas por alguns dias', 'Aumentar a cadência em 5 a 10% reduz a carga no joelho', 'Fortalecer quadríceps e glúteo médio (abdução de quadril)']],
+    f: [/agach|afundo|avan[cç]|passada|leg ?press|b[uú]lgar|extensora|salto|pliom|step|lunge|hack/, ['Reduzir a amplitude e a carga de: {ex}', 'Trocar saltos e impacto por isometria de quadríceps (cadeira extensora isométrica ou wall sit)', 'Manter o trabalho de quadril e glúteo médio, que protege o joelho']] },
+  canela: { c: ['Padrão compatível com estresse tibial medial (canelite), ligado a aumento rápido de volume e de impacto.', ['Reduzir o impacto por 3 a 5 dias (bike, elíptico ou piscina)', 'Evitar piso duro e tiros até a dor ceder', 'Conferir os km do tênis e a progressão de volume']],
+    f: [/salto|pliom|corda|box ?jump|pular/, ['Suspender saltos e pliometria: {ex}', 'Manter o fortalecimento de panturrilha sem impacto']] },
+  panturrilha: { c: ['Compatível com sobrecarga ou estiramento leve da panturrilha, comum após tiros e subidas.', ['Evitar tiros e subidas por alguns dias', 'Rodagem leve só se a dor não aumentar durante a corrida', 'Fortalecimento progressivo de panturrilha (elevação em pé e sentado)']],
+    f: [/panturrilha|g[eê]meos|s[oó]leo|salto|pliom|corda/, ['Reduzir a carga de: {ex}', 'Voltar de forma progressiva, sem dor durante o exercício']] },
+  aquiles: { c: ['Compatível com tendinopatia do Aquiles, sensível a subidas, tiros e aumento rápido de volume.', ['Tirar subidas e tiros temporariamente', 'Carga progressiva na panturrilha (isometria e depois elevação lenta), base do tratamento de tendinopatia', 'Evitar alongamento forte do tendão na fase dolorosa']],
+    f: [/panturrilha|salto|pliom|corda/, ['Reduzir ou pausar: {ex}', 'Substituir por isometria de panturrilha (30 a 45 s, 4 a 5 séries)']] },
+  calcanhar: { c: ['Padrão compatível com fascite plantar (dor no calcanhar e na sola, pior nos primeiros passos do dia).', ['Reduzir o volume e evitar andar descalço ou em piso duro', 'Alongar fáscia plantar e panturrilha', 'Fortalecer a musculatura do pé (exercício do pé curto, toalha)']],
+    f: [/salto|pliom|corda/, ['Suspender: {ex}']] },
+  pe: { c: ['Dor localizada no osso do pé que piora com impacto pode indicar sobrecarga óssea (fratura por estresse nos metatarsos).', ['Se a dor for pontual no osso e piorar ao pular ou correr, encaminhar para avaliação', 'Reduzir o impacto até ter clareza', 'Conferir tênis e superfície']],
+    f: [/salto|pliom|corda/, ['Suspender: {ex}']] },
+  tornozelo: { c: ['Se houve torção, o padrão é de entorse; sem torção, sobrecarga dos tendões ao redor do tornozelo.', ['Com torção ou inchaço: repouso relativo e encaminhar para avaliação', 'Na volta, treino de equilíbrio e propriocepção', 'Evitar trilha e piso irregular por enquanto']],
+    f: [/salto|pliom|afundo|agach|corda/, ['Reduzir ou adaptar: {ex}', 'Priorizar exercícios estáveis e com apoio']] },
+  coxa_t: { c: ['Compatível com sobrecarga ou estiramento dos isquiotibiais, comum em tiros e acelerações.', ['Suspender tiros e velocidade máxima', 'Rodagem leve apenas sem dor', 'Na volta, excêntrico de posteriores (nórdico) reduz o risco de recidiva']],
+    f: [/stiff|terra|levantamento|n[oó]rdico|flexora|good ?morning|ponte|rdl/, ['Reduzir a carga e a amplitude de: {ex}', 'Manter isometria de posteriores sem dor']] },
+  coxa_f: { c: ['Sobrecarga do quadríceps, comum depois de descidas, provas e volume alto.', ['Evitar descidas por alguns dias', 'Reduzir o volume da semana']],
+    f: [/agach|leg ?press|extensora|afundo|avan[cç]|b[uú]lgar|hack/, ['Reduzir a carga de: {ex}']] },
+  quadril: { c: ['Em corredores, dor no quadril ou na virilha costuma ser sobrecarga de flexores ou adutores. Dor profunda na virilha que piora com impacto merece avaliação: a fratura por estresse do colo do fêmur é rara, mas grave.', ['Se a dor for profunda na virilha e piorar ao correr, encaminhar para avaliação', 'Reduzir volume e velocidade', 'Fortalecer glúteo médio e core']],
+    f: [/agach|terra|afundo|leg ?press|abdu|adu|hip ?thrust/, ['Reduzir a amplitude e a carga de: {ex}']] },
+  gluteo: { c: ['Sobrecarga de glúteo ou do piriforme. Se a dor descer para a perna com formigamento, a origem pode ser a coluna lombar.', ['Se irradiar para a perna com formigamento, encaminhar', 'Reduzir volume e subidas', 'Mobilidade de quadril']],
+    f: [/agach|terra|stiff|hip ?thrust|ponte|afundo|b[uú]lgar/, ['Reduzir a carga de: {ex}']] },
+  lombar: { c: ['Dor lombar em corredores costuma acompanhar fadiga do core e volume alto.', ['Reduzir volume e intensidade', 'Fortalecer o core (prancha, bird-dog, dead bug)', 'Dor que desce para a perna, formigamento ou fraqueza: encaminhar']],
+    f: [/terra|stiff|agach|remada curvada|good ?morning|levantamento|rdl/, ['Reduzir a carga de {ex} e priorizar a técnica', 'Trocar por variações com apoio (remada apoiada, leg press)']] },
+  costas: { c: ['Dor nas costas raramente limita a corrida.', ['Manter a corrida leve se a dor não piorar', 'Mobilidade torácica']],
+    f: [/remada|puxada|barra|pull|terra|pulldown/, ['Reduzir a carga de: {ex}', 'Mobilidade torácica antes do treino']] },
+  pescoco: { c: ['Tensão cervical ou de trapézio, geralmente ligada a postura e estresse.', ['Observar a postura dos ombros na corrida']],
+    f: [/desenvolvimento|encolhimento|remada alta|trap[eé]zio|terra|militar/, ['Reduzir a carga de: {ex}', 'Mobilidade cervical leve']] },
+  ombro: { c: null, f: [/supino|desenvolvimento|eleva[cç][aã]o lateral|crucifixo|paralela|mergulho|flex[aã]o|militar|arremesso|push/, ['Evitar exercícios acima da cabeça por alguns dias', 'Reduzir a carga de: {ex}', 'Manter exercícios de manguito rotador e de escápula']] },
+  peito: { c: null, f: [/supino|crucifixo|flex[aã]o|paralela|peck|voador|push/, ['Reduzir a carga de: {ex}']], alerta: 'Se a dor no peito não for muscular (aperto, falta de ar, dor que vai para o braço ou a mandíbula), orientar atendimento médico imediato.' },
+  abdomen: { c: null, f: [/abdominal|prancha|crunch|eleva[cç][aã]o de pernas|terra|rota[cç][aã]o/, ['Reduzir: {ex}']] },
+  braco: { c: null, f: [/rosca|b[ií]ceps|barra fixa|puxada|remada/, ['Reduzir a carga de: {ex}']] },
+  triceps: { c: null, f: [/tr[ií]ceps|supino|paralela|mergulho|franc[eê]s|testa|push/, ['Reduzir a carga de: {ex}']] },
+  antebraco: { c: null, f: [/rosca|terra|remada|barra|farmer|pegada/, ['Usar pegada neutra ou strap', 'Reduzir a carga de: {ex}']] },
+  mao: { c: null, f: [/rosca|terra|remada|barra|farmer|pegada|flex[aã]o/, ['Usar pegada neutra ou strap', 'Reduzir a carga de: {ex}']] },
+};
+const baseReg = (k) => { const m = /^(.*)_(d|e)$/.exec(k); return m && SUG_DOR[m[1]] ? m[1] : k; };
+// junta os dados de um ou mais alunos para montar as sugestões
+async function dadosSugestoes(alunoIds, diasPront = 2) {
+  if (!alunoIds.length) return [];
+  const ini = isoDia(Date.now() - diasPront * 864e5);
+  const [pronts, ocultas] = await Promise.all([
+    sb.from('nx_prontidao').select('id,aluno_id,dia,dor,dor_locais,dor_int,obs,total').eq('org_id', S.org.id).in('aluno_id', alunoIds).gte('dia', isoDia(Date.now() - 7 * 864e5)).order('dia', { ascending: false }).then((r) => r.data || [], () => []),
+    sb.from('nx_sug_ocultas').select('chave').eq('org_id', S.org.id).in('aluno_id', alunoIds).then((r) => new Set((r.data || []).map((x) => x.chave)), () => new Set()),
+  ]);
+  const comDor = pronts.filter((p) => p.dia >= ini && p.dor_locais && p.dor_locais.length);
+  const ids = [...new Set(comDor.map((p) => p.aluno_id))];
+  if (!ids.length) return [];
+  const ini28 = isoDia(Date.now() - 28 * 864e5);
+  const [membs, corrs, trs, sess] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,sexo,modalidades,foto_url').eq('org_id', S.org.id).in('user_id', ids).then((r) => r.data || [], () => []),
+    sb.from('nx_corridas').select('aluno_id,data,distancia_m,rpe,tipo,titulo').in('aluno_id', ids).gte('data', ini28).then((r) => r.data || [], () => []),
+    sb.from('nx_treinos').select('aluno_id,titulo,nx_treino_itens(nx_exercicios(nome))').in('aluno_id', ids).eq('ativo', true).then((r) => r.data || [], () => []),
+    sb.from('nx_sessoes').select('aluno_id,iniciado_em,psr,fase,treino_titulo').in('aluno_id', ids).gte('iniciado_em', isoDia(Date.now() - 7 * 864e5)).then((r) => r.data || [], () => []),
+  ]);
+  const out = [], vistos = new Set();
+  for (const p of comDor) { // pronts vêm do mais novo ao mais antigo: vale a queixa mais recente de cada região
+    const m = membs.find((x) => x.user_id === p.aluno_id); if (!m) continue;
+    const regs = [...new Set(p.dor_locais)];
+    const rep = (k) => pronts.filter((x) => x.aluno_id === p.aluno_id && (x.dor_locais || []).includes(k)).length;
+    for (const k of regs) {
+      if (vistos.has(p.aluno_id + k)) continue; vistos.add(p.aluno_id + k);
+      const chave = `${p.id}:${k}`; if (ocultas.has(chave)) continue;
+      out.push(montarSugestao(p, k, m, corrs.filter((c) => c.aluno_id === p.aluno_id), trs.filter((t) => t.aluno_id === p.aluno_id), sess.filter((x) => x.aluno_id === p.aluno_id), rep(k), chave));
+    }
+  }
+  return out.filter(Boolean);
+}
+function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave) {
+  const b = baseReg(k), base = SUG_DOR[b]; if (!base) return null;
+  const fazC = faz('corrida', m), fazF = faz('musculacao', m);
+  const blocos = [], dados = [], alertas = [];
+  const int = p.dor_int;
+  if (int != null && int >= 7) alertas.push(`Dor intensa (${int}/10): encaminhar para avaliação de fisioterapeuta ou médico antes de treinar a região.`);
+  if (repeticoes >= 3) alertas.push(`Dor relatada em ${repeticoes} check-ins nos últimos 7 dias: encaminhar para avaliação.`);
+  if (base.alerta) alertas.push(base.alerta);
+  // corrida: volume da semana e carga aguda x crônica
+  if (fazC && base.c) {
+    const seg = inicioSemana(), km = (l) => l.reduce((a, c) => a + (+c.distancia_m || 0), 0) / 1000;
+    const kmSem = km(corrs.filter((c) => new Date(c.data) >= seg));
+    const ant = [1, 2, 3].map((w) => km(corrs.filter((c) => { const d = new Date(c.data); return d >= new Date(seg - w * 7 * 864e5) && d < new Date(seg - (w - 1) * 7 * 864e5); })));
+    const media = ant.reduce((a, x) => a + x, 0) / 3;
+    const k7 = km(corrs.filter((c) => new Date(c.data) >= new Date(Date.now() - 7 * 864e5))), k28 = km(corrs) / 4;
+    const acwr = k28 > 0 ? k7 / k28 : null;
+    if (media > 0 && kmSem > 0) { const pct = Math.round((kmSem / media - 1) * 100); if (pct >= 10) dados.push(`Volume desta semana ${f1(kmSem)} km, ${pct}% acima da média das 3 anteriores (${f1(media)} km). Subida rápida de volume é o principal fator de risco de lesão na corrida.`); }
+    if (acwr && acwr > 1.3) dados.push(`Carga aguda x crônica em ${acwr.toFixed(2).replace('.', ',')} (acima de 1,3 o risco de lesão sobe, Gabbett 2016).`);
+    const forte = corrs.find((c) => diasDesde(c.data) <= 2 && (c.rpe >= 8 || /tiro|interval|prova|fartlek/i.test(c.tipo + ' ' + (c.titulo || ''))));
+    if (forte) dados.push(`Treino forte de corrida há ${diasDesde(forte.data) || 'menos de 1'} dia(s)${forte.rpe ? ` (esforço ${forte.rpe}/10)` : ''}.`);
+    blocos.push({ t: 'Corrida', padrao: base.c[0], sug: base.c[1] });
+  }
+  // força: exercícios da ficha que carregam a região, fase e PSR
+  if (fazF && base.f) {
+    const nomes = [...new Set(trs.flatMap((t) => (t.nx_treino_itens || []).map((i) => i.nx_exercicios && i.nx_exercicios.nome).filter(Boolean)))];
+    const ex = nomes.filter((n) => base.f[0].test(semAcento(n)) || base.f[0].test(n.toLowerCase()));
+    const fase = (sess.find((x) => x.fase) || {}).fase; const psrs = sess.map((x) => x.psr).filter((x) => x != null);
+    if (fase && FASES_F[fase]) dados.push(`Força na fase de ${FASES_F[fase].n.toLowerCase()}${fase === 'forca' || fase === 'potencia' ? ' (cargas altas ou explosivas)' : ''}.`);
+    if (psrs.length && psrs.reduce((a, x) => a + x, 0) / psrs.length <= 4) dados.push(`Recuperação percebida baixa nas sessões da semana (PSR média ${f1(psrs.reduce((a, x) => a + x, 0) / psrs.length)}/10).`);
+    if (ex.length || !base.c) {
+      const lista = ex.slice(0, 4).join(', ');
+      blocos.push({ t: 'Força', padrao: ex.length ? `Exercícios da ficha que carregam a região: ${lista}.` : 'Nenhum exercício da ficha atual carrega diretamente essa região.', sug: base.f[1].filter((x) => ex.length || !x.includes('{ex}')).map((x) => x.replace('{ex}', lista)) });
+    }
+  }
+  if (fazC && fazF && blocos.length === 2 && /joelho|canela|panturrilha|aquiles|coxa|quadril|gluteo|calcanhar|pe|tornozelo/.test(b)) {
+    const pesado = sess.some((x) => diasDesde(x.iniciado_em) <= 2), forteC = corrs.some((c) => diasDesde(c.data) <= 2 && (c.rpe >= 8 || /tiro|interval/i.test(c.tipo + ' ' + (c.titulo || ''))));
+    if (pesado && forteC) dados.push('Força e corrida intensa nos últimos 2 dias: a soma das cargas pode ter contribuído.');
+  }
+  if (!blocos.length && !alertas.length) return null;
+  return { chave, p, k, m, blocos, dados, alertas };
+}
+function sugCardHTML(x, comNome = true) {
+  const nm = firstName(x.m.nome), reg = nomeRegDor(x.k).toLowerCase();
+  return `<div class="card sug-card" data-sug="${esc(x.chave)}"><div class="sug-top"><span class="sug-ic">${PRONT_IC}</span><div class="grow"><span class="eyebrow">Sugestão do app${x.p.dia === hojeISO() ? ' · hoje' : ' · ' + fmtCurto(x.p.dia)}</span><b>${comNome ? esc(nm) + ' · ' : ''}dor: ${esc(reg)}${x.p.dor_int != null ? ` (${x.p.dor_int}/10)` : ''}</b></div><button type="button" class="sug-x" data-ocultar="${esc(x.chave)}" aria-label="Ocultar sugestão">${I.x || '×'}</button></div>
+    ${x.alertas.map((a) => `<p class="sug-alerta">${a}</p>`).join('')}
+    ${x.dados.length ? `<ul class="sug-dados">${x.dados.map((d) => `<li>${d}</li>`).join('')}</ul>` : ''}
+    ${x.blocos.map((bk) => `<div class="sug-bloco"><span class="sug-t">${bk.t}</span><p class="small muted">${bk.padrao}</p><ul>${bk.sug.map((sg) => `<li>${esc(sg)}</li>`).join('')}</ul></div>`).join('')}
+    ${x.p.obs ? `<p class="small muted" style="margin-top:6px">Recado: "${esc(x.p.obs)}"</p>` : ''}
+    <div class="row sug-acoes"><a class="btn sm" href="#/aluno/${x.m.user_id}/${faz('corrida', x.m) ? 'corrida' : 'forca'}">Ajustar treinos</a><button type="button" class="btn ghost sm" data-msg="${x.m.user_id}" data-reg="${esc(reg)}" data-nome="${esc(nm)}">Mandar mensagem</button><button type="button" class="link-btn small" data-ocultar="${esc(x.chave)}">Ocultar</button></div>
+    <p class="tiny dim">Sugestão baseada em padrões da literatura, não é diagnóstico. A decisão é do treinador. O aluno não vê este card.</p></div>`;
+}
+function bindSugestoes(root, sugs, depois) {
+  root.querySelectorAll('[data-ocultar]').forEach((b) => b.onclick = async () => {
+    const ch = b.dataset.ocultar, x = sugs.find((y) => y.chave === ch); if (!x) return;
+    const { error } = await sb.from('nx_sug_ocultas').insert({ org_id: S.org.id, aluno_id: x.m.user_id, chave: ch });
+    if (error && !/duplicate/i.test(error.message || '')) return toast('Não foi possível ocultar.', true);
+    const c = root.querySelector(`[data-sug="${CSS.escape(ch)}"]`); if (c) c.remove(); toast('Sugestão ocultada.'); if (depois) depois();
+  });
+  root.querySelectorAll('[data-msg]').forEach((b) => b.onclick = () => {
+    try { sessionStorage.setItem('nx-rasc-' + b.dataset.msg, `Oi, ${b.dataset.nome}! Vi no seu check-in a dor que você marcou (${b.dataset.reg}). Como está agora? Vou ajustar seus próximos treinos.`); } catch {}
+    location.hash = `#/aluno/${b.dataset.msg}/conversa`;
+  });
 }
 
 /* ---------- recordes pessoais de corrida ---------- */
@@ -2062,6 +2205,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
       <div class="row" style="gap:8px;align-items:flex-end"><textarea class="textarea" name="texto" rows="1" maxlength="2000" placeholder="${staff ? 'Escreva para o aluno…' : 'Escreva para o seu treinador…'}" required></textarea><button class="btn send" aria-label="Enviar">${I.arrow}</button></div>
     </form>`;
   const $chat = box.querySelector('#chat'), f = box.querySelector('#f-msg');
+  try { const rk = 'nx-rasc-' + alunoId, rs = sessionStorage.getItem(rk); if (rs && f && f.texto) { f.texto.value = rs; sessionStorage.removeItem(rk); setTimeout(() => f.texto.focus(), 300); } } catch {}
   const drawRef = () => { box.querySelector('#ref-box').innerHTML = ref ? `<div class="ref-chip"><span>Respondendo ao check-in: <b>${esc(ref.treino_titulo || 'Treino')}</b> · ${fmtData(ref.iniciado_em)}</span><button type="button" class="icon-btn" id="ref-x" aria-label="Remover">${I.x}</button></div>` : ''; const x = box.querySelector('#ref-x'); if (x) x.onclick = () => { ref = null; drawRef(); }; };
   drawRef();
   let assin = '';
@@ -6419,12 +6563,14 @@ async function staffHoje() {
         ${prox.length ? `<p class="small muted" style="margin-top:4px">Esta semana: ${prox.map((m) => `${esc(firstName(m.nome))} (${fmtCurto(isoDia(new Date()).slice(0, 4) + m.nascimento.slice(4, 10) + 'T12:00:00')})`).join(', ')}</p>` : ''}</div></div>`; })()}
     ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : ''); })()}
+    <div id="sug-hoje"></div>
     ${ehSeg ? '' : resumoHTML}
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Ver retornos</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
       <div id="ativ-corpo" ${store.get('nx_ativ_oculta', false) ? 'hidden' : ''}>${recentes.length ? `<div class="card ativ">${recentes.slice(0, st.tudo ? 60 : 6).map((x) => `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`).join('')}
         ${recentes.length > 6 ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">${st.tudo ? 'Mostrar menos' : `Mostrar mais ${recentes.length - 6}`}</button>` : ''}</div>` : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'}</div>
       ${store.get('nx_ativ_oculta', false) ? `<p class="small muted" id="ativ-oculta-txt">${recentes.length} ${recentes.length === 1 ? 'atividade oculta' : 'atividades ocultas'}. Toque na seta para mostrar.</p>` : ''}
     </div>`;
+  dadosSugestoes(ativos.map((m) => m.user_id), 1).then((sg) => { const bx = document.getElementById('sug-hoje'); if (!bx || !sg.length) return; bx.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Sugestões do app</h2><span class="tag acc">${sg.length}</span></div><div class="stack">${sg.map((x) => sugCardHTML(x)).join('')}</div></div>`; bindSugestoes(bx, sg, () => { if (!bx.querySelector('.sug-card')) bx.innerHTML = ''; }); }).catch((e) => console.error(e));
   bindCartaoPush();
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
@@ -6966,7 +7112,7 @@ async function staffAluno(alunoId, aba, extra) {
     bindAtestado(document.getElementById('saude'), anamnese, alunoId);
     if (ed) ed.onclick = abrirEd;
     else { const sd = document.getElementById('saude'); sd.insertAdjacentHTML('beforeend', '<button class="btn ghost block" id="preencher-ana" style="margin-top:12px">Preencher a ficha com o aluno</button>'); sd.querySelector('#preencher-ana').onclick = abrirEd; }
-    Promise.all([prontStaffHTML(m), aguaStaffHTML(m)]).then(([hp, ha]) => { const sd = document.getElementById('saude'); if (!sd) return; sd.insertAdjacentHTML('afterbegin', hp + ha); bindAguaStaff(m); }).catch((e) => console.error(e));
+    Promise.all([prontStaffHTML(m), aguaStaffHTML(m), dadosSugestoes([m.user_id], 7).catch(() => [])]).then(([hp, ha, sg]) => { const sd = document.getElementById('saude'); if (!sd) return; sd.insertAdjacentHTML('afterbegin', `<div id="sug-al">${sg.map((x) => sugCardHTML(x, false)).join('')}</div>` + hp + ha); bindAguaStaff(m); bindSugestoes(sd.querySelector('#sug-al'), sg); }).catch((e) => console.error(e));
   }
   if (aba === 'historico' && sess.some((s) => !s.visto_treinador)) {
     sb.from('nx_sessoes').update({ visto_treinador: true }).eq('aluno_id', alunoId).eq('org_id', S.org.id).eq('visto_treinador', false).then(() => contarNaoVistos().then(dockStaff));
