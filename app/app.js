@@ -51,10 +51,33 @@ const ESF_ESC = [
   ['Quase máximo', 'No limite. Quase não sobrou nada.'],
   ['Máximo', 'O maior esforço possível. Não dava para fazer mais.'],
 ];
+// cores da escala no azul da Nexos: do ciano claro (leve) ao azul profundo (máximo)
+const ESF_COR = ['#8fe6ff', '#74ddfb', '#55d2f6', '#35c3f0', '#1fb0ec', '#1898ea', '#1a7fe6', '#2066df', '#2550cf', '#263db5', '#1f2a8f'];
+// rostinho desenhado (sem emoji): boca, olhos e sobrancelhas mudam com o esforço
+function rostoEsf(n) {
+  const c = n == null ? 'var(--dim)' : ESF_COR[n];
+  if (n == null) return `<svg viewBox="0 0 100 100" class="rosto"><circle cx="50" cy="50" r="44" fill="none" stroke="${c}" stroke-width="5" stroke-dasharray="6 9" stroke-linecap="round"/><circle cx="36" cy="42" r="4.5" fill="${c}"/><circle cx="64" cy="42" r="4.5" fill="${c}"/><path d="M36 66 H64" stroke="${c}" stroke-width="5" stroke-linecap="round"/></svg>`;
+  const curva = [18, 16, 14, 11, 7, 3, -1, -5, -9, -12, -14][n];
+  const olhos = n <= 1
+    ? '<path d="M28 44 Q36 36 44 44 M56 44 Q64 36 72 44" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>'
+    : n >= 9
+      ? '<path d="M28 36 L42 43 L28 50 M72 36 L58 43 L72 50" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'
+      : `<circle cx="36" cy="43" r="${n >= 7 ? 4.5 : 5.5}" fill="#fff"/><circle cx="64" cy="43" r="${n >= 7 ? 4.5 : 5.5}" fill="#fff"/>`;
+  const sob = n >= 6 && n <= 8 ? `<path d="M27 34 L43 ${30 - (n - 6) * 2}" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><path d="M73 34 L57 ${30 - (n - 6) * 2}" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>` : '';
+  const boca = n === 10
+    ? '<rect x="33" y="60" width="34" height="16" rx="7" fill="#fff"/><path d="M33 68 H67 M44 60 V76 M56 60 V76" stroke="' + c + '" stroke-width="2.5"/>'
+    : n === 9
+      ? '<ellipse cx="50" cy="69" rx="11" ry="8" fill="#fff"/>'
+      : `<path d="M30 ${66 - Math.max(0, curva) / 3} Q50 ${66 + curva} 70 ${66 - Math.max(0, curva) / 3}" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/>`;
+  const suor = n >= 7 ? `<path d="M82 22 q-6 9 0 12 q6-3 0-12z" fill="#bfefff" opacity="${n >= 9 ? 1 : 0.8}"/>` : '';
+  return `<svg viewBox="0 0 100 100" class="rosto"><circle cx="50" cy="50" r="46" fill="${c}"/><circle cx="50" cy="50" r="46" fill="url(#rosto-luz)"/>
+    <defs><radialGradient id="rosto-luz" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+    ${sob}${olhos}${boca}${suor}</svg>`;
+}
 function esforcoHTML(v) {
   return `<div class="esf" data-v="${v ?? ''}">
-    <div class="esf-num"><b id="esf-num">${v ?? '?'}</b></div>
-    <div class="esf-niv" id="esf-niv">${v == null ? 'Arraste para marcar' : ESF_ESC[v][0]}</div>
+    <div class="esf-rosto" id="esf-rosto">${rostoEsf(v)}</div>
+    <div class="esf-niv"><b id="esf-num">${v ?? ''}</b><span id="esf-niv">${v == null ? 'Arraste para marcar' : ESF_ESC[v][0]}</span></div>
     <p class="esf-desc" id="esf-desc">${v == null ? 'De 0 (repouso) a 10 (o máximo que você aguenta).' : ESF_ESC[v][1]}</p>
     <input type="range" class="esf-range" min="0" max="10" step="1" value="${v ?? 5}" aria-label="Esforço percebido de 0 a 10">
     <div class="esf-marcas">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}" aria-label="${n}">${n}</button>`).join('')}</div>
@@ -63,11 +86,11 @@ function esforcoHTML(v) {
 }
 function bindEsforco(root, onChange) {
   const box = root.querySelector('.esf'); if (!box) return;
-  const rg = box.querySelector('.esf-range'), num = box.querySelector('#esf-num');
+  const rg = box.querySelector('.esf-range'), num = box.querySelector('#esf-num'), rosto = box.querySelector('#esf-rosto');
   const set = (n, vib) => {
     n = Math.max(0, Math.min(10, Math.round(n))); rg.value = n;
-    box.classList.add('tem'); box.style.setProperty('--esf', rpeCor(n)); box.style.setProperty('--p', `${n * 10}%`);
-    if (num.textContent !== String(n)) { num.textContent = n; num.classList.remove('pop'); void num.offsetWidth; num.classList.add('pop'); }
+    box.classList.add('tem'); box.style.setProperty('--esf', ESF_COR[n]); box.style.setProperty('--p', `${n * 10}%`);
+    if (num.textContent !== String(n)) { num.textContent = n; rosto.innerHTML = rostoEsf(n); rosto.classList.remove('pop'); void rosto.offsetWidth; rosto.classList.add('pop'); }
     box.querySelector('#esf-niv').textContent = ESF_ESC[n][0]; box.querySelector('#esf-desc').textContent = ESF_ESC[n][1];
     box.querySelectorAll('.esf-marcas button').forEach((b) => b.classList.toggle('on', +b.dataset.n === n));
     if (vib && navigator.vibrate) { try { navigator.vibrate(8); } catch {} }
