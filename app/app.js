@@ -2024,6 +2024,18 @@ function splitsProva(T, km, modo) {
   const aj = T / bruto.reduce((a, b) => a + b, 0); let acc = 0;
   return bruto.map((s, i) => { acc += s * aj; return { km: i === n - 1 ? km : i + 1, pace: pa * fator(i) * aj, acc }; });
 }
+// recado sugerido no tom do treinador, a partir do próprio plano (o treinador confere e edita se quiser)
+function recadoAutoProva(m, km, T, modo, sp) {
+  const n = firstName(m.nome) || 'Atleta', kmT = String(f1(km)).replace(',0', '');
+  if (!T || !sp.length) return `${n}, me diga a sua meta para os ${kmT} km para eu fechar a estratégia com você. Enquanto isso: largue confortável, sem se empolgar com o pelotão, e encontre o seu ritmo depois do 1º km. Confie no treino. Boa prova!`;
+  const metade = sp.find((x) => x.km >= km / 2), seg = sp.filter((x) => x.km > km / 2), p2 = seg.length ? seg.reduce((a, x) => a + x.pace, 0) / seg.length : T / km, h = T / 3600;
+  return [`${n}, a estratégia para os ${kmT} km:`,
+    `Largue contido, perto de ${fmtPace(sp[0].pace)} no 1º km, e se acomode em ${fmtPace(T / km)}.`,
+    modo === 'negativo' ? `Na segunda metade, se estiver bem, acelere para perto de ${fmtPace(p2)}.` : 'Segure o ritmo até o fim e só acelere no último km se sobrar.',
+    metade ? `Passe na metade em torno de ${fmtDurLongo(metade.acc)}.` : '',
+    h >= 1.25 ? 'Gel a partir dos 40 minutos, como está no plano, e água nos postos.' : h >= 0.75 ? 'Água nos postos se sentir sede.' : 'Prova curta: foco no ritmo, sem precisar parar para água.',
+    'Confie no treino. Boa prova!'].filter(Boolean).join(' ');
+}
 async function viewPlanoProva(pid) {
   loading(); S.staff ? dockStaff() : dockAluno();
   const p = await sb.from('nx_participacoes').select('*').eq('id', pid).maybeSingle().then((r) => r.data, () => null);
@@ -2069,13 +2081,14 @@ async function viewPlanoProva(pid) {
         ${!peso ? `<form id="pp-peso" class="card row" style="gap:8px;align-items:center"><span class="small grow">Informe o peso para calcular as quantidades.</span><input class="input" name="peso" inputmode="decimal" placeholder="kg" style="width:80px"><button class="btn ghost sm">Ok</button></form>` : `<p class="tiny dim">Calculado para ${f1(peso)} kg${T ? ` e cerca de ${fmtDurLongo(T)} de prova` : ''}.</p>`}
         <div class="stack" style="margin-top:8px">${nutricaoProva(T || (km * 360), km, peso).map(([t, x]) => `<div class="card pp-nut"><b>${esc(t)}</b><p class="small" style="margin-top:4px">${esc(x)}</p></div>`).join('')}</div>
         <p class="tiny dim" style="margin-top:8px">Baseado nas recomendações do ACSM e da Sociedade Internacional de Nutrição Esportiva. Teste tudo nos treinos longos: nada novo no dia da prova. Para um plano individual, procure um nutricionista.</p></div>`}
-      ${p.recado || S.staff ? `<div class="section"><div class="section-h"><h2 class="h2">Recado do treinador</h2></div>${S.staff ? `<textarea class="textarea" id="pp-recado" rows="3" placeholder="Estratégia, cuidados com o percurso, o que você quer que ele lembre na prova">${esc(p.recado || '')}</textarea><button class="btn ghost sm" id="pp-rec-salvar" style="margin-top:8px">Salvar recado</button>` : `<div class="card"><p style="white-space:pre-line">${esc(p.recado)}</p></div>`}</div>` : ''}
+      ${km ? (() => { const auto = recadoAutoProva(m, km, T, modo, sp), txt = p.recado || auto; return `<div class="section"><div class="section-h"><h2 class="h2">Recado do treinador</h2></div>${S.staff ? `${p.recado ? '' : '<p class="tiny dim" style="margin-bottom:6px">Sugestão automática montada pelo plano. O aluno já vê este texto; edite e salve se quiser mudar.</p>'}<textarea class="textarea" id="pp-recado" rows="5">${esc(txt)}</textarea><div class="row" style="gap:8px;margin-top:8px"><button class="btn ghost sm" id="pp-rec-salvar">Salvar recado</button>${p.recado ? '<button class="link-btn small" id="pp-rec-auto">Voltar para a sugestão automática</button>' : ''}</div>` : `<div class="card"><p style="white-space:pre-line">${esc(txt)}</p></div>`}</div>`; })() : ''}
       <div class="section"><div class="section-h"><h2 class="h2">Checagem</h2></div>
         ${Object.entries(CHECK_PROVA_C).map(([k, l]) => { const feitos = l.filter((_, j) => chk[k + j]).length; return `<details class="card pp-chk" ${(k === 'semana' && d > 1 && d <= 7) || (k === 'vespera' && d === 1) || ((k === 'dia' || k === 'largada') && d === 0) ? 'open' : ''}><summary><b>${ROT_CHK[k]}</b><span class="tag ${feitos === l.length ? 'ok' : ''}">${feitos}/${l.length}</span></summary><div class="pm-chk" data-prova="${p.id}">${l.map((t, j) => `<label><input type="checkbox" data-ck="${k}${j}" ${chk[k + j] ? 'checked' : ''} ${S.staff ? 'disabled' : ''}><span>${esc(t)}</span></label>`).join('')}</div></details>`; }).join('')}</div>`;
     $app.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { fonte = b.dataset.f; desenhar(); });
     $app.querySelectorAll('[data-m]').forEach((b) => b.onclick = async () => { modo = b.dataset.m; desenhar(); await sb.from('nx_participacoes').update({ estrategia: modo }).eq('id', p.id).then(() => {}, () => {}); });
     const fm = document.getElementById('pp-meta'); if (fm) fm.onsubmit = async (e) => { e.preventDefault(); const v = fm.meta.value.trim(), t = lerTempo(v); if (!t || t / km < 150 || t / km > 1200) return toast('Tempo inválido. Use o formato 52:30 ou 1:55:00.', true); const { error } = await sb.from('nx_participacoes').update({ meta: v }).eq('id', p.id); if (error) return toast('Não foi possível salvar.', true); p.meta = v; toast('Meta salva.'); viewPlanoProva(pid); };
     const fp = document.getElementById('pp-peso'); if (fp) fp.onsubmit = (e) => { e.preventDefault(); const v = num(fp.peso.value); if (!v || v < 30 || v > 200) return toast('Peso inválido.', true); peso = v; store.set('nx-peso-prova', v); desenhar(); };
+    const ra = document.getElementById('pp-rec-auto'); if (ra) ra.onclick = async () => { const { error } = await sb.from('nx_participacoes').update({ recado: null }).eq('id', p.id); if (error) return toast('Não foi possível salvar.', true); p.recado = null; toast('Voltou para a sugestão automática.'); desenhar(); };
     const rs = document.getElementById('pp-rec-salvar'); if (rs) rs.onclick = async () => { const v = document.getElementById('pp-recado').value.trim() || null; const { error } = await sb.from('nx_participacoes').update({ recado: v }).eq('id', p.id); if (error) return toast('Não foi possível salvar.', true); p.recado = v; toast('Recado salvo. O aluno vê no plano da prova.'); };
     bindModoProva($app);
   };
