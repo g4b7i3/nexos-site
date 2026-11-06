@@ -2665,3 +2665,7 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .pm-mini .eyebrow{flex:none}
 .pm-mini b{font-size:.9rem;min-width:0}
 .prova-modo .pm-tg{color:#9fdcff!important;position:relative;z-index:1}
+/* checklist dentro do plano de prova (cartão claro): texto na cor normal */
+.pp-chk .pm-chk label{color:var(--ink)}
+.pp-chk .pm-chk input{accent-color:#1a7fe6}
+.pp-chk .pm-chk input:checked+span{color:var(--mute)}
