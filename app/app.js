@@ -317,6 +317,7 @@ function setDock(items) {
     const on = it.match.some((m) => cur === m || (m.length > 2 && cur.startsWith(m + '/')));
     return `<a href="${it.href}" class="${on ? 'on' : ''} ${it.cls || ''}" aria-label="${esc(it.label)}">${it.icon}<span>${esc(it.label)}</span>${it.badge ? `<i class="badge">${it.badge}</i>` : ''}</a>`;
   }).join('') + eu;
+  $dock.classList.toggle('d7', items.filter((it) => !/so-desk/.test(it.cls || '')).length > 6);
   $dock.hidden = false;
 }
 const MODS = [['musculacao', 'Musculação'], ['corrida', 'Corrida']];
@@ -338,6 +339,7 @@ const dockStaff = () => setDock([
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
   { href: '#/laboratorio', match: ['#/laboratorio', '#/relatorios'], icon: LAB_IC, label: 'Laboratório' },
+  { href: '#/aprimoramento', match: ['#/aprimoramento'], icon: APR_IC, label: 'Aprimorar' },
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios', '#/saude-sistema', '#/erros'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
@@ -1381,7 +1383,7 @@ async function viewAprimoramento(area, tema) {
   }
   const geral = aprStats(todasIds, ult), nErros = todasIds.filter((i) => ult[i] === false).length;
   sb.from('nx_quiz_reportes').select('id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('resolvido', false).then((r) => { const el = document.getElementById('apr-nrep'); if (el && r.count) el.innerHTML = `<span class="tag warn">${r.count}</span>`; }, () => {});
-  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe Nexos</p><h1 class="h1">Aprimoramento Intelectual</h1>
+  $app.innerHTML = `<p class="eyebrow">Equipe Nexos</p><h1 class="h1">Aprimoramento Intelectual</h1>
     <p class="muted" style="margin-top:6px">${todasIds.length} questões com base científica, cada uma com explicação e fonte. Escolha uma área, responda e acompanhe o seu aproveitamento.</p>
     <div class="card apr-resumo"><span class="eyebrow">Seu aproveitamento geral</span>${aprBarra(geral)}
       <div class="grid2" style="margin-top:12px;gap:8px"><a class="btn sm" href="#/aprimoramento/simulado">Simulado geral (20)</a><a class="btn sm ghost" href="#/aprimoramento/erros" ${nErros ? '' : 'aria-disabled="true" style="opacity:.5;pointer-events:none"'}>Revisar erros${nErros ? ` (${nErros})` : ''}</a></div></div>
@@ -11481,7 +11483,6 @@ function staffMais() {
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
-      ${it('#/aprimoramento', APR_IC, 'Aprimoramento Intelectual', 'Questões de treino, anatomia, fisiologia e casos reais')}
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}

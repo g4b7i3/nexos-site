@@ -1019,6 +1019,8 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
   .dock{width:calc(100% - 16px);max-width:520px;justify-content:space-between;gap:2px;padding:5px}
   .dock a{min-width:0;flex:1;padding:8px 2px;font-size:.6rem;letter-spacing:0}
   .dock a .badge{right:calc(50% - 20px)}
+  .dock.d7 a{font-size:.54rem;padding:8px 0;letter-spacing:-.02em}
+  .dock.d7 a svg{width:20px;height:20px}
 }
 @media (max-width:899px){#cv-box .chat{min-height:calc(100vh - 300px);min-height:calc(100dvh - 300px)}}
 /* guia da planilha */
