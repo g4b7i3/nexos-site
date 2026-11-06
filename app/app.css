@@ -2243,3 +2243,15 @@ html[data-tema="escuro"] .cp-lin{stroke:rgba(190,210,245,.35)}
 .cb-l span em{display:block;font-style:normal;font-size:.72rem;color:var(--mute)}
 .cb-l b{font-variant-numeric:tabular-nums}
 .med-cta{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+/* saúde do sistema */
+.ss-resumo{display:flex;gap:12px;align-items:center;margin-top:14px;padding:14px 16px;border-radius:18px;border:1px solid var(--line);background:var(--s1)}
+.ss-resumo>i,.ss-dot{flex:none;width:12px;height:12px;border-radius:50%;background:#3ddc97;box-shadow:0 0 0 4px rgba(61,220,151,.18)}
+.ss-resumo>div{flex:1;min-width:0}.ss-resumo b{display:block}.ss-resumo span{font-size:.8rem;color:var(--mute)}
+.ss-resumo.warn>i,.ss-item.warn .ss-dot{background:#ffb020;box-shadow:0 0 0 4px rgba(255,176,32,.2)}
+.ss-resumo.err>i,.ss-item.err .ss-dot{background:#e5484d;box-shadow:0 0 0 4px rgba(229,72,77,.18)}
+.ss-item .ss-dot{margin-top:5px}
+.ss-item.err{border-color:rgba(229,72,77,.4)}
+.ss-lista{margin:10px 0 0;padding-left:40px;font-size:.85rem}
+.ss-lista li{margin-top:4px}
+.ss-acao{margin:10px 0 4px 22px;padding:8px 10px;border-radius:10px;background:var(--s2);font-size:.82rem}
+.ss-item .link-btn{margin-left:22px}

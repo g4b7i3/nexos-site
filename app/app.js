@@ -263,7 +263,7 @@ const dockStaff = () => setDock([
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
   { href: '#/relatorios', match: ['#/relatorios'], icon: I.hist, label: 'Relatórios' },
-  { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
+  { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios', '#/saude-sistema', '#/erros'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
 function layout(cls = '') { $app.className = 'app ' + cls; $app.dataset.novo = '1'; window.scrollTo(0, 0); }
@@ -321,6 +321,7 @@ async function router() {
       if (a === 'relatorios') return await staffRelatorios();
       if (a === 'mais') return staffMais();
       if (a === 'erros') return await staffErros();
+      if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'formularios') return await staffFormularios(b);
       if (a === 'mensagens') return await staffMensagens(b);
       if (a === 'eventos') return await viewEventos(b);
@@ -685,6 +686,7 @@ async function viewPlanilhaAluno(aba) {
 async function planilhaForcaAluno(box, soLista) {
   {
     const [treinos, sessoes] = await Promise.all([buscarTreinosDoAluno(S.user.id), buscarSessoes(S.user.id, 200)]);
+    if (!box || !box.isConnected) return; // o aluno já trocou de tela enquanto carregava
     const ativos = treinos.filter((t) => t.ativo);
     const hj = dsemIdx(hojeISO()); const seq = ativos.filter((t) => !(t.dias && t.dias.length));
     const prox = ativos.find((t) => (t.dias || []).includes(hj)) || null;
@@ -9085,8 +9087,59 @@ async function staffRelatorios() {
   };
 }
 
+
+/* ---------- saúde do sistema (equipe) ---------- */
+const fmtDH = (d) => new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+function saudeStatus(d) {
+  const nomes = (l, n = 4) => l.slice(0, n).map((x) => esc(firstName(x.nome || 'Aluno'))).join(', ') + (l.length > n ? ` e mais ${l.length - n}` : '');
+  const out = [];
+  const e = d.erros || {};
+  out.push({ k: 'erros', t: 'Erros do app', nivel: e.novos_24h ? 'err' : e.abertos ? 'warn' : 'ok',
+    res: e.abertos ? `${e.abertos} erro${e.abertos > 1 ? 's' : ''} em aberto${e.novos_24h ? `, ${e.novos_24h} nas últimas 24 h` : ''}` : 'Nenhum erro em aberto',
+    lista: (e.lista || []).map((x) => `${esc(String(x.msg || '').slice(0, 90))} <span class="tiny dim">· ${x.vezes}× · ${fmtDH(x.ultimo_em)}</span>`),
+    acao: e.abertos ? 'Me mande o print desta tela que eu corrijo. Depois de corrigido, marque como resolvido.' : '', link: e.abertos ? ['#/erros', 'Ver detalhes dos erros'] : null });
+  const gErr = (d.garmin || []).filter((x) => x.erro), gVelho = (d.garmin || []).filter((x) => !x.erro);
+  out.push({ k: 'garmin', t: 'Garmin', nivel: gErr.length ? 'err' : gVelho.length ? 'warn' : 'ok',
+    res: !d.garmin_total ? 'Nenhum aluno conectado ainda' : gErr.length || gVelho.length ? [gErr.length ? `${gErr.length} com erro na conexão` : '', gVelho.length ? `${gVelho.length} sem sincronizar há mais de 4 dias` : ''].filter(Boolean).join(' · ') : `${d.garmin_total} aluno${d.garmin_total > 1 ? 's' : ''} conectado${d.garmin_total > 1 ? 's' : ''}, tudo sincronizando`,
+    lista: [...gErr.map((x) => `<b>${esc(x.nome)}</b>: ${esc(String(x.erro).slice(0, 80))}`), ...gVelho.map((x) => `<b>${esc(x.nome)}</b>: última sincronização ${x.ultima_sync ? fmtDH(x.ultima_sync) : 'nunca'}`)],
+    acao: gErr.length ? 'Peça para o aluno desconectar e conectar o Garmin de novo em Conexões. Se continuar, me avise.' : gVelho.length ? 'Pode ser só que o aluno não correu com o relógio. Se ele correu, peça para abrir o Garmin Connect no celular para sincronizar.' : '' });
+  const tf = d.treinos_fora_relogio || [];
+  out.push({ k: 'relogio', t: 'Treinos no relógio', nivel: tf.some((x) => x.erro) ? 'err' : tf.length ? 'warn' : 'ok',
+    res: tf.length ? `${tf.length} treino${tf.length > 1 ? 's' : ''} dos próximos 2 dias ainda não ${tf.length > 1 ? 'foram' : 'foi'} para o relógio` : 'Treinos dos próximos dias já estão nos relógios',
+    lista: tf.map((x) => `<b>${esc(x.nome)}</b>: ${esc(x.titulo || 'treino')} (${fmtCurto(x.data)})${x.erro ? ` · <span style="color:var(--err)">${esc(String(x.erro).slice(0, 60))}</span>` : ''}`),
+    acao: tf.length ? 'O envio acontece quando você ou o aluno abre a planilha. Abra a planilha do aluno para mandar agora.' : '' });
+  const sp = d.sem_push || [], pf = d.push_falhas || [];
+  out.push({ k: 'push', t: 'Notificações', nivel: pf.some((x) => x.motivo !== 'inscrição expirada') ? 'err' : sp.length || pf.length ? 'warn' : 'ok',
+    res: [sp.length ? `${sp.length} de ${d.alunos_ativos} aluno${d.alunos_ativos > 1 ? 's' : ''} sem notificações ativas` : `Todos os ${d.alunos_ativos} alunos recebem notificações`, pf.length ? `${pf.length} falha${pf.length > 1 ? 's' : ''} de envio na semana` : ''].filter(Boolean).join(' · '),
+    lista: [...(sp.length ? [`Sem notificação: ${nomes(sp, 8)}`] : []), ...pf.slice(0, 6).map((x) => `<b>${esc(x.nome || 'Usuário')}</b>: ${esc(x.motivo || 'falha')} (${fmtDH(x.quando)})`)],
+    acao: sp.length || pf.length ? 'Esses alunos não recebem lembretes de água, avisos de treino nem as suas mensagens no celular. Peça para ativarem em Mais > Notificações.' : '' });
+  const ag = d.agendador || [], falhou = ag.filter((x) => x.status === 'failed'), nunca = ag.filter((x) => !x.status);
+  const NOME_JOB = (n) => (n === 'nx-avisos-manha' ? 'Bom dia com o treino' : /nx-agua-(\d)/.test(n) ? `Lembrete de água ${n.slice(-1)}` : n);
+  out.push({ k: 'auto', t: 'Avisos automáticos', nivel: falhou.length ? 'err' : d.chamadas_falhas ? 'warn' : 'ok',
+    res: falhou.length ? `${falhou.length} aviso${falhou.length > 1 ? 's' : ''} com falha na última execução` : d.chamadas_falhas ? `${d.chamadas_falhas} chamada${d.chamadas_falhas > 1 ? 's' : ''} com erro nas últimas 24 h` : 'Rodando nos horários certos',
+    lista: ag.map((x) => `${NOME_JOB(x.nome)}: ${x.status === 'succeeded' ? `ok (${fmtDH(x.quando)})` : x.status === 'failed' ? `<span style="color:var(--err)">falhou (${fmtDH(x.quando)})</span>` : 'ainda não rodou (começa no próximo horário)'}`),
+    acao: falhou.length || d.chamadas_falhas ? 'Me avise que eu verifico no servidor.' : '' });
+  void nunca;
+  return out;
+}
+async function staffSaudeSistema() {
+  dockStaff(); loading();
+  const { data, error } = await sb.rpc('nx_saude_sistema', { p_org: S.org.id });
+  if (error || !data) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Não foi possível checar agora</div><p class="small">Tente de novo em instantes.</p></div>'; return; }
+  const st = saudeStatus(data), prob = st.filter((x) => x.nivel !== 'ok');
+  S.cache.saudeProb = prob.length; S.cache.saudeVerm = st.some((x) => x.nivel === 'err');
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Sistema</p><h1 class="h1">Saúde do sistema</h1>
+    <div class="ss-resumo ${S.cache.saudeVerm ? 'err' : prob.length ? 'warn' : 'ok'}"><i></i><div><b>${prob.length ? `${prob.length} ponto${prob.length > 1 ? 's' : ''} de atenção` : 'Tudo funcionando'}</b><span>Checado agora, ${fmtDH(data.agora)}</span></div><button class="btn ghost sm" id="ss-atual">Atualizar</button></div>
+    <div class="stack" style="margin-top:14px">${st.map((x) => `<div class="card ss-item ${x.nivel}"><div class="row" style="gap:10px;align-items:flex-start"><i class="ss-dot"></i><div class="grow"><b>${x.t}</b><p class="small muted">${x.res}</p></div></div>
+      ${x.lista.length && x.nivel !== 'ok' || (x.k === 'auto' && x.lista.length) ? `<ul class="ss-lista">${x.lista.map((l) => `<li>${l}</li>`).join('')}</ul>` : ''}
+      ${x.acao ? `<p class="ss-acao">${x.acao}</p>` : ''}${x.link ? `<a class="link-btn small" href="${x.link[0]}">${x.link[1]}</a>` : ''}</div>`).join('')}</div>
+    <p class="tiny dim" style="margin-top:14px">Todo dia de manhã o app checa isso sozinho. Se tiver algo em vermelho, vocês recebem uma notificação.</p>`;
+  document.getElementById('ss-atual').onclick = () => staffSaudeSistema();
+}
+
 function staffMais() {
   dockStaff();
+  if (S.cache.saudeProb == null) sb.rpc('nx_saude_sistema', { p_org: S.org.id }).then(({ data }) => { if (!data) return; const st = saudeStatus(data); S.cache.saudeProb = st.filter((x) => x.nivel !== 'ok').length; S.cache.saudeVerm = st.some((x) => x.nivel === 'err'); if (S.cache.saudeProb && location.hash === '#/mais') staffMais(); }).catch(() => {});
   if (S.cache.fichasNovas == null) Promise.all([sb.from('nx_form_respostas').select('form_id').eq('org_id', S.org.id).eq('visto', false), sb.from('nx_formularios').select('id,criado_por').eq('org_id', S.org.id)]).then(([r, f]) => { const meus = new Set((f.data || []).filter(formMeu).map((x) => x.id)); S.cache.fichasNovas = (r.data || []).filter((x) => !x.form_id || meus.has(x.form_id)).length; if (S.cache.fichasNovas && location.hash === '#/mais') staffMais(); }).catch(() => {});
   if (S.cache.errosAbertos == null) sb.from('nx_erros').select('id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('resolvido', false).then((r) => { S.cache.errosAbertos = r.count || 0; if (S.cache.errosAbertos && location.hash === '#/mais') staffMais(); }, () => {});
   const it = (href, ic, t, d) => `<a class="list-item" href="${href}" style="color:inherit"><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
@@ -9095,7 +9148,7 @@ function staffMais() {
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
-      ${it('#/erros', I.alerta, `Erros do app${S.cache.errosAbertos ? ` <span class="tag acc">${S.cache.errosAbertos} aberto${S.cache.errosAbertos > 1 ? 's' : ''}</span>` : ''}`, 'O que deu errado no app dos alunos, com tela e aparelho')}
+      ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, treinadores e notificações' : 'Sua conta e notificações')}
     </div>`;
 }
