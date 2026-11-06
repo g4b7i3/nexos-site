@@ -326,7 +326,7 @@ const modsHTML = (sel, nome = 'mod') => `<div class="chips wrap">${MODS.map(([k,
 const dockAluno = () => setDock([
   { href: '#/', match: ['#/', '#'], icon: I.home, label: 'Hoje' },
   { href: '#/planilha', match: ['#/planilha'], icon: I.cal, label: 'Planilha' },
-  { href: '#/historico', match: ['#/historico', '#/avaliacao', '#/corrida', '#/relatorio', '#/medalhas', '#/retrospectiva', '#/antes-depois'], icon: I.hist, label: 'Evolução' },
+  { href: '#/historico', match: ['#/historico', '#/avaliacao', '#/corrida', '#/relatorio', '#/medalhas', '#/retrospectiva', '#/antes-depois', '#/checkup'], icon: I.hist, label: 'Evolução' },
   { href: '#/conversa', match: ['#/conversa'], icon: I.feed, label: 'Treinador', badge: S.cache.msgNovas || '' },
   // no celular ficam dentro do Mais; no computador aparecem no menu lateral
   ...(faz('corrida') ? [{ href: '#/eventos', match: ['#/eventos'], icon: I.flag, label: 'Eventos', cls: 'so-desk' }] : []),
@@ -340,7 +340,7 @@ const dockStaff = () => setDock([
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
   { href: '#/laboratorio', match: ['#/laboratorio', '#/relatorios'], icon: LAB_IC, label: 'Laboratório' },
   { href: '#/aprimoramento', match: ['#/aprimoramento'], icon: APR_IC, label: 'Aprimorar' },
-  { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios', '#/saude-sistema', '#/erros'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
+  { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios', '#/saude-sistema', '#/erros', '#/checkup'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
 function layout(cls = '') { $app.className = 'app ' + cls; $app.dataset.novo = '1'; window.scrollTo(0, 0); }
@@ -403,6 +403,7 @@ async function router() {
       if (a === 'dicas') return await viewDicas(b);
       if (a === 'notificacoes') return await viewNotificacoes();
       if (a === 'aprimoramento') return await viewAprimoramento(b, c);
+      if (a === 'checkup') return await viewCheckup(b, c);
       if (a === 'erros') return await staffErros();
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
@@ -418,6 +419,7 @@ async function router() {
     dockAluno(); layout('wide aluno');
     if (!a) return await alunoHoje();
     if (a === 'historico') return await alunoHistorico(b);
+    if (a === 'checkup') return await viewCheckup();
     if (a === 'planilha') return await viewPlanilhaAluno(b);
     if (a === 'eventos' && faz('corrida')) return await viewEventos(b);
     if (a === 'prova' && b) return await viewPlanoProva(b);
@@ -3275,8 +3277,8 @@ async function alunoHistorico(aba) {
     $app.innerHTML = head + '<div id="fotos"></div>'; bindTabs(); await viewFotos(S.user.id, document.getElementById('fotos'), false); return;
   }
   if (aba === 'avaliacoes') {
-    const avs = await buscarAvaliacoes(S.user.id);
-    $app.innerHTML = head + `<div class="card med-cta"><div class="grow"><b>Medidas em casa</b><p class="small muted">Com fita métrica e balança, uma vez por mês. O app estima a sua composição corporal no formato de uma bioimpedância.</p></div><button class="btn sm" id="med-reg">Registrar medidas</button></div>` + avaliacoesHTML(avs, S.user.id, false); bindTabs();
+    const [avs, temCk] = await Promise.all([buscarAvaliacoes(S.user.id), sb.from('nx_pretemporada').select('id', { count: 'exact', head: true }).eq('aluno_id', S.user.id).then((r) => (r.count || 0) > 0, () => false)]);
+    $app.innerHTML = head + (temCk ? `<a class="list-item" href="#/checkup" style="color:inherit;margin:14px 0 4px"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Check-up do Corredor</b><div class="small muted">Seus testes de entrada e saída da Pré-temporada</div></div>${I.chev}</a>` : '') + `<div class="card med-cta"><div class="grow"><b>Medidas em casa</b><p class="small muted">Com fita métrica e balança, uma vez por mês. O app estima a sua composição corporal no formato de uma bioimpedância.</p></div><button class="btn sm" id="med-reg">Registrar medidas</button></div>` + avaliacoesHTML(avs, S.user.id, false); bindTabs();
     document.getElementById('med-reg').onclick = () => registrarMedidas((id) => { location.hash = '#/relatorio/' + id; }); return;
   }
   const sessoes = await buscarSessoes(S.user.id, 120);
@@ -6163,6 +6165,230 @@ function formPerfilCorrida(m, onSalvo) {
       closeSheet(); toast('Perfil de corrida salvo!'); onSalvo();
     };
   });
+}
+
+/* ---------- Check-up do Corredor (avaliação de entrada e saída da Pré-temporada): teste de corrida, FC e força ----------
+   Corrida: 5 km no limite (VDOT de Daniels) ou 30 min (Friel: FC média dos últimos 20 min = FC de limiar).
+   Força e prevenção: prancha frontal (McGill), ponte unilateral até a falha (Freckleton et al., Br J Sports Med 2014),
+   agachamento unilateral no banco, elevação de panturrilha unilateral (Hébert-Losier et al., 2009) e salto horizontal parado.
+   Diferença entre lados acima de ~15% merece atenção (Bishop et al., 2018). O resultado é a comparação entrada x saída. */
+const temporadaAtual = () => { const d = new Date(); return d.getMonth() >= 9 ? d.getFullYear() + 1 : d.getFullYear(); };
+const CK_FORCA = [
+  ['prancha', 'Prancha frontal', 's', false, 'Antebraços e pontas dos pés no chão, corpo alinhado. Conta até perder o alinhamento (quadril cai ou sobe). Pare em 3 min.'],
+  ['ponte', 'Ponte unilateral', 'rep', true, 'Deitado, calcanhar sobre um banco de uns 60 cm, joelho levemente dobrado, a outra perna para cima. Sobe o quadril e encosta de volta no chão, até não conseguir manter a técnica. Um lado de cada vez.'],
+  ['agach', 'Agachamento unilateral no banco', 'rep', true, 'Banco na altura do joelho, braços cruzados no peito. Senta e levanta apoiado em uma perna só, até a falha técnica (joelho para dentro, perde o equilíbrio ou precisa do outro pé).'],
+  ['pant', 'Panturrilha unilateral', 'rep', true, 'Em pé num degrau, joelho estendido, mão na parede só para equilíbrio. Sobe o máximo e desce até embaixo, em ritmo constante (metrônomo a 60 por minuto: sobe numa batida, desce na outra), até a falha.'],
+  ['salto', 'Salto horizontal parado', 'cm', false, 'Pés paralelos na linha, sem passo. Salta o mais longe possível e cai firme. Mede da linha até o calcanhar mais próximo. Vale o melhor de 3.'],
+];
+const CK_ROT = { s: 's', rep: 'rep.', cm: 'cm' };
+// resultado do teste de corrida: VDOT, previsões, pace e FC de limiar
+function ckCorrida(c) {
+  if (!c || !c.tipo) return null;
+  if (c.tipo === '5k') {
+    if (!c.seg || c.seg < 600 || c.seg > 4500) return null;
+    const vdot = vdotDe(5000, c.seg); if (!(vdot > 15 && vdot < 90)) return null;
+    return { vdot, paces: pacesDe(vdot), teste: { teste_km: 5, teste_seg: Math.round(c.seg) } };
+  }
+  if (c.tipo === 't30') {
+    if (!c.km || c.km < 2 || c.km > 12) return null;
+    const v = c.km * 1000 / 1800;
+    const x = calcularTeste('t30', { id: null, data: hojeISO(), analise: { serie: { t: Array.from({ length: 31 }, (_, i) => i * 60), d: Array.from({ length: 31 }, (_, i) => Math.round(i * 60 * v)), fc: Array(31).fill(c.fc || null) } } });
+    if (!x) return null;
+    const vdot = vdotDe(x.teste_km * 1000, 1800);
+    return { vdot, paces: x.zonas_auto.paces, plim: x.zonas_auto.pace_limiar, lthr: x.lthr || null, teste: x };
+  }
+  return null;
+}
+const ckAssim = (d, e) => (d > 0 && e > 0 ? Math.round(Math.abs(d - e) / Math.max(d, e) * 100) : null);
+async function viewCheckup(b, c) {
+  if (!S.staff) return ckDetalhe(S.user.id);
+  if (!b) return ckLista();
+  if (c === 'entrada' || c === 'saida') return ckForm(b, c);
+  return ckDetalhe(b);
+}
+async function ckLista() {
+  loading();
+  const T = temporadaAtual();
+  const [ms, rs] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []),
+    sb.from('nx_pretemporada').select('aluno_id,fase,data').eq('org_id', S.org.id).eq('temporada', T).then((r) => r.data || [], () => []),
+  ]);
+  const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
+  const fase = (id, f) => rs.find((r) => r.aluno_id === id && r.fase === f);
+  const nE = alunos.filter((m) => fase(m.user_id, 'entrada')).length, nS = alunos.filter((m) => fase(m.user_id, 'saida')).length;
+  const st = { f: 'todos' };
+  const FILT = [['todos', 'Todos'], ['entrada', 'Falta entrada'], ['saida', 'Falta saída'], ['ok', 'Completos']];
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Pré-temporada ${T}</p><h1 class="h1">Check-up do Corredor</h1>
+    <p class="muted" style="margin-top:6px">Avaliação de entrada (semana de 1º de janeiro) e de saída (semana 8): teste de corrida, frequência cardíaca e força. A comparação vira o relatório de evolução do aluno.</p>
+    <div class="card" style="margin-top:14px"><div class="ck-res"><div><b>${nE}<small> de ${alunos.length}</small></b><span>Entradas feitas</span></div><div><b>${nS}<small> de ${alunos.length}</small></b><span>Saídas feitas</span></div></div></div>
+    <div class="chips" id="ck-f" style="margin-top:14px">${FILT.map(([k, l]) => `<button type="button" class="chip ${k === st.f ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
+    <div class="stack" id="ck-l" style="margin-top:12px"></div>`;
+  const desenha = () => {
+    const L = alunos.filter((m) => { const e = fase(m.user_id, 'entrada'), s = fase(m.user_id, 'saida'); return st.f === 'todos' || (st.f === 'entrada' && !e) || (st.f === 'saida' && e && !s) || (st.f === 'ok' && e && s); });
+    document.getElementById('ck-l').innerHTML = L.length ? L.map((m) => {
+      const e = fase(m.user_id, 'entrada'), s = fase(m.user_id, 'saida');
+      return `<a class="list-item" href="#/checkup/${m.user_id}" style="color:inherit">${avAluno(m, 'sm')}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap"><span class="tag ${e ? 'ok' : ''}">${e ? `Entrada ${fmtCurto(e.data + 'T12:00:00')}` : 'Sem entrada'}</span><span class="tag ${s ? 'ok' : ''}">${s ? `Saída ${fmtCurto(s.data + 'T12:00:00')}` : 'Sem saída'}</span></div></div>${I.chev}</a>`;
+    }).join('') : '<div class="empty"><div class="h3">Ninguém nesta lista</div><p class="small">Troque o filtro acima.</p></div>';
+  };
+  document.getElementById('ck-f').onclick = (e) => { const x = e.target.closest('[data-f]'); if (!x) return; st.f = x.dataset.f; document.querySelectorAll('#ck-f .chip').forEach((y) => y.classList.toggle('on', y === x)); desenha(); };
+  desenha();
+}
+async function ckDetalhe(alunoId) {
+  loading();
+  const [rs, m] = await Promise.all([
+    sb.from('nx_pretemporada').select('*').eq('aluno_id', alunoId).order('temporada', { ascending: false }).then((r) => r.data || [], () => []),
+    S.staff ? sb.from('nx_membros').select('user_id,nome,foto_url').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle().then((r) => r.data || { nome: 'Aluno' }) : Promise.resolve(S.me),
+  ]);
+  const temps = [...new Set([temporadaAtual(), ...rs.map((r) => r.temporada)])].sort((a, b) => b - a);
+  const st = { t: rs.some((r) => r.temporada === temporadaAtual()) || !rs.length ? temporadaAtual() : rs[0].temporada };
+  const voltar = S.staff ? '#/checkup' : '#/historico/avaliacoes';
+  const desenha = () => {
+    const E = rs.find((r) => r.temporada === st.t && r.fase === 'entrada'), Sd = rs.find((r) => r.temporada === st.t && r.fase === 'saida');
+    const cE = E && ckCorrida(E.corrida), cS = Sd && ckCorrida(Sd.corrida);
+    // linhas da comparação: [rótulo, valor entrada, valor saída, formatador, sentido (+1 maior é melhor, -1 menor é melhor, 0 neutro)]
+    const L = [];
+    const tempo = (v) => fmtDurLongo(v), pace = (v) => fmtPace(v);
+    if (cE || cS) {
+      L.push(['sec', 'Corrida']);
+      L.push(['VDOT', cE && cE.vdot, cS && cS.vdot, (v) => f1(v), 1]);
+      L.push(['Previsão 5 km', cE && tempoPorVdot(cE.vdot, 5000), cS && tempoPorVdot(cS.vdot, 5000), tempo, -1]);
+      L.push(['Previsão 10 km', cE && tempoPorVdot(cE.vdot, 10000), cS && tempoPorVdot(cS.vdot, 10000), tempo, -1]);
+      L.push(['Previsão meia maratona', cE && tempoPorVdot(cE.vdot, 21097), cS && tempoPorVdot(cS.vdot, 21097), tempo, -1]);
+      if ((cE && cE.plim) || (cS && cS.plim)) L.push(['Pace de limiar', cE && cE.plim, cS && cS.plim, pace, -1]);
+      if ((cE && cE.lthr) || (cS && cS.lthr)) L.push(['FC de limiar', cE && cE.lthr, cS && cS.lthr, (v) => v + ' bpm', 0]);
+    }
+    if ((E && (E.fc_rep || E.fc_max)) || (Sd && (Sd.fc_rep || Sd.fc_max))) {
+      L.push(['sec', 'Frequência cardíaca']);
+      L.push(['FC de repouso', E && E.fc_rep, Sd && Sd.fc_rep, (v) => v + ' bpm', -1]);
+      if ((E && E.fc_max) || (Sd && Sd.fc_max)) L.push(['FC máxima', E && E.fc_max, Sd && Sd.fc_max, (v) => v + ' bpm', 0]);
+    }
+    const fE = (E && E.forca) || {}, fS = (Sd && Sd.forca) || {};
+    if (Object.keys(fE).length || Object.keys(fS).length) {
+      L.push(['sec', 'Força e prevenção']);
+      CK_FORCA.forEach(([k, n, u, bi]) => {
+        const fmt = (v) => `${v} ${CK_ROT[u]}`;
+        if (bi) { if ([fE[k + '_d'], fS[k + '_d'], fE[k + '_e'], fS[k + '_e']].some((x) => x != null)) L.push(['sub', n]); L.push(['Direita', fE[k + '_d'], fS[k + '_d'], fmt, 1]); L.push(['Esquerda', fE[k + '_e'], fS[k + '_e'], fmt, 1]); }
+        else L.push([n, fE[k], fS[k], fmt, 1]);
+      });
+    }
+    if ((E && E.peso) || (Sd && Sd.peso)) { L.push(['sec', 'Corpo']); L.push(['Peso', E && E.peso, Sd && Sd.peso, (v) => f1(v) + ' kg', 0]); }
+    const dif = (a, b, fmt, sent, rot) => {
+      if (a == null || b == null) return '';
+      const d = b - a; if (Math.abs(d) < 1e-9) return '<span class="ck-d">igual</span>';
+      const melhor = sent === 0 ? null : (d > 0) === (sent > 0);
+      const ad = Math.abs(d), txt = (d > 0 ? '+' : '−') + (rot === 'VDOT' ? f1(ad) : fmt === tempo || fmt === pace ? fmtDurLongo(ad) : fmt(Number.isInteger(ad) ? ad : +ad.toFixed(1)).replace(' rep.', ''));
+      return `<span class="ck-d ${melhor == null ? '' : melhor ? 'ok' : 'pior'}">${txt}</span>`;
+    };
+    const linhas = L.filter((l) => l[0] === 'sec' || l[0] === 'sub' || l[1] != null || l[2] != null);
+    const tabela = linhas.length ? `<div class="card ck-tab"><div class="ck-row ck-h"><span></span><span>Entrada</span><span>Saída</span><span></span></div>${linhas.map((l) => l[0] === 'sec' ? `<div class="ck-sec">${l[1]}</div>` : l[0] === 'sub' ? `<div class="ck-sub">${l[1]}</div>` : `<div class="ck-row"><span>${l[0]}</span><b>${l[1] != null ? l[3](l[1]) : '–'}</b><b>${l[2] != null ? l[3](l[2]) : '–'}</b><span>${dif(l[1], l[2], l[3], l[4], l[0])}</span></div>`).join('')}</div>` : '';
+    // diferença entre os lados no teste mais recente
+    const ult = Sd || E, fu = (ult && ult.forca) || {};
+    const assim = CK_FORCA.filter((x) => x[3]).map(([k, n]) => { const p = ckAssim(fu[k + '_d'], fu[k + '_e']); return p != null && p >= 15 ? `${n}: o lado ${fu[k + '_d'] < fu[k + '_e'] ? 'direito' : 'esquerdo'} fez ${p}% a menos` : null; }).filter(Boolean);
+    const cU = cS || cE;
+    const ritmos = cU && cU.paces ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Ritmos de treino pelo teste ${Sd && cS ? 'de saída' : 'de entrada'}</span><div class="ck-rit">${[['leve', 'Leve'], ['maratona', 'Moderado'], ['limiar', 'Limiar'], ['intervalado', 'Forte']].filter(([k]) => cU.paces[k]).map(([k, n]) => `<div><span>${n}</span><b>${faixaPace(cU.paces[k])}</b></div>`).join('')}</div></div>` : '';
+    const faseCard = (r, f) => {
+      const nm = f === 'entrada' ? 'Entrada' : 'Saída';
+      if (!r) return `<div class="card ck-fase vazia"><span class="eyebrow">${nm}</span><p class="small muted" style="margin-top:4px">${f === 'entrada' ? 'Ainda não feita. Ideal na semana de 1º de janeiro.' : 'Ainda não feita. Ideal na semana 8, no fim do bloco.'}</p>${S.staff ? `<a class="btn sm" href="#/checkup/${alunoId}/${f}" style="margin-top:10px">${I.plus} Registrar ${nm.toLowerCase()}</a>` : ''}</div>`;
+      const cr = r.corrida || {};
+      return `<div class="card ck-fase"><div class="row between" style="gap:8px"><span class="eyebrow">${nm}</span>${S.staff ? `<a class="link-btn small" href="#/checkup/${alunoId}/${f}">Editar</a>` : ''}</div><div class="h3" style="margin-top:2px">${fmtDia(r.data)}</div><p class="small muted" style="margin-top:4px">${cr.tipo === '5k' ? `5 km em ${fmtDurLongo(cr.seg)}` : cr.tipo === 't30' ? `30 min: ${f1(cr.km, 2)} km${cr.fc ? ` · FC ${cr.fc} bpm nos últimos 20 min` : ''}` : 'Sem teste de corrida'}</p>${r.observacoes ? `<p class="small" style="margin-top:6px">${esc(r.observacoes)}</p>` : ''}</div>`;
+    };
+    const resumo = E && Sd && cE && cS ? `<div class="card ck-dest"><span class="eyebrow">Resultado da Pré-temporada</span><div class="h2" style="margin-top:4px">${cS.vdot > cE.vdot + 0.05 ? `5 km previsto ${fmtDurLongo(tempoPorVdot(cE.vdot, 5000) - tempoPorVdot(cS.vdot, 5000))} mais rápido` : cS.vdot < cE.vdot - 0.05 ? 'Desempenho de corrida abaixo da entrada' : 'Desempenho de corrida mantido'}</div><p class="small" style="margin-top:6px">VDOT de ${f1(cE.vdot)} para ${f1(cS.vdot)}.${E.corrida.tipo !== Sd.corrida.tipo ? ' Os testes foram diferentes na entrada e na saída: compare pelo VDOT e pelas previsões.' : ''}</p></div>` : '';
+    $app.innerHTML = `<a class="back" href="${voltar}">${I.back} ${S.staff ? 'Check-up do Corredor' : 'Avaliações'}</a>
+      <p class="eyebrow">Pré-temporada ${st.t}</p><h1 class="h1">Check-up do Corredor</h1>${S.staff ? `<p class="muted" style="margin-top:4px">${esc(m.nome || '')}</p>` : ''}
+      ${temps.length > 1 ? `<div class="chips" id="ck-t" style="margin-top:12px">${temps.map((t) => `<button type="button" class="chip ${t === st.t ? 'on' : ''}" data-t="${t}">${t}</button>`).join('')}</div>` : ''}
+      <div class="grid2 ck-fases" style="margin-top:14px">${faseCard(E, 'entrada')}${faseCard(Sd, 'saida')}</div>
+      ${resumo}${tabela}
+      ${assim.length ? `<div class="card ck-alerta"><b>Diferença entre os lados</b>${assim.map((a) => `<p class="small">${a}.</p>`).join('')}<p class="tiny dim" style="margin-top:6px">Diferenças acima de 15% merecem atenção no treino de força.</p></div>` : ''}
+      ${ritmos}
+      ${!E && !Sd && !S.staff ? '<div class="empty" style="margin-top:12px"><div class="h3">Seu check-up ainda não foi feito</div><p class="small">O seu treinador registra a avaliação de entrada no começo da Pré-temporada e a de saída no fim. Os resultados aparecem aqui.</p></div>' : ''}`;
+    const ct = document.getElementById('ck-t'); if (ct) ct.onclick = (e) => { const x = e.target.closest('[data-t]'); if (!x) return; st.t = +x.dataset.t; desenha(); };
+  };
+  desenha();
+}
+async function ckForm(alunoId, fase) {
+  loading();
+  const T = temporadaAtual();
+  const [m, rs] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,corrida,nascimento').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle().then((r) => r.data),
+    sb.from('nx_pretemporada').select('*').eq('aluno_id', alunoId).eq('temporada', T).then((r) => r.data || [], () => []),
+  ]);
+  if (!m) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Aluno não encontrado</div><a class="btn sm" href="#/checkup" style="margin-top:12px">Voltar</a></div>'; return; }
+  const atual = rs.find((r) => r.fase === fase) || null, ent = fase === 'saida' ? rs.find((r) => r.fase === 'entrada') : null;
+  const cr = (atual && atual.corrida) || {}, fo = (atual && atual.forca) || {}, fe = (ent && ent.forca) || {};
+  const st = { tipo: cr.tipo || (ent && ent.corrida && ent.corrida.tipo) || '5k' };
+  const v = (x) => (x == null ? '' : String(x).replace('.', ','));
+  const ant = (x, u) => (ent && x != null ? `<small class="ck-ant">Entrada: ${String(x).replace('.', ',')}${u ? ' ' + u : ''}</small>` : '');
+  const campoNum = (nome, rot, val, ph, mask = 'num', antV, u) => `<label class="field"><span>${rot}</span><input class="input" name="${nome}" data-mask="${mask}" inputmode="${mask === 'num' ? 'numeric' : 'decimal'}" value="${v(val)}" placeholder="${ph || ''}">${ant(antV, u)}</label>`;
+  const nm = fase === 'entrada' ? 'entrada' : 'saída';
+  $app.innerHTML = `<a class="back" href="#/checkup/${alunoId}">${I.back} Check-up do Corredor</a>
+    <p class="eyebrow">Pré-temporada ${T} · ${nm}</p><h1 class="h1">${esc(firstName(m.nome))}</h1>
+    ${fase === 'saida' && ent ? '<p class="small muted" style="margin-top:6px">Para a comparação valer, repita os mesmos testes da entrada, no mesmo lugar e em condições parecidas (horário, calçado, descanso).</p>' : ''}
+    <form id="f-ck" class="stack" style="margin-top:14px">
+      <div class="card"><span class="eyebrow">Dados do dia</span><div class="grid2" style="margin-top:8px"><label class="field"><span>Data</span><input class="input" type="date" name="data" value="${esc((atual && atual.data) || hojeISO())}"></label>${campoNum('peso', 'Peso (kg)', atual && atual.peso, 'Ex.: 68,5', 'dec', ent && ent.peso, 'kg')}</div></div>
+      <div class="card"><span class="eyebrow">Frequência cardíaca</span><div class="grid2" style="margin-top:8px">${campoNum('fc_rep', 'FC de repouso', atual && atual.fc_rep, 'Ex.: 54', 'num', ent && ent.fc_rep, 'bpm')}${campoNum('fc_max', 'FC máxima (se souber)', atual && atual.fc_max, 'medida em teste ou prova', 'num', ent && ent.fc_max, 'bpm')}</div>
+        <p class="tiny dim">Repouso: ao acordar, ainda deitado, depois de 1 a 2 min parado. Máxima: só se foi medida num teste ou numa prova (não use fórmula).</p></div>
+      <div class="card"><span class="eyebrow">Teste de corrida</span>
+        <div class="chips" id="ck-tipo" style="margin-top:8px"><button type="button" class="chip ${st.tipo === '5k' ? 'on' : ''}" data-t="5k">5 km no limite</button><button type="button" class="chip ${st.tipo === 't30' ? 'on' : ''}" data-t="t30">30 min (Friel)</button></div>
+        <div id="ck-campos" style="margin-top:10px"></div>
+        <p class="small" id="ck-prev" style="color:var(--acc);margin-top:-4px"></p>
+        <details class="ck-como"><summary>Como fazer</summary><p class="small" id="ck-como-t"></p></details></div>
+      <div class="card"><span class="eyebrow">Força e prevenção</span><p class="tiny dim" style="margin-top:4px">Faça na mesma ordem, com 2 a 3 min de descanso entre os testes. Deixe em branco o que não fizer.</p>
+        ${CK_FORCA.map(([k, n, u, bi, como]) => `<div class="ck-teste"><div class="row between" style="gap:8px;align-items:baseline"><b>${n}</b><span class="tiny dim">${u === 's' ? 'segundos' : u === 'cm' ? 'centímetros' : 'repetições'}</span></div>
+          ${bi ? `<div class="grid2">${campoNum(k + '_d', 'Direita', fo[k + '_d'], '', 'num', fe[k + '_d'])}${campoNum(k + '_e', 'Esquerda', fo[k + '_e'], '', 'num', fe[k + '_e'])}</div>` : campoNum(k, n, fo[k], '', 'num', fe[k]).replace(`<span>${n}</span>`, '<span>Resultado</span>')}
+          <details class="ck-como"><summary>Como fazer</summary><p class="small">${como}</p></details></div>`).join('')}</div>
+      <div class="card"><label class="field" style="margin:0"><span>Observações</span><textarea class="input" name="obs" rows="3" placeholder="Clima, dor, sono, algo que influenciou o teste">${esc((atual && atual.observacoes) || '')}</textarea></label></div>
+      <label class="ck-check"><input type="checkbox" name="aplicar" checked><span>Atualizar o perfil de corrida do aluno com este teste (VDOT, ritmos de treino, previsões e FC)</span></label>
+      <button class="btn block" type="submit">${I.check} Salvar ${nm}</button>
+      ${atual ? `<button type="button" class="link-btn small" id="ck-apagar" style="color:var(--err);margin:4px auto 0">Apagar esta ${nm}</button>` : ''}
+    </form>`;
+  const f = document.getElementById('f-ck'), cp = document.getElementById('ck-campos');
+  const crE = (ent && ent.corrida) || {};
+  const COMO = {
+    '5k': 'Aquecimento de 10 a 15 min leve, com 3 a 4 acelerações curtas. Depois 5 km no ritmo mais forte que o aluno consegue manter até o fim, em pista ou percurso plano e conhecido. Anote o tempo final.',
+    t30: 'Aquecimento de 10 a 15 min leve. Corra 30 min sozinho, no maior esforço que dá para sustentar o tempo todo (como uma prova). Aos 10 min, aperte a volta no relógio: a FC média dos últimos 20 min é a FC de limiar. Anote a distância total dos 30 min.',
+  };
+  const montar = () => {
+    cp.innerHTML = st.tipo === '5k'
+      ? `<label class="field"><span>Tempo dos 5 km (mm:ss)</span><input class="input" name="seg" data-mask="tempo" inputmode="numeric" value="${cr.tipo === '5k' && cr.seg ? fmtDurLongo(cr.seg) : ''}" placeholder="Ex.: 24:30">${crE.tipo === '5k' && crE.seg ? `<small class="ck-ant">Entrada: ${fmtDurLongo(crE.seg)}</small>` : ''}</label>`
+      : `<div class="grid2"><label class="field"><span>Distância em 30 min (km)</span><input class="input" name="km" data-mask="dec" inputmode="decimal" value="${cr.tipo === 't30' ? v(cr.km) : ''}" placeholder="Ex.: 6,4">${crE.tipo === 't30' && crE.km ? `<small class="ck-ant">Entrada: ${v(crE.km)} km</small>` : ''}</label><label class="field"><span>FC média dos últimos 20 min</span><input class="input" name="fc" data-mask="num" inputmode="numeric" value="${cr.tipo === 't30' ? v(cr.fc) : ''}" placeholder="Ex.: 168">${crE.tipo === 't30' && crE.fc ? `<small class="ck-ant">Entrada: ${crE.fc} bpm</small>` : ''}</label></div>`;
+    document.getElementById('ck-como-t').textContent = COMO[st.tipo];
+    aplicarMascaras(f); prev();
+  };
+  const lerCorrida = () => st.tipo === '5k' ? { tipo: '5k', seg: lerTempo(f.seg.value) } : { tipo: 't30', km: num(f.km.value), fc: num(f.fc.value) ? Math.round(num(f.fc.value)) : null };
+  const prev = () => {
+    const r = ckCorrida(lerCorrida());
+    document.getElementById('ck-prev').textContent = r ? `VDOT ${f1(r.vdot)} · 5 km previsto ${fmtDurLongo(tempoPorVdot(r.vdot, 5000))} · 10 km ${fmtDurLongo(tempoPorVdot(r.vdot, 10000))}${r.lthr ? ` · FC de limiar ${r.lthr} bpm` : ''}` : '';
+  };
+  document.getElementById('ck-tipo').onclick = (e) => { const x = e.target.closest('[data-t]'); if (!x) return; st.tipo = x.dataset.t; document.querySelectorAll('#ck-tipo .chip').forEach((y) => y.classList.toggle('on', y === x)); montar(); };
+  f.oninput = (e) => { if (e.target.closest('#ck-campos')) prev(); };
+  montar();
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const b = f.querySelector('button[type=submit]'); b.disabled = true;
+    const corrida = lerCorrida(), rc = ckCorrida(corrida);
+    const temCorrida = st.tipo === '5k' ? !!corrida.seg : !!corrida.km;
+    if (temCorrida && !rc) { b.disabled = false; return toast(st.tipo === '5k' ? 'Confira o tempo dos 5 km (ex.: 24:30).' : 'Confira a distância dos 30 min (ex.: 6,4).', true); }
+    const forca = {}; CK_FORCA.forEach(([k, , , bi]) => { (bi ? [k + '_d', k + '_e'] : [k]).forEach((c) => { const x = num(f[c].value); if (x != null && x >= 0) forca[c] = Math.round(x); }); });
+    const fcRep = num(f.fc_rep.value), fcMax = num(f.fc_max.value);
+    if (fcRep != null && (fcRep < 25 || fcRep > 120)) { b.disabled = false; return toast('A FC de repouso fica entre 25 e 120 bpm.', true); }
+    if (fcMax != null && (fcMax < 120 || fcMax > 230)) { b.disabled = false; return toast('A FC máxima fica entre 120 e 230 bpm.', true); }
+    const row = { org_id: S.org.id, aluno_id: alunoId, avaliador_id: S.user.id, temporada: T, fase, data: f.data.value || hojeISO(), peso: num(f.peso.value), fc_rep: fcRep != null ? Math.round(fcRep) : null, fc_max: fcMax != null ? Math.round(fcMax) : null, corrida: temCorrida ? corrida : null, forca: Object.keys(forca).length ? forca : null, observacoes: f.obs.value.trim() || null };
+    const { error } = await sb.from('nx_pretemporada').upsert(row, { onConflict: 'aluno_id,temporada,fase' });
+    if (error) { console.error(error); b.disabled = false; return toast('Não foi possível salvar. Tente de novo.', true); }
+    if (f.aplicar.checked && (rc || row.fc_rep || row.fc_max)) {
+      const dados = { ...(rc ? { ...rc.teste, teste_data: row.data } : {}), ...(rc && rc.teste.zonas_auto ? { zonas_auto: { ...rc.teste.zonas_auto, data: row.data } } : {}), ...(row.fc_rep ? { fc_rep: row.fc_rep } : {}), ...(row.fc_max ? { fc_max: row.fc_max } : {}) };
+      const { error: e2 } = await sb.rpc('nx_aplicar_teste', { p_aluno: alunoId, p_dados: dados });
+      if (e2) { console.error(e2); toast('Avaliação salva, mas o perfil de corrida não foi atualizado.', true); location.hash = '#/checkup/' + alunoId; return; }
+    }
+    toast(`Check-up de ${nm} salvo.`); location.hash = '#/checkup/' + alunoId;
+  };
+  const ap = document.getElementById('ck-apagar');
+  if (ap) ap.onclick = async () => {
+    if (!confirm(`Apagar a avaliação de ${nm}? O perfil de corrida do aluno não muda.`)) return;
+    const { error } = await sb.from('nx_pretemporada').delete().eq('id', atual.id);
+    if (error) return toast('Não foi possível apagar.', true);
+    toast('Avaliação apagada.'); location.hash = '#/checkup/' + alunoId;
+  };
 }
 
 /* ---------- treino estruturado: passos, zonas e perfil de intensidade ---------- */
@@ -9310,7 +9536,7 @@ async function staffAluno(alunoId, aba, extra) {
     grupos = agruparCargas(await buscarRegistros(alunoId));
     corpo = `<div id="cargas">${cargasHTML(grupos, true)}</div>`;
   } else if (aba === 'avaliacoes') {
-    corpo = avaliacoesHTML(await buscarAvaliacoes(alunoId), alunoId, true);
+    corpo = `<a class="list-item" href="#/checkup/${alunoId}" style="color:inherit;margin-bottom:12px"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Check-up do Corredor</b><div class="small muted">Avaliação de entrada e saída da Pré-temporada ${temporadaAtual()}</div></div>${I.chev}</a>` + avaliacoesHTML(await buscarAvaliacoes(alunoId), alunoId, true);
   } else if (aba === 'conversa') {
     corpo = '<div id="conv"></div>';
   } else if (aba === 'corrida') {
@@ -11668,6 +11894,7 @@ function staffMais() {
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
+      ${it('#/checkup', I.check, `Check-up do Corredor ${temporadaAtual()}`, 'Avaliação de entrada e saída da Pré-temporada')}
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
