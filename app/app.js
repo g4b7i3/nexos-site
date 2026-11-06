@@ -1271,6 +1271,66 @@ function bindSugestoes(root, sugs, depois) {
   });
 }
 
+
+/* ---------- composição corporal no formato de relatório de bioimpedância ---------- */
+// faixas de % de gordura (American Council on Exercise)
+const FAIXAS_G = { M: [[2, 'Essencial'], [6, 'Atleta'], [14, 'Boa forma'], [18, 'Aceitável'], [25, 'Excesso'], [45, '']], F: [[10, 'Essencial'], [14, 'Atleta'], [21, 'Boa forma'], [25, 'Aceitável'], [32, 'Excesso'], [50, '']] };
+const faixaG = (g, sx) => { const F = FAIXAS_G[sx]; if (!F || g == null) return ''; let n = F[0][1]; F.forEach(([v, l], i) => { if (g >= v && l) n = l; }); return n; };
+function composicaoHTML(av, r, ra) {
+  const sx = av.sexo, peso = num(av.peso); if (r.gordura == null || !peso || !FAIXAS_G[sx]) return '';
+  const F = FAIXAS_G[sx], min = F[0][0], max = F[F.length - 1][0], pos = Math.max(0, Math.min(100, (r.gordura - min) / (max - min) * 100));
+  const seg = F.slice(0, -1).map(([v, l], i) => `<i style="flex:${F[i + 1][0] - v}" class="fx${i}"><span>${l}</span></i>`).join('');
+  const pctM = Math.round(r.massa_magra / peso * 100), pctG = 100 - pctM;
+  const linha = (l, v, ant, u, bom, dec = 1, sub = '') => v == null ? '' : `<div class="cb-l"><span>${l}${sub ? `<em>${sub}</em>` : ''}</span><b>${f1(v, dec)}${u}</b>${ant != null ? deltaTag(v - ant, bom, u.trim() ? ' ' + u.trim() : '', dec) : '<span></span>'}</div>`;
+  return `<div class="card comp-bio"><div class="row between"><span class="eyebrow">Composição corporal</span><span class="tiny dim">${av.metodo === 'bioimpedancia' ? 'bioimpedância' : av.metodo === 'perimetros' ? 'estimada por perímetros' : 'estimada por dobras cutâneas'}</span></div>
+    <div class="cb-top"><div><b>${f1(r.gordura)}<small>%</small></b><span>gordura corporal · ${faixaG(r.gordura, sx)}</span></div></div>
+    <div class="cb-faixa"><div class="cb-seg">${seg}</div><div class="cb-pin" style="left:${pos}%"></div></div>
+    <div class="cb-pizza"><div class="cb-bar"><i style="width:${pctM}%">${pctM}% massa magra</i><i style="width:${pctG}%">${pctG}%</i></div></div>
+    <div class="cb-lista">
+      ${linha('Peso', peso, null, ' kg', null)}
+      ${linha('Massa magra', r.massa_magra, ra.massa_magra, ' kg', 'up', 1, 'músculos, ossos, órgãos e água')}
+      ${linha('Massa gorda', r.massa_gorda, ra.massa_gorda, ' kg', 'down')}
+      ${linha('Água corporal', r.agua_l, ra.agua_l, ' L', null, 1, r.agua_pct ? `${f1(r.agua_pct)}% do peso (Watson)` : '')}
+      ${linha('Metabolismo basal', r.tmb, ra.tmb, ' kcal', null, 0, r.tmb_metodo || '')}
+      ${linha('IMC', r.imc, ra.imc, '', null, 1, clsIMC(r.imc))}
+      ${r.rfm != null ? linha('Massa gorda relativa (RFM)', r.rfm, ra.rfm, '%', 'down', 1, 'conferência pela cintura e altura') : ''}
+    </div>
+    <p class="tiny dim" style="margin-top:8px">${av.metodo === 'perimetros' ? 'Estimativa pelas medidas de fita (Hodgdon e Beckett, 1984), com erro típico de 3 a 4%, semelhante ao de balanças de bioimpedância domésticas. Para comparar, use sempre o mesmo método e meça nas mesmas condições.' : 'Para comparar a evolução, use sempre o mesmo método e meça nas mesmas condições.'}</p></div>`;
+}
+// o aluno registra as próprias medidas em casa (fita métrica + balança)
+function registrarMedidas(depois) {
+  const sx = S.me.sexo === 'F' ? 'F' : S.me.sexo === 'M' ? 'M' : null;
+  const idade = S.me.nascimento ? idadeEm(S.me.nascimento) : null;
+  openSheet(`<p class="eyebrow">Composição corporal</p><div class="h2" style="margin-top:4px">Registrar minhas medidas</div>
+    <p class="small muted" style="margin-top:6px">Meça de manhã, em jejum, depois de ir ao banheiro. Fita justa, sem apertar, e relaxado.</p>
+    <form id="f-med" style="margin-top:14px">
+      ${sx ? '' : `<div class="field"><span>Sexo (usado na equação)</span><div class="seg" id="med-sx"><button type="button" data-v="M">Masculino</button><button type="button" data-v="F">Feminino</button></div></div>`}
+      <div class="grid2"><label class="field"><span>Peso (kg)</span><input class="input" name="peso" data-mask="dec" inputmode="decimal" required></label><label class="field"><span>Altura (cm)</span><input class="input" name="altura" data-mask="dec" inputmode="decimal" required></label></div>
+      <label class="field"><span>Pescoço (cm)</span><input class="input" name="pescoco" data-mask="dec" inputmode="decimal" required><small class="tiny dim">Logo abaixo do pomo de Adão, com a fita levemente inclinada para a frente.</small></label>
+      <label class="field" data-sxm><span>Abdômen (cm)</span><input class="input" name="abdomen" data-mask="dec" inputmode="decimal"><small class="tiny dim">Na altura do umbigo, no fim de uma expiração normal.</small></label>
+      <label class="field" data-sxf><span>Cintura (cm)</span><input class="input" name="cintura" data-mask="dec" inputmode="decimal"><small class="tiny dim">Na parte mais fina, entre as costelas e o umbigo.</small></label>
+      <label class="field" data-sxf><span>Quadril (cm)</span><input class="input" name="quadril" data-mask="dec" inputmode="decimal"><small class="tiny dim">Na parte mais larga do bumbum, com os pés juntos.</small></label>
+      <p class="small" id="med-prev" style="margin:2px 0 12px;color:var(--acc)"></p>
+      <button class="btn block">Salvar e ver o resultado</button></form>`, (r) => {
+    const f = r.querySelector('#f-med'); aplicarMascaras(f); let sexo = sx;
+    const mostra = () => { f.querySelectorAll('[data-sxm]').forEach((e) => e.hidden = sexo !== 'M'); f.querySelectorAll('[data-sxf]').forEach((e) => e.hidden = sexo !== 'F'); };
+    const ler = () => ({ sexo, idade, peso: num(f.peso.value), altura: num(f.altura.value), metodo: 'perimetros', perimetros: Object.fromEntries(['pescoco', 'abdomen', 'cintura', 'quadril'].map((k) => [k, num(f[k].value)]).filter(([, v]) => v)) });
+    const prev = () => { const x = calcAval(ler()); r.querySelector('#med-prev').textContent = x.gordura != null ? `Gordura estimada: ${f1(x.gordura)}% · massa magra ${f1(x.massa_magra)} kg` : ''; };
+    const sg = r.querySelector('#med-sx'); if (sg) sg.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; sexo = b.dataset.v; sg.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y === b)); mostra(); prev(); };
+    mostra(); f.oninput = prev;
+    // reaproveita peso e altura da última avaliação
+    buscarAvaliacoes(S.user.id).then((avs) => { const u = avs[avs.length - 1]; if (!u) return; if (u.altura && !f.altura.value) f.altura.value = String(u.altura).replace('.', ','); if (!sexo && u.sexo) { sexo = u.sexo; mostra(); } prev(); }).catch(() => {});
+    f.onsubmit = async (e) => {
+      e.preventDefault(); const a = ler();
+      if (!a.sexo) return toast('Escolha o sexo.', true);
+      const x = calcAval(a); if (x.gordura == null) return toast(a.sexo === 'M' ? 'Confira pescoço e abdômen (o abdômen precisa ser maior que o pescoço).' : 'Confira pescoço, cintura e quadril.', true);
+      const { data, error } = await sb.from('nx_avaliacoes').insert({ org_id: S.org.id, aluno_id: S.user.id, avaliador_id: S.user.id, data: hojeISO(), ...a, dobras: {}, bio: {}, resultados: x, observacoes: null }).select('id').single();
+      if (error) { console.error(error); return toast('Não foi possível salvar.', true); }
+      closeSheet(); toast('Medidas salvas.'); if (depois) depois(data.id);
+    };
+  });
+}
+
 /* ---------- recordes pessoais de corrida ---------- */
 const DIST_REC = [[1, '1 km'], [5, '5 km'], [10, '10 km'], [21.0975, 'Meia maratona']];
 function melhoresDaCorrida(c) {
@@ -1671,7 +1731,8 @@ async function alunoHistorico(aba) {
   }
   if (aba === 'avaliacoes') {
     const avs = await buscarAvaliacoes(S.user.id);
-    $app.innerHTML = head + avaliacoesHTML(avs, S.user.id, false); bindTabs(); return;
+    $app.innerHTML = head + `<div class="card med-cta"><div class="grow"><b>Medidas em casa</b><p class="small muted">Com fita métrica e balança, uma vez por mês. O app estima a sua composição corporal no formato de uma bioimpedância.</p></div><button class="btn sm" id="med-reg">Registrar medidas</button></div>` + avaliacoesHTML(avs, S.user.id, false); bindTabs();
+    document.getElementById('med-reg').onclick = () => registrarMedidas((id) => { location.hash = '#/relatorio/' + id; }); return;
   }
   const sessoes = await buscarSessoes(S.user.id, 120);
   const total = sessoes.length;
@@ -2107,7 +2168,7 @@ const PROTOCOLOS = {
   pollock3: { nome: 'Pollock 3 dobras', M: ['peitoral', 'abdominal', 'coxa'], F: ['triceps', 'suprailiaca', 'coxa'] },
   faulkner: { nome: 'Faulkner 4 dobras', M: ['triceps', 'subescapular', 'suprailiaca', 'abdominal'], F: ['triceps', 'subescapular', 'suprailiaca', 'abdominal'] },
 };
-const PERIM = [['torax', 'Tórax'], ['cintura', 'Cintura'], ['abdomen', 'Abdômen'], ['quadril', 'Quadril'], ['braco_d', 'Braço dir.'], ['braco_e', 'Braço esq.'], ['antebraco', 'Antebraço'], ['coxa_d', 'Coxa dir.'], ['coxa_e', 'Coxa esq.'], ['panturrilha_d', 'Panturrilha dir.'], ['panturrilha_e', 'Panturrilha esq.']];
+const PERIM = [['pescoco', 'Pescoço'], ['torax', 'Tórax'], ['cintura', 'Cintura'], ['abdomen', 'Abdômen'], ['quadril', 'Quadril'], ['braco_d', 'Braço dir.'], ['braco_e', 'Braço esq.'], ['antebraco', 'Antebraço'], ['coxa_d', 'Coxa dir.'], ['coxa_e', 'Coxa esq.'], ['panturrilha_d', 'Panturrilha dir.'], ['panturrilha_e', 'Panturrilha esq.']];
 const BIO = [['gordura', '% de gordura', '%'], ['musculo', 'Massa muscular', 'kg'], ['agua', 'Água corporal', '%'], ['visceral', 'Gordura visceral', 'nível'], ['tmb', 'Metabolismo basal', 'kcal']];
 function calcAval(a) {
   const r = {}; const peso = num(a.peso), alt = num(a.altura), sexo = a.sexo, idade = num(a.idade);
@@ -2116,6 +2177,12 @@ function calcAval(a) {
   if (ci && qu) r.rcq = ci / qu;
   let g = null;
   if (a.metodo === 'bioimpedancia') g = num((a.bio || {}).gordura);
+  else if (a.metodo === 'perimetros') {
+    // Marinha americana (Hodgdon e Beckett, 1984): homens com abdômen na altura do umbigo; mulheres com cintura e quadril
+    const pe = num(p.pescoco), ab = num(p.abdomen) || ci;
+    if (alt && pe && sexo === 'M' && ab && ab > pe) g = 495 / (1.0324 - 0.19077 * Math.log10(ab - pe) + 0.15456 * Math.log10(alt)) - 450;
+    if (alt && pe && sexo === 'F' && ci && qu && ci + qu > pe) g = 495 / (1.29579 - 0.35004 * Math.log10(ci + qu - pe) + 0.221 * Math.log10(alt)) - 450;
+  }
   else if (PROTOCOLOS[a.protocolo] && (sexo === 'M' || sexo === 'F')) {
     const vals = PROTOCOLOS[a.protocolo][sexo].map((k) => num((a.dobras || {})[k]));
     if (vals.every((v) => v != null && v > 0)) {
@@ -2138,6 +2205,9 @@ function calcAval(a) {
   if (g != null && isFinite(g) && g > 0 && g < 70) { r.gordura = g; if (peso) { r.massa_gorda = (peso * g) / 100; r.massa_magra = peso - r.massa_gorda; } }
   if (a.metodo === 'bioimpedancia') { const mm = num((a.bio || {}).musculo); if (mm) r.massa_muscular = mm; }
   if (idade != null) r.fc_max = 208 - 0.7 * idade;
+  // água corporal total (Watson, 1980) e massa gorda relativa (RFM, Woolcott e Bergman, 2018)
+  if (peso && alt && (sexo === 'F' || (sexo === 'M' && idade != null))) { const tbw = sexo === 'M' ? 2.447 - 0.09516 * idade + 0.1074 * alt + 0.3362 * peso : -2.097 + 0.1069 * alt + 0.2466 * peso; if (tbw > 10) { r.agua_l = tbw; r.agua_pct = tbw / peso * 100; } }
+  if (alt && ci && (sexo === 'M' || sexo === 'F')) r.rfm = 64 - 20 * (alt / ci) + (sexo === 'F' ? 12 : 0);
   if (r.massa_magra) { r.tmb = 370 + 21.6 * r.massa_magra; r.tmb_metodo = 'Katch-McArdle'; }
   else if (peso && alt && idade != null && (sexo === 'M' || sexo === 'F')) { r.tmb = 10 * peso + 6.25 * alt - 5 * idade + (sexo === 'M' ? 5 : -161); r.tmb_metodo = 'Mifflin-St Jeor'; }
   return r;
@@ -2203,7 +2273,8 @@ async function formAvaliacao(alunoId, avId) {
           <div class="grid3"><label class="field"><span>PA sistólica</span>${inp('pa_sis', av.pa_sis, '120', 'mmHg')}</label><label class="field"><span>PA diastólica</span>${inp('pa_dia', av.pa_dia, '80', 'mmHg')}</label><label class="field"><span>FC repouso</span>${inp('fc_rep', av.fc_rep, '', 'bpm')}</label></div>
         </div>
         <div class="card"><span class="eyebrow">Composição corporal</span>
-          <div class="field" style="margin-top:12px"><span>Método</span>${radios('metodo', av.metodo, [['dobras', 'Dobras cutâneas'], ['bioimpedancia', 'Bioimpedância']])}</div>
+          <div class="field" style="margin-top:12px"><span>Método</span>${radios('metodo', av.metodo, [['dobras', 'Dobras cutâneas'], ['bioimpedancia', 'Bioimpedância'], ['perimetros', 'Perímetros (fita)']])}</div>
+          <p class="tiny dim" id="b-perim" style="margin:-4px 0 10px">Método da Marinha americana: preencha pescoço, altura e, nos perímetros abaixo, abdômen na altura do umbigo (homens) ou cintura e quadril (mulheres).</p>
           <div id="b-dobras">
             <label class="field"><span>Protocolo</span><select class="input" name="protocolo">${Object.entries(PROTOCOLOS).map(([k, p]) => `<option value="${k}" ${av.protocolo === k ? 'selected' : ''}>${p.nome}</option>`).join('')}</select></label>
             <p class="tiny dim" style="margin:-4px 0 10px">Meça até 3 vezes cada ponto (lado direito). O app usa a mediana automaticamente.</p>
@@ -2243,6 +2314,7 @@ async function formAvaliacao(alunoId, avId) {
     const a = ler(); const r = calcAval(a);
     document.getElementById('b-dobras').hidden = a.metodo !== 'dobras';
     document.getElementById('b-bio').hidden = a.metodo !== 'bioimpedancia';
+    document.getElementById('b-perim').hidden = a.metodo !== 'perimetros';
     const prot = PROTOCOLOS[a.protocolo]; const usadas = prot && a.sexo ? prot[a.sexo] : prot ? [...new Set([...prot.M, ...prot.F])] : [];
     f.querySelectorAll('[data-dobra]').forEach((el) => { el.hidden = !usadas.includes(el.dataset.dobra); });
     f.querySelectorAll('[data-med]').forEach((el) => { const x = (a.dobras || {})[el.dataset.med]; el.textContent = x != null ? fN(x) + ' mm' : '–'; });
@@ -2259,7 +2331,8 @@ async function formAvaliacao(alunoId, avId) {
       ${r.densidade != null ? linha('Densidade corporal', f1(r.densidade, 4)) : ''}
       ${a.pa_sis && a.pa_dia ? linha('Pressão arterial', a.pa_sis + '/' + a.pa_dia, clsPA(a.pa_sis, a.pa_dia)) : ''}
       ${r.fc_max ? linha('FC máxima estimada', Math.round(r.fc_max) + ' bpm', 'Tanaka: 208 − 0,7 × idade') : ''}
-      ${r.tmb ? linha('Metabolismo basal', Math.round(r.tmb) + ' kcal/dia', r.tmb_metodo) : ''}`;
+      ${r.tmb ? linha('Metabolismo basal', Math.round(r.tmb) + ' kcal/dia', r.tmb_metodo) : ''}
+      ${r.agua_pct ? linha('Água corporal estimada', f1(r.agua_l) + ' L · ' + f1(r.agua_pct) + '%', 'Watson') : ''}`;
   };
   f.oninput = atualizar;
   f.onchange = (e) => { if (e.target.name === 'data' && m.nascimento) { const i = idadeEm(m.nascimento, e.target.value); if (i != null) f.idade.value = i; } atualizar(); };
@@ -2308,7 +2381,8 @@ async function viewRelatorio(avId) {
   $app.innerHTML = `
     <div class="no-print row between"><a class="back" href="${voltar}" style="margin:0">${I.back} Voltar</a><div class="row" style="gap:8px">${S.staff ? `<a class="btn ghost sm" href="#/aluno/${av.aluno_id}/avaliacao/${av.id}">Editar</a>` : ''}<button class="btn ghost sm" id="imprimir">Salvar PDF</button></div></div>
     <div class="rel-head"><img src="${LOGO.s()}" alt=""><div><p class="eyebrow">Relatório de avaliação física</p><h1 class="h1" style="margin-top:4px">${esc(nome)}</h1>
-      <p class="small muted">${fmtDia(av.data)}${av.idade ? ` · ${av.idade} anos` : ''}${av.altura ? ` · ${f1(av.altura, 0)} cm` : ''} · ${av.metodo === 'bioimpedancia' ? 'Bioimpedância' : esc((PROTOCOLOS[av.protocolo] || {}).nome || '')}${ant ? ` · comparado a ${fmtDia(ant.data)}` : ''}</p></div></div>
+      <p class="small muted">${fmtDia(av.data)}${av.idade ? ` · ${av.idade} anos` : ''}${av.altura ? ` · ${f1(av.altura, 0)} cm` : ''} · ${av.metodo === 'bioimpedancia' ? 'Bioimpedância' : av.metodo === 'perimetros' ? `Perímetros (Marinha americana)${av.avaliador_id === av.aluno_id ? ' · medidas feitas pelo aluno' : ''}` : esc((PROTOCOLOS[av.protocolo] || {}).nome || '')}${ant ? ` · comparado a ${fmtDia(ant.data)}` : ''}</p></div></div>
+    ${composicaoHTML(av, r, ant && ant.metodo === av.metodo ? ra : {})}
     <div class="metrics">
       ${met('Peso', num(av.peso), ant ? num(ant.peso) : null, ' kg', null)}
       ${met('Gordura corporal', r.gordura, ra.gordura, '%', 'down')}
