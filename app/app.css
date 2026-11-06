@@ -3002,3 +3002,10 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 @media (min-width:560px){.ficha-pv{grid-template-columns:150px 1fr 150px;align-items:center}}
 .sug-ciclo{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 .sug-mot{margin:8px 0 6px 18px;display:grid;gap:4px}
+/* modo adaptação por percepção de esforço */
+.pse-card{margin-bottom:12px;border-color:color-mix(in srgb,var(--acc) 40%,var(--line))}
+.pse-lista{display:grid;gap:6px;margin-top:10px}
+.pse-lista div{display:grid;grid-template-columns:34px auto;gap:2px 10px;padding:8px 10px;border-left:4px solid var(--zc);border-radius:8px;background:color-mix(in srgb,var(--zc) 10%,transparent)}
+.pse-lista b{grid-row:span 2;align-self:center}
+.pse-lista span{font-weight:700;font-size:.9rem}
+.pse-lista em{font-style:normal;font-size:.8rem;opacity:.75}

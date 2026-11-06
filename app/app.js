@@ -5003,6 +5003,8 @@ function perfilCorrida(m) {
   if (za && c.teste_data && za.data && za.data < c.teste_data) za = null; // teste de prova mais novo vale mais
   if (za) paces = { ...(paces || {}), ...za.paces };
   if (man) paces = { ...(paces || {}), ...man };
+  // modo adaptação: sem teste, o aluno segue a percepção de esforço (sem pace e sem FC estimada); o teste desliga sozinho
+  if (c.modo_pse && !vdot && !za && !man) return { ...c, vdot: null, paces: null, manual: false, auto: null, fcMax: null, fcRep: null, lthr: null, pse: true };
   return { ...c, vdot, paces, manual: !!man, auto: za, fcMax, fcRep: c.fc_rep || null, lthr: c.lthr || null };
 }
 function inicioSemana(d = new Date()) { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
@@ -6625,8 +6627,11 @@ const ZONAS_INFO = {
   intervalado: { z: 'Z5', d: 'Forte (VO₂)', n: 'Z5 · Forte', c: '#ff9f43', h: 0.88, pd: 290 },
   tiros: { z: 'Z6', d: 'Máximo', n: 'Z6 · Máximo', c: '#ff6b6b', h: 1, pd: 270 },
 };
-// pace de cada zona para o aluno: faixa dele (pelo teste) ou média, sempre visível
-const paceZonaTxt = (z, perfil) => { const p = perfil && perfil.paces; if (p && p[z]) return faixaPace(p[z]); return '~' + fmtPace(paceZona(z, perfil)); };
+// percepção de esforço (escala de 0 a 10) e teste da fala por zona: usado no modo adaptação (Foster et al. 2008; Reed & Pipe 2014)
+const PSE_Z = { rec: [1, 2, 'conversa fácil, bem tranquilo'], leve: [3, 4, 'consegue conversar em frases completas'], maratona: [5, 6, 'fala só frases curtas'], limiar: [7, 8, 'fala poucas palavras'], intervalado: [9, 9, 'quase não consegue falar'], tiros: [10, 10, 'esforço máximo, sem falar'] };
+const pseTxt = (z, curto) => { const x = PSE_Z[z] || PSE_Z.leve; return `esforço ${x[0]}${x[1] > x[0] ? ' a ' + x[1] : ''} de 10${curto ? '' : ' · ' + x[2]}`; };
+// pace de cada zona para o aluno: faixa dele (pelo teste) ou média, sempre visível (no modo adaptação, o esforço)
+const paceZonaTxt = (z, perfil) => { if (perfil && perfil.pse) return pseTxt(z); const p = perfil && perfil.paces; if (p && p[z]) return faixaPace(p[z]); return '~' + fmtPace(paceZona(z, perfil)); };
 const PASSOS = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Desaquecimento' };
 const passo = (k, v, med, z) => ({ k, v, med, z });
 const serie = (n, passos) => ({ k: 'rep', n, passos });
@@ -6759,6 +6764,7 @@ function estimaTotal(estrutura, perfil) {
   let k0 = 0, k1 = 0, t0 = 0, t1 = 0;
   const add = (s, n = 1) => { const [a, b] = faixaZona(s.z, perfil); if (s.med === 'min') { const seg = s.v * 60 * n; t0 += seg; t1 += seg; k0 += seg / b; k1 += seg / a; } else { const km = (s.med === 'km' ? s.v : s.v / 1000) * n; k0 += km; k1 += km; t0 += km * a; t1 += km * b; } };
   (estrutura || []).forEach((s) => (s.k === 'rep' ? (s.passos || []).forEach((p) => add(p, s.n || 1)) : add(s)));
+  if (perfil && perfil.pse) { const temT = JSON.stringify(estrutura || []).includes('"min"'), temD = /"med":"(km|m)"/.test(JSON.stringify(estrutura || [])); return { km: temT ? 'pela sensação' : faixaKmTxt(k0, k1), tempo: temD ? 'pela sensação' : faixaDurTxt(t0, t1), soDist: true, soTempo: true }; }
   return { km: faixaKmTxt(k0, k1), tempo: faixaDurTxt(t0, t1), soDist: k0 === k1, soTempo: t0 === t1 };
 }
 // tempo no estilo das planilhas: 1h03'44" · 25'00"
@@ -6768,7 +6774,9 @@ const paceAsp = (a, b) => `${fmtPace(a).replace('/km', '')} a ${fmtPace(b)}`;
 function linhasTreino(estrutura, perfil) {
   const verbo = { aq: 'Aquecer', co: 'Correr', rc: 'Recuperar', dq: 'Desaquecer' };
   const frase = (s, verboOn = true) => {
-    const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const [a, b] = faixaZona(s.z, perfil); const e = estimaPasso(s, perfil);
+    const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
+    if (perfil && perfil.pse) return `${verboOn ? `<b>${verbo[s.k] || 'Correr'}</b> ` : ''}${s.med === 'min' ? `${String(s.v).replace('.', ',')} min` : medTxt(s)} em <b>${z.z}</b> · ${z.d} (${pseTxt(s.z)}) <span class="lt-est">sem olhar o ritmo: siga a sensação</span>`;
+    const [a, b] = faixaZona(s.z, perfil); const e = estimaPasso(s, perfil);
     const qto = s.med === 'min' ? `${String(s.v).replace('.', ',')} min` : medTxt(s);
     const fim = s.med === 'min' ? `cerca de ${e.txt.replace('–', ' a ')}` : `completar entre ${tempoAsp(s.med === 'km' ? s.v * a : s.v / 1000 * a)} e ${tempoAsp(s.med === 'km' ? s.v * b : s.v / 1000 * b)}`;
     return `${verboOn ? `<b>${verbo[s.k] || 'Correr'}</b> ` : ''}${qto} em <b>${z.z}</b> · ${z.d} (${paceAsp(a, b)}) <span class="lt-est">${fim}</span>`;
@@ -6785,12 +6793,15 @@ function estimaTotalSeg(estrutura, perfil) {
 }
 function resumoEstrutura(estrutura, perfil) {
   const l = achatar(estrutura, perfil);
-  return { km: l.reduce((a, s) => a + s.metros, 0) / 1000, seg: l.reduce((a, s) => a + s.seg, 0) };
+  const r = { km: l.reduce((a, s) => a + s.metros, 0) / 1000, seg: l.reduce((a, s) => a + s.seg, 0) };
+  // no modo adaptação não há estimativa: só mostra km se o treino é todo por distância, e tempo se é todo por tempo
+  if (perfil && perfil.pse) { const porT = l.some((s) => s.med === 'min'), porD = l.some((s) => s.med !== 'min'); r.mostraKm = !porT; r.mostraSeg = !porD; } else { r.mostraKm = true; r.mostraSeg = true; }
+  return r;
 }
 const medTxt = (s) => s.med === 'km' ? `${String(s.v).replace('.', ',')} km` : s.med === 'm' ? `${s.v} m` : `${String(s.v).replace('.', ',')} min`;
 function descreverEstrutura(estrutura, perfil) {
   const zt = (p) => { const z = ZONAS_INFO[p.z] || ZONAS_INFO.leve; return `${z.z}${perfil ? ' (' + paceZonaTxt(p.z, perfil).replace('/km', '') + ')' : ''}`; };
-  const est = (p) => (perfil && p.med === 'min' ? ` ≈${estimaPasso(p, perfil).txt}` : '');
+  const est = (p) => (perfil && !perfil.pse && p.med === 'min' ? ` ≈${estimaPasso(p, perfil).txt}` : '');
   return (estrutura || []).map((s) => s.k === 'rep'
     ? `${s.n}× (${(s.passos || []).map((p) => `${medTxt(p)} ${zt(p)}${est(p)}`).join(' + ')})`
     : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : ''}${medTxt(s)} ${zt(s)}${est(s)}`).join(' · ');
@@ -7045,7 +7056,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       <select class="input ksel" data-cam="${cam}" data-f="k">${Object.entries(PASSOS).map(([k, l]) => `<option value="${k}" ${s.k === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <input class="input vin" data-cam="${cam}" data-f="v" data-mask="dec" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
       ${medSel(s.med, cam)}${zonaSel(s.z, cam)}
-      <em class="pace-dica">pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ≈ ${estimaPasso(s, perfil).txt}</em>
+      <em class="pace-dica">${perfil.pse ? pseTxt(s.z, true) + ' <span>(modo adaptação)</span>' : `pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'}`} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ≈ ${estimaPasso(s, perfil).txt}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
     r.querySelector('#passos').innerHTML = t.estrutura.map((s, i) => s.k === 'rep'
@@ -7131,7 +7142,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
 /* ---------- detalhe do treino para o aluno ---------- */
 function verTreinoPlanilha(p, perfil, feito) {
   const est = estruturaDe(p);
-  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pzt = paceZonaTxt(s.z, perfil); const e = estimaPasso(s, perfil); const alvoT = ` <em class="alvo-t">${e.tipo === 'dist' ? 'dist. est.' : 'tempo est.'} ≈ ${e.txt}</em>`; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
+  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pzt = paceZonaTxt(s.z, perfil); const e = estimaPasso(s, perfil); const alvoT = perfil && perfil.pse ? '' : ` <em class="alvo-t">${e.tipo === 'dist' ? 'dist. est.' : 'tempo est.'} ≈ ${e.txt}</em>`; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
   openSheet(`<p class="eyebrow">${fmtDia(p.data)} · ${esc(nomeTipo(p.tipo))}</p><div class="h2" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
     ${sobreTreino(p.tipo) ? `<p class="small muted" style="margin-top:6px">${esc(sobreTreino(p.tipo))}</p>` : ''}
     <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px">${(() => { const t = estimaTotal(est, perfil); return `<b>${t.soDist ? '' : '≈ '}${t.km}</b> · ${t.soTempo ? '' : '≈ '}${t.tempo}`; })()}</p></div>
@@ -7267,7 +7278,7 @@ function cartaoSessao(p, perfil, feito, staff) {
     <div class="ses-t"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b>${!feito && st === 'perdido' ? '<span class="ses-x">!</span>' : ''}</div>
     ${perfilHTML(est, perfil)}
     ${feito ? `<div class="ses-res"><div><small>Distância</small><b>${fmtKm(feito.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(feito)).replace('/km', '')}<em>/km</em></b></div></div>` : ''}
-    <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km ? f1(rs.km) + ' km' : ''}${rs.seg ? ' · ' + fmtDur(rs.seg) : ''}</span></div>`;
+    <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km && rs.mostraKm ? f1(rs.km) + ' km' : ''}${rs.seg && rs.mostraSeg ? (rs.km && rs.mostraKm ? ' · ' : '') + fmtDur(rs.seg) : ''}</span></div>`;
 }
 // etiqueta de força (Nexos) no dia da semana de corrida: prevista, feita ou rascunho (só o treinador vê)
 function forcaDiaHTML(fc, k, semana, staff) {
@@ -7392,14 +7403,19 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const tileZ = ([k, l]) => staff
       ? `<div class="pz-ed" style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><div class="pz-in"><input class="input mono" data-pz="${k}" data-i="0" data-mask="pace" value="${mmss(faixaDe(k)[0])}" inputmode="numeric" aria-label="${l} de"><i>–</i><input class="input mono" data-pz="${k}" data-i="1" data-mask="pace" value="${mmss(faixaDe(k)[1])}" inputmode="numeric" aria-label="${l} até"><em>/km</em></div></div>`
       : `<div style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><b>${paceZonaTxt(k, perfil)}</b></div>`;
-    corpo = `${perfil.paces || staff ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.auto && !perfil.manual ? `Base: ${esc(TESTE_NOME[perfil.auto.tipo] || 'teste de campo')}${perfil.auto.data ? ' · ' + fmtDia(perfil.auto.data) : ''} · ${esc(perfil.auto.resumo || '')}` : perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.auto ? '<span class="tag ok">atualizado pelo teste</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
+    const pseCard = `<div class="card pse-card"><span class="eyebrow">Fase de adaptação · percepção de esforço</span>
+      <p class="small" style="margin-top:6px">${staff ? 'Nesta fase o aluno não segue ritmo nem frequência cardíaca: cada zona aparece para ele como esforço de 0 a 10 e pelo teste da fala.' : 'Nesta fase você não precisa olhar o ritmo nem o relógio. Cada treino diz o esforço: siga a sensação do seu corpo e o quanto consegue falar.'}</p>
+      <div class="pse-lista">${['rec', 'leve', 'maratona', 'limiar', 'intervalado', 'tiros'].map((k) => `<div style="--zc:${ZONAS_INFO[k].c}"><b>${ZONAS_INFO[k].z}</b><span>${pseTxt(k, true)}</span><em>${PSE_Z[k][2]}</em></div>`).join('')}</div>
+      <p class="tiny dim" style="margin-top:8px">0 = parado · 10 = esforço máximo. O teste da fala e a escala de esforço acompanham bem a intensidade e são o método indicado para quem está começando (Foster et al. 2008; Reed & Pipe 2014). ${staff ? 'Quando você cadastrar o teste, os ritmos passam a aparecer e o modo desliga sozinho.' : 'Depois da adaptação, seu treinador faz um teste e os ritmos passam a aparecer aqui.'}</p></div>`;
+    const pseBtn = staff && !perfil.vdot && !perfil.auto && !perfil.manual ? `<div class="card" style="margin-bottom:12px"><div class="row between" style="gap:10px"><div class="grow" style="min-width:0"><b>Modo adaptação por esforço</b><p class="small muted" style="margin-top:2px">${perfil.pse ? 'Ligado: o aluno vê esforço de 0 a 10, sem pace e sem FC.' : 'Para iniciantes sem teste: troca pace e FC estimados por esforço de 0 a 10.'}</p></div><button class="btn sm ${perfil.pse ? 'ghost' : ''}" id="pse-tg">${perfil.pse ? 'Desligar' : 'Ligar'}</button></div></div>` : '';
+    corpo = `${pseBtn}${perfil.pse ? pseCard : ''}${perfil.paces || staff ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.auto && !perfil.manual ? `Base: ${esc(TESTE_NOME[perfil.auto.tipo] || 'teste de campo')}${perfil.auto.data ? ' · ' + fmtDia(perfil.auto.data) : ''} · ${esc(perfil.auto.resumo || '')}` : perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.auto ? '<span class="tag ok">atualizado pelo teste</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
         ${staff ? '<p class="tiny dim" style="margin-top:8px">Edite o pace de cada zona (minutos:segundos por km) e toque em “Salvar zonas”. É o que o aluno vê nos treinos.</p>' : ''}
         <div class="paces">${ZT.map(tileZ).join('')}</div>
         ${staff ? `<div class="${perfil.manual ? 'grid2' : ''}" style="margin-top:12px"><button class="btn block" id="pz-salvar">${I.check} Salvar zonas</button>${perfil.manual ? '<button class="btn ghost" id="pz-auto">Voltar ao automático</button>' : ''}</div>` : ''}
         ${perfil.vdot ? `<span class="small muted" style="display:block;margin-top:14px;font-weight:700">Previsão de provas</span>
         <div class="prev-prova">${[[5000, '5 km'], [10000, '10 km'], [21097, '21 km'], [42195, '42 km']].map(([d, l]) => `<div><span>${l}</span><b>${fmtDurLongo(prever(perfil.teste_km * 1000, perfil.teste_seg, d))}</b></div>`).join('')}</div>
         <p class="tiny dim" style="margin-top:8px">${perfil.auto && !perfil.manual ? ({ t30: 'Zonas em % do pace e da FC de limiar (Friel, 2009)', vam: 'Zonas em % da VAM (Léger e Boucher, 1980; Billat, 2001)', vc: 'Zonas em % da velocidade crítica (Jones e Vanhatalo, 2017)' }[perfil.auto.tipo] || 'Zonas pelo teste de campo') : 'Paces automáticos pelo VDOT de Jack Daniels'}; previsões pela fórmula de Riegel. São estimativas para provas no plano e com treino específico.</p>` : ''}</div>`
-      : `<div class="empty"><div class="h3">Ritmos ainda não calculados</div><p class="small">Seu treinador vai cadastrar um teste para calcular os seus paces.</p></div>`}
+      : perfil.pse ? '' : `<div class="empty"><div class="h3">Ritmos ainda não calculados</div><p class="small">Seu treinador vai cadastrar um teste para calcular os seus paces.</p></div>`}
       ${staff ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn ${perfil.paces ? 'ghost' : ''} sm" id="ed-perfil">${perfil.paces ? 'Atualizar teste de prova' : 'Cadastrar teste'}</button><button class="btn ghost sm" id="ed-campo">Lançar teste de campo</button>${(m.corrida || {}).zonas_hist && (m.corrida || {}).zonas_hist.length ? '<button class="btn ghost sm" id="zn-volta">Voltar às zonas anteriores</button>' : ''}</div>
         <p class="tiny dim" style="margin-top:8px">Quando o aluno corre um teste da biblioteca (30 min de Friel, VAM, velocidade crítica, Cooper, 2.400 m, 10 km ou FC máxima), as zonas se atualizam sozinhas com os dados do relógio.</p>` : ''}
       ${perfil.fcMax || perfil.lthr ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · ${perfil.lthr ? `pela FC de limiar ${perfil.lthr} bpm (teste de 30 min, Friel)` : `FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}`}</span><div class="zonas" style="margin-top:12px">${zonasFCPerfil(perfil).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
@@ -7416,6 +7432,12 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   if (q('#pv-evo')) previsoesCard(q('#pv-evo'), corridas, perfil);
   if (q('#reg-c')) q('#reg-c').onclick = () => registrarCorrida(alunoId, (id) => { location.hash = '#/corrida/' + id; });
   if (q('#ver-todas')) q('#ver-todas').onclick = () => { st.todas = true; recarregar(); };
+  if (q('#pse-tg')) q('#pse-tg').onclick = async () => {
+    const corrida = { ...(m.corrida || {}), modo_pse: !perfil.pse };
+    const { error } = await sb.from('nx_membros').update({ corrida }).eq('org_id', S.org.id).eq('user_id', alunoId);
+    if (error) return toast('Não foi possível salvar.', true);
+    m.corrida = corrida; toast(corrida.modo_pse ? 'Modo adaptação ligado: o aluno vê esforço, sem pace.' : 'Modo adaptação desligado.'); recarregar();
+  };
   if (q('#pz-salvar')) q('#pz-salvar').onclick = async () => {
     const lerS = (v) => { const m2 = String(v || '').trim().match(/^(\d{1,2})[:.,](\d{1,2})$/) || String(v || '').trim().match(/^(\d{1,2})$/); if (!m2) return null; const sg = (+m2[1]) * 60 + (+(m2[2] || 0)); return m2[2] && +m2[2] > 59 ? null : sg; };
     const man = {}; let erro = '';
@@ -8125,7 +8147,7 @@ function gpsPassos(p, perfil) {
   const out = [];
   const add = (s, rep, nrep) => {
     const alvo = s.med === 'min' ? { t: s.v * 60 } : { d: s.med === 'km' ? s.v * 1000 : s.v };
-    const [a, b] = faixaZona(s.z, perfil);
+    const [a, b] = perfil && perfil.pse ? [null, null] : faixaZona(s.z, perfil);
     out.push({ k: s.k, z: s.z, med: s.med, v: s.v, rep, nrep, ...alvo, pa: a, pb: b });
   };
   (estruturaDe(p) || []).forEach((s) => { if (s.k === 'rep') { for (let i = 0; i < (s.n || 1); i++) (s.passos || []).forEach((x) => add(x, i + 1, s.n || 1)); } else add(s); });
@@ -8245,15 +8267,15 @@ async function viewGps(id, modo) {
     if (s) {
       const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve, fT = mov - st.pIni.t, fD = st.dist - st.pIni.d;
       const falta = s.t ? Math.max(0, s.t - fT) : Math.max(0, s.d - fD), pr = s.t ? fT / s.t : fD / s.d;
-      const noRitmo = pa && isFinite(pa) ? (pa < s.pa * 0.97 ? 'rapido' : pa > s.pb * 1.03 ? 'lento' : 'ok') : '';
+      const noRitmo = pa && isFinite(pa) && s.pa ? (pa < s.pa * 0.97 ? 'rapido' : pa > s.pb * 1.03 ? 'lento' : 'ok') : '';
       $('g-passo').style.setProperty('--zc', z.c);
       $('g-passo').innerHTML = `<div class="gps-p-h"><span class="gps-z">${z.z} · ${z.d}</span><span class="tiny">Parte ${st.passo + 1} de ${passos.length}</span></div>
         <div class="gps-p-n">${gpsNomePasso(s)}</div>
         <div class="gps-p-f">${s.t ? fmtDurLongo(falta) : falta >= 1000 ? (falta / 1000).toFixed(2).replace('.', ',') + ' km' : Math.round(falta) + ' m'}<small>${s.t ? ' faltando' : ' faltando'}</small></div>
         <div class="gps-bar"><i style="width:${Math.min(100, pr * 100).toFixed(1)}%"></i></div>
-        <div class="gps-p-alvo">${est ? `Velocidade na esteira <b>${kmhDe(s.pb)} a ${kmhDe(s.pa)} km/h</b>` : `Pace alvo <b>${fmtPace(s.pa).replace('/km', '')} a ${fmtPace(s.pb)}</b>`}${noRitmo === 'rapido' ? '<span class="gps-r r">Rápido demais</span>' : noRitmo === 'lento' ? '<span class="gps-r l">Acelere</span>' : noRitmo === 'ok' ? '<span class="gps-r ok">No ritmo</span>' : ''}</div>`;
+        <div class="gps-p-alvo">${!s.pa ? `Esforço <b>${pseTxt(s.z, true)}</b> · ${(PSE_Z[s.z] || PSE_Z.leve)[2]}` : est ? `Velocidade na esteira <b>${kmhDe(s.pb)} a ${kmhDe(s.pa)} km/h</b>` : `Pace alvo <b>${fmtPace(s.pa).replace('/km', '')} a ${fmtPace(s.pb)}</b>`}${noRitmo === 'rapido' ? '<span class="gps-r r">Rápido demais</span>' : noRitmo === 'lento' ? '<span class="gps-r l">Acelere</span>' : noRitmo === 'ok' ? '<span class="gps-r ok">No ritmo</span>' : ''}</div>`;
       const nx = passos[st.passo + 1];
-      $('g-prox').innerHTML = nx ? `Depois: <b>${gpsNomePasso(nx)}</b> · ${gpsAlvoTxt(nx)} · ${est ? `${kmhDe(nx.pb)} a ${kmhDe(nx.pa)} km/h` : (ZONAS_INFO[nx.z] || ZONAS_INFO.leve).z}` : 'Última parte do treino';
+      $('g-prox').innerHTML = nx ? `Depois: <b>${gpsNomePasso(nx)}</b> · ${gpsAlvoTxt(nx)} · ${!nx.pa ? pseTxt(nx.z, true) : est ? `${kmhDe(nx.pb)} a ${kmhDe(nx.pa)} km/h` : (ZONAS_INFO[nx.z] || ZONAS_INFO.leve).z}` : 'Última parte do treino';
     } else if (passos.length) {
       $('g-passo').style.setProperty('--zc', 'var(--ok)');
       $('g-passo').innerHTML = '<div class="gps-p-n">Treino completo</div><p class="small" style="margin-top:6px">Pode desacelerar e tocar em Terminar para salvar.</p>';
@@ -8600,13 +8622,13 @@ function garminItem(p, perfil) {
   const INT = { aq: 'WARMUP', dq: 'COOLDOWN', rc: 'RECOVERY', co: 'INTERVAL' };
   const conv = (s, emSerie) => {
     const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
-    const [pmin, pmax] = faixaZona(s.z, perfil); // todo passo leva a faixa de pace como alvo, inclusive a recuperação
-    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: `${zi.z} ${zi.d} · ${fmtPace(pmin).replace('/km', '')}–${fmtPace(pmax)}`.slice(0, 100) };
+    const [pmin, pmax] = perfil && perfil.pse ? [null, null] : faixaZona(s.z, perfil); // todo passo leva a faixa de pace como alvo (no modo adaptação, sem alvo)
+    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: pmin ? `${zi.z} ${zi.d} · ${fmtPace(pmin).replace('/km', '')}–${fmtPace(pmax)}` : `${zi.z} ${zi.d} · ${pseTxt(s.z, true)}`.slice(0, 100) };
   };
   const tot = estimaTotal(est, perfil);
   // o treino estruturado por escrito, na mesma ordem do app (aparece no Garmin Connect)
   const NOMES = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Desaquecimento' };
-  const linhaPasso = (x) => { const zi = ZONAS_INFO[x.z] || ZONAS_INFO.leve; const [a, b] = faixaZona(x.z, perfil); return `${NOMES[x.k] || 'Corrida'} ${medTxt(x)} · ${zi.z} ${zi.d}${a && b ? ` (${fmtPace(a).replace('/km', '')}–${fmtPace(b)})` : ''}`; };
+  const linhaPasso = (x) => { const zi = ZONAS_INFO[x.z] || ZONAS_INFO.leve; const [a, b] = perfil && perfil.pse ? [null, null] : faixaZona(x.z, perfil); return `${NOMES[x.k] || 'Corrida'} ${medTxt(x)} · ${zi.z} ${zi.d}${a && b ? ` (${fmtPace(a).replace('/km', '')}–${fmtPace(b)})` : perfil && perfil.pse ? ` (${pseTxt(x.z, true)})` : ''}`; };
   const estruturaTxt = est.map((x, i) => x.k === 'rep' ? `${i + 1}. Repetir ${x.n || 1}×:\n${(x.passos || []).map((y) => `   • ${linhaPasso(y)}`).join('\n')}` : `${i + 1}. ${linhaPasso(x)}`).join('\n');
   const montar = (sobre) => [`TREINO\n${estruturaTxt}`, `Total est.: ${tot.soDist ? '' : '≈ '}${tot.km} · ${tot.soTempo ? '' : '≈ '}${tot.tempo}`, p.descricao ? 'Treinador: ' + p.descricao : '', sobre].filter(Boolean).join('\n\n');
   // o Garmin aceita até 500 letras: o texto sobre o tipo de treino sai primeiro se não couber
