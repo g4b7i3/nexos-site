@@ -946,20 +946,20 @@ function alunoMais() {
   const it = (href, ic, t, d, extra = '') => `<a class="list-item" href="${href}" style="color:inherit"${extra}><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
   const fC = faz('corrida');
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Tudo do seu app</h1>
-    <p class="sec-lbl" style="margin-top:20px">Treino e desempenho</p><div class="stack">
+    <p class="sec-lbl" style="margin-top:20px">Treino e desempenho</p><div class="stack" id="mais-treino">
       ${fC ? it('#/eventos', I.flag, 'Eventos e provas', 'Treinões da Nexos e suas provas') : ''}
       ${fC ? it('#/recordes', TROFEU_IC, 'Meus recordes', 'Melhores tempos em 1 km, 5 km, 10 km e meia') : ''}
       ${it('#/historico/avaliacoes', I.ficha, 'Avaliações físicas', 'Medidas, composição corporal e relatórios')}
       ${it('#/historico/fotos', I.cam, 'Fotos de evolução', 'Antes e depois, avaliação postural')}
       ${fC ? it('#/historico/previsoes', I.hist, 'Testes e previsões', 'Tempos estimados e zonas de treino') : ''}
     </div>
-    <p class="sec-lbl">Saúde</p><div class="stack">
+    <p class="sec-lbl">Saúde</p><div class="stack" id="mais-saude">
       ${it('#/agua', AGUA_IC, 'Hidratação', 'Sua semana, meta e lembretes')}
       ${it('#/prontidao', PRONT_IC, 'Check-in e dores', 'Sono, energia, dor e estresse dos últimos dias')}
       ${S.me.sexo === 'F' ? `<button class="list-item" id="mais-ciclo" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Fase atual e ajuste do treino</div></div>${I.chev}</button>` : ''}
       ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
     </div>
-    <p class="sec-lbl">Conta</p><div class="stack">
+    <p class="sec-lbl">Conta</p><div class="stack" id="mais-conta">
       ${it('#/conexoes', I.watch, 'Conexões', 'Relógio Garmin e outras marcas')}
       ${it('#/pagamentos', I.money, 'Pagamentos e plano', 'Mensalidades e formas de pagamento')}
       <div id="mais-notif"></div>
@@ -1829,21 +1829,42 @@ async function carregarAudios(root) {
 
 
 /* ---------- tour de boas-vindas pelo app (aluno) ---------- */
+// tour completo: cada passo aponta uma parte do app (passos sem a parte na tela do aluno são pulados)
 const TOUR_PASSOS = [
-  { rota: '#/', sel: '.hoje-hero', t: 'Seu dia em um lugar só', d: 'Aqui aparecem a sua saudação, o que tem de treino hoje, a hidratação e quantas semanas seguidas você está treinando.' },
-  { rota: '#/', sel: '#pend-sec:not([hidden])', t: 'A preencher', d: 'O que está esperando por você: o check-in da manhã (sono, energia, dor e estresse), como foi o último treino e recados do treinador. Leva segundos e ajuda o treinador a ajustar o seu treino.' },
-  { rota: '#/', sel: '.hoje-main > .stack', t: 'Treino de hoje', d: 'O treino do dia com o passo a passo, os ritmos e o recado do treinador. Toque para abrir os detalhes.' },
-  { rota: '#/', sel: '#agua-box', t: 'Hidratação', d: 'Toque no copo a cada água que beber. A meta é calculada pelo seu peso e pelo treino do dia, e o seu treinador acompanha.' },
-  { rota: '#/', sel: '#fab-reg', t: 'Botão de registrar', d: 'Treinar pelo celular (na rua ou na esteira), registrar uma corrida feita sem relógio ou falar com o treinador.' },
-  { rota: '#/', sel: '#dock a[href="#/planilha"]', t: 'Planilha', d: 'A sua semana de treinos de corrida e de força, liberada pelo treinador.' },
-  { rota: '#/historico', sel: '.sec-mom', t: 'Seus momentos', d: 'Medalhas das suas conquistas, retrospectiva do mês e do ano e o seu antes e depois. Tudo vira card para o story.' },
-  { rota: '#/historico', sel: '.sec-det', t: 'Sua evolução', d: 'Previsões de prova, relatórios, histórico de treinos, avaliações físicas e fotos.' },
-  { rota: '#/', sel: '#dock a[href="#/conversa"]', t: 'Treinador', d: 'Conversa direta com o seu treinador, inclusive com mensagens de voz.' },
+  // tela Hoje
+  { rota: '#/', sel: '.hoje-hero', t: 'Seu dia em um lugar só', d: 'Saudação, o que tem de treino hoje, a sua hidratação, quantas semanas seguidas você está treinando e os km da semana.' },
+  { rota: '#/', sel: '#hh-agua', t: 'Hidratação no topo', d: 'Quanto você já bebeu e quanto falta para a meta do dia.' },
+  { rota: '#/', sel: '#momentos .card', t: 'Momentos', d: 'Aqui aparecem as novidades na hora certa: nova medalha, retrospectiva do mês, modo prova na semana da sua prova e o antes e depois aos 3 meses.' },
+  { rota: '#/', sel: '#pend-sec:not([hidden])', t: 'A preencher', d: 'O que está esperando por você. Responda e o card some.' },
+  { rota: '#/', sel: '#pront-abrir', t: 'Check-in da manhã', d: 'De manhã, 20 segundos: sono, energia, dor e estresse. Se marcar dor, um boneco mostra onde dói. Seu treinador recebe e ajusta o treino.' },
+  { rota: '#/', sel: '.hoje-main > .stack', t: 'Treino de hoje', d: 'O treino do dia com o passo a passo, os ritmos de cada trecho e o recado do treinador.' },
+  { rota: '#/', sel: '.corr-home a[href^="#/gps"]', t: 'Treinar pelo celular', d: 'Sem relógio? O app marca distância, pace e voz a cada trecho, na rua (GPS) ou na esteira.' },
+  { rota: '#/', sel: '#agua-box', t: 'Copo de água', d: 'Toque a cada água que beber. A meta é calculada pelo seu peso e pelo treino do dia. Você recebe até 5 lembretes por dia, e dá para desligar ali embaixo.' },
+  { rota: '#/', sel: '.hoje-tiles', t: 'Seus números', d: 'Contagem para a próxima prova, previsão do seu tempo nos 5 km e a fase do treino de força.' },
+  { rota: '#/', sel: '.semana-comp', t: 'Sua semana', d: 'Os dias em que você treinou nesta semana.' },
+  { rota: '#/', sel: '#fab-reg', t: 'Botão +', d: 'Treinar pelo celular, registrar uma corrida feita sem relógio ou falar com o treinador.' },
+  // planilha
+  { rota: '#/planilha', sel: '#pl-c', t: 'Planilha', d: 'A sua semana de treinos. Toque em um dia para ver o treino completo. Treinos liberados pelo treinador vão sozinhos para o relógio Garmin.' },
+  { rota: '#/planilha', sel: '#pl-f .section,#pl-c .tr-card', t: 'Treinos de força', d: 'Seus treinos de força com vídeos dos exercícios. No treino, marque cada série e a carga: o app guarda a sua evolução.' },
+  // evolução
+  { rota: '#/historico', sel: '.freq-sem,.sec-grid', t: 'Evolução', d: 'Sua frequência e a constância nas últimas semanas.' },
+  { rota: '#/historico', sel: '.sec-mom', t: 'Seus momentos', d: 'Medalhas das suas conquistas, retrospectiva de cada mês e o seu antes e depois. Tudo vira card para o story.' },
+  { rota: '#/historico', sel: '.sec-det', t: 'Detalhes da evolução', d: 'Previsões de prova, relatório do mês em PDF, histórico de treinos, corridas, cargas, avaliações físicas e fotos.' },
+  { rota: '#/medalhas', sel: '.med-hero', t: 'Medalhas', d: 'Quantas conquistas você já tem. Toque numa medalha conquistada para gerar o card do story.' },
+  { rota: '#/medalhas', sel: '.med-sec', t: 'Próximas conquistas', d: 'As medalhas apagadas mostram quanto falta para conquistar.' },
+  { rota: '#/historico/corrida', sel: '.corr-item,.card.tap', t: 'Cada corrida', d: 'Abra uma corrida para ver mapa, parciais, frequência cardíaca, análise do treino, o replay do percurso em vídeo e a comparação com você mesmo semanas atrás.' },
+  // treinador
+  { rota: '#/conversa', sel: '#f-msg', t: 'Treinador', d: 'Conversa direta com o seu treinador. Ele pode mandar recados de voz.' },
+  // mais
+  { rota: '#/mais', sel: '#mais-treino', t: 'Mais: treino e desempenho', d: 'Eventos e provas da Nexos, seus recordes, avaliações físicas, fotos de evolução e testes com previsões e zonas de treino.' },
+  { rota: '#/mais', sel: '#mais-saude', t: 'Mais: saúde', d: 'Hidratação da semana, histórico de check-ins e dores, ciclo menstrual (para quem ativar) e a sua ficha de saúde. Em Avaliações dá também para registrar as suas medidas em casa.' },
   { rota: '#/mais', sel: 'a[href="#/conexoes"]', t: 'Conecte o seu relógio', d: 'Garmin e outras marcas: as corridas chegam sozinhas e os treinos vão para o relógio.' },
+  { rota: '#/mais', sel: 'a[href="#/pagamentos"]', t: 'Pagamentos', d: 'Suas mensalidades e as formas de pagamento.' },
   { rota: '#/mais', sel: '#mais-notif', t: 'Notificações', d: 'Ative para receber o treino do dia, os lembretes de água e as mensagens do treinador.' },
-  { rota: '#/mais', sel: '#mais-tour', t: 'Pronto!', d: 'Para ver este tour de novo, é só vir aqui em Mais > Tour pelo app. Bons treinos!' },
+  { rota: '#/mais', sel: 'a[href="#/perfil"]', t: 'Seu perfil', d: 'Foto, dados, tema claro ou escuro e sair da conta.' },
+  { rota: '#/mais', sel: '#mais-tour', t: 'Pronto!', d: 'Você viu tudo. Para rever este tour, é só vir aqui em Mais > Tour pelo app. Bons treinos!' },
 ];
-function esperarEl(sel, ms = 4000) {
+function esperarEl(sel, ms = 2000) {
   return new Promise((ok) => { const t0 = Date.now(); const f = () => { const e = document.querySelector(sel); if (e && e.getBoundingClientRect().height > 0) return ok(e); if (Date.now() - t0 > ms) return ok(null); setTimeout(f, 120); }; f(); });
 }
 async function iniciarTour() {
@@ -1878,7 +1899,7 @@ async function iniciarTour() {
 }
 // convite: aparece uma vez por sessão para quem ainda não fez nem recusou
 function convidarTour() {
-  if (S.staff || !S.me || S.me.tour || sessionStorage.getItem('nx-tour-conv')) return;
+  if (S.staff || !S.me || S.me.tour || sessionStorage.getItem('nx-tour-conv')) return; // tour null = ainda não viu esta versão
   setTimeout(() => {
     if (!$sheet.hidden || document.querySelector('.tour,.retro,.replay') || location.hash.replace('#', '').replace('/', '')) return;
     try { sessionStorage.setItem('nx-tour-conv', '1'); } catch {}
