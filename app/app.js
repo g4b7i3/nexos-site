@@ -21,6 +21,9 @@ function aplicarTema(t) {
 }
 // paletas de cor: mudam os destaques e os cards escuros; o fundo (claro ou escuro) continua sendo escolhido à parte
 const PALETAS = [['nexos', 'Nexos', '#46d6ff', '#0a1a42'], ['rosa', 'Rosa', '#ff7ab6', '#3d0b24'], ['vermelho', 'Vermelho', '#ff7a7a', '#3f080c'], ['laranja', 'Laranja', '#ffb057', '#3b1805'], ['dourado', 'Dourado', '#ffd166', '#302304'], ['verde', 'Verde', '#5ef2a0', '#082b18'], ['turquesa', 'Turquesa', '#5eead4', '#072a28'], ['roxo', 'Roxo', '#b794ff', '#1e0b45'], ['lilas', 'Lilás', '#e0a8ff', '#280a3e'], ['grafite', 'Grafite', '#cbd5e1', '#151c26']];
+// cores da paleta atual em hex (para SVG e canvas, que não leem variáveis do CSS)
+const corP = () => { const cs = getComputedStyle(document.documentElement), v = (k, d) => (cs.getPropertyValue(k).trim() || d); return { p1: v('--p1', '#46d6ff'), p2: v('--p2', '#1a7fe6'), p3: v('--p3', '#2f6bff'), h1: v('--h1', '#0d2a66'), h2: v('--h2', '#0a1a42'), h3: v('--h3', '#071230'), h4: v('--h4', '#0f2a5c') }; };
+const misturaHex = (a, b, t) => { const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16)), pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16)); return '#' + pa.map((x, i) => Math.round(x + (pb[i] - x) * t).toString(16).padStart(2, '0')).join(''); };
 function aplicarPaleta(k) {
   if (!PALETAS.some((x) => x[0] === k)) k = 'nexos';
   document.documentElement.dataset.paleta = k; store.set('nx-paleta', k);
@@ -59,7 +62,7 @@ const ESF_ESC = [
   ['Máximo', 'O maior esforço possível. Não dava para fazer mais.'],
 ];
 // cores da escala no azul da Nexos: do ciano claro (leve) ao azul profundo (máximo)
-const ESF_COR = ['#8fe6ff', '#74ddfb', '#55d2f6', '#35c3f0', '#1fb0ec', '#1898ea', '#1a7fe6', '#2066df', '#2550cf', '#263db5', '#1f2a8f'];
+const ESF_COR = new Proxy([], { get: (t, k) => { const n = Number(k); if (!Number.isInteger(n)) return t[k]; const c = corP(), claro = misturaHex(c.p1, '#ffffff', 0.25); return n <= 5 ? misturaHex(claro, c.p2, n / 5) : misturaHex(c.p2, misturaHex(c.h1, c.p3, 0.35), (n - 5) / 5); } });
 // rostinho desenhado (sem emoji): boca, olhos e sobrancelhas mudam com o esforço
 function rostoEsf(n) {
   const c = n == null ? 'var(--dim)' : ESF_COR[n];
@@ -445,7 +448,13 @@ async function carregarPerfil() {
   if (error) throw error;
   const m = (data || []).sort((x, y) => (x.papel === 'aluno') - (y.papel === 'aluno'))[0] || null;
   S.me = m; S.org = m?.nx_orgs || null; S.staff = !!m && (m.papel === 'admin' || m.papel === 'treinador');
+  // aparência salva na conta acompanha a pessoa em qualquer aparelho
+  if (m?.tema && m.tema !== document.documentElement.dataset.tema) aplicarTema(m.tema);
+  if (m?.paleta && m.paleta !== document.documentElement.dataset.paleta) aplicarPaleta(m.paleta);
+  // quem já tinha escolhido cores neste aparelho antes de existir o salvamento na conta: leva a escolha para a conta
+  if (m && !m.paleta && !m.tema && ((document.documentElement.dataset.paleta || 'nexos') !== 'nexos' || document.documentElement.dataset.tema === 'escuro')) salvarAparencia();
 }
+const salvarAparencia = () => { const d = document.documentElement.dataset; if (S.me) { S.me.paleta = d.paleta || 'nexos'; S.me.tema = d.tema || 'claro'; } sb.rpc('nx_aparencia', { p_paleta: d.paleta || 'nexos', p_tema: d.tema || 'claro' }).then(() => {}, () => {}); };
 async function iniciar() {
   aplicarTema(document.documentElement.dataset.tema === 'escuro' ? 'escuro' : 'claro');
   const { data } = await sb.auth.getSession();
@@ -1057,6 +1066,87 @@ function msgMarco(x) {
   return `${n}, você chegou a ${x.valor} treinos registrados na Nexos! Disciplina é o que faz o resultado aparecer, e você está mostrando isso. Parabéns!\n\n${eu}`;
 }
 const ICO_MARCO = { aniversario: I.bolo || I.flag, tempo: I.cal, km: I.run, treinos: I.check };
+/* ---------- pesquisa de satisfação (a cada 3 meses) ---------- */
+async function pesquisaSatisfacao(box) {
+  if (!box || S.staff || !S.me.criado_em || diasDesde(S.me.criado_em) < 90) return;
+  const ult = await sb.from('nx_satisfacao').select('adiada,criado_em').eq('aluno_id', S.user.id).order('criado_em', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null, () => undefined);
+  if (ult === undefined || (ult && diasDesde(ult.criado_em) < (ult.adiada ? 14 : 90))) return;
+  box.innerHTML = `<button type="button" class="list-item" id="sat-abrir" style="width:100%;text-align:left"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>Como está sendo a Nexos para você?</b><div class="small muted">Uma nota rápida, leva 10 segundos.</div></div>${I.chev}</button>`;
+  const sec = document.getElementById('pend-sec'); if (sec) sec.hidden = false;
+  const salvar = async (row) => { const { error } = await sb.from('nx_satisfacao').insert({ org_id: S.org.id, ...row }); if (error) { toast('Não foi possível enviar. Tente de novo.', true); return false; } box.innerHTML = ''; return true; };
+  box.querySelector('#sat-abrir').onclick = () => openSheet(`<p class="eyebrow">Pesquisa rápida</p><div class="h2">De 0 a 10, quanto você recomendaria a Nexos para um amigo?</div>
+    <div class="sat-esc" id="sat-esc">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-n="${i}">${i}</button>`).join('')}</div>
+    <div class="row between tiny dim" style="margin-top:4px"><span>Nada provável</span><span>Com certeza</span></div>
+    <label class="field" style="margin-top:14px"><span id="sat-perg">Quer contar o motivo? (opcional)</span><textarea class="input" id="sat-com" rows="3" maxlength="1500" placeholder="O que está bom e o que podemos melhorar"></textarea></label>
+    <button class="btn block" id="sat-env" disabled>Enviar</button>
+    <button class="link-btn small" id="sat-dep" style="display:block;margin:10px auto 0">Agora não</button>
+    <p class="tiny dim" style="text-align:center;margin-top:8px">Só a equipe Nexos vê sua resposta.</p>`, (el) => {
+    let nota = null;
+    el.querySelector('#sat-esc').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; nota = +b.dataset.n; el.querySelectorAll('#sat-esc button').forEach((x) => x.classList.toggle('on', x === b)); el.querySelector('#sat-env').disabled = false; el.querySelector('#sat-perg').textContent = nota >= 9 ? 'O que você mais gosta? (opcional)' : nota >= 7 ? 'O que faria a nota ser 10? (opcional)' : 'O que não está funcionando para você? (opcional)'; };
+    el.querySelector('#sat-env').onclick = async () => { if (nota == null) return; const com = el.querySelector('#sat-com').value.trim(); if (await salvar({ nota, comentario: com || null, adiada: false })) { closeSheet(); toast('Obrigado! Sua resposta chegou para a equipe.'); } };
+    el.querySelector('#sat-dep').onclick = async () => { if (await salvar({ nota: null, adiada: true })) closeSheet(); };
+  });
+}
+/* ---------- desafio do mês da equipe ---------- */
+const DES_UNI = { km: ['km', 'km'], treinos: ['treino', 'treinos'], horas: ['hora', 'horas'] };
+const desUni = (t, v) => (DES_UNI[t] || DES_UNI.km)[+v === 1 ? 0 : 1];
+const desFmt = (t, v) => { const n = +v || 0; return t === 'treinos' || Number.isInteger(n) ? Math.round(n).toLocaleString('pt-BR') : f1(n); };
+async function desafioCard(box, ativos) {
+  if (!box || !S.org) return;
+  const d = await sb.rpc('nx_desafio_atual', { p_org: S.org.id }).then((r) => r.data || null, () => null);
+  if (!d) { box.innerHTML = S.staff ? `<button type="button" class="list-item des-novo" id="des-criar" style="width:100%;text-align:left;margin-top:14px"><span class="ativ-ic">${I.flag}</span><div class="grow"><b>Criar desafio do mês</b><div class="small muted">Uma meta coletiva para a equipe somar junto.</div></div>${I.chev}</button>` : ''; const b = document.getElementById('des-criar'); if (b) b.onclick = () => desafioEditar(null, ativos, () => desafioCard(box, ativos)); return; }
+  const pct = d.meta > 0 ? Math.min(100, (d.total / d.meta) * 100) : 0, hoje = hojeISO(), acabou = d.fim < hoje;
+  const faltaDias = Math.max(0, Math.round((dia(d.fim) - dia(hoje)) / 864e5));
+  const batida = d.total >= d.meta;
+  box.innerHTML = `<div class="card des-card${batida ? ' ok' : ''}">
+    <div class="row" style="gap:10px;align-items:flex-start"><div class="grow" style="min-width:0"><span class="eyebrow">Desafio da equipe · ${fmtCurto(d.inicio)} a ${fmtCurto(d.fim)}</span><div class="h3" style="margin-top:2px">${esc(d.titulo)}</div></div>${S.staff ? `<button class="link-btn small" id="des-ed">Editar</button>` : ''}</div>
+    <div class="des-num"><b>${desFmt(d.tipo, d.total)}</b><span>de ${desFmt(d.tipo, d.meta)} ${desUni(d.tipo, d.meta)}</span><em>${Math.floor(pct)}%</em></div>
+    <div class="des-bar"><i style="width:${pct}%"></i></div>
+    <p class="small muted" style="margin-top:8px">${batida ? 'Meta batida pela equipe.' : acabou ? 'Desafio encerrado.' : `Faltam ${desFmt(d.tipo, Math.max(0, d.meta - d.total))} ${desUni(d.tipo, d.meta - d.total)} · ${faltaDias === 0 ? 'último dia' : faltaDias === 1 ? 'termina amanhã' : `${faltaDias} dias para o fim`}`}. ${d.participantes} ${d.participantes === 1 ? 'pessoa já somou' : 'pessoas já somaram'}.</p>
+    ${S.staff ? '' : `<p class="small" style="margin-top:4px">Sua parte: <b>${desFmt(d.tipo, d.eu)} ${desUni(d.tipo, d.eu)}</b></p>`}
+    ${(d.ranking || []).length ? `<div class="des-rank">${d.ranking.map((x, i) => `<div class="${x.eu ? 'eu' : ''}"><span>${i + 1}</span><b class="ellip">${esc(x.nome)}${x.eu ? ' (você)' : ''}</b><em>${desFmt(d.tipo, x.val)}</em></div>`).join('')}</div>` : ''}
+  </div>`;
+  const ed = document.getElementById('des-ed'); if (ed) ed.onclick = () => desafioEditar(d, ativos, () => desafioCard(box, ativos));
+}
+async function desafioEditar(d, ativos, depois) {
+  const hoje = hojeISO(), ini = d?.inicio || hoje.slice(0, 8) + '01';
+  const fimMes = (() => { const x = dia(ini); x.setMonth(x.getMonth() + 1, 0); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); })();
+  // sugestão de meta: o que a equipe fez nos últimos 30 dias, com 10% a mais
+  const ids = (ativos || []).map((m) => m.user_id), de = somaDias(hoje, -30);
+  const [cs, ss] = ids.length ? await Promise.all([
+    sb.from('nx_corridas').select('distancia_m,duracao_s,tipo').in('aluno_id', ids).gte('data', de).then((r) => r.data || [], () => []),
+    sb.from('nx_sessoes').select('iniciado_em,finalizado_em').in('aluno_id', ids).gte('iniciado_em', de).not('finalizado_em', 'is', null).then((r) => r.data || [], () => []),
+  ]) : [[], []];
+  const arred = (v, n) => Math.max(n, Math.round((v * 1.1) / n) * n);
+  const sug = {
+    km: arred(cs.filter((c) => !c.tipo || ['corrida', 'trail', 'esteira'].includes(c.tipo)).reduce((a, c) => a + (+c.distancia_m || 0), 0) / 1000, 50),
+    treinos: arred(cs.length + ss.length, 10),
+    horas: arred(cs.reduce((a, c) => a + (+c.duracao_s || 0), 0) / 3600 + ss.reduce((a, x) => { const h = (Date.parse(x.finalizado_em) - Date.parse(x.iniciado_em)) / 36e5; return a + (h > 0 && h < 4 ? h : 0); }, 0), 10),
+  };
+  const tipo0 = d?.tipo || 'km';
+  openSheet(`<p class="eyebrow">Desafio do mês</p><div class="h2">${d ? 'Editar desafio' : 'Novo desafio da equipe'}</div>
+    <form id="f-des" style="margin-top:14px">
+      <label class="field"><span>Nome</span><input class="input" name="titulo" maxlength="60" required value="${esc(d?.titulo || 'Desafio de ' + dia(ini).toLocaleDateString('pt-BR', { month: 'long' }))}"></label>
+      <label class="field"><span>O que a equipe soma</span><select class="input" name="tipo"><option value="km">Quilômetros de corrida</option><option value="treinos">Treinos feitos (corrida e força)</option><option value="horas">Horas de treino</option></select></label>
+      <label class="field"><span>Meta da equipe</span><input class="input" name="meta" type="number" min="1" step="any" required value="${d?.meta || sug[tipo0]}"></label>
+      <p class="small muted" id="des-sug" style="margin:-4px 0 12px">Sugestão: ${desFmt(tipo0, sug[tipo0])} ${desUni(tipo0, sug[tipo0])} (o que a equipe fez nos últimos 30 dias, mais 10%).</p>
+      <div class="row" style="gap:10px"><label class="field grow"><span>Início</span><input class="input" name="inicio" type="date" required value="${ini}"></label><label class="field grow"><span>Fim</span><input class="input" name="fim" type="date" required value="${d?.fim || fimMes}"></label></div>
+      <button class="btn block" type="submit" style="margin-top:6px">${d ? 'Salvar' : 'Lançar desafio'}</button>
+      ${d ? '<button class="btn block ghost" type="button" id="des-apagar" style="margin-top:8px">Apagar desafio</button>' : ''}
+    </form>`, (el) => {
+    const f = el.querySelector('#f-des'); f.tipo.value = tipo0;
+    f.tipo.onchange = () => { const t = f.tipo.value; f.meta.value = sug[t]; el.querySelector('#des-sug').textContent = `Sugestão: ${desFmt(t, sug[t])} ${desUni(t, sug[t])} (o que a equipe fez nos últimos 30 dias, mais 10%).`; };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      if (f.fim.value < f.inicio.value) return toast('O fim precisa ser depois do início.', true);
+      const row = { titulo: f.titulo.value.trim(), tipo: f.tipo.value, meta: +f.meta.value, inicio: f.inicio.value, fim: f.fim.value };
+      const q = d ? sb.from('nx_desafios').update(row).eq('id', d.id) : sb.from('nx_desafios').insert({ ...row, org_id: S.org.id, criado_por: S.user.id });
+      const { error } = await q; if (error) return toast('Não foi possível salvar o desafio.', true);
+      closeSheet(); toast(d ? 'Desafio atualizado.' : 'Desafio lançado. Os alunos já veem na tela Hoje.'); depois && depois();
+    };
+    const ap = el.querySelector('#des-apagar'); if (ap) ap.onclick = async () => { if (ap.dataset.ok !== '1') { ap.dataset.ok = '1'; ap.textContent = 'Toque de novo para apagar'; return; } const { error } = await sb.from('nx_desafios').delete().eq('id', d.id); if (error) return toast('Não foi possível apagar.', true); closeSheet(); toast('Desafio apagado.'); depois && depois(); };
+  });
+}
 async function datasEspeciais(box, ativos) {
   if (!box) return;
   const ids = new Set(ativos.map((m) => m.user_id));
@@ -1629,19 +1719,19 @@ const logoNx = () => _logoNx || (_logoNx = new Promise((ok) => { const im = new 
 async function fontesStory() { try { await Promise.all(["800 100px 'Unbounded'", "600 100px 'Unbounded'", "700 40px 'Manrope'", "500 40px 'Manrope'"].map((f) => document.fonts.load(f))); } catch {} }
 function quebraTexto(x, t, max) { const ps = String(t).split(' '), ls = []; let l = ''; ps.forEach((p) => { const n = l ? l + ' ' + p : p; if (x.measureText(n).width > max && l) { ls.push(l); l = p; } else l = n; }); if (l) ls.push(l); return ls; }
 function fundoStory(x, W, H) {
-  const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0d2a66'); g.addColorStop(0.55, '#0a1a42'); g.addColorStop(1, '#050c1c'); x.fillStyle = g; x.fillRect(0, 0, W, H);
-  const rg = x.createRadialGradient(W * 0.85, H * 0.1, 10, W * 0.85, H * 0.1, 760); rg.addColorStop(0, 'rgba(70,214,255,.34)'); rg.addColorStop(1, 'rgba(70,214,255,0)'); x.fillStyle = rg; x.fillRect(0, 0, W, H);
+  const cp = corP(); const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, cp.h1); g.addColorStop(0.55, cp.h2); g.addColorStop(1, misturaHex(cp.h3, '#000000', 0.3)); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const rg = x.createRadialGradient(W * 0.85, H * 0.1, 10, W * 0.85, H * 0.1, 760); rg.addColorStop(0, cp.p1 + '57'); rg.addColorStop(1, cp.p1 + '00'); x.fillStyle = rg; x.fillRect(0, 0, W, H);
   x.strokeStyle = 'rgba(255,255,255,.06)'; x.lineWidth = 2; [360, 500, 640].forEach((r) => { x.beginPath(); x.arc(W * 0.92, H * 0.96, r, 0, 7); x.stroke(); });
 }
 async function desenharStory(cv, o) {
   await fontesStory();
   const W = 1080, H = 1920; cv.width = W; cv.height = H; const x = cv.getContext('2d');
-  fundoStory(x, W, H);
+  fundoStory(x, W, H); const cp = corP();
   const lg = await logoNx(); if (lg) { const h = 52, w = (lg.width / lg.height) * h; x.drawImage(lg, 90, 120, w, h); }
   let y = 360;
   if (o.medalha) { desenharMedalha(x, W / 2, 580, 180, o.grupo || 'nexos', o.rotulo); y = 870; }
   x.textAlign = o.medalha ? 'center' : 'left'; const cx = o.medalha ? W / 2 : 90;
-  x.fillStyle = '#46d6ff'; x.font = "700 34px 'Manrope'"; try { x.letterSpacing = '7px'; } catch {}
+  x.fillStyle = cp.p1; x.font = "700 34px 'Manrope'"; try { x.letterSpacing = '7px'; } catch {}
   x.fillText(String(o.eyebrow || '').toUpperCase(), cx, y); try { x.letterSpacing = '0px'; } catch {}
   y += 92; x.fillStyle = '#fff'; x.font = "600 76px 'Unbounded'";
   quebraTexto(x, o.titulo || '', W - 180).slice(0, 3).forEach((l) => { x.fillText(l, cx, y); y += 92; });
@@ -1702,7 +1792,14 @@ async function historicoAluno(id) {
 const datasAtiv = (h) => [...h.corridas.map((c) => c.data), ...h.sessoes.map((s) => s.iniciado_em)].sort();
 
 /* ---------- 2) medalhas ---------- */
-const GRUPOS_M = { corrida: ['Corrida', '#2f6bff', '#46d6ff'], constancia: ['Constância', '#1d4ed8', '#7fe3ff'], forca: ['Força', '#1e3a8a', '#4f8bff'], saude: ['Saúde', '#0369a1', '#5eead4'], nexos: ['Nexos', '#0b1834', '#2f6bff'] };
+// cores das medalhas seguem a paleta escolhida
+const GRUPOS_M = {
+  get corrida() { const c = corP(); return ['Corrida', c.p3, c.p1]; },
+  get constancia() { const c = corP(); return ['Constância', c.p2, misturaHex(c.p1, '#ffffff', 0.35)]; },
+  get forca() { const c = corP(); return ['Força', c.h1, c.p2]; },
+  get saude() { const c = corP(); return ['Saúde', misturaHex(c.p2, c.h1, 0.3), misturaHex(c.p1, '#5eead4', 0.4)]; },
+  get nexos() { const c = corP(); return ['Nexos', c.h3, c.p3]; },
+};
 // ícones das medalhas (traço branco, 24 x 24)
 const ICONE_M = {
   corrida: 'M5 19c3 0 3-6 7-6s4-6 7-6M5 19a1.6 1.6 0 1 0 0 .01M19 7l0-3 3 1.5-3 1.5',
@@ -1854,13 +1951,13 @@ function abrirReplay(c, perfil) {
   const ser = c.analise && c.analise.serie;
   const desenha = (k) => {
     fundoStory(x, W, H);
-    x.textAlign = 'left'; x.fillStyle = '#46d6ff'; x.font = "700 34px 'Manrope'"; try { x.letterSpacing = '7px'; } catch {} x.fillText(`${fmtDia(isoDia(c.data))}`.toUpperCase(), 90, 230); try { x.letterSpacing = '0px'; } catch {}
+    x.textAlign = 'left'; x.fillStyle = corP().p1; x.font = "700 34px 'Manrope'"; try { x.letterSpacing = '7px'; } catch {} x.fillText(`${fmtDia(isoDia(c.data))}`.toUpperCase(), 90, 230); try { x.letterSpacing = '0px'; } catch {}
     x.fillStyle = '#fff'; x.font = "600 64px 'Unbounded'"; quebraTexto(x, c.titulo || 'Minha corrida', 900).slice(0, 2).forEach((l, j) => x.fillText(l, 90, 320 + j * 76));
     x.lineCap = 'round'; x.lineJoin = 'round';
     x.strokeStyle = 'rgba(255,255,255,.14)'; x.lineWidth = 14; x.beginPath(); P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b))); x.stroke();
     const n = Math.max(1, Math.floor(k * (P.length - 1)));
     x.lineWidth = 16;
-    for (let j = 1; j <= n; j++) { x.strokeStyle = cores ? cores[j - 1] : '#46d6ff'; x.beginPath(); x.moveTo(P[j - 1][0], P[j - 1][1]); x.lineTo(P[j][0], P[j][1]); x.stroke(); }
+    for (let j = 1; j <= n; j++) { x.strokeStyle = cores ? cores[j - 1] : corP().p1; x.beginPath(); x.moveTo(P[j - 1][0], P[j - 1][1]); x.lineTo(P[j][0], P[j][1]); x.stroke(); }
     const [px, py] = P[n]; const gl = x.createRadialGradient(px, py, 2, px, py, 50); gl.addColorStop(0, 'rgba(255,255,255,.95)'); gl.addColorStop(1, 'rgba(70,214,255,0)'); x.fillStyle = gl; x.beginPath(); x.arc(px, py, 50, 0, 7); x.fill();
     x.fillStyle = '#fff'; x.beginPath(); x.arc(px, py, 14, 0, 7); x.fill();
     // números ao vivo
@@ -2501,6 +2598,7 @@ async function alunoHoje() {
     semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi ${comArtigo(semNota)} de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${resumoAtiv(semNota)} · leva 10 segundos responder</div></div>${I.chev}</button>` : '',
     S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : '',
     cartaoPushHTML(),
+    !S.me.foto_url && !(Date.now() < (+store.get('nx-foto-adiada') || 0)) ? `<div class="list-item" id="foto-pend" style="align-items:flex-start"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Coloque sua foto</b><div class="small muted">Assim seu treinador e a equipe reconhecem você.</div><div class="row" style="gap:12px;margin-top:10px"><button class="btn sm" id="foto-env">Enviar foto</button><button class="link-btn small" id="foto-x">Agora não</button></div></div></div>` : '',
   ].filter(Boolean).join('');
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
@@ -2515,7 +2613,8 @@ async function alunoHoje() {
     </section>
     <div class="hoje-grid"><div class="hoje-main">
     <div id="momentos" class="stack mom-box"></div>
-    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="pront-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div></div></div>
+    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="pront-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
+    <div id="desafio-box"></div>
     <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
     <div class="stack">
       ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
@@ -2567,6 +2666,16 @@ async function alunoHoje() {
       };
     });
   bindCartaoPush();
+  const fEnv = document.getElementById('foto-env');
+  desafioCard(document.getElementById('desafio-box'));
+  pesquisaSatisfacao(document.getElementById('sat-pend'));
+  // reavaliação física: avisa o aluno quando a data marcada já passou e ainda não houve avaliação nova
+  sb.from('nx_avaliacoes').select('data,proxima').eq('aluno_id', S.user.id).order('data', { ascending: false }).limit(1).then((r) => {
+    const av = (r.data || [])[0], bx = document.getElementById('reav-pend'); if (!bx || !av || !av.proxima || av.proxima >= hojeISO()) return;
+    bx.innerHTML = `<a class="list-item" href="#/conversa" style="color:inherit"><span class="ativ-ic">${I.cal}</span><div class="grow"><b>Hora da reavaliação física</b><div class="small muted">Estava marcada para ${fmtCurto(av.proxima)}. Combine o dia com seu treinador.</div></div>${I.chev}</a>`;
+    const sec = document.getElementById('pend-sec'); if (sec) sec.hidden = false;
+  }, () => {});
+  if (fEnv) { fEnv.onclick = () => trocarFoto(() => { const c = document.getElementById('foto-pend'); if (c) c.remove(); }); document.getElementById('foto-x').onclick = () => { store.set('nx-foto-adiada', Date.now() + 7 * 864e5); document.getElementById('foto-pend').remove(); }; }
   $app.onclick = (e) => {
     const r = e.target.closest('[data-reg]'); if (r) return registrarCorrida(S.user.id, () => alunoHoje());
     const v = e.target.closest('[data-ver]'); if (v) { const p = corrDoDia.find((x) => x.id === v.dataset.ver); return verTreinoPlanilha(p, perfC, corrHoje.find((c) => c.plano_id === p.id)); }
@@ -8040,6 +8149,7 @@ async function staffHoje() {
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const segAtual = isoDia(inicioSemana()), segPass = somaDias(segAtual, -7), segProx = somaDias(segAtual, 7);
   const prontP = sb.from('nx_prontidao').select('aluno_id,dia,total,dor,dor_locais,alerta').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
+  const satP = sb.from('nx_satisfacao').select('aluno_id,nota,criado_em').eq('org_id', S.org.id).eq('adiada', false).lte('nota', 6).gte('criado_em', new Date(Date.now() - 14 * 864e5).toISOString()).then((r) => r.data || [], () => []);
   const cicP = sb.from('nx_ciclo_dias').select('aluno_id,colica_int,fluxo').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
   const cargasP = buscarCargas(null).catch(() => ({}));
   const [{ data: membrosT }, sessT, corrT, anamsT, avsT, cobsT, provasEqT, planoResT, treinosResT, libsResT] = await Promise.all([
@@ -8067,10 +8177,11 @@ async function staffHoje() {
   sess.forEach((s) => { if (!ultimoTreino[s.aluno_id] || s.iniciado_em > ultimoTreino[s.aluno_id]) ultimoTreino[s.aluno_id] = s.iniciado_em; });
   corr.forEach((c) => { if (!ultimoTreino[c.aluno_id] || c.data > ultimoTreino[c.aluno_id]) ultimoTreino[c.aluno_id] = c.data; });
   const ultAval = {}; avs.forEach((a) => { if (!ultAval[a.aluno_id]) ultAval[a.aluno_id] = a; });
-  const [pronts, cargas, cicH] = await Promise.all([prontP, cargasP, cicP]);
+  const [pronts, cargas, cicH, satB] = await Promise.all([prontP, cargasP, cicP, satP]);
   const alertas = ativos.map((m) => {
     const id = m.user_id, l = [];
     const ch = cicH.find((x) => x.aluno_id === id); if (ch && ((ch.colica_int != null && ch.colica_int >= 7) || ch.fluxo === 'intenso')) l.push({ p: 2, t: ch.colica_int != null && ch.colica_int >= 7 ? `Cólica forte hoje (${ch.colica_int}/10)` : 'Fluxo menstrual intenso hoje', cls: 'warn', ir: '#/prontidao-equipe' });
+    const sb_ = satB.find((x) => x.aluno_id === id); if (sb_) l.push({ p: 2, t: `Nota ${sb_.nota} na pesquisa de satisfação`, cls: 'warn', ir: `#/laboratorio/assessoria` });
     const cg = cargas[id]; if (cg && cg.nivel) l.push({ p: cg.nivel === 'alto' ? 1 : 2, t: cg.curto, cls: cg.nivel === 'alto' ? 'err' : 'warn', ir: `#/aluno/${id}/${faz('corrida', m) ? 'corrida' : 'forca'}` });
     const pr = pronts.find((x) => x.aluno_id === id && x.alerta);
     if (pr) l.push({ p: 1, t: `Prontidão baixa hoje (${pr.total}/20)${pr.dor_locais && pr.dor_locais.length ? ' · dor: ' + pr.dor_locais.map(nomeRegDor).join(', ') : ''}`, cls: 'err', ir: `#/aluno/${id}/saude` });
@@ -8101,7 +8212,7 @@ async function staffHoje() {
     if (dd >= 7) l.push({ p: dd >= 21 ? 1 : 3, t: ult ? `Sem treinar há ${dd} dias` : 'Ainda não treinou', cls: dd >= 21 ? 'err' : 'warn', ir: `#/aluno/${id}/conversa` });
     if (faz('corrida', m)) { const sp = statusPlanilha(fimPl[id]); if (sp.d < 0) l.push({ p: 1, t: fimPl[id] ? 'Planilha acabou, sem a próxima' : 'Sem planilha de corrida', cls: 'err', ir: `#/aluno/${id}/corrida` }); else if (sp.d <= 4) l.push({ p: 2, t: `Planilha acaba ${sp.d === 0 ? 'hoje' : sp.d === 1 ? 'amanhã' : `em ${sp.d} dias`}`, cls: 'warn', ir: `#/aluno/${id}/corrida` }); }
     const av = ultAval[id];
-    if (av && av.proxima && av.proxima < hoje) l.push({ p: 4, t: 'Reavaliação pendente', cls: '', ir: `#/aluno/${id}/avaliacoes` });
+    if (av && av.proxima && av.proxima < hoje) { const dd = Math.round((dia(hoje) - dia(av.proxima)) / 864e5); l.push({ p: dd > 30 ? 2 : 3, t: `Reavaliação vencida desde ${fmtCurto(av.proxima)}${dd > 30 ? ` (${dd} dias)` : ''}`, cls: 'warn', ir: `#/aluno/${id}/avaliacoes` }); }
     l.sort((a, b) => a.p - b.p);
     return { m, l };
   }).filter((x) => x.l.length).sort((a, b) => a.l[0].p - b.l[0].p || a.m.nome.localeCompare(b.m.nome));
@@ -8155,6 +8266,7 @@ async function staffHoje() {
     ${(() => { const resp = ativos.filter((m) => pronts.some((p) => p.aluno_id === m.user_id)); const at = pronts.filter((p) => p.alerta && vis.has(p.aluno_id)).length; const ok = pronts.filter((p) => !p.alerta && p.total >= 16 && vis.has(p.aluno_id)).length; const cgN = ativos.filter((m) => cargas[m.user_id] && cargas[m.user_id].nivel).length;
       return ativos.length ? `<a class="card pe-card" id="pront-eq" href="#/prontidao-equipe" style="color:inherit"><span class="ativ-ic">${PRONT_IC}</span><div class="grow" style="min-width:0"><b>Prontidão de hoje</b><div class="small muted">${resp.length} de ${ativos.length} responderam o check-in${at ? ` · <span style="color:var(--err)">${at} pede${at > 1 ? 'm' : ''} atenção</span>` : ''}${ok ? ` · ${ok} pronto${ok > 1 ? 's' : ''} para treinar` : ''}${cgN ? ` · <span style="color:var(--warn)">${cgN} com alerta de carga</span>` : ''}</div></div>${I.chev}</a>` : ''; })()}
     ${ehSeg ? resumoHTML : ''}
+    <div id="desafio-box"></div>
     <div id="datas-esp"></div>
     ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : ''); })()}
@@ -8169,6 +8281,7 @@ async function staffHoje() {
   bindCartaoPush();
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
+  desafioCard(document.getElementById('desafio-box'), ativos);
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
     const m = pendentes.find((x) => x.user_id === b.dataset.aprovar); if (!m) return;
@@ -8221,7 +8334,7 @@ function reduzirImagem(file, lado = 512) {
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img')); }; img.src = url;
   });
 }
-async function trocarFoto() {
+async function trocarFoto(depois) {
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = async () => {
     const f = inp.files && inp.files[0]; if (!f) return;
@@ -8232,7 +8345,7 @@ async function trocarFoto() {
       if (error) throw error;
       const url = sb.storage.from('nx-avatares').getPublicUrl(caminho).data.publicUrl;
       const { error: e2 } = await sb.rpc('nx_definir_foto', { p_url: url }); if (e2) throw e2;
-      S.me.foto_url = url; S.cache.equipe = null; toast(S.staff ? 'Foto atualizada! Os alunos já veem na conversa.' : 'Foto atualizada! Seu treinador já vê.'); viewPerfil();
+      S.me.foto_url = url; S.cache.equipe = null; toast(S.staff ? 'Foto atualizada! Os alunos já veem na conversa.' : 'Foto atualizada! Seu treinador já vê.'); if (typeof depois === 'function') depois(); else viewPerfil();
     } catch (e) { console.error(e); toast('Não foi possível enviar a foto. Verifique a internet e tente de novo.', true); }
   };
   inp.click();
@@ -8278,8 +8391,8 @@ function viewPerfil() {
     box.innerHTML = `<div class="section-h"><h2 class="h2">Meu treinador</h2></div><a class="list-item" href="#/conversa" style="color:inherit">${fotoHTML(t, 'md')}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(t.nome)}</b><div class="small muted">Responsável pelos seus treinos · toque para conversar</div></div>${I.chev}</a>`;
     box.hidden = false;
   }, () => {});
-  document.getElementById('tema').onclick = (e) => { const b = e.target.closest('[data-tema]'); if (!b) return; aplicarTema(b.dataset.tema); document.querySelectorAll('#tema button').forEach((x) => x.classList.toggle('on', x === b)); };
-  document.getElementById('paleta').onclick = (e) => { const b = e.target.closest('[data-paleta]'); if (!b) return; aplicarPaleta(b.dataset.paleta); document.querySelectorAll('#paleta button').forEach((x) => x.classList.toggle('on', x === b)); };
+  document.getElementById('tema').onclick = (e) => { const b = e.target.closest('[data-tema]'); if (!b) return; aplicarTema(b.dataset.tema); salvarAparencia(); document.querySelectorAll('#tema button').forEach((x) => x.classList.toggle('on', x === b)); };
+  document.getElementById('paleta').onclick = (e) => { const b = e.target.closest('[data-paleta]'); if (!b) return; aplicarPaleta(b.dataset.paleta); salvarAparencia(); document.querySelectorAll('#paleta button').forEach((x) => x.classList.toggle('on', x === b)); };
   const pc = document.getElementById('perf-ciclo');
   if (pc) pc.onclick = async () => { pc.disabled = true; const c = await buscarCiclo(S.user.id).catch(() => null); pc.disabled = false; c ? abrirCiclo(c, () => viewPerfil()) : ativarCiclo(() => viewPerfil()); };
   document.getElementById('f-senha').onsubmit = async (e) => {
@@ -10339,7 +10452,7 @@ const semanaRot = (d) => `${d.getDate()}/${d.getMonth() + 1}`;
 // largura do desenho conforme a tela, para o texto dos eixos não ficar minúsculo no celular
 const labW = (frac = 1) => { const w = Math.min(640, (window.innerWidth || 800) - 70); return Math.max(300, Math.round(window.innerWidth > 900 ? 640 * frac : w)); };
 /** gráfico de barras com linha opcional por cima (SVG puro, sai igual no PDF) */
-function labGraf({ barras = [], linha = null, rot = [], corB = '#1a7fe6', corL = '#e0a400', faixa = null, maxL = null, fmtB = (v) => f1(v, 0), fmtL = (v) => f1(v), uniB = '', uniL = '' }) {
+function labGraf({ barras = [], linha = null, rot = [], corB = corP().p2, corL = '#e0a400', faixa = null, maxL = null, fmtB = (v) => f1(v, 0), fmtL = (v) => f1(v), uniB = '', uniL = '' }) {
   const W = labW(), H = Math.round(W * 0.32) + 20, pl = 46, pr = linha ? 34 : 8, pt = 14, pb = 26, n = Math.max(1, barras.length), iw = W - pl - pr, ih = H - pt - pb, bw = iw / n;
   const mB = Math.max(1, ...barras.map((v) => v || 0)) * 1.12, mL = maxL || Math.max(1, ...(linha || []).filter((v) => v != null)) * 1.15;
   const yB = (v) => pt + ih - (v / mB) * ih, yL = (v) => pt + ih - (Math.min(v, mL) / mL) * ih;
@@ -10358,7 +10471,7 @@ function labGraf({ barras = [], linha = null, rot = [], corB = '#1a7fe6', corL =
   return s + '</svg>';
 }
 /** linha simples (pace, previsão, carga de um exercício) */
-function labLinha(vals, { cor = '#1a7fe6', inverso = false, fmt = (v) => f1(v), rot = [], frac = 1 } = {}) {
+function labLinha(vals, { cor = corP().p2, inverso = false, fmt = (v) => f1(v), rot = [], frac = 1 } = {}) {
   const pts = vals.map((v, i) => [i, v]).filter((p) => p[1] != null);
   if (pts.length < 2) return '<p class="tiny dim">Poucos dados no período para desenhar a curva.</p>';
   const W = labW(frac), H = Math.round(W * 0.34) + 16, pl = 54, pr = 12, pt = 14, pb = 22, iw = W - pl - pr, ih = H - pt - pb;
@@ -10530,7 +10643,7 @@ async function staffDossie(alunoId, semSel) {
         ${prM != null ? kpi('Prontidão média', f1(prM) + '<small>/20</small>', prMA != null ? labDelta(varPct(prM, prMA)) : '') : ''}
       </div>`)}
       ${fC ? sec('Corrida', `
-        <div class="lab-bloco"><div class="lab-bt"><b>Volume semanal e carga</b><span class="lab-leg"><i style="background:#1a7fe6"></i>km por semana <i style="background:#e0a400"></i>carga dos 7 dias x média das 4 anteriores</span></div>
+        <div class="lab-bloco"><div class="lab-bt"><b>Volume semanal e carga</b><span class="lab-leg"><i style="background:${corP().p2}"></i>km por semana <i style="background:#e0a400"></i>carga dos 7 dias x média das 4 anteriores</span></div>
           ${labGraf({ barras: sems.map((s) => s.km), linha: sems.map((s) => s.cg.acwr), rot, faixa: [0.8, 1.3], maxL: 2, fmtL: (v) => f1(v), uniB: ' km' })}
           <p class="tiny dim">Faixa verde: 0,8 a 1,3, onde o risco de lesão é menor (Gabbett, 2016). Carga = minutos x esforço de todos os treinos, corrida e força.</p></div>
         <div class="lab-2">
@@ -10548,8 +10661,8 @@ async function staffDossie(alunoId, semSel) {
             ${provas.length ? `<p class="small" style="margin-top:6px">Próximas provas: ${provas.map((p) => `<b>${esc(p.titulo || 'prova')}</b> (${fmtCurto(p.data + 'T12:00:00')}${p.distancia ? ', ' + esc(p.distancia) : ''})`).join(' · ')}</p>` : ''}</div>
         </div>`) : ''}
       ${fM ? sec('Força', `
-        <div class="lab-bloco"><div class="lab-bt"><b>Treinos e volume levantado por semana</b><span class="lab-leg"><i style="background:#2550cf"></i>toneladas (carga x repetições) <i style="background:#35c3f0"></i>treinos</span></div>
-          ${labGraf({ barras: sems.map((s) => s.ton / 1000), linha: sems.map((s) => s.fo), rot, corB: '#2550cf', corL: '#35c3f0', fmtB: (v) => f1(v), uniB: ' t', fmtL: (v) => f1(v, 0), maxL: Math.max(2, 2 * Math.ceil(Math.max(...sems.map((s) => s.fo)) * 0.6)) })}
+        <div class="lab-bloco"><div class="lab-bt"><b>Treinos e volume levantado por semana</b><span class="lab-leg"><i style="background:${corP().h1}"></i>toneladas (carga x repetições) <i style="background:${corP().p1}"></i>treinos</span></div>
+          ${labGraf({ barras: sems.map((s) => s.ton / 1000), linha: sems.map((s) => s.fo), rot, corB: corP().h1, corL: corP().p1, fmtB: (v) => f1(v), uniB: ' t', fmtL: (v) => f1(v, 0), maxL: Math.max(2, 2 * Math.ceil(Math.max(...sems.map((s) => s.fo)) * 0.6)) })}
           <p class="tiny dim">Total no período: ${f1(tonP / 1000)} toneladas${pseFm != null ? ` · esforço médio das sessões ${f1(pseFm)}/10` : ''}${faseAt && FASES_F[faseAt] ? ` · fase atual: ${FASES_F[faseAt].n.toLowerCase()}` : ''}.</p></div>
         ${topEx.length ? `<div class="lab-exs">${topEx.map((e) => `<div class="lab-bloco"><div class="lab-bt"><b class="ellip">${esc(e.n)}</b>${e.ini != null && e.fim != null && e.fim !== e.ini ? `<em class="lab-d ${e.fim > e.ini ? 'bom' : 'ruim'}">${e.fim > e.ini ? '▲' : '▼'} ${f1(Math.abs(e.fim - e.ini))} kg</em>` : ''}</div>${labLinha(e.porSem, { cor: '#2550cf', fmt: (v) => f1(v) + ' kg', rot, frac: 0.5 })}<p class="tiny dim">${e.ini != null ? `${f1(e.ini)} kg → ${f1(e.fim)} kg (maior carga da semana)` : ''}</p></div>`).join('')}</div>` : '<p class="small muted">Sem cargas registradas no período.</p>'}`) : ''}
       ${sec('Prontidão e saúde', `<div class="lab-2">
@@ -10565,7 +10678,7 @@ async function staffDossie(alunoId, semSel) {
       ${sec('Adesão', `<div class="lab-2">
         <div class="lab-bloco"><div class="lab-bt"><b>Treinos planejados x feitos</b></div>
           ${aderC != null ? `<div class="lab-barra"><span>Corrida</span><i><i style="width:${aderC}%"></i></i><b>${Math.round(aderC)}%</b></div>` : ''}
-          ${aderF != null ? `<div class="lab-barra"><span>Força</span><i><i style="width:${aderF}%;background:#2550cf"></i></i><b>${Math.round(aderF)}%</b></div>` : ''}
+          ${aderF != null ? `<div class="lab-barra"><span>Força</span><i><i style="width:${aderF}%;background:${corP().h1}"></i></i><b>${Math.round(aderF)}%</b></div>` : ''}
           ${aderC == null && aderF == null ? '<p class="small muted">Sem treinos liberados no período.</p>' : ''}</div>
         <div class="lab-bloco"><div class="lab-bt"><b>Faltas por dia da semana</b></div>
           ${plP.some((p) => !plFeito(p)) ? `<div class="lab-dsem">${DSEM.map((d, i) => `<div><i style="height:${maxFalta ? (faltasDia[i] / maxFalta) * 100 : 0}%"></i><span>${d.slice(0, 3)}</span><b>${faltasDia[i] || ''}</b></div>`).join('')}</div>` : '<p class="small muted">Nenhuma falta de corrida no período.</p>'}</div>
@@ -10610,13 +10723,14 @@ async function staffAssessoria(mesSel) {
   const ini12 = isoDia(new Date(dia(mFimEf).getTime() - 83 * 864e5));
   const isoT = (k, fim) => new Date(k + (fim ? 'T23:59:59' : 'T00:00:00')).toISOString();
   const menor = ini12 < pIni ? ini12 : pIni;
-  const [membT, corrT, sessT, planoT, prontT, provasT] = await Promise.all([
+  const [membT, corrT, sessT, planoT, prontT, provasT, satT] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,sexo,nascimento,criado_em,desativado_em,objetivo').eq('org_id', S.org.id).eq('papel', 'aluno').then((r) => r.data || [], () => []),
     todasAsLinhas(() => sb.from('nx_corridas').select('aluno_id,data,tipo,distancia_m,duracao_s,parciais').eq('org_id', S.org.id).gte('data', isoT(menor)).order('data')),
     todasAsLinhas(() => sb.from('nx_sessoes').select('aluno_id,iniciado_em').eq('org_id', S.org.id).not('finalizado_em', 'is', null).gte('iniciado_em', isoT(menor)).order('iniciado_em')),
     todasAsLinhas(() => sb.from('nx_plano_corrida').select('id,aluno_id,data,tipo,liberado').eq('org_id', S.org.id).gte('data', pIni).lte('data', mFimEf).order('data')),
     todasAsLinhas(() => sb.from('nx_prontidao').select('aluno_id,dia').eq('org_id', S.org.id).gte('dia', pIni).lte('dia', mFimEf).order('dia')),
     sb.from('nx_participacoes').select('aluno_id,titulo,data,distancia').eq('org_id', S.org.id).gte('data', hj).lte('data', somaDias(hj, 60)).order('data').then((r) => r.data || [], () => []),
+    sb.from('nx_satisfacao').select('aluno_id,nota,comentario,criado_em').eq('org_id', S.org.id).eq('adiada', false).gte('criado_em', isoT(somaDias(hj, -365))).order('criado_em', { ascending: false }).then((r) => r.data || [], () => []),
   ]);
   const todos = membT.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
   const ativoEm = (m, k) => m.criado_em.slice(0, 10) <= k && (m.ativo || (m.desativado_em && m.desativado_em.slice(0, 10) > k));
@@ -10641,6 +10755,12 @@ async function staffAssessoria(mesSel) {
     return { km: cs.reduce((s, c) => s + (+c.distancia_m || 0), 0) / 1000, corridas: cs.length, forca: ss.length, treinaram: treinaram.size, ativos: ativosIds.length, ader: pl.length ? (plF / pl.length) * 100 : null, plTot: pl.length, pront: ativosIds.length ? (pr / (ativosIds.length * nd)) * 100 : null };
   };
   const M = daqui(mIni, mFimEf), P = daqui(pIni, pFimEf);
+  // pesquisa de satisfação: vale a resposta mais recente de cada aluno
+  const satUlt = {}; satT.forEach((x) => { if (vis.has(x.aluno_id) && !satUlt[x.aluno_id]) satUlt[x.aluno_id] = x; });
+  const satR = Object.values(satUlt).filter((x) => diasDesde(x.criado_em) <= 180);
+  const satProm = satR.filter((x) => x.nota >= 9).length, satDet = satR.filter((x) => x.nota <= 6).length;
+  const satNps = satR.length ? Math.round(((satProm - satDet) / satR.length) * 100) : null, satMed = satR.length ? satR.reduce((a, x) => a + x.nota, 0) / satR.length : null;
+  const porIdSat = Object.fromEntries(membT.map((m) => [m.user_id, m]));
   // alunos em risco: treinando bem menos que antes, ou parados
   const ativosAgora = todos.filter((m) => m.ativo);
   const risco = ativosAgora.map((m) => {
@@ -10651,6 +10771,7 @@ async function staffAssessoria(mesSel) {
     if (parado != null && parado >= 10) mot = `Sem treinar há ${parado} dias`;
     else if (r28 >= 1.5 && r14 < r28 * 0.5) mot = `Caiu de ${f1(r28)} para ${f1(r14)} treinos por semana`;
     else if (!ts.length && diasDesde(m.criado_em) > 14) mot = 'Nenhum treino registrado ainda';
+    const ns = satUlt[m.user_id]; if (!mot && ns && ns.nota <= 6 && diasDesde(ns.criado_em) <= 90) mot = `Nota ${ns.nota} na pesquisa de satisfação`;
     return mot ? { m, mot, parado } : null;
   }).filter(Boolean).sort((a, b) => (b.parado || 0) - (a.parado || 0));
   // semanas (12)
@@ -10698,15 +10819,21 @@ async function staffAssessoria(mesSel) {
         ${kpi('Treinos de força', M.forca, labDelta(varPct(M.forca, P.forca)))}
         ${kpi('Check-ins respondidos', M.pront != null ? Math.round(M.pront) + '%' : '–', M.pront != null && P.pront != null ? labDelta(M.pront - P.pront, true, Math.abs(Math.round(M.pront - P.pront)) + ' p.p.') : '', 'dos dias possíveis')}
       </div>
-      <div class="lab-bloco"><div class="lab-bt"><b>Treinos por semana (12 semanas)</b><span class="lab-leg"><i style="background:#1a7fe6"></i>treinos registrados <i style="background:#e0a400"></i>alunos que treinaram</span></div>
+      <div class="lab-bloco"><div class="lab-bt"><b>Treinos por semana (12 semanas)</b><span class="lab-leg"><i style="background:${corP().p2}"></i>treinos registrados <i style="background:#e0a400"></i>alunos que treinaram</span></div>
         ${labGraf({ barras: sems.map((s) => s.n), linha: sems.map((s) => s.al), rot: sems.map((s) => semanaRot(s.a)), fmtL: (v) => f1(v, 0), maxL: Math.max(2, 2 * Math.ceil(Math.max(...sems.map((s) => s.al)) * 0.6)) })}</div></section>
       <section class="lab-sec"><h2 class="lab-h">Alunos em risco${risco.length ? ` <span class="tag warn">${risco.length}</span>` : ''}</h2>
         ${risco.length ? `<div class="stack">${risco.map((x) => linhaPessoa(x.m, `<span class="small" style="font-weight:600;color:var(--warn)">${esc(x.mot)}</span>`)).join('')}</div><p class="tiny dim" style="margin-top:6px">Treinando menos da metade do que vinha treinando nas 4 semanas anteriores, ou parado há 10 dias ou mais. Quem para de treinar é quem mais costuma cancelar: vale um contato.</p>` : '<p class="small muted">Ninguém com queda forte de frequência agora.</p>'}</section>
+      <section class="lab-sec"><h2 class="lab-h">Satisfação dos alunos</h2>
+        ${satR.length ? `<div class="lab-kpis">${kpi('Nota média', f1(satMed), '', 'de 0 a 10')}${kpi('Índice de recomendação', (satNps > 0 ? '+' : '') + satNps, '', 'de -100 a +100')}${kpi('Responderam', `${satR.length}<small>/${atFim}</small>`, '', 'últimos 6 meses')}</div>
+        <div class="lab-bloco">${[['Recomendariam (9 e 10)', satProm, '#16a34a'], ['Neutros (7 e 8)', satR.length - satProm - satDet, '#e0a400'], ['Insatisfeitos (0 a 6)', satDet, '#dc2626']].map(([l, n, c]) => `<div class="lab-barra"><span>${l}</span><i><i style="width:${pctBarra(n, satR.length)}%;background:${c}"></i></i><b>${n}</b></div>`).join('')}</div>
+        ${satR.filter((x) => x.comentario || x.nota <= 6).length ? `<div class="stack" style="margin-top:10px">${satR.filter((x) => x.comentario || x.nota <= 6).sort((a, b) => a.nota - b.nota).slice(0, 12).map((x) => { const m = porIdSat[x.aluno_id] || { nome: 'Aluno' }; return `<div class="sat-com"><div class="row" style="gap:10px">${avAluno(m, 'sm')}<b class="grow ellip">${esc(m.nome)}</b><span class="sat-nota ${x.nota >= 9 ? 'ok' : x.nota >= 7 ? 'mid' : 'bad'}">${x.nota}</span></div>${x.comentario ? `<p class="small" style="margin-top:6px">${esc(x.comentario)}</p>` : ''}<p class="tiny dim" style="margin-top:4px">${fmtCurto(x.criado_em)}</p></div>`; }).join('')}</div>` : ''}
+        <p class="tiny dim" style="margin-top:8px">A pesquisa aparece para cada aluno a cada 3 meses. Índice de recomendação = % que dá 9 ou 10 menos % que dá 0 a 6. Nota 6 ou menor também entra em Alunos em risco.</p>`
+        : '<p class="tiny dim">Ainda sem respostas. A pesquisa aparece para cada aluno depois de 3 meses de assessoria e se repete a cada 3 meses.</p>'}</section>
       <section class="lab-sec"><h2 class="lab-h">Perfil da equipe</h2><div class="lab-2">
-        <div class="lab-bloco"><div class="lab-bt"><b>Modalidade</b></div>${[['Corrida e força', mod.ambos, '#1a7fe6'], ['Só corrida', mod.corrida, '#35c3f0'], ['Só força', mod.forca, '#2550cf']].map(([l, n, c]) => `<div class="lab-barra"><span>${l}</span><i><i style="width:${pctBarra(n, at.length)}%;background:${c}"></i></i><b>${n}</b></div>`).join('')}
-          <div class="lab-bt" style="margin-top:14px"><b>Sexo</b></div>${[['Mulheres', sx.F, '#e85d75'], ['Homens', sx.M, '#1a7fe6']].map(([l, n, c]) => `<div class="lab-barra"><span>${l}</span><i><i style="width:${pctBarra(n, at.length)}%;background:${c}"></i></i><b>${n}</b></div>`).join('')}</div>
+        <div class="lab-bloco"><div class="lab-bt"><b>Modalidade</b></div>${[['Corrida e força', mod.ambos, corP().p2], ['Só corrida', mod.corrida, corP().p1], ['Só força', mod.forca, corP().h1]].map(([l, n, c]) => `<div class="lab-barra"><span>${l}</span><i><i style="width:${pctBarra(n, at.length)}%;background:${c}"></i></i><b>${n}</b></div>`).join('')}
+          <div class="lab-bt" style="margin-top:14px"><b>Sexo</b></div>${[['Mulheres', sx.F, '#e85d75'], ['Homens', sx.M, corP().p2]].map(([l, n, c]) => `<div class="lab-barra"><span>${l}</span><i><i style="width:${pctBarra(n, at.length)}%;background:${c}"></i></i><b>${n}</b></div>`).join('')}</div>
         <div class="lab-bloco"><div class="lab-bt"><b>Faixa de idade</b></div>${faixas.map(([l, n]) => `<div class="lab-barra"><span>${l}</span><i><i style="width:${pctBarra(n, Math.max(...faixas.map((f) => f[1]), 1))}%;background:#1fb0ec"></i></i><b>${n}</b></div>`).join('')}
-          ${Object.keys(objs).length ? `<div class="lab-bt" style="margin-top:14px"><b>Objetivo principal</b></div>${Object.entries(objs).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div class="lab-barra"><span>${esc((OBJETIVOS.find((o) => o[0] === k) || [, k])[1])}</span><i><i style="width:${pctBarra(n, at.length)}%;background:#2550cf"></i></i><b>${n}</b></div>`).join('')}` : ''}</div>
+          ${Object.keys(objs).length ? `<div class="lab-bt" style="margin-top:14px"><b>Objetivo principal</b></div>${Object.entries(objs).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div class="lab-barra"><span>${esc((OBJETIVOS.find((o) => o[0] === k) || [, k])[1])}</span><i><i style="width:${pctBarra(n, at.length)}%;background:${corP().h1}"></i></i><b>${n}</b></div>`).join('')}` : ''}</div>
       </div></section>
       <section class="lab-sec"><h2 class="lab-h">Destaques do mês</h2><div class="lab-3">
         <div class="lab-bloco"><div class="lab-bt"><b>Mais quilômetros</b></div>${topKm.map((x) => linhaPessoa(x.m, f1(x.km) + ' km')).join('') || '<p class="tiny dim">Nenhuma corrida.</p>'}</div>
@@ -10880,10 +11007,14 @@ function saudeStatus(d) {
     bts: sp.length > 1 ? [['todos-push', '', `Mandar o passo a passo no app para os ${sp.length}`]] : [] });
   const ag = d.agendador || [], falhou = ag.filter((x) => x.status === 'failed');
   const NOME_JOB = (n) => (n === 'nx-avisos-manha' ? 'Bom dia com o treino' : /nx-agua-(\d)/.test(n) ? `Lembretes de água (${['8h40, o primeiro do dia', '9h40 a 18h40, de hora em hora', '19h40, o último do dia'][+n.slice(-1) - 1] || ''})` : n);
-  out.push({ k: 'auto', t: 'Avisos automáticos', nivel: falhou.length ? 'err' : d.chamadas_falhas ? 'warn' : 'ok',
-    res: falhou.length ? `${falhou.length} aviso${falhou.length > 1 ? 's' : ''} com falha na última execução` : d.chamadas_falhas ? `${d.chamadas_falhas} chamada${d.chamadas_falhas > 1 ? 's' : ''} com erro nas últimas 24 h` : 'Rodando nos horários certos',
-    linhas: ag.map((x) => ({ html: `${NOME_JOB(x.nome)}: ${x.status === 'succeeded' ? `ok (${fmtDH(x.quando)})` : x.status === 'failed' ? `<span style="color:var(--err)">falhou (${fmtDH(x.quando)})</span>` : 'ainda não rodou (começa no próximo horário)'}`, bts: x.status === 'failed' ? [['rodar', x.nome, 'Rodar de novo agora']] : [] })),
-    acao: falhou.length ? 'Toque em Rodar de novo agora. Se falhar outra vez, me avise.' : '', sempreLista: true });
+  // cada envio registra início e fim: o que não terminou (ou terminou com erro) acende aqui
+  const ex = d.avisos || [], exFalhos = ex.filter((x) => x.ok === false || (!x.terminado && Date.now() - Date.parse(x.iniciado) > 10 * 60000));
+  const NOME_AC = { agua: 'Lembrete de água', manha: 'Avisos da manhã', saude: 'Checagem do sistema', carga: 'Alerta de carga', ciclo: 'Lembrete do ciclo', marcos: 'Datas especiais', faltas: 'Faltas de ontem', resumo: 'Resumo da semana' };
+  const linhasEx = ex.slice(0, 8).map((x) => { const enviados = x.resumo && x.resumo.agua ? x.resumo.agua.enviados : null; const st = x.ok === false ? `<span style="color:var(--err)">não terminou: ${esc(x.erro || 'erro')}</span>` : !x.terminado ? (Date.now() - Date.parse(x.iniciado) > 10 * 60000 ? '<span style="color:var(--err)">começou e não terminou</span>' : 'enviando agora') : `terminou${enviados != null ? `, ${enviados} entregue${enviados === 1 ? '' : 's'}` : ''}`; return { html: `${NOME_AC[x.acao] || esc(x.acao)} · ${fmtDH(x.iniciado)}: ${st}`, bts: [] }; });
+  out.push({ k: 'auto', t: 'Avisos automáticos', nivel: falhou.length || exFalhos.length ? 'err' : 'ok',
+    res: exFalhos.length ? `${exFalhos.length} envio${exFalhos.length > 1 ? 's' : ''} que não ${exFalhos.length > 1 ? 'terminaram' : 'terminou'} nas últimas 24 h` : falhou.length ? `${falhou.length} aviso${falhou.length > 1 ? 's' : ''} com falha na última execução` : ex.length ? `Todos os envios das últimas 24 h terminaram (${ex.length})` : 'Rodando nos horários certos',
+    linhas: [...linhasEx, ...ag.map((x) => ({ html: `${NOME_JOB(x.nome)}: ${x.status === 'succeeded' ? `ok (${fmtDH(x.quando)})` : x.status === 'failed' ? `<span style="color:var(--err)">falhou (${fmtDH(x.quando)})</span>` : 'ainda não rodou (começa no próximo horário)'}`, bts: x.status === 'failed' ? [['rodar', x.nome, 'Rodar de novo agora']] : [] }))],
+    acao: falhou.length || exFalhos.length ? 'Toque em Rodar de novo agora. Se falhar outra vez, copie a linha e me mande.' : '', sempreLista: true });
   return out;
 }
 function relatorioErroTxt(x) {
