@@ -407,6 +407,7 @@ async function router() {
       if (a === 'erros') return await staffErros();
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
+      if (a === 'relogios') return await staffRelogios();
       if (a === 'antes-depois' && b) return await viewAntesDepois(b);
       if (a === 'formularios') return await staffFormularios(b);
       if (a === 'mensagens') return await staffMensagens(b);
@@ -1627,6 +1628,48 @@ async function buscarCargas(ids) {
   return out;
 }
 const cargaTag = (c) => (c && c.nivel ? `<span class="tag ${c.nivel === 'alto' ? 'err' : 'warn'}">${c.salto ? `Treino +${c.salto.pct}%` : `Carga ${f1(c.acwr)}x`}</span>` : '');
+
+/* ---------- relógios dos alunos (treinador): conexão e modelo do relógio ---------- */
+// modelo do relógio: vem da última atividade importada (Garmin guarda em resumo_rel; Intervals e arquivos em analise.extras)
+async function relogiosDosAlunos(ids) {
+  if (!ids.length) return {};
+  const [integs, corrs] = await Promise.all([
+    sb.from('nx_integracoes').select('user_id,provedor,ultima_sync,erro,conectado_em').in('user_id', ids).in('provedor', ['intervals', 'garmin']).then((r) => r.data || [], () => []),
+    sb.from('nx_corridas').select('aluno_id,data,fonte,dg:resumo_rel->>dispositivo,di:analise->extras->>dispositivo').in('aluno_id', ids).gte('data', new Date(Date.now() - 120 * 864e5).toISOString()).order('data', { ascending: false }).limit(2000).then((r) => r.data || [], () => []),
+  ]);
+  const out = {};
+  ids.forEach((id) => {
+    const ig = integs.filter((x) => x.user_id === id), c = corrs.filter((x) => x.aluno_id === id);
+    const comDev = c.find((x) => x.dg || x.di), ultRel = c.find((x) => ['garmin', 'intervals'].includes(x.fonte)), ultArq = c.find((x) => x.fonte === 'arquivo');
+    out[id] = { garmin: ig.find((x) => x.provedor === 'garmin') || null, intervals: ig.find((x) => x.provedor === 'intervals') || null, modelo: comDev ? (comDev.dg || comDev.di) : null, ultRel, ultArq };
+  });
+  return out;
+}
+const relogioResumo = (r) => {
+  if (!r) return { cls: '', st: 'Sem relógio conectado', via: '' };
+  const g = r.garmin, i = r.intervals, cx = g || i;
+  if (!cx) return { cls: '', st: 'Sem relógio conectado', via: r.ultArq ? `Envia arquivo do relógio (último ${quando(r.ultArq.data)})` : 'Registra as corridas à mão ou pelo GPS do app' };
+  if (cx.erro) return { cls: 'err', st: 'Conexão com problema', via: `${g ? 'Garmin' : 'Intervals.icu'}: ${cx.erro}` };
+  return { cls: 'ok', st: g ? 'Garmin conectado' : 'Conectado pelo Intervals.icu', via: `${cx.ultima_sync ? 'Última sincronização ' + quando(cx.ultima_sync) : 'Ainda não sincronizou'}${r.ultRel ? ` · última atividade ${quando(r.ultRel.data)}` : ''}` };
+};
+async function staffRelogios() {
+  loading(); dockStaff();
+  const ms = await sb.from('nx_membros').select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,sexo').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
+  const al = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
+  const R = await relogiosDosAlunos(al.map((m) => m.user_id));
+  const linha = (m) => { const r = R[m.user_id], x = relogioResumo(r); return `<a class="list-item" href="#/aluno/${m.user_id}/corrida" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><div class="small" style="margin-top:2px">${x.cls ? `<span class="tag ${x.cls}">${x.st}</span>` : `<span class="muted">${x.st}</span>`}${r && r.modelo ? ` <b>${esc(r.modelo)}</b>` : ''}</div>${x.via ? `<div class="tiny dim" style="margin-top:2px">${esc(x.via)}</div>` : ''}</div>${I.chev}</a>`; };
+  const con = al.filter((m) => { const r = R[m.user_id]; return r && (r.garmin || r.intervals) && !(r.garmin || r.intervals).erro; });
+  const err = al.filter((m) => { const r = R[m.user_id]; return r && (r.garmin || r.intervals) && (r.garmin || r.intervals).erro; });
+  const sem = al.filter((m) => !con.includes(m) && !err.includes(m));
+  const grupo = (t, l, dica) => l.length ? `<div class="section"><div class="section-h"><h2 class="h2">${t}</h2><span class="tag">${l.length}</span></div>${dica ? `<p class="small muted" style="margin:-4px 0 10px">${dica}</p>` : ''}<div class="stack">${l.map(linha).join('')}</div></div>` : '';
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe</p><h1 class="h1">Relógios dos alunos</h1>
+    <p class="muted" style="margin-top:6px">Quem está com o relógio conectado ao app, por onde (Garmin direto ou Intervals.icu, que atende Coros, Polar, Suunto, Wahoo e Amazfit) e o modelo, que aparece depois da primeira atividade importada.</p>
+    <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b>${con.length}</b><span>conectados</span></div><div><b>${err.length}</b><span>com problema</span></div><div><b>${sem.length}</b><span>sem conexão</span></div></div></div>
+    ${grupo('Com problema', err, 'A conexão caiu ou expirou: peça ao aluno para abrir Mais → Conexões e conectar de novo.')}
+    ${grupo('Conectados', con, '')}
+    ${grupo('Sem relógio conectado', sem, 'As corridas desses alunos só chegam se eles enviarem o arquivo, digitarem ou usarem o GPS do app.')}
+    ${!al.length ? '<div class="empty"><div class="h3">Nenhum aluno ainda</div></div>' : ''}`;
+}
 
 /* ---------- painel de prontidão da equipe ---------- */
 const PRONT_CURTO = { sono: 'Sono', energia: 'Energia', dor: 'Dor', estresse: 'Estresse' };
@@ -7337,10 +7380,11 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       ${longa ? `<p class="small muted" style="margin-top:12px">Corrida mais longa: <b style="color:var(--ink)">${fmtKm(longa.distancia_m, 1)}</b> em ${fmtDia(longa.data)}</p>` : ''}
       ${!corridas.length ? '<div class="empty" style="margin-top:12px"><div class="h3">Sem corridas ainda</div><p class="small">A evolução aparece conforme as corridas forem registradas.</p></div>' : ''}`;
   } else if (sub === 'corridas') {
+    if (staff) relogiosDosAlunos([alunoId]).then((R) => { const r = R[alunoId], el = document.getElementById('rel-staff'); if (el && r && r.modelo) el.insertAdjacentHTML('beforeend', ` Modelo: <b>${esc(r.modelo)}</b>.`); }, () => {});
     corpo = `${staff ? '' : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}
       ${ativsTodas.length ? `<div class="stack" style="margin-top:12px">${ativsTodas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}${ehCorr(c) ? `<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span>` : `<b>${esc(nomeAtiv(c))}</b><span class="muted">· ${resumoAtiv(c)}</span>`}</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${ativsTodas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:12px">Ver todas as ${corridas.length} corridas</button>` : ''}`
         : `<div class="empty" style="margin-top:12px"><div class="h3">Nenhuma corrida registrada</div><p class="small">${staff ? 'As corridas do aluno aparecem aqui.' : 'Depois de correr, toque em “Registrar corrida”. Dá para enviar o arquivo do relógio.'}</p></div>`}
-      ${staff ? `<p class="small muted" style="margin-top:16px">${I.watch.replace('<svg', '<svg class="rel-ic"')} ${garm ? 'Garmin conectado: as corridas chegam sozinhas e os treinos liberados vão para o relógio.' : integ ? 'Relógio conectado pelo Intervals.icu.' : 'O aluno ainda não conectou um relógio (ele faz isso na aba Conexões).'}</p>` : `<a class="list-item" href="#/conexoes" style="margin-top:16px">${I.watch}<div class="grow"><b>${garm || integ ? 'Relógio conectado ✓' : 'Conectar o seu relógio'}</b><div class="small muted">${garm || integ ? 'Gerencie na aba Conexões' : 'Garmin, Coros, Polar e outros: as corridas chegam sozinhas'}</div></div>${I.chev}</a>`}`;
+      ${staff ? `<p class="small muted" style="margin-top:16px" id="rel-staff">${I.watch.replace('<svg', '<svg class="rel-ic"')} ${garm ? 'Garmin conectado: as corridas chegam sozinhas e os treinos liberados vão para o relógio.' : integ ? 'Relógio conectado pelo Intervals.icu.' : 'O aluno ainda não conectou um relógio (ele faz isso na aba Conexões).'}</p>` : `<a class="list-item" href="#/conexoes" style="margin-top:16px">${I.watch}<div class="grow"><b>${garm || integ ? 'Relógio conectado ✓' : 'Conectar o seu relógio'}</b><div class="small muted">${garm || integ ? 'Gerencie na aba Conexões' : 'Garmin, Coros, Polar e outros: as corridas chegam sozinhas'}</div></div>${I.chev}</a>`}`;
   } else {
     const ZT = [['rec', 'Z1 · Recuperação (trote)'], ...ZONAS_PACE];
     const faixaDe = (k) => (perfil.paces && perfil.paces[k]) || (k === 'rec' && perfil.paces && perfil.paces.leve ? [Math.round(perfil.paces.leve[1] * 1.08), Math.round(perfil.paces.leve[1] * 1.16)] : [ZONAS_INFO[k].pd - 10, ZONAS_INFO[k].pd + 10]);
@@ -13267,6 +13311,7 @@ function staffMais() {
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
+      ${it('#/relogios', I.watch, 'Relógios dos alunos', 'Quem está conectado, por onde e qual o modelo do relógio')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}
     </div>
