@@ -1563,7 +1563,7 @@ async function viewRetrospectiva(k) {
   const h = await historicoAluno(S.user.id);
   if (!k) {
     const meses = [...new Set(datasAtiv(h).map((d) => isoDia(d).slice(0, 7)))].sort().reverse();
-    const anos = [...new Set(meses.map((m) => m.slice(0, 4)))].filter((a) => +a >= 2027); // retrospectiva do ano só a partir de 2027
+    const anos = [...new Set(meses.map((m) => m.slice(0, 4)))];
     $app.innerHTML = `<a class="back" href="#/historico">${I.back} Evolução</a><p class="eyebrow">Retrospectiva</p><h1 class="h1">Suas retrospectivas</h1>
       <p class="small muted" style="margin-top:6px">Toque para ver em tela cheia e gerar o card para o story.</p>
       ${meses.length ? `<div class="stack" style="margin-top:16px">${anos.map((a) => `<a class="card retro-it ano" href="#/retrospectiva/${a}"><b>${a}</b><span>Retrospectiva do ano</span>${I.chev}</a>`).join('')}${meses.map((m) => { const st = statsPeriodo(h, periodoRetro(m).ini, periodoRetro(m).fim); return `<a class="card retro-it" href="#/retrospectiva/${m}"><b>${MESES_N[+m.slice(5) - 1]} ${m.slice(0, 4)}</b><span>${st.dias} dia${st.dias === 1 ? '' : 's'} de treino${st.km ? ` · ${f1(st.km)} km` : ''}${m === hojeISO().slice(0, 7) ? ' · até agora' : ''}</span>${I.chev}</a>`; }).join('')}</div>` : '<div class="empty" style="margin-top:20px"><div class="h3">Ainda sem treinos registrados</div></div>'}`;
@@ -1773,7 +1773,7 @@ async function momentosHoje(box, perfil, provaProx) {
   // retrospectiva do mês que acabou (primeiros 7 dias do mês) e do ano (dezembro e começo de janeiro)
   const hj = new Date(), mesAnt = isoDia(new Date(hj.getFullYear(), hj.getMonth() - 1, 15)).slice(0, 7);
   if (hj.getDate() <= 7 && !vistos['r-' + mesAnt] && datasAtiv(h).some((d) => isoDia(d).slice(0, 7) === mesAnt)) cards.push({ k: 'r-' + mesAnt, html: `<a class="card mom-card retro-cta" href="#/retrospectiva/${mesAnt}"><div class="mom-ic">${I.cal}</div><div class="grow"><span class="eyebrow">Retrospectiva</span><div class="h3">Seu ${MESES_N[+mesAnt.slice(5) - 1]} está pronto</div><p class="small muted">Km, horas, recordes e evolução em tela cheia.</p></div>${I.chev}</a>` });
-  const ano = hj.getFullYear() >= 2027 && hj.getMonth() === 11 && hj.getDate() >= 25 && hj.getDate() <= 30 ? String(hj.getFullYear()) : null; // começa em 2027 // retrospectiva do ano: de 25 a 30 de dezembro, até a pessoa ver
+  const ano = hj.getFullYear() >= 2027 && hj.getMonth() === 11 && hj.getDate() >= 25 && hj.getDate() <= 30 ? String(hj.getFullYear()) : null; // card na tela Hoje só a partir de 2027 (em Evolução todas ficam disponíveis) // retrospectiva do ano: de 25 a 30 de dezembro, até a pessoa ver
   if (ano && !vistos['ra-' + ano] && datasAtiv(h).some((d) => isoDia(d).startsWith(ano))) cards.push({ k: 'ra-' + ano, html: `<a class="card mom-card retro-cta ano" href="#/retrospectiva/${ano}"><div class="mom-ic">${I.cal}</div><div class="grow"><span class="eyebrow">Retrospectiva ${ano}</span><div class="h3">Seu ano na Nexos</div><p class="small muted">Tudo o que você construiu em ${ano}.</p></div>${I.chev}</a>` });
   // antes e depois aos 3 meses
   const ini = datasAtiv(h)[0]; const dd = ini ? diasDesde(ini) : 0;
