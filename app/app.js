@@ -1972,7 +1972,7 @@ async function iniciarTour() {
   closeSheet(true);
   let i = 0; const ov = document.createElement('div'); ov.className = 'tour'; ov.innerHTML = '<div class="tour-luz"></div><div class="tour-box" role="dialog" aria-live="polite"></div>'; document.body.append(ov);
   const luz = ov.querySelector('.tour-luz'), box = ov.querySelector('.tour-box');
-  const sair = (feito) => { ov.remove(); window.removeEventListener('resize', pos); window.removeEventListener('scroll', pos); if (feito) { sb.rpc('nx_tour', { p_estado: 'feito' }).catch(() => {}); S.me.tour = 'feito'; } if (location.hash !== '#/') location.hash = '#/'; };
+  const sair = (feito) => { ov.remove(); window.removeEventListener('resize', pos); window.removeEventListener('scroll', pos); if (feito) { sb.rpc('nx_tour', { p_estado: 'feito' }).then(() => {}, () => {}); S.me.tour = 'feito'; } if (location.hash !== '#/') location.hash = '#/'; };
   // só o que o aluno assinou: passos de corrida ou de força ficam de fora para quem não tem
   const passos = (S.staff ? TOUR_STAFF : TOUR_PASSOS).filter((p) => !p.so || faz(p.so)).map((p) => ({ ...p, d: typeof p.d === 'function' ? p.d() : p.d }));
   let alvo = null;
@@ -2013,7 +2013,7 @@ function convidarTour() {
       <p class="tiny dim center" style="margin-top:10px">Você pode fazer o tour quando quiser em Mais > ${S.staff ? 'Tour pelo painel' : 'Tour pelo app'}.</p></div>`, (r) => {
       r.querySelector('#tr-sim').onclick = () => iniciarTour();
       r.querySelector('#tr-depois').onclick = () => closeSheet();
-      r.querySelector('#tr-nao').onclick = () => { sb.rpc('nx_tour', { p_estado: 'recusado' }).catch(() => {}); S.me.tour = 'recusado'; closeSheet(); toast(`Tudo bem. O tour fica em Mais > ${S.staff ? 'Tour pelo painel' : 'Tour pelo app'}.`); };
+      r.querySelector('#tr-nao').onclick = () => { sb.rpc('nx_tour', { p_estado: 'recusado' }).then(() => {}, () => {}); S.me.tour = 'recusado'; closeSheet(); toast(`Tudo bem. O tour fica em Mais > ${S.staff ? 'Tour pelo painel' : 'Tour pelo app'}.`); };
     });
   }, 1500);
 }
@@ -3470,7 +3470,7 @@ async function viewAnamnese(opts = {}) {
     resp.doencas = fd.getAll('doencas');
     const positivo = Object.values(parq).includes('sim');
     const btn = f.querySelector('[type=submit]'); btn.disabled = true;
-    if (f.sexo_al && f.sexo_al.value) { await sb.rpc('nx_definir_sexo', { p_sexo: f.sexo_al.value }).catch(() => {}); S.me.sexo = f.sexo_al.value; }
+    if (f.sexo_al && f.sexo_al.value) { await sb.rpc('nx_definir_sexo', { p_sexo: f.sexo_al.value }).then(() => {}, () => {}); S.me.sexo = f.sexo_al.value; }
     if (!(await salvarCiclo())) { btn.disabled = false; return; }
     const row = { parq, parq_positivo: positivo, respostas: resp, atualizado_em: new Date().toISOString(), visto_treinador: staff };
     let id = a && a.id, error;
