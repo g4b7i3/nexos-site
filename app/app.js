@@ -12071,7 +12071,7 @@ function planoMacro(ini, niv, provas) {
   const fora = todas.filter((p) => p.w < 0 || p.w > 60); fora.forEach((p) => avisos.push(`${p.nome || 'Prova'} (${fmtDia(p.data)}) está fora do período do plano (até cerca de 14 meses a partir do início).`));
   let A = todas.filter((p) => p.pri === 'A' && p.w >= 0 && p.w <= 60).sort((a, b) => a.w - b.w);
   const outras = todas.filter((p) => p.pri !== 'A' && p.w >= 0 && p.w <= 60);
-  if (!A.length) return { segs, avisos: ['Marque pelo menos uma prova como A (principal). O plano é montado de trás para frente a partir delas.'], total: 0, outras: [] };
+  if (!A.length) return { segs, avisos: [], semA: true, total: 0, outras: [] };
   if (A.length > 3) avisos.push('Mais de 3 provas A no ano: cada pico exige polimento e recuperação. Considere deixar algumas como B.');
   if (niv === 'ini' && A.some((p) => ['42', 'u50', 'u80'].includes(p.dist))) avisos.push('Maratona ou ultra para iniciante: o ideal é ter completado uma meia maratona antes. O plano usa o ciclo de primeira maratona, que pede base prévia.');
   const add = (id, w0, from, n, tipo, extra) => { const c = cicPor(id); if (!c || n <= 0) return; segs.push({ c, w0, from, n, tipo, ...extra }); };
@@ -12170,11 +12170,14 @@ async function viewMacro() {
   const prox = (() => { const d = inicioSemana(); d.setDate(d.getDate() + 7); return isoDia(d); })();
   const st = S.cache.macro || (S.cache.macro = { aluno: '', niv: 'int', ini: prox, provas: [], forca: false });
   const salvar = () => { if (st.aluno) store.set('nx-macro-' + st.aluno, { niv: st.niv, provas: st.provas, forca: st.forca }); };
+  const nivelDe = (m) => { const v = perfilCorrida(m || {}).vdot; return v ? { v: Math.round(v), n: v < 37 ? 'ini' : v < 46 ? 'int' : v < 57 ? 'ava' : 'pro' } : null; };
   const carregar = async () => {
+    const sg = nivelDe(alunos.find((x) => x.user_id === st.aluno)); st.sug = sg; if (sg) st.niv = sg.n;
     const sv = store.get('nx-macro-' + st.aluno, null);
     if (sv && sv.provas && sv.provas.length) { Object.assign(st, sv); return; }
     const ps = await sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', st.aluno).gte('data', st.ini).lte('data', somaDias(st.ini, 420)).order('data').then((r) => r.data || [], () => []);
     st.provas = ps.map((p) => ({ nome: p.titulo || '', data: p.data, dist: macDistDe(p.distancia), pri: 'B' }));
+    if (st.provas.length) { const ord = ['5', '10', '21', '42', 'u50', 'u80']; let mx = st.provas[0]; st.provas.forEach((p) => { if (ord.indexOf(p.dist) >= ord.indexOf(mx.dist)) mx = p; }); mx.pri = 'A'; }
     const m = alunos.find((x) => x.user_id === st.aluno); st.forca = !!(m && faz('musculacao', m));
   };
   const corpo = () => {
@@ -12182,12 +12185,13 @@ async function viewMacro() {
     const W = pl.segs.length ? semanasMacro(pl) : [];
     const fimISO = pl.total ? somaDias(isoDia(inicioSemana(dia(st.ini))), 7 * pl.total - 1) : null;
     const dataSem = (w) => isoDia(new Date(inicioSemana(dia(st.ini)).getTime() + w * 6048e5));
+    if (pl.semA) return `<div class="card mac-vazio" style="margin-top:12px"><b>${st.provas.length ? 'Falta escolher a prova principal' : 'Adicione as provas do ano'}</b><p class="small muted" style="margin-top:4px">${st.provas.length ? 'Toque em A na prova mais importante. O ano é montado de trás para frente a partir dela.' : 'Coloque pelo menos a prova principal do ano e marque como A.'}</p></div>`;
     return `${pl.avisos.length ? `<div class="stack" style="margin-top:12px">${pl.avisos.map((a) => `<p class="aviso-dup" style="margin:0">${esc(a)}</p>`).join('')}</div>` : ''}
       ${pl.segs.length ? `<div class="card" style="margin-top:12px"><div class="ck-res cic-res"><div><b>${pl.total}</b><span>semanas</span></div><div><b>${pl.segs.length}</b><span>ciclos</span></div><div><b>${W.reduce((a, w) => a + w.sess.length, 0)}</b><span>treinos</span></div></div>
         <div class="mac-barra">${pl.segs.map((s) => `<i style="flex:${s.n};background:${MAC_COR[s.tipo]}">${s.prova ? '<b>A</b>' : ''}</i>`).join('')}</div>
         <div class="cic-leg">${[...new Set(pl.segs.map((s) => s.tipo))].map((t) => `<span><i style="background:${MAC_COR[t]}"></i>${MAC_TIPO[t]}</span>`).join('')}</div>
         <p class="small" style="margin-top:10px;color:var(--acc)">De ${fmtDia(st.ini)} a ${fmtDia(fimISO)}</p></div>
-      <p class="sec-lbl">O ano, ciclo a ciclo</p>
+      <p class="sec-lbl">3. O ano, ciclo a ciclo</p>
       <div class="stack">${pl.segs.map((s) => { const bs = pl.outras.filter((p) => p.w >= s.w0 && p.w < s.w0 + s.n); return `<a class="card tap mac-seg" href="#/treinos/ciclos/${s.c.id}" style="color:inherit;--fc:${MAC_COR[s.tipo]}"><div class="grow" style="min-width:0"><span class="eyebrow">${MAC_TIPO[s.tipo]} · semana${s.n > 1 ? 's' : ''} ${s.w0 + 1}${s.n > 1 ? '–' + (s.w0 + s.n) : ''}</span><b style="display:block;margin-top:2px">${esc(s.c.nome)}</b><span class="small muted">${fmtCurto(dataSem(s.w0))} a ${fmtCurto(somaDias(dataSem(s.w0 + s.n - 1), 6))} · ${s.n} semana${s.n > 1 ? 's' : ''}${s.from ? ` (a partir da ${s.from + 1}ª)` : ''}</span>${s.prova ? `<div class="mac-prova A">Prova A · ${esc(s.prova.nome || MAC_NOMED[s.prova.dist])} · ${fmtCurto(s.prova.data)}</div>` : ''}${bs.map((p) => `<div class="mac-prova">Prova ${p.pri} · ${esc(p.nome || MAC_NOMED[p.dist])} · ${fmtCurto(p.data)}</div>`).join('')}</div>${I.chev}</a>`; }).join('')}</div>
       <label class="ck-check" style="margin-top:14px"><input type="checkbox" id="mac-limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>
       <button class="btn block" id="mac-apl" style="margin-top:12px" ${st.aluno ? '' : 'disabled'}>${I.users} ${st.aluno ? `Aplicar as ${pl.total} semanas` : 'Escolha o aluno para aplicar'}</button>
@@ -12199,18 +12203,23 @@ async function viewMacro() {
   const tela = () => {
     $app.innerHTML = `<a class="back" href="#/treinos/ciclos">${I.back} Ciclos prontos</a><p class="eyebrow">Planejamento da temporada</p><h1 class="h1">Macrociclo anual</h1>
       <p class="muted" style="margin-top:6px">O ano do aluno montado de trás para frente a partir das provas principais: base, limiar, ciclo da prova, polimento, recuperação e transição, na ordem certa.</p>
-      <div class="stack" style="margin-top:14px">${MAC_GUIA.map(([t, x], i) => `<details class="card cic-sem mac-guia" ${i === 0 ? 'open' : ''}><summary><b class="grow">${t}</b>${I.chev}</summary><p class="small" style="margin-top:8px">${x}</p></details>`).join('')}</div>
-      <p class="tiny dim" style="margin-top:8px">${MAC_REFS}</p>
-      <p class="sec-lbl">Montar o macrociclo</p>
+      <a class="small" href="#mac-entenda" id="mac-ir" style="display:inline-block;margin-top:8px;color:var(--acc);font-weight:600">Entenda o macrociclo e a base científica</a>
+      <p class="sec-lbl">1. Aluno</p>
       <div class="card"><label class="field"><span>Aluno</span><select class="input" id="mac-al"><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${st.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
-        <label class="field"><span>Nível</span><select class="input" id="mac-niv">${Object.entries(CIC_NIV).map(([k, l]) => `<option value="${k}" ${st.niv === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="field"><span>Nível</span><select class="input" id="mac-niv">${Object.entries(CIC_NIV).map(([k, l]) => `<option value="${k}" ${st.niv === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${st.aluno ? `<small class="tiny dim">${st.sug ? `Sugerido pelo último teste do aluno (VDOT ${st.sug.v}). Ajuste se o volume semanal dele for bem diferente.` : 'O aluno ainda não tem teste no perfil de corrida: confira o nível.'}</small>` : ''}</label>
         <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" id="mac-ini" value="${st.ini}"></label>
         <label class="ck-check"><input type="checkbox" id="mac-forca" ${st.forca ? 'checked' : ''}><span>Montar também a musculação acompanhando a corrida</span></label></div>
-      <p class="sec-lbl">Provas do ano</p>
+      <p class="sec-lbl">2. Provas do ano</p>
+      <p class="small muted" style="margin:-4px 0 10px">Toque em <b>A</b> na prova principal do ano (até 3). As outras ficam como <b>B</b> (preparação) ou <b>C</b> (treino).</p>
       ${st.aluno && !st.provas.length ? '<p class="small muted">Nenhuma prova cadastrada para este aluno no próximo ano. Adicione abaixo.</p>' : ''}
       <div class="stack" id="mac-pvs">${st.provas.map(provaHTML).join('')}</div>
       <button type="button" class="btn ghost block" id="mac-add" style="margin-top:10px">${I.plus} Adicionar prova</button>
-      <div id="mac-res">${corpo()}</div>`;
+      <div id="mac-res">${corpo()}</div>
+      <p class="sec-lbl" id="mac-entenda">Entenda o macrociclo</p>
+      <div class="stack" >${MAC_GUIA.map(([t, x], i) => `<details class="card cic-sem mac-guia" ><summary><b class="grow">${t}</b>${I.chev}</summary><p class="small" style="margin-top:8px">${x}</p></details>`).join('')}</div>
+      <p class="tiny dim" style="margin-top:8px">${MAC_REFS}</p>
+`;
+    document.getElementById('mac-ir').onclick = (e) => { e.preventDefault(); document.getElementById('mac-entenda').scrollIntoView({ behavior: 'smooth' }); };
     const res = () => { document.getElementById('mac-res').innerHTML = corpo(); bindApl(); salvar(); };
     document.getElementById('mac-al').onchange = async (e) => { st.aluno = e.target.value; if (st.aluno) await carregar(); tela(); };
     document.getElementById('mac-niv').onchange = (e) => { st.niv = e.target.value; res(); };
