@@ -2969,3 +2969,8 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .chips .chip:has(svg){display:inline-flex;align-items:center;gap:6px}
 .cic-sem,.cic-tr{text-align:left}
 .cic-card{display:block}
+/* sequência e trilhas de ciclos */
+.seq-it{display:flex!important;align-items:center;gap:12px}
+.trl-barra{display:flex;gap:3px}
+.trl-barra i{min-width:6px}
+.trl-n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.85rem;color:#0b1220}

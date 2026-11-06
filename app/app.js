@@ -9207,6 +9207,7 @@ async function staffHoje() {
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><div class="top-acoes">${sinoHTML()}<a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
+    <div id="cic-term"></div>
     ${pendentes.length ? `<div class="section"><div class="section-h"><h2 class="h2">Novos alunos para aprovar</h2><span class="tag acc">${pendentes.length}</span></div><div class="stack">${pendentes.map((m) => `<div class="card aprovar" data-pend="${m.user_id}">
       <div class="row" style="gap:12px">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small muted ellip" style="display:block">${esc(m.email || '')}</span></div><span class="tiny dim">${m.pedido_em ? quando(m.pedido_em) : ''}</span></div>
       ${(() => { const md = m.modalidades || [], c = md.includes('corrida'), f = md.includes('musculacao'); const ic = (c ? selo('corrida', 'sm') : '') + (f ? selo('forca', 'sm') : ''); const t = (ic ? `<span class="pend-ic">${ic}</span>` : '') + `<span>${c && f ? 'Este aluno é de <b>corrida e musculação</b>' : c ? 'Este aluno é <b>só de corrida</b>' : f ? 'Este aluno é <b>só de musculação</b>' : 'Não marcou a modalidade'}</span>`; return `<div class="pend-mod">${t}</div>`; })()}
@@ -9229,6 +9230,7 @@ async function staffHoje() {
       ${store.get('nx_ativ_oculta', false) ? `<p class="small muted" id="ativ-oculta-txt">${recentes.length} ${recentes.length === 1 ? 'atividade oculta' : 'atividades ocultas'}. Toque na seta para mostrar.</p>` : ''}
     </div>`;
   dadosSugestoes(ativos.map((m) => m.user_id), 1).then((sg) => { const bx = document.getElementById('sug-hoje'); if (!bx || !sg.length) return; bx.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Sugestões do app</h2><span class="tag acc">${sg.length}</span></div><div class="stack">${sg.map((x) => sugCardHTML(x)).join('')}</div></div>`; bindSugestoes(bx, sg, () => { if (!bx.querySelector('.sug-card')) bx.innerHTML = ''; }); }).catch((e) => console.error(e));
+  ciclosTerminandoHTML(vis, Object.fromEntries(membros.map((m) => [m.user_id, m.nome]))).then((h) => { const el = document.getElementById('cic-term'); if (el) el.innerHTML = h; }, () => {});
   bindCartaoPush();
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
@@ -11374,7 +11376,7 @@ const BIB_FORCA = [
    · progressão de volume gradual com semana de recuperação a cada 3–4 semanas (Nielsen et al. 2014; Gabbett 2016);
    · fases base → construção → específica → polimento (periodização em blocos; Issurin 2010);
    · polimento: volume 40–60% menor mantendo a intensidade e a frequência (Bosquet et al. 2007; Mujika & Padilla 2003). */
-const CIC_OBJ = [['modelos', 'Modelos de treino'], ['ini', 'Começar a correr'], ['5k', '5 km'], ['10k', '10 km'], ['21k', 'Meia maratona'], ['42k', 'Maratona'], ['ultra', 'Ultra'], ['bloco', 'Blocos e transição']];
+const CIC_OBJ = [['trilhas', 'Trilhas'], ['modelos', 'Modelos de treino'], ['ini', 'Começar a correr'], ['5k', '5 km'], ['10k', '10 km'], ['21k', 'Meia maratona'], ['42k', 'Maratona'], ['ultra', 'Ultra'], ['bloco', 'Blocos e transição']];
 const CIC_NIV = { ini: 'Iniciante', int: 'Intermediário', ava: 'Avançado', pro: 'Profissional' };
 const DIAS_SEM = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const CIC_FASE_COR = { Adaptação: '#9aa8c0', Base: '#3ddc97', Construção: '#46d6ff', Específica: '#ffcf5c', Polimento: '#ff9f43', Prova: '#ff6b6b', Recuperação: '#b794ff', Transição: '#9aa8c0', Teste: '#ff9f43' };
@@ -11704,8 +11706,9 @@ const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = c.modo === 'modelo
 const cicKm = (sem, perfil) => sem.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
 
 // biblioteca de ciclos (treinador)
+const trlCard = (t, forca) => { const cs = t.seq.map((x) => (forca ? CICLOS_FORCA : CICLOS_CORR).find((c) => c.id === x)).filter(Boolean), tot = cs.reduce((a, c) => a + cicSem(c), 0); return `<a class="card tap cic-card" href="${forca ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/'}${t.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(t.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[t.niv]}</span><span class="tag">${cs.length} ciclos</span><span class="tag">${tot} semanas</span></div></div>${I.chev}</div><div class="cic-barra trl-barra">${cs.map((c, i) => `<i style="flex:${cicSem(c)};background:hsl(${(i * 47 + 190) % 360} 70% 55%)"></i>`).join('')}</div><p class="small muted" style="margin-top:8px">${esc(t.desc)}</p><p class="tiny dim" style="margin-top:6px">${cs.map((c) => esc(c.nome)).join(' → ')}</p></a>`; };
 async function viewCiclos(id) {
-  if (id) return viewCiclo(id);
+  if (id) return /^t-/.test(id) ? viewTrilha(id, false) : viewCiclo(id);
   const st = S.cache.cicObj || (S.cache.cicObj = { o: store.get('nx-cic-obj', 'ini') });
   const desenha = () => {
     st.m = st.m || store.get('nx-cic-mod', 'trad');
@@ -11718,6 +11721,7 @@ async function viewCiclos(id) {
         <div class="chips wrap" id="cic-m" style="margin-top:10px">${MOD_CORR.map(([k, l]) => `<button type="button" class="chip ${k === st.m ? 'on' : ''}" data-m="${k}">${l}</button>`).join('')}</div>
         <div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${mi.tipo}</span><div class="h3" style="margin-top:2px">${esc((MOD_CORR.find((x) => x[0] === st.m) || [])[1])}</div><p class="small" style="margin-top:6px">${mi.oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${mi.quando}</p><p class="tiny dim" style="margin-top:6px">${mi.ci}</p></div>` : ''}
       ${st.o === 'bloco' ? `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Macrociclo sugerido da temporada</span><ol>${CIC_MACRO.map((x) => `<li>${x}</li>`).join('')}</ol><p class="tiny dim">Aplique um ciclo depois do outro, cada um começando na segunda-feira seguinte ao fim do anterior.</p></div>` : ''}
+      ${st.o === 'trilhas' ? `<p class="small muted" style="margin-top:12px"><b>Trilhas</b> são ciclos encadeados na ordem certa: cada um começa na segunda-feira seguinte ao fim do anterior. Aplique a trilha inteira de uma vez ou abra cada ciclo para ver o que vem depois.</p><div class="stack" style="margin-top:12px">${TRILHAS_CORR.map((t) => trlCard(t, false)).join('')}</div>` : ''}
       <div class="stack" style="margin-top:12px">${L.map((c) => { const S2 = cicSemanas(c), p = perfilNiv(c.niv), kms = S2.map((s) => cicKm(s, p)); const tr = Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length); return `<a class="card tap cic-card" href="#/treinos/ciclos/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[c.niv]}</span><span class="tag">${c.sem} semana${c.sem > 1 ? 's' : ''}</span><span class="tag">~${tr} treinos/semana</span><span class="tag">${Math.round(Math.min(...kms))} a ${Math.round(Math.max(...kms))} km/sem</span></div></div>${I.chev}</div>${cicBarra(S2)}${c.desc ? `<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p>` : ''}</a>`; }).join('')}</div>`;
     document.getElementById('cic-o').onclick = (e) => { const x = e.target.closest('[data-o]'); if (!x) return; st.o = x.dataset.o; store.set('nx-cic-obj', st.o); desenha(); };
     const cm = document.getElementById('cic-m'); if (cm) cm.onclick = (e) => { const x = e.target.closest('[data-m]'); if (!x) return; st.m = x.dataset.m; store.set('nx-cic-mod', st.m); desenha(); };
@@ -11749,6 +11753,7 @@ function viewCiclo(id) {
     <button class="btn block" id="cic-apl" style="margin-top:12px">${I.users} Aplicar a um aluno</button>
     ${c.mod ? `<div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${MOD_INFO[c.mod].tipo}</span><p class="small" style="margin-top:6px">${MOD_INFO[c.mod].oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${MOD_INFO[c.mod].quando}</p><p class="small" style="margin-top:6px"><b>Base científica:</b> ${MOD_INFO[c.mod].ci}</p><p class="tiny dim" style="margin-top:6px">A última semana termina com um teste para medir a evolução. Se o aluno tiver prova, troque o teste pela prova.</p></div>` : ''}
     <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
+    ${seqHTML(proximosCorr(c), '#/treinos/ciclos/')}
     <p class="sec-lbl">Semana a semana</p><div class="stack">${S2.map(semHTML).join('')}</div>`;
   document.getElementById('cic-apl').onclick = () => cicAplicar(c, S2);
 }
@@ -11757,11 +11762,12 @@ async function cicAplicar(c, S2) {
   const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m));
   const prox = (() => { const d = inicioSemana(); d.setDate(d.getDate() + 7); return isoDia(d); })();
   const temProva = c.modo === 'prova' || c.modo === 'polimento';
+  const pre = S.cache.cicPre || {}; S.cache.cicPre = null;
   openSheet(`<p class="eyebrow">Aplicar ciclo</p><div class="h2" style="margin-top:4px">${esc(c.nome)}</div>
     <form id="f-cic" style="margin-top:14px">
-      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}">${esc(m.nome)}</option>`).join('')}</select></label>
+      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${pre.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
       ${temProva ? '<label class="field"><span>Data da prova (opcional)</span><input class="input" type="date" name="prova"><small class="tiny dim">Com a data da prova, o ciclo termina no domingo da semana da prova.</small></label>' : ''}
-      <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
+      <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${pre.ini || prox}" required></label>
       <p class="small" id="cic-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
       <label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como no ciclo</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label>
       <label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>
@@ -11777,20 +11783,12 @@ async function cicAplicar(c, S2) {
       const m = alunos.find((x) => x.user_id === alunoId), perfil = perfilCorrida(m || {});
       const b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Montando…';
       const ini = dia(segunda(f.ini.value || prox)), fim = new Date(ini); fim.setDate(fim.getDate() + 7 * c.sem - 1);
-      const dL = f.longao.value;
-      const rows = [];
-      S2.forEach((s, i) => s.sess.forEach(([d, t]) => {
-        let dd = d;
-        if (dL !== 'pad' && (t.tipo === 'longao')) dd = +dL;
-        else if (dL !== 'pad' && t.tipo !== 'prova' && d === +dL && s.sess.some(([, x]) => x.tipo === 'longao')) dd = dL === '5' ? 6 : 5; // troca de lugar com o treino daquele dia
-        const data = new Date(ini); data.setDate(data.getDate() + i * 7 + dd);
-        const rs = resumoEstrutura(t.estrutura, perfil);
-        rows.push({ org_id: S.org.id, aluno_id: alunoId, data: isoDia(data), tipo: t.tipo, titulo: t.titulo, estrutura: t.estrutura, distancia_km: Math.round(rs.km * 10) / 10, duracao_min: Math.round(rs.seg / 60), zona: null, descricao: t.obs || null, liberado: false, criado_por: S.user.id });
-      }));
+      const rows = linhasCiclo(c, alunoId, perfil, ini, f.longao.value);
       try {
         if (f.limpar.checked) { const { error: e1 } = await sb.from('nx_plano_corrida').delete().eq('aluno_id', alunoId).eq('liberado', false).gte('data', isoDia(ini)).lte('data', isoDia(fim)); if (e1) throw e1; }
         for (let k = 0; k < rows.length; k += 150) { const { error: e2 } = await sb.from('nx_plano_corrida').insert(rows.slice(k, k + 150)); if (e2) throw e2; }
       } catch (er) { console.error(er); b.disabled = false; b.textContent = 'Tentar de novo'; return toast('Não foi possível montar o ciclo. Tente de novo.', true); }
+      registrarCiclo(alunoId, 'corrida', c, ini, c.sem);
       closeSheet(true); toast(`${rows.length} treinos montados para ${firstName(m && m.nome)}. Libere semana a semana.`);
       location.hash = `#/aluno/${alunoId}/corrida`;
     };
@@ -11802,7 +11800,7 @@ async function cicAplicar(c, S2) {
    Base: Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015 e Rhea et al. 2002/2003 (J Strength Cond Res);
    Issurin 2010 (Sports Med, blocos); Bell et al. 2023 (Sports Med Open, semana leve); Blagrove et al. 2018 (Sports Med, força para corredores). */
 const CF_COD = { R: 'resistencia', H: 'hipertrofia', F: 'forca', P: 'potencia', O: 'ondulatorio', L: 'deload', X: 'flexivel', A: 'autorregulada', C: 'conjugada' };
-const CF_OBJ = [['res', 'Resistência e adaptação'], ['hip', 'Hipertrofia'], ['for', 'Força e potência'], ['corr', 'Para corredores'], ['macro', 'Macrociclos e transição']];
+const CF_OBJ = [['trilhas', 'Trilhas'], ['res', 'Resistência e adaptação'], ['hip', 'Hipertrofia'], ['for', 'Força e potência'], ['corr', 'Para corredores'], ['macro', 'Macrociclos e transição']];
 const CICLOS_FORCA = [
   { id: 'cf-adapt', obj: 'res', niv: 'ini', nome: 'Adaptação anatômica', seq: 'RRRL', modelo: 'Linear', desc: 'Primeiro mês de quem começa ou volta: muitas repetições com carga leve para aprender os movimentos e preparar tendões e articulações.' },
   { id: 'cf-resist', obj: 'res', niv: 'int', nome: 'Resistência muscular', seq: 'RRRLRR', modelo: 'Linear', desc: 'Foco em aguentar mais repetições e treinos longos. Bom para iniciantes avançando e para quem treina provas longas.' },
@@ -11827,13 +11825,14 @@ const CF_REFS = 'Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harr
 const cfFases = (c) => [...c.seq].map((x) => CF_COD[x]);
 const cfBarra = (fs) => `<div class="cic-barra">${fs.map((f) => `<i style="background:${FASES_F[f].cor}" title="${esc(FASES_F[f].n)}"></i>`).join('')}</div><div class="cic-leg">${[...new Set(fs)].map((f) => `<span><i style="background:${FASES_F[f].cor}"></i>${FASES_F[f].n}</span>`).join('')}</div>`;
 async function viewCiclosForca(id) {
-  if (id) return viewCicloForca(id);
+  if (id) return /^tf-/.test(id) ? viewTrilha(id, true) : viewCicloForca(id);
   const st = S.cache.cfObj || (S.cache.cfObj = { o: store.get('nx-cf-obj', 'hip') });
   const desenha = () => {
     const L = CICLOS_FORCA.filter((c) => c.obj === st.o);
     $app.innerHTML = `<a class="back" href="#/treinos">${I.back} Treinos de musculação</a><p class="eyebrow">Biblioteca de força</p><h1 class="h1">Ciclos de força</h1>
       <p class="muted" style="margin-top:6px">Periodização pronta: cada semana recebe uma fase, que muda a faixa de repetições e o descanso. O aluno continua com os treinos dele (A, B, C). Ao aplicar, as fases vão para as semanas do aluno; a liberação continua com você.</p>
       <div class="chips" id="cf-o" style="margin-top:14px">${CF_OBJ.map(([k, l]) => `<button type="button" class="chip ${k === st.o ? 'on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>
+      ${st.o === 'trilhas' ? `<p class="small muted" style="margin-top:12px"><b>Trilhas</b> são ciclos de força encadeados na ordem certa, com semanas leves entre os blocos. Aplique a trilha inteira de uma vez ou abra cada ciclo para ver o que vem depois.</p><div class="stack" style="margin-top:12px">${TRILHAS_FORCA.map((t) => trlCard(t, true)).join('')}</div>` : ''}
       <div class="stack" style="margin-top:12px">${L.map((c) => { const fs = cfFases(c); return `<a class="card tap cic-card" href="#/treinos/ciclos-forca/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[c.niv]}</span><span class="tag">${fs.length} semana${fs.length > 1 ? 's' : ''}</span><span class="tag">${esc(c.modelo)}</span></div></div>${I.chev}</div>${cfBarra(fs)}<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p></a>`; }).join('')}</div>`;
     document.getElementById('cf-o').onclick = (e) => { const x = e.target.closest('[data-o]'); if (!x) return; st.o = x.dataset.o; store.set('nx-cf-obj', st.o); desenha(); };
   };
@@ -11860,6 +11859,7 @@ function viewCicloForca(id) {
     <div class="card" style="margin-top:14px"><div class="ck-res"><div><b>${fs.length}</b><span>semanas</span></div><div><b style="font-size:1.05rem">${esc(c.modelo)}</b><span>modelo</span></div></div>${cfBarra(fs)}</div>
     <button class="btn block" id="cf-apl" style="margin-top:12px">${I.users} Aplicar a um aluno</button>
     <div class="card" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${MODELO[c.modelo] || ''}</p><p class="tiny dim" style="margin-top:8px">${CF_REFS}</p></div>
+    ${seqHTML(proximosForca(c), '#/treinos/ciclos-forca/')}
     <p class="sec-lbl">Semana a semana</p><div class="stack">${fs.map((f, i) => { const x = FASES_F[f]; return `<div class="card cf-sem" style="--fc:${x.cor}"><span class="fase-c">${x.c}</span><div class="grow" style="min-width:0"><b>Semana ${i + 1} · ${x.n}</b><p class="small muted" style="margin-top:2px">${x.reps} · ${x.desc2}</p><p class="tiny dim" style="margin-top:2px">${x.desc}</p></div></div>`; }).join('')}</div>`;
   document.getElementById('cf-apl').onclick = () => cfAplicar(c, fs);
 }
@@ -11867,10 +11867,11 @@ async function cfAplicar(c, fs) {
   const ms = await sb.from('nx_membros').select('user_id,nome,ativo,aprovacao,treinador_id,modalidades').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
   const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('musculacao', m));
   const prox = (() => { const d = inicioSemana(); d.setDate(d.getDate() + 7); return isoDia(d); })();
+  const pre = S.cache.cicPre || {}; S.cache.cicPre = null;
   openSheet(`<p class="eyebrow">Aplicar ciclo de força</p><div class="h2" style="margin-top:4px">${esc(c.nome)}</div>
     <form id="f-cf" style="margin-top:14px">
-      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}">${esc(m.nome)}</option>`).join('')}</select></label>
-      <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
+      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${pre.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
+      <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${pre.ini || prox}" required></label>
       <p class="small" id="cf-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
       <p class="tiny dim" style="margin-bottom:12px">As fases dessas semanas são trocadas pelas do ciclo. Os treinos do aluno e a liberação das semanas não mudam.</p>
       <button class="btn block" type="submit">Aplicar ${fs.length} semana${fs.length > 1 ? 's' : ''}</button></form>`, (r) => {
@@ -11886,11 +11887,164 @@ async function cfAplicar(c, fs) {
       const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' });
       if (error) { console.error(error); b.disabled = false; return toast('Não foi possível aplicar. Tente de novo.', true); }
       const m = alunos.find((x) => x.user_id === alunoId);
+      registrarCiclo(alunoId, 'forca', c, ini, fs.length);
       closeSheet(true); toast(`Ciclo aplicado: ${fs.length} semanas de ${firstName(m && m.nome)}.`);
       location.hash = `#/aluno/${alunoId}/forca`;
     };
   });
 }
+/* ---------- Sequência entre ciclos: o que fazer quando um ciclo termina ----------
+   Regras: sobrecarga progressiva (o próximo ciclo começa perto do volume em que o anterior terminou, sem saltos grandes —
+   Nielsen et al. 2014), periodização em sequência (Issurin 2010; Haugen et al. 2022), recuperação depois de provas longas
+   e semana leve entre blocos de força (Bell et al. 2023). Depois de cada teste, as zonas novas deixam o mesmo ciclo mais forte. */
+const SEQ_POR = {
+  rec: 'Depois de prova longa: 1 a 2 semanas leves para o músculo se recuperar antes de voltar a treinar forte.',
+  base: 'Consolidar a base: volume leve antes de voltar à intensidade. Uma base maior sustenta treinos mais fortes depois.',
+  sobe: 'Próximo degrau: o mesmo tipo de trabalho com mais volume e intensidade (sobrecarga progressiva).',
+  dist: 'Próxima distância: aproveita a base construída para uma prova mais longa.',
+  bloco: 'Bloco curto para desenvolver uma qualidade (limiar ou VO₂) antes do próximo ciclo de prova.',
+  repete: 'Repetir a estrutura com os ritmos novos do teste: mesmo treino, mais rápido.',
+  trans: 'Transição: descanso ativo para recuperar o corpo e a cabeça antes da próxima temporada.',
+  pre: 'Começo de temporada: base aeróbica antes dos ciclos de prova.',
+  prova: 'Ciclo de prova: com a base e o limiar feitos, entra a parte específica da prova-alvo.',
+  pol: 'Polimento: reduz o volume para chegar descansado na prova.',
+  acum: 'Volta à acumulação (hipertrofia): músculo maior dá base para a próxima fase de força.',
+  forca: 'Converter a base em força: menos repetições e mais carga.',
+  pot: 'Transformar a força em potência: carga moderada movida rápido.',
+  varia: 'Variar o estímulo com o mesmo volume: ondulatório, blocos e linear rendem parecido, e trocar o modelo ajuda quando o aluno estagna.',
+  leve: 'Semana leve antes do próximo bloco: recupera e consolida os ganhos.',
+  corr: 'Ajustar a força à fase da corrida: pesado na base, manutenção na temporada de provas.',
+};
+const SEQ_CORR = {
+  'ini-zero': [['ini-base', 'base'], ['5k-ini', 'dist']], 'ini-30': [['ini-base', 'base'], ['5k-ini', 'dist']], 'ini-base': [['5k-ini', 'prova'], ['10k-ini', 'dist']],
+  '5k-ini': [['10k-ini', 'dist'], ['bl-base-int', 'sobe'], ['5k-ini', 'repete']], '5k-int4': [['bl-lim-int', 'bloco'], ['10k-int', 'dist'], ['5k-int', 'repete']],
+  '5k-int': [['bl-base-int', 'base'], ['10k-int', 'dist'], ['5k-ava', 'sobe']], '5k-ava': [['bl-base-ava', 'base'], ['10k-ava', 'dist'], ['5k-ava', 'repete']], '5k-pro': [['bl-lim-pro', 'bloco'], ['10k-pro', 'dist']],
+  '10k-ini': [['bl-base-int', 'sobe'], ['21k-ini', 'dist'], ['10k-int', 'sobe']], '10k-int': [['bl-lim-int', 'bloco'], ['21k-int', 'dist'], ['10k-ava', 'sobe']],
+  '10k-ava': [['bl-lim-ava', 'bloco'], ['21k-ava', 'dist'], ['10k-ava', 'repete']], '10k-pro': [['bl-lim-pro', 'bloco'], ['21k-pro', 'dist']],
+  '21k-ini': [['bl-pos', 'rec'], ['10k-int', 'sobe'], ['21k-int', 'sobe']], '21k-int': [['bl-pos', 'rec'], ['42k-int16', 'dist'], ['21k-ava', 'sobe']],
+  '21k-ava': [['bl-pos', 'rec'], ['42k-ava', 'dist'], ['10k-ava', 'bloco']], '21k-pro': [['bl-pos', 'rec'], ['42k-pro', 'dist']],
+  '42k-int16': [['bl-pos', 'rec'], ['bl-trans', 'trans'], ['bl-base-int', 'base']], '42k-int12': [['bl-pos', 'rec'], ['bl-trans', 'trans'], ['bl-base-int', 'base']],
+  '42k-ava': [['bl-pos', 'rec'], ['bl-trans', 'trans'], ['bl-base-ava', 'base']], '42k-pro': [['bl-pos', 'rec'], ['bl-trans', 'trans'], ['bl-lim-pro', 'bloco']],
+  'ul-int': [['bl-pos', 'rec'], ['bl-trans', 'trans'], ['ul-ava', 'sobe']], 'ul-ava': [['bl-pos', 'rec'], ['bl-trans', 'trans']],
+  'bl-pre': [['bl-lim-int', 'bloco'], ['10k-int', 'prova'], ['21k-int', 'prova']], 'bl-base-int': [['bl-lim-int', 'bloco'], ['10k-int', 'prova']], 'bl-base-ava': [['bl-lim-ava', 'bloco'], ['10k-ava', 'prova']],
+  'bl-lim-int': [['bl-vo2', 'bloco'], ['10k-int', 'prova'], ['21k-int', 'prova']], 'bl-lim-ava': [['bl-vo2', 'bloco'], ['10k-ava', 'prova'], ['21k-ava', 'prova']], 'bl-lim-pro': [['10k-pro', 'prova'], ['21k-pro', 'prova'], ['42k-pro', 'prova']],
+  'bl-vo2': [['bl-pol', 'pol'], ['5k-ava', 'prova'], ['10k-ava', 'prova']], 'bl-pol': [['bl-pos', 'rec']], 'bl-pos': [['bl-trans', 'trans'], ['bl-base-int', 'base'], ['bl-pre', 'pre']], 'bl-trans': [['bl-pre', 'pre'], ['bl-base-int', 'base']],
+};
+const SEQ_FORCA = {
+  'cf-adapt': [['cf-hip-ini', 'acum'], ['cf-resist', 'repete']], 'cf-resist': [['cf-hip-ini', 'acum'], ['cf-lin', 'forca']], 'cf-rev': [['cf-deload', 'leve'], ['cf-hip-int', 'acum']],
+  'cf-hip-ini': [['cf-hip-int', 'sobe'], ['cf-lin', 'forca'], ['cf-flex', 'varia']], 'cf-hip-int': [['cf-deload', 'leve'], ['cf-dup', 'varia'], ['cf-lin', 'forca']],
+  'cf-hip-wup': [['cf-dup', 'varia'], ['cf-blocos', 'forca']], 'cf-dup': [['cf-deload', 'leve'], ['cf-blocos', 'forca'], ['cf-conj', 'varia']], 'cf-flex': [['cf-dup', 'varia'], ['cf-rir', 'varia']],
+  'cf-rir': [['cf-blocos', 'forca'], ['cf-dup', 'varia']], 'cf-conj': [['cf-deload', 'leve'], ['cf-blocos', 'varia']], 'cf-lin': [['cf-deload', 'leve'], ['cf-pot', 'pot'], ['cf-blocos', 'varia']],
+  'cf-blocos': [['cf-deload', 'leve'], ['cf-hip-int', 'acum'], ['cf-conj', 'varia']], 'cf-pot': [['cf-deload', 'leve'], ['cf-hip-int', 'acum']],
+  'cf-corr-pre': [['cf-corr', 'corr'], ['cf-corr-temp', 'corr']], 'cf-corr': [['cf-corr-temp', 'corr']], 'cf-corr-temp': [['cf-corr-temp', 'corr'], ['cf-deload', 'leve'], ['cf-corr-pre', 'corr']],
+  'cf-anual': [['cf-deload', 'leve'], ['cf-hip-int', 'acum']], 'cf-deload': [['cf-hip-int', 'acum'], ['cf-lin', 'forca'], ['cf-corr-pre', 'corr']],
+};
+// modelos de treino: sobe de nível no mesmo modelo, ou repete com os ritmos novos
+const seqModelo = (c) => { const nx = { ini: 'int', int: 'ava', ava: 'pro' }[c.niv]; const out = []; if (nx && c.niv !== 'ava') out.push([`m-${c.mod}-${nx}`, 'sobe']); out.push([c.id, 'repete']); if (c.niv === 'ini') out.push(['10k-ini', 'dist']); if (c.niv === 'ava') out.push(['bl-lim-ava', 'bloco']); if (c.niv === 'pro') out.push(['bl-trans', 'trans']); return out; };
+const proximosCorr = (c) => (c.mod ? seqModelo(c) : SEQ_CORR[c.id] || []).map(([id, k]) => [CICLOS_CORR.find((x) => x.id === id), k]).filter((x) => x[0]);
+// se o ciclo já termina com semana leve, não sugere outra
+const proximosForca = (c) => (SEQ_FORCA[c.id] || []).filter(([id]) => !(id === 'cf-deload' && c.seq.endsWith('L'))).map(([id, k]) => [CICLOS_FORCA.find((x) => x.id === id), k]).filter((x) => x[0]);
+const seqHTML = (lista, base) => lista.length ? `<p class="sec-lbl">Depois deste ciclo</p><div class="stack">${lista.map(([n, k]) => `<a class="card tap seq-it" href="${base}${n.id}" style="color:inherit"><div class="grow" style="min-width:0"><b>${esc(n.nome)}</b><div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap"><span class="tag">${n.sem || (n.seq || '').length} semana${(n.sem || (n.seq || '').length) > 1 ? 's' : ''}</span><span class="tag acc">${CIC_NIV[n.niv]}</span></div><p class="small muted" style="margin-top:6px">${SEQ_POR[k]}</p></div>${I.chev}</a>`).join('')}</div><p class="tiny dim" style="margin-top:8px">O ciclo começa na segunda-feira seguinte ao fim deste. Antes de subir de nível, o aluno deve ter feito a maior parte dos treinos sem dor nem cansaço acumulado; se não fez, repita o ciclo ou fique no mesmo nível.</p>` : '';
+// trilhas: vários ciclos encadeados de uma vez
+const TRILHAS_CORR = [
+  { id: 't-zero-21', nome: 'Do zero à primeira meia maratona', niv: 'ini', seq: ['ini-zero', 'ini-base', '5k-ini', '10k-ini', '21k-ini', 'bl-pos'], desc: 'Para quem está começando do zero: corre e caminha, base, primeiros 5 km, primeiros 10 km e a primeira meia, com recuperação no fim.' },
+  { id: 't-5-10', nome: 'Dos 5 aos 10 km', niv: 'ini', seq: ['ini-base', '5k-ini', '10k-ini'], desc: 'Para quem já corre 30 min: base, melhora dos 5 km e os primeiros 10 km.' },
+  { id: 't-temp-21', nome: 'Temporada de meia maratona', niv: 'int', seq: ['bl-pre', 'bl-lim-int', '21k-int', 'bl-pos'], desc: 'Pré-temporada, bloco de limiar, ciclo da meia e recuperação.' },
+  { id: 't-temp-42', nome: 'Temporada de maratona', niv: 'int', seq: ['bl-pre', 'bl-lim-int', '42k-int16', 'bl-pos', 'bl-trans'], desc: 'Pré-temporada, limiar, ciclo de 16 semanas, recuperação e transição.' },
+  { id: 't-temp-10a', nome: 'Temporada de 10 km · avançado', niv: 'ava', seq: ['bl-base-ava', 'bl-lim-ava', 'bl-vo2', '10k-ava', 'bl-trans'], desc: 'Base, limiar, VO₂ e o ciclo de 10 km, em blocos.' },
+  { id: 't-temp-42a', nome: 'Temporada de maratona · avançado', niv: 'ava', seq: ['bl-base-ava', 'bl-lim-ava', '42k-ava', 'bl-pos', 'bl-trans'], desc: 'Base, limiar, ciclo de maratona de 16 semanas, recuperação e transição.' },
+  { id: 't-ultra', nome: 'Da maratona à ultra de 50 km', niv: 'int', seq: ['bl-trans', 'bl-base-int', 'ul-int', 'bl-pos'], desc: 'Para quem acabou de correr uma maratona e quer a primeira ultra.' },
+];
+const TRILHAS_FORCA = [
+  { id: 'tf-ini', nome: 'Do iniciante ao intermediário', niv: 'ini', seq: ['cf-adapt', 'cf-hip-ini', 'cf-deload', 'cf-lin'], desc: 'Adaptação, hipertrofia, semana leve e força linear.' },
+  { id: 'tf-hip', nome: 'Hipertrofia contínua', niv: 'int', seq: ['cf-hip-int', 'cf-dup', 'cf-hip-wup', 'cf-blocos'], desc: 'Alterna modelos (blocos, ondulatório diário e semanal) para continuar ganhando sem estagnar.' },
+  { id: 'tf-forca', nome: 'Força máxima e potência', niv: 'ava', seq: ['cf-hip-int', 'cf-lin', 'cf-deload', 'cf-blocos'], desc: 'Acumulação, força linear e blocos até a potência.' },
+  { id: 'tf-corr', nome: 'Força do corredor: temporada completa', niv: 'int', seq: ['cf-corr-pre', 'cf-corr', 'cf-corr-temp', 'cf-corr-temp'], desc: 'Base de força na pré-temporada, força e potência na construção e manutenção durante as provas.' },
+];
+const cicSem = (c) => c.sem || (c.seq || '').length;
+// registra o ciclo aplicado (para o aviso de "ciclo terminando" e para sugerir o próximo)
+const registrarCiclo = (alunoId, tipo, c, ini, semanas, trilha) => { const fim = new Date(ini); fim.setDate(fim.getDate() + 7 * semanas - 1); return sb.from('nx_ciclos_aplicados').insert({ org_id: S.org.id, aluno_id: alunoId, tipo, ciclo_id: c.id, nome: c.nome, inicio: isoDia(ini), fim: isoDia(fim), trilha: trilha || null, criado_por: S.user.id }).then(() => {}, () => {}); };
+// linhas da planilha de corrida de um ciclo
+function linhasCiclo(c, alunoId, perfil, ini, dL) {
+  const rows = [];
+  cicSemanas(c).forEach((s, i) => s.sess.forEach(([d, t]) => {
+    let dd = d;
+    if (dL !== 'pad' && t.tipo === 'longao') dd = +dL;
+    else if (dL !== 'pad' && t.tipo !== 'prova' && d === +dL && s.sess.some(([, x]) => x.tipo === 'longao')) dd = dL === '5' ? 6 : 5;
+    const data = new Date(ini); data.setDate(data.getDate() + i * 7 + dd);
+    const rs = resumoEstrutura(t.estrutura, perfil);
+    rows.push({ org_id: S.org.id, aluno_id: alunoId, data: isoDia(data), tipo: t.tipo, titulo: t.titulo, estrutura: t.estrutura, distancia_km: Math.round(rs.km * 10) / 10, duracao_min: Math.round(rs.seg / 60), zona: null, descricao: t.obs || null, liberado: false, criado_por: S.user.id });
+  }));
+  return rows;
+}
+function viewTrilha(id, forca) {
+  const t = (forca ? TRILHAS_FORCA : TRILHAS_CORR).find((x) => x.id === id); if (!t) { location.replace(forca ? '#/treinos/ciclos-forca' : '#/treinos/ciclos'); return; }
+  const cs = t.seq.map((x) => (forca ? CICLOS_FORCA : CICLOS_CORR).find((c) => c.id === x)).filter(Boolean);
+  const tot = cs.reduce((a, c) => a + cicSem(c), 0);
+  const base = forca ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/';
+  $app.innerHTML = `<a class="back" href="${forca ? '#/treinos/ciclos-forca' : '#/treinos/ciclos'}">${I.back} ${forca ? 'Ciclos de força' : 'Ciclos prontos'}</a><p class="eyebrow">Trilha · ${CIC_NIV[t.niv]}</p><h1 class="h1">${esc(t.nome)}</h1>
+    <p class="muted" style="margin-top:6px">${esc(t.desc)}</p>
+    <div class="card" style="margin-top:14px"><div class="ck-res"><div><b>${cs.length}</b><span>ciclos</span></div><div><b>${tot}</b><span>semanas (~${Math.round(tot / 4.3)} meses)</span></div></div>
+      <div class="cic-barra trl-barra">${cs.map((c, i) => `<i style="flex:${cicSem(c)};background:hsl(${(i * 47 + 190) % 360} 70% 55%)" title="${esc(c.nome)}"></i>`).join('')}</div></div>
+    <button class="btn block" id="trl-apl" style="margin-top:12px">${I.users} Aplicar a trilha inteira a um aluno</button>
+    <p class="tiny dim" style="margin-top:8px">${forca ? 'As fases de todas as semanas vão para o aluno; a liberação continua com você.' : 'Todas as semanas vão para a planilha do aluno sem liberar. Os ritmos de cada zona seguem o perfil de corrida do aluno: atualize o perfil depois de cada teste.'}</p>
+    <p class="sec-lbl">Ciclos em sequência</p><div class="stack">${cs.map((c, i) => `<a class="card tap seq-it" href="${base}${c.id}" style="color:inherit"><span class="trl-n" style="background:hsl(${(i * 47 + 190) % 360} 70% 55%)">${i + 1}</span><div class="grow" style="min-width:0"><b>${esc(c.nome)}</b><div class="small muted">${cicSem(c)} semanas · ${CIC_NIV[c.niv]}</div></div>${I.chev}</a>`).join('')}</div>`;
+  document.getElementById('trl-apl').onclick = () => aplicarTrilha(t, cs, forca, tot);
+}
+async function aplicarTrilha(t, cs, forca, tot) {
+  const ms = await sb.from('nx_membros').select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
+  const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz(forca ? 'musculacao' : 'corrida', m));
+  const prox = (() => { const d = inicioSemana(); d.setDate(d.getDate() + 7); return isoDia(d); })();
+  openSheet(`<p class="eyebrow">Aplicar trilha</p><div class="h2" style="margin-top:4px">${esc(t.nome)}</div>
+    <form id="f-trl" style="margin-top:14px">
+      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}">${esc(m.nome)}</option>`).join('')}</select></label>
+      <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
+      <p class="small" id="trl-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
+      ${forca ? '' : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>'}
+      <button class="btn block" type="submit" style="margin-top:12px">Aplicar ${tot} semanas</button></form>`, (r) => {
+    const f = r.querySelector('#f-trl');
+    const atual = () => { const ini = inicioSemana(dia(f.ini.value || prox)); const fim = new Date(ini); fim.setDate(fim.getDate() + 7 * tot - 1); r.querySelector('#trl-fim').textContent = `Vai de ${fmtDia(isoDia(ini))} a ${fmtDia(isoDia(fim))}.`; };
+    f.oninput = atual; atual();
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const alunoId = f.aluno.value; if (!alunoId) return toast('Escolha o aluno.', true);
+      const m = alunos.find((x) => x.user_id === alunoId), b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Montando…';
+      const ini0 = inicioSemana(dia(f.ini.value || prox)), fimT = new Date(ini0); fimT.setDate(fimT.getDate() + 7 * tot - 1);
+      try {
+        let ini = new Date(ini0);
+        if (forca) {
+          const rows = []; cs.forEach((c) => { cfFases(c).forEach((fase, i) => { const d = new Date(ini); d.setDate(d.getDate() + 7 * i); rows.push({ org_id: S.org.id, aluno_id: alunoId, semana: isoDia(d), fase, criado_por: S.user.id }); }); registrarCiclo(alunoId, 'forca', c, ini, cicSem(c), t.id); ini.setDate(ini.getDate() + 7 * cicSem(c)); });
+          const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' }); if (error) throw error;
+        } else {
+          const perfil = perfilCorrida(m || {}), rows = [];
+          cs.forEach((c) => { rows.push(...linhasCiclo(c, alunoId, perfil, ini, f.longao.value)); registrarCiclo(alunoId, 'corrida', c, ini, cicSem(c), t.id); ini.setDate(ini.getDate() + 7 * cicSem(c)); });
+          if (f.limpar.checked) { const { error: e1 } = await sb.from('nx_plano_corrida').delete().eq('aluno_id', alunoId).eq('liberado', false).gte('data', isoDia(ini0)).lte('data', isoDia(fimT)); if (e1) throw e1; }
+          for (let k = 0; k < rows.length; k += 150) { const { error: e2 } = await sb.from('nx_plano_corrida').insert(rows.slice(k, k + 150)); if (e2) throw e2; }
+        }
+      } catch (er) { console.error(er); b.disabled = false; b.textContent = 'Tentar de novo'; return toast('Não foi possível aplicar a trilha. Tente de novo.', true); }
+      closeSheet(true); toast(`Trilha aplicada para ${firstName(m && m.nome)}: ${tot} semanas.`);
+      location.hash = `#/aluno/${alunoId}/${forca ? 'forca' : 'corrida'}`;
+    };
+  });
+}
+// aviso no Hoje do treinador: ciclos dos seus alunos que terminam nos próximos 10 dias (ou já terminaram) sem um próximo
+async function ciclosTerminandoHTML(meus, nomes) {
+  const hoje = hojeISO(), ate = somaDias(hoje, 10), de = somaDias(hoje, -14);
+  const { data } = await sb.from('nx_ciclos_aplicados').select('aluno_id,tipo,ciclo_id,nome,inicio,fim').eq('org_id', S.org.id).gte('fim', de).order('fim').then((r) => r, () => ({ data: [] }));
+  const L = (data || []).filter((x) => meus.has(x.aluno_id) && x.fim <= ate && !(data || []).some((y) => y.aluno_id === x.aluno_id && y.tipo === x.tipo && y.inicio > x.fim));
+  if (!L.length) return '';
+  return `<div class="section"><div class="section-h"><h2 class="h2">Ciclos terminando</h2><span class="tag acc">${L.length}</span></div><div class="stack">${L.map((x) => {
+    const c = (x.tipo === 'forca' ? CICLOS_FORCA : CICLOS_CORR).find((k) => k.id === x.ciclo_id); const nx = c ? (x.tipo === 'forca' ? proximosForca(c) : proximosCorr(c))[0] : null;
+    const prox = somaDias(x.fim, 1);
+    return `<button type="button" class="list-item" data-cicnx="${nx ? nx[0].id : ''}" data-cictipo="${x.tipo}" data-cical="${x.aluno_id}" data-cicini="${prox}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${x.tipo === 'forca' ? HALTER_S : I.run}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(nomes[x.aluno_id] || 'Aluno'))}: ${esc(x.nome || '')}</b><div class="small muted">${x.fim < hoje ? 'Terminou' : 'Termina'} ${fmtCurto(x.fim + 'T12:00:00')}${nx ? ` · próximo sugerido: <b>${esc(nx[0].nome)}</b>` : ''}</div></div>${I.chev}</button>`;
+  }).join('')}</div></div>`;
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cicnx]'); if (!b) return;
+  S.cache.cicPre = { aluno: b.dataset.cical, ini: b.dataset.cicini };
+  location.hash = b.dataset.cicnx ? (b.dataset.cictipo === 'forca' ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/') + b.dataset.cicnx : (b.dataset.cictipo === 'forca' ? '#/treinos/ciclos-forca' : '#/treinos/ciclos');
+});
+
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
   if (aba !== 'corrida') return staffBiblioteca('modelos');
