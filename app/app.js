@@ -1192,13 +1192,11 @@ async function alunoHoje() {
   document.getElementById('fab-reg').onclick = () => openSheet(`<p class="eyebrow">Registrar</p><div class="stack" style="margin-top:12px">
       ${fC ? `<a class="pag-op" href="#/gps" data-close><span class="ativ-ic">${I.play}</span><div class="grow"><b>Treinar pelo celular</b><small>Na rua (GPS) ou na esteira</small></div>${I.chev}</a>
       <button class="pag-op" data-r="corr"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Registrar uma corrida</b><small>Distância, tempo e como foi</small></div>${I.chev}</button>` : ''}
-      <button class="pag-op" data-r="agua"><span class="ativ-ic">${AGUA_IC}</span><div class="grow"><b>Beber água</b><small>+200 ml no seu copo de hoje</small></div>${I.chev}</button>
       <a class="pag-op" href="#/conversa" data-close><span class="ativ-ic">${I.feed}</span><div class="grow"><b>Falar com o treinador</b><small>Dor, dúvida ou recado</small></div>${I.chev}</a></div>`, (r) => {
       r.onclick = (e) => {
         if (e.target.closest('a[data-close]')) return closeSheet(true);
         const b = e.target.closest('[data-r]'); if (!b) return;
         if (b.dataset.r === 'corr') { closeSheet(); registrarCorrida(S.user.id, () => alunoHoje()); }
-        if (b.dataset.r === 'agua') { closeSheet(); if (S.cache.aguaSomar) S.cache.aguaSomar(200); const ab = document.getElementById('agua-box'); if (ab) ab.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       };
     });
   bindCartaoPush();
