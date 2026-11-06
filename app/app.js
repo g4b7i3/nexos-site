@@ -1575,6 +1575,7 @@ async function viewRetrospectiva(k) {
 }
 function abrirRetro(h, k) {
   const { sl, P, linhas } = slidesRetro(h, k); let i = 0, tm = null;
+  { const v = store.get('nx-momentos-' + S.user.id, {}); v[(/^\d{4}$/.test(k) ? 'ra-' : 'r-') + k] = 1; store.set('nx-momentos-' + S.user.id, v); } // viu: o card sai da tela Hoje
   const ov = document.createElement('div'); ov.className = 'retro'; document.body.append(ov); document.body.style.overflow = 'hidden';
   const fecha = () => { clearTimeout(tm); ov.remove(); document.body.style.overflow = ''; };
   const desenha = () => {
@@ -1772,7 +1773,7 @@ async function momentosHoje(box, perfil, provaProx) {
   // retrospectiva do mês que acabou (primeiros 7 dias do mês) e do ano (dezembro e começo de janeiro)
   const hj = new Date(), mesAnt = isoDia(new Date(hj.getFullYear(), hj.getMonth() - 1, 15)).slice(0, 7);
   if (hj.getDate() <= 7 && !vistos['r-' + mesAnt] && datasAtiv(h).some((d) => isoDia(d).slice(0, 7) === mesAnt)) cards.push({ k: 'r-' + mesAnt, html: `<a class="card mom-card retro-cta" href="#/retrospectiva/${mesAnt}"><div class="mom-ic">${I.cal}</div><div class="grow"><span class="eyebrow">Retrospectiva</span><div class="h3">Seu ${MESES_N[+mesAnt.slice(5) - 1]} está pronto</div><p class="small muted">Km, horas, recordes e evolução em tela cheia.</p></div>${I.chev}</a>` });
-  const ano = hj.getMonth() === 11 && hj.getDate() >= 15 ? String(hj.getFullYear()) : hj.getMonth() === 0 && hj.getDate() <= 15 ? String(hj.getFullYear() - 1) : null;
+  const ano = hj.getMonth() === 11 && hj.getDate() >= 25 && hj.getDate() <= 30 ? String(hj.getFullYear()) : null; // retrospectiva do ano: de 25 a 30 de dezembro, até a pessoa ver
   if (ano && !vistos['ra-' + ano] && datasAtiv(h).some((d) => isoDia(d).startsWith(ano))) cards.push({ k: 'ra-' + ano, html: `<a class="card mom-card retro-cta ano" href="#/retrospectiva/${ano}"><div class="mom-ic">${I.cal}</div><div class="grow"><span class="eyebrow">Retrospectiva ${ano}</span><div class="h3">Seu ano na Nexos</div><p class="small muted">Tudo o que você construiu em ${ano}.</p></div>${I.chev}</a>` });
   // antes e depois aos 3 meses
   const ini = datasAtiv(h)[0]; const dd = ini ? diasDesde(ini) : 0;
