@@ -11422,7 +11422,7 @@ const CICLOS_CORR = [
   { id: 'bl-pos', obj: 'bloco', niv: 'int', sem: 2, nome: 'Recuperação pós-prova', modo: 'pos', dias: 3, desc: 'Depois de meia, maratona ou ultra: corridas curtas e leves, sem qualidade, até as dores passarem.' },
   { id: 'bl-trans', obj: 'bloco', niv: 'int', sem: 2, nome: 'Transição entre temporadas', modo: 'trans', dias: 3, desc: 'Descanso ativo entre o fim de uma temporada e a pré-temporada. Pouco volume, sem compromisso de ritmo.' },
 ];
-const CIC_REFS = 'Seiler 2010 (Int J Sports Physiol Perform); Stöggl & Sperlich 2014 (Front Physiol); Haugen et al. 2022 (Sports Med Open); Casado et al. 2021 (J Strength Cond Res); Nielsen et al. 2014 (J Orthop Sports Phys Ther); Bosquet et al. 2007 (Med Sci Sports Exerc); Mujika & Padilla 2003 (Med Sci Sports Exerc); Helgerud et al. 2007 (Med Sci Sports Exerc).';
+const CIC_REFS = 'Haugen et al. 2022 (Sports Med Open); Oliveira et al. 2024 (Sports Med); Casado et al. 2022 (Int J Sports Physiol Perform); Mølmen et al. 2019 (Open Access J Sports Med); Wang et al. 2023 (PLoS One); Frandsen et al. 2025 (Br J Sports Med); Wen et al. 2019 (J Sci Med Sport); Seiler 2010 (Int J Sports Physiol Perform); Bosquet et al. 2007 (Med Sci Sports Exerc); Helgerud et al. 2007 (Med Sci Sports Exerc).';
 const CIC_MACRO = ['Transição (2 semanas)', 'Pré-temporada: base aeróbica (8 semanas)', 'Bloco de limiar norueguês (4 semanas)', 'Ciclo da prova-alvo (8 a 18 semanas)', 'Recuperação pós-prova (2 semanas)'];
 // treino de um dia: { tipo, titulo, estrutura, obs }
 const cT = (tipo, titulo, estrutura, obs) => ({ tipo, titulo, estrutura, obs: obs || '' });
@@ -11589,9 +11589,9 @@ const MOD_CORR = [['trad', 'Tradicional (linear)'], ['rev', 'Reversa'], ['blocos
 const MOD_INFO = {
   trad: { tipo: 'Periodização', oque: 'Do geral para o específico: base aeróbica com muito volume leve, depois limiar e subidas, depois a intensidade da prova (VO₂ e ritmo) e, no fim, o teste ou a prova. É a escola de Arthur Lydiard e a mais usada no mundo.', quando: 'Serve para quase todo mundo e é a mais fácil de acompanhar. Boa escolha para o primeiro ciclo de qualquer aluno.', ci: 'Os programas que melhor funcionam combinam muito volume leve com uma progressão do geral para o específico (Kenneally et al. 2018; Haugen et al. 2022).' },
   rev: { tipo: 'Periodização', oque: 'O contrário da tradicional: começa pela velocidade e pelo VO₂ (tiros curtos e subidas), passa pelo limiar e termina com volume e treinos longos no ritmo da prova.', quando: 'Provas longas (meia e maratona), alunos que já têm base e respondem bem à intensidade, e temporadas em que o período de calor ou de provas curtas vem antes.', ci: 'Muito usada por treinadores de maratona, mas com pouca pesquisa comparando com a tradicional. Base principalmente prática.' },
-  blocos: { tipo: 'Periodização', oque: 'Um foco de cada vez, em blocos de 3 a 4 semanas: bloco de limiar, bloco de VO₂ e bloco específico, com semana leve entre eles. Concentrar o estímulo faz o corpo responder mais rápido.', quando: 'Alunos intermediários e avançados que estagnaram com o treino misturado, ou quando há pouco tempo até a prova.', ci: 'Issurin 2010 (Sports Med). Em atletas de endurance treinados, blocos de alta intensidade trouxeram mais ganho de VO₂máx do que o mesmo volume distribuído (Rønnestad et al. 2014, Scand J Med Sci Sports).' },
+  blocos: { tipo: 'Periodização', oque: 'Um foco de cada vez, em blocos de 3 a 4 semanas: bloco de limiar, bloco de VO₂ e bloco específico, com semana leve entre eles. Concentrar o estímulo faz o corpo responder mais rápido.', quando: 'Alunos intermediários e avançados que estagnaram com o treino misturado, ou quando há pouco tempo até a prova.', ci: 'Na meta-análise de Mølmen et al. 2019 (Open Access J Sports Med), blocos tiveram vantagem pequena sobre o treino tradicional no VO₂máx, com estudos ainda pequenos. Base teórica: Issurin 2010 (Sports Med); em atletas treinados, blocos de alta intensidade deram mais VO₂máx que o mesmo volume distribuído (Rønnestad et al. 2014).' },
   multi: { tipo: 'Periodização', oque: 'Vários ritmos treinados juntos, que vão se aproximando do ritmo da prova: fase introdutória, fundamental (ritmos mais lentos e mais rápidos que o da prova), especial (alternados em volta do ritmo da prova) e específica (no ritmo da prova). É a escola de Renato Canova e de muitos treinadores ingleses e quenianos.', quando: 'Alunos avançados e profissionais com prova-alvo definida, principalmente de 10 km a maratona.', ci: 'Modelo de treinadores de elite (Canova), descrito nas revisões sobre o treino dos melhores do mundo (Haugen et al. 2022), mas com pouca pesquisa controlada.' },
-  polar: { tipo: 'Distribuição de intensidade', oque: 'Cerca de 80% do treino bem leve (Z1–Z2) e 15–20% bem forte (Z5), quase nada no meio. As sessões fortes são de VO₂máx; o resto é rodagem leve.', quando: 'Alunos com pouco tempo, que tendem a correr tudo no mesmo ritmo médio, e para quebrar estagnação. Funciona bem com 4 a 6 treinos por semana.', ci: 'Seiler & Kjerland 2006 (Scand J Med Sci Sports); Stöggl & Sperlich 2014 (Front Physiol). Na meta-análise de Rosenblat et al. 2019 (J Strength Cond Res), polarizado teve vantagem pequena sobre o treino de limiar em atletas treinados.' },
+  polar: { tipo: 'Distribuição de intensidade', oque: 'Cerca de 80% do treino bem leve (Z1–Z2) e 15–20% bem forte (Z5), quase nada no meio. As sessões fortes são de VO₂máx; o resto é rodagem leve.', quando: 'Alunos com pouco tempo, que tendem a correr tudo no mesmo ritmo médio, e para quebrar estagnação. Funciona bem com 4 a 6 treinos por semana.', ci: 'Na meta-análise mais recente (Oliveira et al. 2024, Sports Med), o polarizado deu um pouco mais de VO₂máx que as outras distribuições, principalmente em atletas bem treinados e em intervenções de até 12 semanas; no desempenho em prova, os resultados foram parecidos. Também: Rosenblat et al. 2019 (J Strength Cond Res); Stöggl & Sperlich 2014 (Front Physiol).' },
   pira: { tipo: 'Distribuição de intensidade', oque: 'A maior parte leve, uma fatia menor de limiar (Z3–Z4) e uma fatia ainda menor de VO₂ (Z5), como uma pirâmide. Uma sessão de limiar e uma de VO₂ por semana.', quando: 'O equilíbrio mais seguro para a maioria dos corredores, de 5 km à maratona.', ci: 'É a distribuição mais encontrada em corredores de elite ao longo da temporada (Casado et al. 2022, Int J Sports Physiol Perform; Kenneally et al. 2018).' },
   limiar: { tipo: 'Distribuição de intensidade', oque: 'Modelo norueguês: muito volume leve e duas sessões de limiar controlado por semana, com pausas curtas (lactato ~2–3,5 mmol, esforço 5–6 de 10). Profissionais fazem duplo limiar (manhã e tarde) nas terças e quintas, mais a sessão X no sábado.', quando: 'Alunos de 5 km à maratona que aguentam bem volume. O segredo é controlar o ritmo: limiar não é prova.', ci: 'Casado et al. 2023 (Int J Environ Res Public Health); Haugen et al. 2022 (Sports Med Open); Casado et al. 2021 (J Strength Cond Res).' },
 };
@@ -11701,8 +11701,45 @@ function gerarModelo(c) {
     return { ...w, sess: out };
   });
 }
+
+/* Limite de salto por treino (Frandsen et al. 2025, Br J Sports Med): nenhum treino com mais de 10% acima do mais longo
+   dos 30 dias anteriores. Depois de 2 semanas de ciclo, o treino que passar disso é encurtado (menos repetições ou menos km). */
+const fmtN = (x) => String(x).replace('.', ',');
+function encurtar(t, f) {
+  const prova = t.tipo === 'prova';
+  const est = t.estrutura.map((p) => {
+    if (p.k === 'rep') return prova ? p : { ...p, n: Math.max(2, Math.floor(p.n * f)) };
+    if (prova && p.k === 'co') return p;
+    if (p.med === 'km') return { ...p, v: Math.max(1, Math.floor(p.v * f * 2) / 2) };
+    if (p.med === 'min') return { ...p, v: p.v >= 30 ? Math.floor(p.v * f / 5) * 5 : Math.max(5, Math.floor(p.v * f)) };
+    return p;
+  });
+  let titulo = t.titulo;
+  const r0 = t.estrutura.find((p) => p.k === 'rep'), r1 = est.find((p) => p.k === 'rep');
+  if (!prova && r0 && r1 && r0.n !== r1.n) titulo = titulo.replace(`${r0.n} ×`, `${r1.n} ×`);
+  if (t.tipo === 'longao') {
+    const co = est.filter((p) => p.k === 'co'), km = co.filter((p) => p.med === 'km').reduce((a, p) => a + p.v, 0), min = co.filter((p) => p.med === 'min').reduce((a, p) => a + p.v, 0);
+    if (km) titulo = titulo.replace(/^Longão [\d,]+ km/, `Longão ${fmtN(r05(km))} km`).replace(/com [\d,]+ km em ritmo/, co.length > 1 ? `com ${fmtN(co[co.length - 1].v)} km em ritmo` : '');
+    if (min) titulo = titulo.replace(/[\d]+ min/, `${min} min`);
+  } else if (!r1 && !prova) { const c = est.find((p) => p.k === 'co'); if (c) titulo = titulo.replace(/[\d,]+ (km|min)/, `${fmtN(c.v)} $1`); }
+  return { ...t, estrutura: est, titulo: titulo.trim() };
+}
+function limitarSaltos(W, perfil) {
+  const L = []; W.forEach((w, i) => w.sess.forEach((x, j) => L.push({ dia: i * 7 + x[0], i, j })));
+  L.sort((a, b) => a.dia - b.dia);
+  const km = (t) => resumoEstrutura(t.estrutura, perfil).km;
+  L.forEach((o) => {
+    if (o.dia < 14) return;
+    const ant = L.filter((x) => x.dia < o.dia && x.dia >= o.dia - 30); if (!ant.length) return;
+    const mx = Math.max(...ant.map((x) => km(W[x.i].sess[x.j][1]))), lim = mx * 1.1;
+    let t = W[o.i].sess[o.j][1];
+    for (let k = 0; k < 4 && km(t) > lim + 0.05; k++) { const t2 = encurtar(t, lim / km(t)); if (km(t2) >= km(t)) break; t = t2; }
+    W[o.i].sess[o.j] = [W[o.i].sess[o.j][0], t];
+  });
+  return W;
+}
 const cicCache = {};
-const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = c.gen ? c.gen(c) : c.modo === 'modelo' ? gerarModelo(c) : gerarCiclo(c));
+const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = limitarSaltos((c.gen ? c.gen(c) : c.modo === 'modelo' ? gerarModelo(c) : gerarCiclo(c)).map((w) => ({ ...w, sess: w.sess.map((x) => [...x]) })), perfilNiv(c.niv)));
 const cicKm = (sem, perfil) => sem.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
 
 // biblioteca de ciclos (treinador)
@@ -11742,14 +11779,14 @@ function viewCiclo(id) {
     corre: 'Progressão de corrida e caminhada: o tempo correndo cresce aos poucos para o corpo (tendões e ossos) se adaptar ao impacto. Três treinos por semana, com um dia de descanso entre eles.',
     corre30: 'Aumento gradual do tempo contínuo, sempre em ritmo de conversa. Se uma semana ficar pesada, repita antes de avançar.',
     base: 'Base aeróbica: quase todo o volume leve (Z1–Z2), um pouco de limiar controlado e subidas curtas para força e técnica. Semana de recuperação a cada 4.',
-    prova: 'Periodização em fases: base (volume leve e técnica), construção (limiar norueguês com pausas curtas), específica (ritmo e intensidade da prova) e polimento (volume 40–60% menor, mantendo a intensidade). Semana de recuperação a cada 4, volume crescendo aos poucos.',
+    prova: 'Periodização em fases: base (volume leve e técnica), construção (limiar norueguês com pausas curtas), específica (ritmo e intensidade da prova) e polimento (volume 40–60% menor, mantendo a intensidade). Semana de recuperação a cada 4, volume crescendo aos poucos. Nenhum treino deve passar muito do mais longo dos últimos 30 dias: saltos acima de 10% num treino isolado aumentaram o risco de lesão (Frandsen et al. 2025).',
     limiar: 'Modelo norueguês: muito volume de limiar controlado (lactato ~2–3,5 mmol, esforço 5–6 de 10) com pausas curtas, duas vezes por semana, e o resto leve. Para o profissional, duplo limiar (manhã e tarde) nas terças e quintas.',
     vo2: 'Bloco curto e concentrado de VO₂máx: 4 × 4 min (NTNU) e intervalados longos em Z5, com rodagens leves entre eles.',
-    polimento: 'Polimento: volume 40–60% menor nas duas últimas semanas, mantendo a intensidade e o número de treinos. Chega na prova descansado e afiado.',
-    pos: 'Recuperação depois da prova: só corridas leves e curtas. Dores musculares e marcadores de dano costumam levar de 1 a 2 semanas para normalizar depois de maratonas.',
+    polimento: 'Polimento: volume 41–60% menor nas últimas 1 a 3 semanas, mantendo a intensidade e o número de treinos. Na meta-análise mais recente, esse formato melhorou o desempenho em contrarrelógio de atletas de endurance (Wang et al. 2023; Bosquet et al. 2007).',
+    pos: 'Recuperação depois da prova: só corridas leves e curtas. A inflamação e o dano muscular levam mais tempo para voltar ao normal quanto maior a prova (Alves et al. 2022, Front Physiol); 1 a 2 semanas leves depois de meia e maratona são a prática consagrada para voltar a treinar forte sem risco.',
     trans: 'Descanso ativo: mantém o hábito e a base sem cansar, recuperando a cabeça e o corpo antes da próxima temporada.',
-    trail: 'Treino de trail por tempo e esforço: subidas curtas na base, subidas longas e limiar na construção, descidas e longões em terreno na fase específica (com dois longões seguidos nos ciclos longos) e polimento antes da prova. Caminhar nas subidas íngremes é mais econômico (Giovanelli et al. 2016) e treinar descidas protege a musculatura do dano excêntrico da prova (McHugh 2003). Acima de 90 min, 30 a 60 g de carboidrato por hora (Thomas, Erdman & Burke 2016).',
-    volta: 'Protocolo de volta à corrida: corre e caminha progressivo até 30 min contínuos, sempre em dias alternados e em terreno plano. Só avança se a dor ficar em até 2 de 10 durante e sumir até a manhã seguinte; se passar disso, volta uma etapa (Silbernagel et al. 2007; Warden et al. 2014). Exige liberação do médico ou fisioterapeuta. Faça força de panturrilha, glúteo e quadríceps nos dias sem corrida.',
+    trail: 'Treino de trail por tempo e esforço: subidas curtas na base, subidas longas e limiar na construção, descidas e longões em terreno na fase específica (com dois longões seguidos nos ciclos longos) e polimento antes da prova. Caminhar nas subidas íngremes é mais econômico (Giovanelli et al. 2016) e treinar descidas protege a musculatura do dano excêntrico da prova (Bontemps et al. 2020). Acima de 90 min, 30 a 60 g de carboidrato por hora, chegando a 90 g ou mais nas provas longas com o intestino treinado (Thomas, Erdman & Burke 2016; Urdampilleta et al. 2020).',
+    volta: 'Protocolo de volta à corrida: corre e caminha progressivo até 30 min contínuos, sempre em dias alternados e em terreno plano. Só avança se a dor ficar em até 2 de 10 durante e sumir até a manhã seguinte; se passar disso, volta uma etapa (Silbernagel et al. 2007 e 2020; Warden et al. 2014 e 2021). Depois, nenhum treino mais de 10% maior que o mais longo dos últimos 30 dias (Frandsen et al. 2025). Exige liberação do médico ou fisioterapeuta. Faça força de panturrilha, glúteo e quadríceps nos dias sem corrida.',
     slz: 'Cada prova tem um papel: forte (no máximo, com véspera e dias seguintes leves), treino (ritmo de limiar, no lugar do treino de qualidade) ou leve (participação). Os treinos intensos da semana, contando a prova, ficam no limite do nível, e a maior parte do volume continua leve. As provas estão nos sábados e domingos do modelo: depois de aplicar, mova cada uma para a data real.',
   };
   const semHTML = (s, i) => `<details class="card cic-sem" ${i === 0 ? 'open' : ''}><summary><div class="grow"><b>Semana ${i + 1}</b> <span class="cic-fase" style="--fc:${CIC_FASE_COR[s.fase] || '#9aa8c0'}">${s.rec ? 'Recuperação' : s.fase}</span></div><span class="small muted">${f1(cicKm(s, perfil))} km · ${s.sess.length} treinos</span>${I.chev}</summary>
@@ -11760,7 +11797,7 @@ function viewCiclo(id) {
     <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b>${c.sem}</b><span>semanas</span></div><div><b>${Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length)}</b><span>treinos por semana</span></div><div><b>${Math.round(Math.max(...S2.map((s) => cicKm(s, perfil))))}</b><span>km na semana mais forte</span></div></div>${cicBarra(S2)}</div>
     <button class="btn block" id="cic-apl" style="margin-top:12px">${I.users} Aplicar a um aluno</button>
     ${c.mod ? `<div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${MOD_INFO[c.mod].tipo}</span><p class="small" style="margin-top:6px">${MOD_INFO[c.mod].oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${MOD_INFO[c.mod].quando}</p><p class="small" style="margin-top:6px"><b>Base científica:</b> ${MOD_INFO[c.mod].ci}</p><p class="tiny dim" style="margin-top:6px">A última semana termina com um teste para medir a evolução. Se o aluno tiver prova, troque o teste pela prova.</p></div>` : ''}
-    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${slz ? SLZ_REFS : { trail: 'Scheer et al. 2020 (Int J Sports Med); Giovanelli et al. 2016 (J Appl Physiol); McHugh 2003 (Scand J Med Sci Sports); Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc); Seiler 2010 (Int J Sports Physiol Perform).', volta: 'Warden et al. 2014 (J Orthop Sports Phys Ther); Silbernagel et al. 2007 (Am J Sports Med); Nielsen et al. 2014 (J Orthop Sports Phys Ther).' }[c.modo] || CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
+    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${slz ? SLZ_REFS : { trail: 'Scheer et al. 2020 (Int J Sports Med); Bontemps et al. 2020 (Sports Med); Urdampilleta et al. 2020 (Nutrients); Oliveira et al. 2024 (Sports Med); Giovanelli et al. 2016 (J Appl Physiol); Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc).', volta: 'Frandsen et al. 2025 (Br J Sports Med); Hoenig et al. 2023 (Br J Sports Med); Warden et al. 2021 (Curr Osteoporos Rep); Silbernagel et al. 2020 (J Athl Train); Warden et al. 2014 (J Orthop Sports Phys Ther); Silbernagel et al. 2007 (Am J Sports Med).' }[c.modo] || CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
     ${seqHTML(proximosCorr(c), '#/treinos/ciclos/')}
     <p class="sec-lbl">Semana a semana</p><div class="stack">${S2.map(semHTML).join('')}</div>`;
   document.getElementById('cic-apl').onclick = () => cicAplicar(c, S2);
@@ -11823,13 +11860,13 @@ const CICLOS_FORCA = [
   { id: 'cf-lin', obj: 'for', niv: 'int', nome: 'Força linear clássica', seq: 'RRHHHLFFFLPP', modelo: 'Linear', desc: '12 semanas do volume para a intensidade: resistência, hipertrofia, força e, no fim, potência. O modelo mais usado e mais simples de acompanhar.' },
   { id: 'cf-blocos', obj: 'for', niv: 'ava', nome: 'Força em blocos (acumulação, transmutação e realização)', seq: 'HHHFFFLPPL', modelo: 'Blocos', desc: 'Modelo de Issurin: 3 semanas de acumulação (hipertrofia), 3 de transmutação (força) e realização (potência), com semanas leves.' },
   { id: 'cf-pot', obj: 'for', niv: 'ava', nome: 'Força e potência', seq: 'HFFLFPPL', modelo: 'Linear', desc: 'Para quem já tem base: sobe a carga e termina com potência (carga moderada movida o mais rápido possível).' },
-  { id: 'cf-corr', obj: 'corr', niv: 'int', nome: 'Força para corredores (economia de corrida)', seq: 'RHFLFPFP', modelo: 'Linear', desc: 'Força pesada e potência melhoram a economia de corrida sem aumentar o peso (Blagrove et al. 2018). Combine com a fase de base da corrida.' },
+  { id: 'cf-corr', obj: 'corr', niv: 'int', nome: 'Força para corredores (economia de corrida)', seq: 'RHFLFPFP', modelo: 'Linear', desc: 'Força com carga alta, pliometria e a combinação das duas melhoram a economia de corrida; carga leve e isometria, não (Llanos-Lagos et al. 2024, Sports Med; Blagrove et al. 2018). Combine com a fase de base da corrida.' },
   { id: 'cf-corr-temp', obj: 'corr', niv: 'int', nome: 'Manutenção de força na temporada de provas', seq: 'FPFL', modelo: 'Manutenção', desc: 'Pouco volume e carga alta para manter a força durante a fase específica e as provas. Repita enquanto durar a temporada.' },
   { id: 'cf-corr-pre', obj: 'corr', niv: 'ini', nome: 'Pré-temporada do corredor (base de força)', seq: 'RRHHLFFL', modelo: 'Linear', desc: 'Acompanha a Pré-temporada Nexos de corrida: começa leve, constrói hipertrofia e termina com força.' },
   { id: 'cf-anual', obj: 'macro', niv: 'ava', nome: 'Macrociclo de 6 meses', seq: 'RRRLHHHLHHHLFFFLFFFLPPPL', modelo: 'Linear em blocos', desc: '24 semanas: resistência, dois blocos de hipertrofia, dois de força e um de potência, cada um com a sua semana leve.' },
   { id: 'cf-deload', obj: 'macro', niv: 'int', nome: 'Semana leve e transição', seq: 'LL', modelo: 'Recuperação', desc: 'Duas semanas leves entre ciclos ou depois de uma prova: metade das séries e carga um pouco menor.' },
 ];
-const CF_REFS = 'Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015, Rhea et al. 2002 e 2003 e McNamara & Stearne 2010 (J Strength Cond Res); Issurin 2010 e Greig et al. 2020 (Sports Med); Helms et al. 2016 (Strength Cond J); Bell et al. 2023 (Sports Med Open); Blagrove et al. 2018 (Sports Med).';
+const CF_REFS = 'Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015, Rhea et al. 2002 e 2003 e McNamara & Stearne 2010 (J Strength Cond Res); Issurin 2010 e Greig et al. 2020 (Sports Med); Helms et al. 2016 (Strength Cond J); Bell et al. 2023 (Sports Med Open); Llanos-Lagos et al. 2024 (Sports Med); Blagrove et al. 2018 (Sports Med).';
 const cfFases = (c) => [...c.seq].map((x) => CF_COD[x]);
 const cfBarra = (fs) => `<div class="cic-barra">${fs.map((f) => `<i style="background:${FASES_F[f].cor}" title="${esc(FASES_F[f].n)}"></i>`).join('')}</div><div class="cic-leg">${[...new Set(fs)].map((f) => `<span><i style="background:${FASES_F[f].cor}"></i>${FASES_F[f].n}</span>`).join('')}</div>`;
 async function viewCiclosForca(id) {
@@ -11906,7 +11943,7 @@ async function cfAplicar(c, fs) {
    Nielsen et al. 2014), periodização em sequência (Issurin 2010; Haugen et al. 2022), recuperação depois de provas longas
    e semana leve entre blocos de força (Bell et al. 2023). Depois de cada teste, as zonas novas deixam o mesmo ciclo mais forte. */
 const SEQ_POR = {
-  rec: 'Depois de prova longa: 1 a 2 semanas leves para o músculo se recuperar antes de voltar a treinar forte.',
+  rec: 'Depois de prova longa: 1 a 2 semanas leves. A recuperação da inflamação e do dano muscular cresce com a distância da prova (Alves et al. 2022).',
   base: 'Consolidar a base: volume leve antes de voltar à intensidade. Uma base maior sustenta treinos mais fortes depois.',
   sobe: 'Próximo degrau: o mesmo tipo de trabalho com mais volume e intensidade (sobrecarga progressiva).',
   dist: 'Próxima distância: aproveita a base construída para uma prova mais longa.',
@@ -12148,7 +12185,7 @@ function semanasMacro(pl) {
     w.sess.push([rd, { ...t, titulo: `Prova ${p.pri} · ${String(km).replace('.', ',')} km${p.nome ? ' · ' + p.nome : ''}`, obs: p.pri === 'B' ? 'Prova de preparação: alivie 2 a 3 dias antes e use para testar ritmo, alimentação e equipamento. Não é o pico da temporada.' : 'Prova C: faça como um treino forte, sem aliviar antes. Serve de estímulo e experiência de prova.' }]);
     w.sess.sort((a, b) => a[0] - b[0]);
   });
-  return W;
+  return pl.segs.length ? limitarSaltos(W, perfilNiv(pl.segs[0].c.niv)) : W;
 }
 // força acompanhando a corrida semana a semana
 function forcaMacro(W) {
@@ -12166,12 +12203,12 @@ const MAC_GUIA = [
   ['Para que serve', 'Organizar o ano inteiro para o aluno chegar no pico nas provas que mais importam, em vez de tentar estar no auge o ano todo, o que não é possível. Cada fase prepara a seguinte: base aeróbica, depois limiar, depois a parte específica da prova e o polimento. Depois de cada prova principal entram recuperação e transição. Essa organização em fases é a periodização (Matveyev; Issurin 2010).'],
   ['Provas A, B e C', '<b>A:</b> as principais do ano, no máximo 2 ou 3. O ciclo inteiro é montado para elas, com polimento. <b>B:</b> provas de preparação; alivia 2 a 3 dias antes e serve para testar ritmo, alimentação e equipamento. <b>C:</b> entram como treino forte, sem aliviar. A classificação em A, B e C é a prática consagrada no treinamento de endurance para proteger os picos do ano.'],
   ['Quantos picos no ano', '<b>Uma prova A:</b> periodização simples, com a preparação mais longa e completa. <b>Duas:</b> periodização dupla, a mais usada, por exemplo uma no primeiro e outra no segundo semestre. <b>Três ou mais:</b> funciona melhor com blocos curtos e concentrados, que permitem vários picos no ano (Issurin 2010). Maratona: na prática, atletas de alto nível fazem no máximo duas por ano.'],
-  ['Intervalo entre provas principais', 'O app avisa quando o calendário não fecha. Depois de uma maratona, a força muscular e os marcadores de dano levam de 1 a 2 semanas (ou mais) para voltar ao normal; somando a nova preparação, o recomendado é pelo menos uns 4 meses até outra maratona. Depois de uma meia, 8 a 10 semanas. Em 5 e 10 km a recuperação é rápida e cabem vários picos.'],
-  ['O polimento', 'Nas 1 a 3 últimas semanas antes de cada prova A, o volume cai de 40% a 60%, mantendo a intensidade e o número de treinos. É o que mais melhora o desempenho no dia da prova, em média uns 2 a 3% (Bosquet et al. 2007; Mujika & Padilla 2003). Prova B só tem alívio curto; prova C, nenhum.'],
-  ['E a musculação', 'Se marcar a força, ela acompanha a corrida: força pesada e hipertrofia na base, força e potência na construção e na fase específica, e semana leve nas semanas de recuperação, no polimento e na prova. Força pesada melhora a economia de corrida (Blagrove et al. 2018), e uma sessão por semana com carga alta já mantém a força durante a temporada de provas (Rønnestad & Mujika 2014).'],
+  ['Intervalo entre provas principais', 'O app avisa quando o calendário não fecha. Depois de uma maratona, a inflamação e o dano muscular demoram mais a normalizar do que em provas curtas, e o tempo cresce com a distância (Alves et al. 2022); somando a recuperação e a nova preparação, o recomendado é pelo menos uns 4 meses até outra maratona. Depois de uma meia, 8 a 10 semanas. Em 5 e 10 km a recuperação é rápida e cabem vários picos.'],
+  ['O polimento', 'Nas 1 a 3 últimas semanas antes de cada prova A, o volume cai de 40% a 60%, mantendo a intensidade e o número de treinos. Na meta-análise mais recente, esse formato (até 21 dias) melhorou o desempenho em contrarrelógio de atletas de endurance (Wang et al. 2023, PLoS One; Bosquet et al. 2007). Prova B só tem alívio curto; prova C, nenhum.'],
+  ['E a musculação', 'Se marcar a força, ela acompanha a corrida: força pesada e hipertrofia na base, força e potência na construção e na fase específica, e semana leve nas semanas de recuperação, no polimento e na prova. Força com carga alta e pliometria melhoram a economia de corrida (Llanos-Lagos et al. 2024, Sports Med), e uma sessão por semana com carga alta já mantém a força durante a temporada de provas (Rønnestad & Mujika 2014).'],
   ['Como o app monta', 'De trás para frente: para cada prova A, o ciclo da distância e do nível termina na semana da prova. Antes dele, um bloco de limiar e, antes do limiar, blocos de base (no começo da temporada, a Pré-temporada Nexos). Depois de meia, maratona e ultra entra a recuperação; depois de maratona e ultra, a transição. Se não houver tempo para o ciclo inteiro, ele é encurtado pelo começo e o app avisa. Tudo vai para a planilha sem liberar.'],
 ];
-const MAC_REFS = 'Matveyev 1964/1977 (periodização clássica); Issurin 2010 (Sports Med); Bosquet et al. 2007 (Med Sci Sports Exerc); Mujika & Padilla 2003 (Med Sci Sports Exerc); Haugen et al. 2022 (Sports Med Open); Blagrove et al. 2018 (Sports Med); Rønnestad & Mujika 2014 (Scand J Med Sci Sports).';
+const MAC_REFS = 'Haugen et al. 2022 (Sports Med Open); Wang et al. 2023 (PLoS One); Mølmen et al. 2019 (Open Access J Sports Med); Alves et al. 2022 (Front Physiol); Llanos-Lagos et al. 2024 (Sports Med); Frandsen et al. 2025 (Br J Sports Med); Issurin 2010 (Sports Med); Bosquet et al. 2007 (Med Sci Sports Exerc); Rønnestad & Mujika 2014 (Scand J Med Sci Sports); Matveyev (periodização clássica).';
 async function viewMacro() {
   const ms = await sb.from('nx_membros').select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
   const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m));
@@ -12394,13 +12431,13 @@ SLZ_NIV.forEach((niv) => {
 const SLZ_GUIA = [
   ['Para quem é', 'Para o corredor de São Luís e região que quer correr muitas provas: no mês ou no ano. A região tem prova quase todo fim de semana, e quem participa de muitas precisa de um plano em que a prova faça parte do treino, e não que atrapalhe.'],
   ['Nem toda prova é para correr no máximo', 'Cada prova recebe um papel. <b>Forte:</b> no máximo do dia, com véspera leve e 2 a 3 dias leves depois. <b>Treino:</b> em ritmo de limiar, forte mas controlado; substitui o treino de qualidade. <b>Leve:</b> participação em ritmo de conversa, conta como rodagem. Correr tudo no máximo acumula cansaço e aumenta o risco de lesão.'],
-  ['A prova toma o lugar de um treino', 'O número de treinos intensos por semana, contando a prova, fica no limite de cada nível: 1 no iniciante, 2 no intermediário e 3 no avançado e no profissional. Assim a maior parte do volume continua leve, como nos corredores de melhor desempenho (Seiler 2010; Stöggl & Sperlich 2014; Haugen et al. 2022).'],
+  ['A prova toma o lugar de um treino', 'O número de treinos intensos por semana, contando a prova, fica no limite de cada nível: 1 no iniciante, 2 no intermediário e 3 no avançado e no profissional. Assim a maior parte do volume continua leve, como nos corredores de melhor desempenho (Haugen et al. 2022; Oliveira et al. 2024). Cuidado com a prova + longão: um treino mais de 10% maior que o mais longo dos últimos 30 dias aumenta o risco de lesão (Frandsen et al. 2025, Br J Sports Med).'],
   ['Quantas provas fortes', 'Não existe estudo que defina o número ideal de provas fortes por ano. Os limites do app são orientação prática: por mês, 1 forte no iniciante, 2 no intermediário e no avançado e 3 no profissional; por ano, cerca de 6, 10, 14 e 18. Provas de 5 e 10 km se recuperam em dias; meia e maratona, em semanas.'],
   ['O ano em dois picos', 'O ciclo anual usa periodização dupla: transição, base, construção e fase específica até a primeira prova A (por volta de 5 meses), recuperação, um segundo bloco até a segunda prova A e um período competitivo no fim do ano, com mais provas. As provas fortes ficam fora da semana leve e das 2 semanas antes do polimento (Matveyev; Issurin 2010).'],
-  ['Calor e umidade', 'Em São Luís quase toda prova é com calor e umidade altos. A tolerância ao calor melhora com 10 a 14 dias treinando no calor (Racinais et al. 2015, Br J Sports Med). Na prova: chegar hidratado, beber durante em provas acima de 10 km e baixar o ritmo nos dias mais quentes. O ritmo forte de um dia quente não é comparável ao de um dia fresco.'],
+  ['Calor e umidade', 'Em São Luís quase toda prova é com calor e umidade altos. Segundo o consenso do Comitê Olímpico Internacional, a adaptação ao calor vem com pelo menos 2 semanas de treinos de 60 a 90 min no calor, 4 ou mais vezes por semana, e se mantém com 2 por semana (Racinais et al. 2023, Br J Sports Med). Na prova: começar hidratado, beber para limitar a desidratação (sem exagerar), preferir bebida fresca e baixar o ritmo nos dias mais quentes. O ritmo forte de um dia quente não é comparável ao de um dia fresco.'],
   ['Como usar', 'Escolha quantas provas o aluno vai fazer no mês ou no ano e o nível. As provas ficam nos sábados e domingos do modelo; depois de aplicar, mova cada uma para a data real e troque a distância se precisar. Nada é liberado para o aluno sem você.'],
 ];
-const SLZ_REFS = 'Seiler 2010 (Int J Sports Physiol Perform); Stöggl & Sperlich 2014 (Front Physiol); Haugen et al. 2022 (Sports Med Open); Nielsen et al. 2014 (J Orthop Sports Phys Ther); Issurin 2010 (Sports Med); Racinais et al. 2015 (Br J Sports Med).';
+const SLZ_REFS = 'Racinais et al. 2023 (Br J Sports Med, consenso do COI); Frandsen et al. 2025 (Br J Sports Med); Oliveira et al. 2024 (Sports Med); Haugen et al. 2022 (Sports Med Open); Wang et al. 2023 (PLoS One); Issurin 2010 (Sports Med); Seiler 2010 (Int J Sports Physiol Perform).';
 function viewSLZ() {
   const st = S.cache.slz || (S.cache.slz = { t: store.get('nx-slz-t', 'mes'), n: store.get('nx-slz-n', 'int') });
   const desenha = () => {
@@ -12426,7 +12463,7 @@ function viewSLZ() {
    mais econômico nas subidas íngremes); McHugh 2003 (Scand J Med Sci Sports, efeito protetor da carga excêntrica repetida);
    Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc, carboidrato durante o exercício). */
 const OBS_TR = {
-  lon: 'Em trilha ou terreno com subidas, por tempo e esforço (ritmo de conversa), não por pace. Caminhe firme nas subidas íngremes e desça controlado. Treine a hidratação e, acima de 90 min, 30 a 60 g de carboidrato por hora.',
+  lon: 'Em trilha ou terreno com subidas, por tempo e esforço (ritmo de conversa), não por pace. Caminhe firme nas subidas íngremes e desça controlado. Treine a hidratação e, acima de 90 min, a alimentação da prova: 30 a 60 g de carboidrato por hora, subindo aos poucos se a prova for longa.',
   b2b: 'Primeiro dia do “back-to-back”: longão no sábado e outro no domingo. Treina correr cansado sem precisar de um longão enorme num dia só.',
   desc: 'Descidas em ritmo firme e controlado, passos curtos e rápidos, olhando 2 a 3 metros à frente. Prepara a musculatura para o impacto das descidas da prova (a carga excêntrica repetida diminui a dor e o dano nas provas).',
   sub: 'Subida longa e contínua em esforço de limiar; em rampa muito íngreme, caminhe forte com as mãos nas coxas. Desça trotando devagar.',
@@ -12465,7 +12502,7 @@ function gerarTrail(c) {
    modelo de monitoramento da dor); Nielsen et al. 2014 (J Orthop Sports Phys Ther, progressão de volume). */
 const VL_DOR = 'Regra da dor: dor até 2 de 10 durante a corrida e que some até a manhã seguinte, siga em frente. Dor 3 ou mais, mancar, ou dor maior na manhã seguinte: pare, volte para a etapa anterior e avise o treinador. Nunca corra em dias seguidos nesta fase.';
 const VL_PRE = 'Antes da primeira corrida, confira: liberação do médico ou fisioterapeuta, caminhada rápida de 30 min sem dor, 10 saltitos em um pé só sem dor (em cada perna) e 20 elevações de panturrilha em uma perna. ';
-const VL_E = [[5, 1, 2], [5, 2, 2], [5, 3, 1], [4, 5, 1], [3, 8, 1], [2, 12, 1], ['c', 20], ['c', 25], ['c', 30], ['a', 30]];
+const VL_E = [[5, 1, 2], [5, 2, 2], [5, 3, 1], [4, 5, 1], [3, 8, 1], [2, 12, 1], ['c', 20], ['c', 22], ['c', 24], ['c', 26], ['c', 28], ['c', 30], ['a', 30]];
 const vlSess = (e, pre) => {
   const obs = (pre ? VL_PRE : '') + VL_DOR;
   if (e[0] === 'c') return { ...sCont(e[1]), obs: 'Corrida contínua, leve (ritmo de conversa), em terreno plano. ' + obs };
@@ -12500,18 +12537,18 @@ Object.assign(SEQ_CORR, {
 const CIC_INFO_TRAIL = `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Como é o treino de trail</span><ol>
   <li><b>Por tempo e esforço, não por pace.</b> O desnível e o terreno mudam o ritmo; os longões são em minutos.</li>
   <li><b>Caminhar nas subidas íngremes é técnica.</b> Acima de uns 15–20% de inclinação, caminhar forte gasta menos energia que correr (Giovanelli et al. 2016).</li>
-  <li><b>Descer também se treina.</b> A descida é excêntrica e é ela que mais dói depois da prova; treinar descidas protege a musculatura nas seguintes (McHugh 2003).</li>
-  <li><b>Comer e beber é treino.</b> Acima de 90 min, 30 a 60 g de carboidrato por hora, até 90 g nas provas muito longas (Thomas, Erdman & Burke 2016).</li>
+  <li><b>Descer também se treina.</b> A descida é excêntrica e é ela que mais dói depois da prova; treinar descidas protege a musculatura nas seguintes (Bontemps et al. 2020, Sports Med; McHugh 2003).</li>
+  <li><b>Comer e beber é treino.</b> Acima de 90 min, 30 a 60 g de carboidrato por hora; nas provas longas, até 90 g ou mais, desde que o intestino tenha sido treinado (Thomas, Erdman & Burke 2016). Numa maratona de montanha, 120 g por hora preservou mais a força no dia seguinte do que 60 ou 90 g (Urdampilleta et al. 2020, Nutrients).</li>
   <li><b>Back-to-back:</b> dois longões em dias seguidos simulam o cansaço da prova longa com menos risco que um longão enorme.</li></ol>
-  <p class="tiny dim">Scheer et al. 2020 (Int J Sports Med); Giovanelli et al. 2016 (J Appl Physiol); McHugh 2003 (Scand J Med Sci Sports); Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc).</p></div>`;
+  <p class="tiny dim">Scheer et al. 2020 (Int J Sports Med); Bontemps et al. 2020 (Sports Med); Urdampilleta et al. 2020 (Nutrients); Giovanelli et al. 2016 (J Appl Physiol); Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc); McHugh 2003 (Scand J Med Sci Sports).</p></div>`;
 const CIC_INFO_VOLTA = `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Antes de começar</span><ol>
   <li><b>Liberação:</b> do médico ou do fisioterapeuta que acompanhou a lesão. O protocolo não substitui avaliação.</li>
   <li><b>Critérios para a primeira corrida:</b> caminhada rápida de 30 min sem dor, 10 saltitos em um pé só sem dor e 20 elevações de panturrilha em uma perna.</li>
-  <li><b>Regra da dor:</b> até 2 de 10 durante e que passa até a manhã seguinte, segue. 3 ou mais, mancar ou piora no dia seguinte, volta uma etapa (Silbernagel et al. 2007).</li>
-  <li><b>Dias alternados:</b> o osso e o tendão precisam de 48 h entre as cargas no começo; nunca correr em dias seguidos nesta fase (Warden et al. 2014).</li>
+  <li><b>Regra da dor:</b> até 2 de 10 durante e que passa até a manhã seguinte, segue. 3 ou mais, mancar ou piora no dia seguinte, volta uma etapa (Silbernagel et al. 2007; usado nas orientações atuais, Silbernagel et al. 2020).</li>
+  <li><b>Dias alternados:</b> o osso responde melhor à carga com descanso entre as sessões; nunca correr em dias seguidos nesta fase (Warden et al. 2014 e 2021). O tempo total de volta depende do local da lesão: em fraturas por estresse, de cerca de 6 semanas na tíbia a mais de 4 meses no navicular (Hoenig et al. 2023, Br J Sports Med).</li>
   <li><b>Força junto:</b> panturrilha, glúteo e quadríceps 2 a 3 vezes por semana, nos dias sem corrida.</li>
-  <li><b>Depois do protocolo:</b> volume subindo aos poucos, sem saltos grandes de uma semana para a outra (Nielsen et al. 2014).</li></ol>
-  <p class="tiny dim">Warden et al. 2014 (J Orthop Sports Phys Ther); Silbernagel et al. 2007 (Am J Sports Med); Nielsen et al. 2014 (J Orthop Sports Phys Ther).</p></div>`;
+  <li><b>Depois do protocolo:</b> nenhum treino mais de 10% maior que o mais longo dos últimos 30 dias. No maior estudo sobre o tema, com mais de 5 mil corredores, foi esse salto num treino isolado, e não o volume da semana, que aumentou o risco de lesão (Frandsen et al. 2025, Br J Sports Med).</li></ol>
+  <p class="tiny dim">Frandsen et al. 2025 (Br J Sports Med); Hoenig et al. 2023 (Br J Sports Med); Warden et al. 2021 (Curr Osteoporos Rep); Silbernagel et al. 2020 (J Athl Train); Warden et al. 2014 (J Orthop Sports Phys Ther); Silbernagel et al. 2007 (Am J Sports Med).</p></div>`;
 
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
@@ -13863,6 +13900,6 @@ async function staffErros() {
   };
 }
 
-if (window.NX_DEMO) window.__nx = { loading, toast, garminItem };
+if (window.NX_DEMO) window.__nx = { loading, toast, garminItem, CICLOS_CORR, cicSemanas, kmDe, perfilNiv };
 iniciar();
 })();
