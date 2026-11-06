@@ -2251,7 +2251,12 @@ html[data-tema="escuro"] .cp-lin{stroke:rgba(190,210,245,.35)}
 .ss-resumo.err>i,.ss-item.err .ss-dot{background:#e5484d;box-shadow:0 0 0 4px rgba(229,72,77,.18)}
 .ss-item .ss-dot{margin-top:5px}
 .ss-item.err{border-color:rgba(229,72,77,.4)}
-.ss-lista{margin:10px 0 0;padding-left:40px;font-size:.85rem}
-.ss-lista li{margin-top:4px}
 .ss-acao{margin:10px 0 4px 22px;padding:8px 10px;border-radius:10px;background:var(--s2);font-size:.82rem}
 .ss-item .link-btn{margin-left:22px}
+.ss-lista{padding-left:22px}
+.ss-l{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-top:1px solid var(--line);font-size:.86rem}
+.ss-l:first-child{border-top:0}
+.ss-bts{display:flex;gap:6px;flex-wrap:wrap}
+.ss-b{border:1px solid var(--line2);background:var(--s1);color:var(--ink);border-radius:999px;padding:5px 12px;font:700 .76rem var(--f-b);cursor:pointer}
+.ss-b:hover{border-color:var(--acc)}.ss-b:disabled{opacity:.6}
+.ss-acoes{gap:8px;flex-wrap:wrap;margin:10px 0 2px 22px}

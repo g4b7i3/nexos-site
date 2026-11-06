@@ -369,6 +369,16 @@ async function iniciar() {
   const { data } = await sb.auth.getSession();
   S.user = data.session?.user || null;
   if (S.user) { try { await carregarPerfil(); } catch (e) { console.error(e); } }
+  // a equipe pediu para todos atualizarem o app: limpa o cache e recarrega uma vez
+  try {
+    const f = S.org && S.org.config && S.org.config.forcar_em;
+    if (f && store.get('nx-forcado-em', '') !== f) {
+      store.set('nx-forcado-em', f);
+      if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
+      if (swReg) await swReg.update().catch(() => {});
+      location.reload(); return;
+    }
+  } catch (e) { console.error(e); }
   router();
 }
 sb.auth.onAuthStateChange((ev, session) => {
@@ -9090,53 +9100,105 @@ async function staffRelatorios() {
 
 /* ---------- saúde do sistema (equipe) ---------- */
 const fmtDH = (d) => new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const MSG_SAUDE = {
+  garmin: (n) => `Oi, ${n}! Aqui é o ${firstName(S.me.nome)}, da Nexos. Seu Garmin parou de sincronizar com o app. Para resolver: abra o app da Nexos, vá em Mais > Conexões, toque em Desconectar e depois em Conectar Garmin. Leva 1 minuto.`,
+  push: (n) => `Oi, ${n}! Aqui é o ${firstName(S.me.nome)}, da Nexos. Ative as notificações do app para receber os lembretes, o treino do dia e as minhas mensagens: abra o app, vá em Mais e toque em Ativar, em Notificações. No iPhone, antes adicione o app à tela de início (Compartilhar > Adicionar à Tela de Início) e abra por lá.`,
+};
 function saudeStatus(d) {
-  const nomes = (l, n = 4) => l.slice(0, n).map((x) => esc(firstName(x.nome || 'Aluno'))).join(', ') + (l.length > n ? ` e mais ${l.length - n}` : '');
   const out = [];
   const e = d.erros || {};
   out.push({ k: 'erros', t: 'Erros do app', nivel: e.novos_24h ? 'err' : e.abertos ? 'warn' : 'ok',
     res: e.abertos ? `${e.abertos} erro${e.abertos > 1 ? 's' : ''} em aberto${e.novos_24h ? `, ${e.novos_24h} nas últimas 24 h` : ''}` : 'Nenhum erro em aberto',
-    lista: (e.lista || []).map((x) => `${esc(String(x.msg || '').slice(0, 90))} <span class="tiny dim">· ${x.vezes}× · ${fmtDH(x.ultimo_em)}</span>`),
-    acao: e.abertos ? 'Me mande o print desta tela que eu corrijo. Depois de corrigido, marque como resolvido.' : '', link: e.abertos ? ['#/erros', 'Ver detalhes dos erros'] : null });
+    linhas: (e.lista || []).map((x) => ({ html: `${esc(String(x.msg || '').slice(0, 90))} <span class="tiny dim">· ${x.vezes}× · ${(x.usuarios || []).length} pessoa${(x.usuarios || []).length === 1 ? '' : 's'} · ${fmtDH(x.ultimo_em)}</span>`, bts: [['copiar', x.id, 'Copiar relatório'], ['resolver', x.id, 'Marcar resolvido']] })),
+    acao: e.abertos ? 'Copie o relatório e cole aqui no Claude para eu corrigir. Se o erro for de uma versão antiga do app, forçar a atualização já resolve.' : '',
+    bts: [['forcar', '', d.versao_forcada ? `Forçar atualização do app (última: ${fmtDH(d.versao_forcada)})` : 'Forçar atualização do app'], ...(e.abertos ? [['link', '#/erros', 'Ver todos os detalhes']] : [])] });
   const gErr = (d.garmin || []).filter((x) => x.erro), gVelho = (d.garmin || []).filter((x) => !x.erro);
   out.push({ k: 'garmin', t: 'Garmin', nivel: gErr.length ? 'err' : gVelho.length ? 'warn' : 'ok',
     res: !d.garmin_total ? 'Nenhum aluno conectado ainda' : gErr.length || gVelho.length ? [gErr.length ? `${gErr.length} com erro na conexão` : '', gVelho.length ? `${gVelho.length} sem sincronizar há mais de 4 dias` : ''].filter(Boolean).join(' · ') : `${d.garmin_total} aluno${d.garmin_total > 1 ? 's' : ''} conectado${d.garmin_total > 1 ? 's' : ''}, tudo sincronizando`,
-    lista: [...gErr.map((x) => `<b>${esc(x.nome)}</b>: ${esc(String(x.erro).slice(0, 80))}`), ...gVelho.map((x) => `<b>${esc(x.nome)}</b>: última sincronização ${x.ultima_sync ? fmtDH(x.ultima_sync) : 'nunca'}`)],
-    acao: gErr.length ? 'Peça para o aluno desconectar e conectar o Garmin de novo em Conexões. Se continuar, me avise.' : gVelho.length ? 'Pode ser só que o aluno não correu com o relógio. Se ele correu, peça para abrir o Garmin Connect no celular para sincronizar.' : '' });
+    linhas: [...gErr, ...gVelho].map((x) => ({ html: `<b>${esc(x.nome)}</b>: ${x.erro ? esc(String(x.erro).slice(0, 80)) : `última sincronização ${x.ultima_sync ? fmtDH(x.ultima_sync) : 'nunca'}`}`, bts: [['buscar', x.user_id, 'Buscar atividades'], ['wa', `garmin|${x.user_id}`, 'Pedir para reconectar']] })),
+    acao: gErr.length || gVelho.length ? 'Primeiro toque em Buscar atividades. Se não resolver, peça para o aluno reconectar: o WhatsApp abre com a mensagem pronta e ela também vai para a conversa do app.' : '' });
   const tf = d.treinos_fora_relogio || [];
+  const porAl = Object.values(tf.reduce((a, x) => { (a[x.aluno_id] = a[x.aluno_id] || { aluno_id: x.aluno_id, nome: x.nome, itens: [] }).itens.push(x); return a; }, {}));
   out.push({ k: 'relogio', t: 'Treinos no relógio', nivel: tf.some((x) => x.erro) ? 'err' : tf.length ? 'warn' : 'ok',
     res: tf.length ? `${tf.length} treino${tf.length > 1 ? 's' : ''} dos próximos 2 dias ainda não ${tf.length > 1 ? 'foram' : 'foi'} para o relógio` : 'Treinos dos próximos dias já estão nos relógios',
-    lista: tf.map((x) => `<b>${esc(x.nome)}</b>: ${esc(x.titulo || 'treino')} (${fmtCurto(x.data)})${x.erro ? ` · <span style="color:var(--err)">${esc(String(x.erro).slice(0, 60))}</span>` : ''}`),
-    acao: tf.length ? 'O envio acontece quando você ou o aluno abre a planilha. Abra a planilha do aluno para mandar agora.' : '' });
+    linhas: porAl.map((g) => ({ html: `<b>${esc(g.nome)}</b>: ${g.itens.map((x) => `${esc(x.titulo || 'treino')} (${fmtCurto(x.data)})`).join(', ')}${g.itens.some((x) => x.erro) ? ` · <span style="color:var(--err)">${esc(String(g.itens.find((x) => x.erro).erro).slice(0, 60))}</span>` : ''}`, bts: [['enviar', g.aluno_id, 'Enviar agora']] })),
+    acao: '' });
   const sp = d.sem_push || [], pf = d.push_falhas || [];
   out.push({ k: 'push', t: 'Notificações', nivel: pf.some((x) => x.motivo !== 'inscrição expirada') ? 'err' : sp.length || pf.length ? 'warn' : 'ok',
     res: [sp.length ? `${sp.length} de ${d.alunos_ativos} aluno${d.alunos_ativos > 1 ? 's' : ''} sem notificações ativas` : `Todos os ${d.alunos_ativos} alunos recebem notificações`, pf.length ? `${pf.length} falha${pf.length > 1 ? 's' : ''} de envio na semana` : ''].filter(Boolean).join(' · '),
-    lista: [...(sp.length ? [`Sem notificação: ${nomes(sp, 8)}`] : []), ...pf.slice(0, 6).map((x) => `<b>${esc(x.nome || 'Usuário')}</b>: ${esc(x.motivo || 'falha')} (${fmtDH(x.quando)})`)],
-    acao: sp.length || pf.length ? 'Esses alunos não recebem lembretes de água, avisos de treino nem as suas mensagens no celular. Peça para ativarem em Mais > Notificações.' : '' });
-  const ag = d.agendador || [], falhou = ag.filter((x) => x.status === 'failed'), nunca = ag.filter((x) => !x.status);
+    linhas: [...sp.map((x) => ({ html: `<b>${esc(x.nome)}</b>: notificações desligadas`, bts: [['wa', `push|${x.user_id}`, 'Pedir para ativar']] })), ...pf.filter((x) => !sp.some((y) => y.user_id === x.user_id)).slice(0, 6).map((x) => ({ html: `<b>${esc(x.nome || 'Usuário')}</b>: ${esc(x.motivo || 'falha')} (${fmtDH(x.quando)})`, bts: x.user_id ? [['wa', `push|${x.user_id}`, 'Pedir para ativar de novo']] : [] }))],
+    acao: sp.length || pf.length ? 'Sem notificação, o aluno não recebe lembretes de água, o treino do dia nem as suas mensagens no celular.' : '',
+    bts: sp.length > 1 ? [['todos-push', '', `Mandar o passo a passo no app para os ${sp.length}`]] : [] });
+  const ag = d.agendador || [], falhou = ag.filter((x) => x.status === 'failed');
   const NOME_JOB = (n) => (n === 'nx-avisos-manha' ? 'Bom dia com o treino' : /nx-agua-(\d)/.test(n) ? `Lembrete de água ${n.slice(-1)}` : n);
   out.push({ k: 'auto', t: 'Avisos automáticos', nivel: falhou.length ? 'err' : d.chamadas_falhas ? 'warn' : 'ok',
     res: falhou.length ? `${falhou.length} aviso${falhou.length > 1 ? 's' : ''} com falha na última execução` : d.chamadas_falhas ? `${d.chamadas_falhas} chamada${d.chamadas_falhas > 1 ? 's' : ''} com erro nas últimas 24 h` : 'Rodando nos horários certos',
-    lista: ag.map((x) => `${NOME_JOB(x.nome)}: ${x.status === 'succeeded' ? `ok (${fmtDH(x.quando)})` : x.status === 'failed' ? `<span style="color:var(--err)">falhou (${fmtDH(x.quando)})</span>` : 'ainda não rodou (começa no próximo horário)'}`),
-    acao: falhou.length || d.chamadas_falhas ? 'Me avise que eu verifico no servidor.' : '' });
-  void nunca;
+    linhas: ag.map((x) => ({ html: `${NOME_JOB(x.nome)}: ${x.status === 'succeeded' ? `ok (${fmtDH(x.quando)})` : x.status === 'failed' ? `<span style="color:var(--err)">falhou (${fmtDH(x.quando)})</span>` : 'ainda não rodou (começa no próximo horário)'}`, bts: x.status === 'failed' ? [['rodar', x.nome, 'Rodar de novo agora']] : [] })),
+    acao: falhou.length ? 'Toque em Rodar de novo agora. Se falhar outra vez, me avise.' : '', sempreLista: true });
   return out;
 }
-async function staffSaudeSistema() {
-  dockStaff(); loading();
-  const { data, error } = await sb.rpc('nx_saude_sistema', { p_org: S.org.id });
+function relatorioErroTxt(x) {
+  return [`Erro no app da Nexos (painel Saúde do sistema)`, `Mensagem: ${x.msg}`, `Tela: ${x.url || '-'} · área: ${x.area || '-'}`, `Versão: ${x.versao || '-'}`, `Vezes: ${x.vezes} · pessoas: ${(x.usuarios || []).length}`, `Primeira vez: ${fmtDH(x.primeiro_em || x.ultimo_em)} · última: ${fmtDH(x.ultimo_em)}`, `Aparelho: ${x.ua || '-'}`, `Detalhes técnicos:`, x.stack || '-'].join('\n');
+}
+async function copiarTexto(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch {
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {} ta.remove(); return ok;
+  }
+}
+async function staffSaudeSistema(dadoPronto) {
+  dockStaff(); if (!dadoPronto) loading();
+  const { data, error } = dadoPronto ? { data: dadoPronto } : await sb.rpc('nx_saude_sistema', { p_org: S.org.id });
   if (error || !data) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Não foi possível checar agora</div><p class="small">Tente de novo em instantes.</p></div>'; return; }
   const st = saudeStatus(data), prob = st.filter((x) => x.nivel !== 'ok');
   S.cache.saudeProb = prob.length; S.cache.saudeVerm = st.some((x) => x.nivel === 'err');
+  const bt = ([a, v, l], cls = 'btn ghost sm') => a === 'link' ? `<a class="${cls}" href="${v}">${l}</a>` : `<button type="button" class="${cls}" data-ss="${a}" data-v="${esc(v)}">${l}</button>`;
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Sistema</p><h1 class="h1">Saúde do sistema</h1>
     <div class="ss-resumo ${S.cache.saudeVerm ? 'err' : prob.length ? 'warn' : 'ok'}"><i></i><div><b>${prob.length ? `${prob.length} ponto${prob.length > 1 ? 's' : ''} de atenção` : 'Tudo funcionando'}</b><span>Checado agora, ${fmtDH(data.agora)}</span></div><button class="btn ghost sm" id="ss-atual">Atualizar</button></div>
     <div class="stack" style="margin-top:14px">${st.map((x) => `<div class="card ss-item ${x.nivel}"><div class="row" style="gap:10px;align-items:flex-start"><i class="ss-dot"></i><div class="grow"><b>${x.t}</b><p class="small muted">${x.res}</p></div></div>
-      ${x.lista.length && x.nivel !== 'ok' || (x.k === 'auto' && x.lista.length) ? `<ul class="ss-lista">${x.lista.map((l) => `<li>${l}</li>`).join('')}</ul>` : ''}
-      ${x.acao ? `<p class="ss-acao">${x.acao}</p>` : ''}${x.link ? `<a class="link-btn small" href="${x.link[0]}">${x.link[1]}</a>` : ''}</div>`).join('')}</div>
+      ${x.linhas.length && (x.nivel !== 'ok' || x.sempreLista) ? `<div class="ss-lista">${x.linhas.map((l) => `<div class="ss-l"><span>${l.html}</span>${l.bts.length ? `<div class="ss-bts">${l.bts.map((b) => bt(b, 'ss-b')).join('')}</div>` : ''}</div>`).join('')}</div>` : ''}
+      ${x.acao ? `<p class="ss-acao">${x.acao}</p>` : ''}${(x.bts || []).length ? `<div class="row ss-acoes">${x.bts.map((b) => bt(b)).join('')}</div>` : ''}</div>`).join('')}</div>
     <p class="tiny dim" style="margin-top:14px">Todo dia de manhã o app checa isso sozinho. Se tiver algo em vermelho, vocês recebem uma notificação.</p>`;
   document.getElementById('ss-atual').onclick = () => staffSaudeSistema();
+  const msgNoApp = async (alunoId, texto) => { const { data: nm } = await sb.from('nx_mensagens').insert({ org_id: S.org.id, aluno_id: alunoId, autor_id: S.user.id, texto }).select('id').single(); if (nm) notificar('mensagem', nm.id); return !!nm; };
+  const pessoa = (id) => [...(data.garmin || []), ...(data.sem_push || []), ...(data.push_falhas || [])].find((x) => x.user_id === id) || {};
+  $app.onclick = async (ev) => {
+    const b = ev.target.closest('[data-ss]'); if (!b) return;
+    const a = b.dataset.ss, v = b.dataset.v, txt0 = b.textContent;
+    const ocupado = (t) => { b.disabled = true; b.textContent = t; }, pronto = (t) => { b.textContent = t; setTimeout(() => { b.textContent = txt0; b.disabled = false; }, 2500); };
+    try {
+      if (a === 'copiar') { const x = ((data.erros || {}).lista || []).find((y) => String(y.id) === v); if (x && await copiarTexto(relatorioErroTxt(x))) { toast('Relatório copiado. Cole aqui no Claude.'); pronto('Copiado'); } else toast('Não foi possível copiar.', true); return; }
+      if (a === 'resolver') { ocupado('Salvando…'); const { error: er } = await sb.from('nx_erros').update({ resolvido: true }).eq('id', v); if (er) throw er; toast('Marcado como resolvido.'); return staffSaudeSistema(); }
+      if (a === 'forcar') { ocupado('Enviando…'); const { error: er } = await sb.rpc('nx_forcar_atualizacao', { p_org: S.org.id }); if (er) throw er; toast('Pronto. Na próxima vez que abrirem o app, todos recebem a versão mais nova.'); return staffSaudeSistema(); }
+      if (a === 'buscar') {
+        ocupado('Pedindo ao Garmin…');
+        const { data: r, error: er } = await sb.functions.invoke('nx-garmin-busca', { body: { aluno_id: v, dias: 7 } }); if (er) throw er;
+        if (r && r.erro) { toast(r.erro, true); b.textContent = txt0; b.disabled = false; return; }
+        toast('Pedido feito. As atividades dos últimos 7 dias chegam em alguns minutos.'); pronto('Pedido feito'); return;
+      }
+      if (a === 'wa') {
+        const [tipo, id] = v.split('|'), p = pessoa(id), nome = firstName(p.nome || 'aluno'), texto = MSG_SAUDE[tipo](nome), tel = telWa(p.telefone);
+        if (tel) window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+        await msgNoApp(id, texto).catch(() => false);
+        toast(tel ? 'WhatsApp aberto com a mensagem. Ela também foi para a conversa do app.' : 'Aluno sem telefone cadastrado: a mensagem foi para a conversa do app.'); pronto('Enviado'); return;
+      }
+      if (a === 'todos-push') {
+        ocupado('Enviando…'); let n = 0;
+        for (const p of data.sem_push || []) if (await msgNoApp(p.user_id, MSG_SAUDE.push(firstName(p.nome || 'aluno'))).catch(() => false)) n++;
+        toast(`Passo a passo enviado na conversa do app para ${n} aluno${n === 1 ? '' : 's'}.`); pronto('Enviado'); return;
+      }
+      if (a === 'enviar') {
+        ocupado('Enviando…');
+        const ids = (data.treinos_fora_relogio || []).filter((x) => x.aluno_id === v).map((x) => x.id);
+        const [{ data: pl }, { data: mb }] = await Promise.all([sb.from('nx_plano_corrida').select('*').in('id', ids), sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', v).maybeSingle()]);
+        const r = await enviarGarmin(v, pl || [], perfilCorrida(mb || {}));
+        if (r && r.erros) toast(`${r.enviados || 0} enviado(s), ${r.erros} com erro. Veja o motivo na lista.`, true); else toast(`${(r && r.enviados) || 0} treino(s) enviado(s) ao relógio.`);
+        return staffSaudeSistema();
+      }
+      if (a === 'rodar') { const h = new Date().getHours(); if (/agua/.test(v) && (h >= 21 || h < 7)) return toast('Lembrete de água fora de hora acordaria os alunos. Ele roda de novo amanhã no horário certo.', true); ocupado('Rodando…'); const { error: er } = await sb.rpc('nx_rodar_aviso', { p_org: S.org.id, p_job: v }); if (er) throw er; toast('Aviso disparado. Atualize em 1 minuto para conferir.'); pronto('Disparado'); return; }
+    } catch (er) { console.error(er); toast('Não foi possível agora. Tente de novo.', true); b.textContent = txt0; b.disabled = false; }
+  };
 }
-
 function staffMais() {
   dockStaff();
   if (S.cache.saudeProb == null) sb.rpc('nx_saude_sistema', { p_org: S.org.id }).then(({ data }) => { if (!data) return; const st = saudeStatus(data); S.cache.saudeProb = st.filter((x) => x.nivel !== 'ok').length; S.cache.saudeVerm = st.some((x) => x.nivel === 'err'); if (S.cache.saudeProb && location.hash === '#/mais') staffMais(); }).catch(() => {});
