@@ -2054,10 +2054,10 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .hoje-hero:after{content:"";position:absolute;right:-60px;bottom:-80px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 30px rgba(255,255,255,.025)}
 .hh-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .hh-data{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:700}
-.hh-btn{position:relative;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff}
+.hh-btn{position:relative;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff}
 .hh-btn svg{width:18px;height:18px}
 .hh-btn i{position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ff6b6b;font:700 .66rem/18px var(--f-b);font-style:normal;text-align:center}
-.hoje-hero .top-foto .foto{width:38px;height:38px;font-size:.8rem;border:2px solid rgba(255,255,255,.25)}
+.hoje-hero .top-foto .foto{width:56px;height:56px;font-size:1rem;border:2px solid rgba(255,255,255,.3)}
 .hoje-hero h1{font-family:var(--f-h);font-size:1.45rem;line-height:1.15;margin-top:14px;font-weight:600}
 .hoje-hero p{color:rgba(255,255,255,.72);font-size:.88rem;margin-top:4px}
 .hh-stats{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
