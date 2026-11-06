@@ -240,7 +240,7 @@ function setDock(items) {
   const eu = S.me ? `<a href="#/perfil" class="dock-eu ${cur.startsWith('#/perfil') ? 'on' : ''}" aria-label="Meu perfil">${avAluno(S.me, 'sm')}<span><b>${esc(firstName(S.me.nome) || 'Perfil')}</b><small>Meu perfil</small></span></a>` : '';
   $dock.innerHTML = marca + items.map((it) => {
     const on = it.match.some((m) => cur === m || (m.length > 2 && cur.startsWith(m + '/')));
-    return `<a href="${it.href}" class="${on ? 'on' : ''}" aria-label="${esc(it.label)}">${it.icon}<span>${esc(it.label)}</span>${it.badge ? `<i class="badge">${it.badge}</i>` : ''}</a>`;
+    return `<a href="${it.href}" class="${on ? 'on' : ''} ${it.cls || ''}" aria-label="${esc(it.label)}">${it.icon}<span>${esc(it.label)}</span>${it.badge ? `<i class="badge">${it.badge}</i>` : ''}</a>`;
   }).join('') + eu;
   $dock.hidden = false;
 }
@@ -251,9 +251,11 @@ const dockAluno = () => setDock([
   { href: '#/', match: ['#/', '#'], icon: I.home, label: 'Hoje' },
   { href: '#/planilha', match: ['#/planilha'], icon: I.cal, label: 'Planilha' },
   { href: '#/historico', match: ['#/historico', '#/avaliacao', '#/corrida', '#/relatorio'], icon: I.hist, label: 'Evolução' },
-  ...(faz('corrida') ? [{ href: '#/eventos', match: ['#/eventos'], icon: I.flag, label: 'Eventos' }] : []),
   { href: '#/conversa', match: ['#/conversa'], icon: I.feed, label: 'Treinador', badge: S.cache.msgNovas || '' },
-  { href: '#/conexoes', match: ['#/conexoes'], icon: I.watch, label: 'Conexões' },
+  // no celular ficam dentro do Mais; no computador aparecem no menu lateral
+  ...(faz('corrida') ? [{ href: '#/eventos', match: ['#/eventos'], icon: I.flag, label: 'Eventos', cls: 'so-desk' }] : []),
+  { href: '#/conexoes', match: ['#/conexoes'], icon: I.watch, label: 'Conexões', cls: 'so-desk' },
+  { href: '#/mais', match: ['#/mais', '#/eventos', '#/conexoes', '#/pagamentos', '#/perfil', '#/saude', '#/termo', '#/agua', '#/prontidao', '#/recordes'], icon: I.grid, label: 'Mais', cls: 'so-mob' },
 ]);
 const dockStaff = () => setDock([
   { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.pendentes || 0) || '' },
@@ -342,6 +344,10 @@ async function router() {
     if (a === 'termo') return viewTermoLido();
     if (a === 'pagamentos') return await viewPagamentos();
     if (a === 'perfil') return viewPerfil();
+    if (a === 'mais') return alunoMais();
+    if (a === 'recordes') return await viewRecordes();
+    if (a === 'agua') return await viewAguaAluno();
+    if (a === 'prontidao') return await viewProntAluno();
     return await alunoHoje();
   } catch (e) {
     console.error(e); reportarErro(e, 'tela não carregou');
@@ -872,6 +878,62 @@ async function prontStaffHTML(m) {
     ${rows.map((x) => { const [n, cls] = prontNivel(x.total); return `<div class="ps-lin${x.alerta ? ' alerta' : ''}"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`; }).join('')}</div>`;
 }
 
+
+/* ---------- Mais (aluno): o que não cabe na barra do celular ---------- */
+function alunoMais() {
+  const it = (href, ic, t, d, extra = '') => `<a class="list-item" href="${href}" style="color:inherit"${extra}><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
+  const fC = faz('corrida');
+  $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Tudo do seu app</h1>
+    <p class="sec-lbl" style="margin-top:20px">Treino e desempenho</p><div class="stack">
+      ${fC ? it('#/eventos', I.flag, 'Eventos e provas', 'Treinões da Nexos e suas provas') : ''}
+      ${fC ? it('#/recordes', TROFEU_IC, 'Meus recordes', 'Melhores tempos em 1 km, 5 km, 10 km e meia') : ''}
+      ${it('#/historico/avaliacoes', I.ficha, 'Avaliações físicas', 'Medidas, composição corporal e relatórios')}
+      ${it('#/historico/fotos', I.cam, 'Fotos de evolução', 'Antes e depois, avaliação postural')}
+      ${fC ? it('#/historico/previsoes', I.hist, 'Testes e previsões', 'Tempos estimados e zonas de treino') : ''}
+    </div>
+    <p class="sec-lbl">Saúde</p><div class="stack">
+      ${it('#/agua', AGUA_IC, 'Hidratação', 'Sua semana, meta e lembretes')}
+      ${it('#/prontidao', PRONT_IC, 'Check-in e dores', 'Sono, energia, dor e estresse dos últimos dias')}
+      ${S.me.sexo === 'F' ? `<button class="list-item" id="mais-ciclo" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Fase atual e ajuste do treino</div></div>${I.chev}</button>` : ''}
+      ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
+    </div>
+    <p class="sec-lbl">Conta</p><div class="stack">
+      ${it('#/conexoes', I.watch, 'Conexões', 'Relógio Garmin e outras marcas')}
+      ${it('#/pagamentos', I.money, 'Pagamentos e plano', 'Mensalidades e formas de pagamento')}
+      <div id="mais-notif"></div>
+      ${it('#/perfil', I.user, 'Meu perfil', 'Foto, dados, tema claro ou escuro e sair')}
+    </div>`;
+  secaoNotificacoes(document.getElementById('mais-notif')).catch(() => {});
+  const bc = document.getElementById('mais-ciclo');
+  if (bc) bc.onclick = async () => { const c = await buscarCiclo(S.user.id).catch(() => null); c ? abrirCiclo(c, () => alunoMais()) : ativarCiclo(() => alunoMais()); };
+}
+async function viewRecordes() {
+  loading();
+  const { data } = await sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,parciais').eq('aluno_id', S.user.id).order('data', { ascending: true }).limit(1000);
+  const best = {};
+  (data || []).forEach((c) => Object.entries(melhoresDaCorrida(c)).forEach(([d, t]) => { const b = best[d]; if (!b || t < b.t) best[d] = { t, c, ant: b ? b.t : null }; }));
+  const back = `<a class="back" href="#/mais">${I.back} Mais</a>`;
+  $app.innerHTML = `${back}<p class="eyebrow">Corrida</p><h1 class="h1">Meus recordes</h1>
+    <p class="small muted" style="margin-top:6px">Calculados pelas parciais de cada km, então valem também os trechos dentro de corridas maiores. Corridas na esteira não entram.</p>
+    <div class="stack" style="margin-top:16px">${DIST_REC.map(([d, n]) => { const b = best[d]; return b
+      ? `<a class="card rec-item" href="#/corrida/${b.c.id}" style="color:inherit"><span class="rec-ic">${TROFEU_IC}</span><div class="grow"><span class="eyebrow">${n}</span><div class="h2" style="margin-top:2px">${fmtDurLongo(b.t)}</div><div class="small muted">${fmtPace(b.t / d)} · ${fmtDia(isoDia(b.c.data))}${b.ant ? ` · melhorou ${fmtDurLongo(b.ant - b.t)}` : ''}</div></div>${I.chev}</a>`
+      : `<div class="card rec-item vazio"><span class="rec-ic">${TROFEU_IC}</span><div class="grow"><span class="eyebrow">${n}</span><div class="small muted" style="margin-top:4px">Ainda sem marca nessa distância.</div></div></div>`; }).join('')}</div>`;
+}
+async function viewAguaAluno() {
+  loading();
+  const h = await aguaStaffHTML(S.me, true);
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Saúde</p><h1 class="h1">Hidratação</h1>
+    <div id="agua-box" class="agua-box" style="margin-top:16px"></div><div style="margin-top:14px">${h}</div>`;
+  montarAgua(document.getElementById('agua-box'), 0).catch((e) => console.error(e));
+}
+async function viewProntAluno() {
+  loading();
+  const [h, hoje] = await Promise.all([prontStaffHTML(S.me), sb.from('nx_prontidao').select('id').eq('aluno_id', S.user.id).eq('dia', isoDia(new Date())).maybeSingle().then((r) => r.data, () => null)]);
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Saúde</p><h1 class="h1">Check-in e dores</h1>
+    ${hoje ? '' : `<button class="btn block" id="pr-agora" style="margin-top:16px">${PRONT_IC} Fazer o check-in de hoje</button>`}<div style="margin-top:16px">${h}</div>`;
+  const b = document.getElementById('pr-agora'); if (b) b.onclick = () => abrirProntidao(() => viewProntAluno());
+}
+
 /* ---------- recordes pessoais de corrida ---------- */
 const DIST_REC = [[1, '1 km'], [5, '5 km'], [10, '10 km'], [21.0975, 'Meia maratona']];
 function melhoresDaCorrida(c) {
@@ -893,7 +955,7 @@ function recordesDoDia(corridas, dia_) {
 }
 
 /* ---------- hidratação: copo que enche a cada registro ---------- */
-async function aguaStaffHTML(m) {
+async function aguaStaffHTML(m, doAluno = false) {
   const ini = isoDia(Date.now() - 6 * 864e5);
   const [rows, corr, ses, peso] = await Promise.all([
     sb.from('nx_hidratacao').select('dia,ml,meta').eq('aluno_id', m.user_id).gte('dia', ini).then((r) => r.data || [], () => []),
@@ -908,9 +970,9 @@ async function aguaStaffHTML(m) {
   const comReg = D.filter((x) => x.ml > 0), media = comReg.length ? comReg.reduce((a, x) => a + Math.min(1.3, x.pct), 0) / comReg.length : null;
   return `<div class="card agua-staff"><div class="row between" style="gap:8px"><b>${AGUA_IC} Hidratação</b><span class="tiny dim">últimos 7 dias</span></div>
     <div class="as-cols">${D.map((x) => `<div class="as-col" title="${fmtCurto(x.d)}: ${fmtL(x.ml)} de ${fmtL(x.meta)}"><div class="as-bar"><i style="height:${Math.min(100, x.pct * 100)}%" class="${x.pct >= 1 ? 'ok' : x.pct >= 0.6 ? '' : 'baixo'}"></i></div><small>${DSEM[dsemIdx(x.d)].slice(0, 3)}</small>${x.t ? '<em title="treinou">•</em>' : '<em></em>'}</div>`).join('')}</div>
-    <p class="small muted" style="margin-top:8px">${media == null ? 'O aluno ainda não registrou água nesta semana.' : `Média de <b>${Math.round(media * 100)}%</b> da meta nos dias com registro · ${comReg.filter((x) => x.pct >= 1).length} de 7 dias com meta batida.`} O ponto marca os dias com treino.</p>
-    <form id="f-agua-meta" class="row" style="gap:8px;margin-top:10px;align-items:flex-end"><label class="field grow" style="margin:0"><span>Meta diária (litros)</span><input class="input" name="l" data-mask="dec" inputmode="decimal" value="${m.meta_agua_ml ? String(m.meta_agua_ml / 1000).replace('.', ',') : ''}" placeholder="automática: ${fmtL(metaPadrao)} + treino"></label><button class="btn ghost sm">Salvar</button></form>
-    <p class="tiny dim" style="margin-top:6px">Automática: ~35 ml por kg, mais ~600 ml por hora de treino do dia. Deixe vazio para usar a automática.</p></div>`;
+    <p class="small muted" style="margin-top:8px">${media == null ? (doAluno ? 'Nenhum registro de água nesta semana.' : 'O aluno ainda não registrou água nesta semana.') : `Média de <b>${Math.round(media * 100)}%</b> da meta nos dias com registro · ${comReg.filter((x) => x.pct >= 1).length} de 7 dias com meta batida.`} O ponto marca os dias com treino.</p>
+    ${doAluno ? '</div>' : `<form id="f-agua-meta" class="row" style="gap:8px;margin-top:10px;align-items:flex-end"><label class="field grow" style="margin:0"><span>Meta diária (litros)</span><input class="input" name="l" data-mask="dec" inputmode="decimal" value="${m.meta_agua_ml ? String(m.meta_agua_ml / 1000).replace('.', ',') : ''}" placeholder="automática: ${fmtL(metaPadrao)} + treino"></label><button class="btn ghost sm">Salvar</button></form>
+    <p class="tiny dim" style="margin-top:6px">Automática: ~35 ml por kg, mais ~600 ml por hora de treino do dia. Deixe vazio para usar a automática.</p></div>`}`;
 }
 function bindAguaStaff(m) {
   const f = document.getElementById('f-agua-meta'); if (!f) return; aplicarMascaras(f);

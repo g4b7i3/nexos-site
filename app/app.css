@@ -2180,3 +2180,10 @@ html[data-tema="escuro"] .cp-cab{fill:#4d5f82}
 .rec-ic svg{width:22px;height:22px}
 .rec-card .eyebrow{color:#c4851c}
 .rec-l{margin-top:4px}.rec-l b{display:block;font-size:1.02rem}.rec-l small{color:var(--mute);font-size:.78rem}
+/* barra do aluno: no celular 4 + Mais; no computador o menu lateral mostra tudo */
+.dock a.so-desk{display:none}
+@media (min-width:1100px){.dock a.so-desk{display:flex}.dock a.so-mob{display:none}}
+.rec-item{display:flex;gap:14px;align-items:center}
+.rec-item.vazio .rec-ic{background:var(--s2);color:var(--mute)}
+.rec-item .h2{font-family:var(--f-h)}
+#mais-notif:empty{display:none}
