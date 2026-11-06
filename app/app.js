@@ -7645,7 +7645,22 @@ const GPS_IC = {
   mudo: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>',
   esteira: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="1.6"/><path d="m9.5 13 2-3.5 2.5 1.5 1.5 2.5M11.5 9.5 9 8l-2 2M12 13l-1.5 3"/><path d="M3 18.5h15.5l2.5-5"/><circle cx="5" cy="20.5" r=".6"/><circle cx="16.5" cy="20.5" r=".6"/></svg>',
   trava: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
+  baixo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  alvo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
+  expandir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></svg>',
+  pausa: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.4"/><rect x="14" y="5" width="4" height="14" rx="1.4"/></svg>',
+  parar: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+  pular: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 6 7 6-7 6zM13 6l7 6-7 6z"/></svg>',
+  volta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>',
+  autop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6" stroke-linecap="round"/></svg>',
 };
+// biblioteca do mapa (MapLibre, código aberto) fica no próprio app; só carrega na tela de treinar pelo celular
+let MAPA_LIB = null;
+const carregarMapaLib = () => MAPA_LIB || (MAPA_LIB = new Promise((ok, er) => {
+  if (window.maplibregl) return ok();
+  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('vendor/maplibre-gl.css', document.baseURI).href; document.head.append(l);
+  const sc = document.createElement('script'); sc.src = new URL('vendor/maplibre-gl.js', document.baseURI).href; sc.onload = () => ok(); sc.onerror = () => { MAPA_LIB = null; er(new Error('mapa')); }; document.head.append(sc);
+}));
 const GPS_KEY = 'nx-gps';
 const gpsSalvo = () => { const s = store.get(GPS_KEY, null); return s && s.inicio && Date.now() - s.salvoEm < 8 * 3600e3 ? s : null; };
 // passos do treino em ordem, com o número da repetição (ex.: Tiro 3 de 6)
@@ -7665,35 +7680,9 @@ const kmhDe = (pace) => (pace > 0 ? (3600 / pace).toFixed(1).replace('.', ',') :
 const gpsDist = (a, b) => { const R = 6371000, r = Math.PI / 180, dLa = (b[0] - a[0]) * r, dLo = (b[1] - a[1]) * r; const x = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
 
 // lista: os treinos da semana para escolher e fazer pelo celular
-async function viewGpsLista() {
-  loading(); dockAluno(); layout('aluno');
-  const ini = inicioSemana(), fim = new Date(ini); fim.setDate(ini.getDate() + 6);
-  const [plano, feitas] = await Promise.all([
-    buscarPlano(S.user.id, isoDia(ini), isoDia(fim)).catch(() => []),
-    sb.from('nx_corridas').select('id,plano_id').eq('aluno_id', S.user.id).gte('data', isoDia(ini)).then((r) => r.data || [], () => []),
-  ]);
-  const perfil = perfilCorrida(S.me), hoje = hojeISO(), salvo = gpsSalvo();
-  const treinos = plano.filter((p) => !semCorrida(p) && estruturaDe(p).length);
-  const cartao = (p) => {
-    const feito = feitas.some((c) => c.plano_id === p.id), tot = estimaTotal(estruturaDe(p), perfil);
-    return `<div class="card gps-tr ${p.data === hoje ? 'hoje' : ''} ${p.data < hoje && !feito ? 'passado' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0"><span class="eyebrow">${p.data === hoje ? 'Hoje' : fmtDiaSem(p.data)}</span><div class="h3" style="margin-top:2px">${esc(p.titulo || nomeTipo(p.tipo))}</div></div>${feito ? `<span class="tag ok">Feito ${I.check}</span>` : ''}</div>
-      ${perfilHTML(estruturaDe(p), perfil)}
-      <p class="small muted" style="margin-top:8px">${esc(descreverEstrutura(estruturaDe(p), perfil))}</p>
-      <p class="tiny dim" style="margin-top:4px">Total estimado: ${tot.km} · ${tot.tempo}</p>
-      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><a class="btn ${p.data === hoje ? '' : 'ghost'} sm" href="#/gps/${p.id}">${I.play} ${feito ? 'Fazer de novo' : 'Fazer na rua'}</a><a class="btn ghost sm" href="#/gps/${p.id}/esteira">${GPS_IC.esteira} Na esteira</a></div></div>`;
-  };
-  $app.innerHTML = `<a class="back" href="#/conexoes">${I.back} Conexões</a>
-    <p class="eyebrow">Treinar pelo celular</p><h1 class="h1">Seus treinos da semana</h1>
-    <p class="muted" style="margin-top:6px">Escolha o treino e faça pelo celular, na rua (GPS) ou na esteira (sensor de movimento). O app mostra cada parte do treino, avisa com som e voz quando trocar e registra a corrida sozinho no final.</p>
-    <div class="gps-aviso">${I.raio}<div><b>Deixe a tela ligada durante o treino.</b> O app mantém a tela acesa. Se o celular bloquear, o GPS para até você desbloquear, e o treino continua de onde parou.</div></div>
-    ${salvo ? `<div class="card gps-rec"><b>Você tem um treino em andamento</b><p class="small muted" style="margin-top:4px">${esc(salvo.titulo)} · ${fmtKm(salvo.dist, 2)} · ${fmtDurLongo(salvo.mov / 1000)}</p><div class="row" style="gap:8px;margin-top:10px"><a class="btn sm" href="#/gps/${salvo.id}${salvo.est ? '/esteira' : ''}">Continuar</a><button class="btn ghost sm" id="gps-desc">Descartar</button></div></div>` : ''}
-    <div class="section"><div class="section-h"><h2 class="h2">Esta semana</h2>${slashes}</div>
-      ${treinos.length ? `<div class="stack">${treinos.map(cartao).join('')}</div>` : '<div class="empty"><div class="h3">Nenhum treino liberado nesta semana</div><p class="small">Quando o treinador liberar a sua semana, os treinos aparecem aqui. Você pode fazer uma corrida livre.</p></div>'}
-    </div>
-    <div class="section stack"><a class="list-item" href="#/gps/livre" style="color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><b>Corrida livre na rua</b><div class="small muted">Sem treino definido: só tempo, distância e pace, com volta a cada 1 km.</div></div>${I.chev}</a>
-      <a class="list-item" href="#/gps/livre/esteira" style="color:inherit"><span class="ativ-ic">${GPS_IC.esteira}</span><div class="grow"><b>Corrida livre na esteira</b><div class="small muted">Celular no bolso ou na braçadeira: conta os passos e a cadência. No fim, você confirma a distância do painel.</div></div>${I.chev}</a></div>`;
-  const d = document.getElementById('gps-desc'); if (d) d.onclick = () => { if (!confirm('Descartar o treino em andamento?')) return; store.del(GPS_KEY); viewGpsLista(); };
+function viewGpsLista() {
+  const sv = gpsSalvo();
+  location.replace(location.pathname + location.search + (sv ? `#/gps/${sv.id}${sv.est ? '/esteira' : ''}` : '#/gps/livre'));
 }
 
 // tela do treino
@@ -7704,7 +7693,7 @@ async function viewGps(id, modo) {
   let p = null;
   if (id !== 'livre') {
     const { data } = await sb.from('nx_plano_corrida').select('*').eq('id', id).maybeSingle();
-    p = data; if (!p) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Treino não encontrado</div><a class="btn sm" href="#/gps" style="margin-top:12px">Voltar</a></div>'; return; }
+    p = data; if (!p) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Treino não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
   }
   const perfil = perfilCorrida(S.me);
   const passos = p ? gpsPassos(p, perfil) : [];
@@ -7714,6 +7703,9 @@ async function viewGps(id, modo) {
   const st = ant && ant.id === id && !!ant.est === est ? ant : { id, est, titulo, inicio: null, estado: 'pronto', mov: 0, dist: 0, passo: 0, pIni: { t: 0, d: 0 }, voltas: [], parciais: [], rota: [], serie: { t: [], d: [], vel: [], ...(est ? { cad: [] } : {}) }, lacunas: 0, voz: true, passos: 0 };
   if (st.estado === 'correndo') st.estado = 'pausado'; // voltou depois de fechar: espera o aluno continuar
   const recuperado = !!(ant && ant.id === id && !!ant.est === est && ant.inicio);
+  const pref = { autopausa: false, voltas: false, ...store.get('nx-gps-pref', {}) };
+  const outro = ant && ant.inicio && !(ant.id === id && !!ant.est === est) ? ant : null; // outro treino ficou em andamento
+  let mapa = null, mapaPronto = false, seguir = true, eu = null, euMk = null, euNoMapa = false, p3d = false, ultMov = 0, autoBase = null, ultPosSalva = 0, folhaAberta = false;
   let btsChave = '', nTick = 0, podeSemSinal = false, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = est;
   // esteira: detector de passos (pico da aceleração) e passada calibrada pelo painel nas corridas anteriores
   // onde está o celular: no corpo (bolso/braçadeira) sente a pisada; na mão sente o balanço do braço. Cada jeito tem a sua passada calibrada.
@@ -7725,16 +7717,32 @@ async function viewGps(id, modo) {
   const salvar = () => { st.salvoEm = Date.now(); store.set(GPS_KEY, st); };
   const movAgora = () => st.mov + (st.estado === 'correndo' && marcaMov ? Date.now() - marcaMov : 0);
 
-  $app.innerHTML = `<div class="gps">
-    <div class="gps-top"><button class="icon-btn sm" id="g-sair" aria-label="Sair">${I.back}</button><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(titulo)}</b><span class="tiny" id="g-sinal">${est ? 'Esteira · sensor de movimento' : 'Procurando GPS…'}</span></div><button class="icon-btn sm" id="g-voz" aria-label="Voz">${st.voz ? GPS_IC.som : GPS_IC.mudo}</button></div>
-    <div class="gps-passo" id="g-passo"></div>
-    <div class="gps-num"><div><span>Tempo</span><b id="g-tempo">0:00</b></div><div><span>Distância</span><b id="g-dist">0,00<small> km</small></b></div><div><span>Pace agora</span><b id="g-pace">–</b></div><div><span>Pace médio</span><b id="g-pm">–</b></div>${est ? '<div><span>Cadência</span><b id="g-cad">–</b></div><div><span>Passos</span><b id="g-np">0</b></div>' : ''}</div>
-    <div class="gps-prox" id="g-prox"></div>
-    ${est ? '<div class="est-local" id="g-local"></div>' : ''}
-    <div class="gps-bts" id="g-bts"></div>
-    <p class="tiny dim center" id="g-dica" style="margin-top:10px"></p>
+  $app.innerHTML = `<div class="g2 ${est ? 'g2-est' : ''}">
+    <div class="g2-mapa" id="g-mapa">${est ? `<div class="g2-est-bg">${GPS_IC.esteira}<span>Esteira</span></div>` : '<div class="g2-mapa-msg" id="g-mapa-msg">Carregando o mapa…</div>'}</div>
+    <button class="g2-rd g2-sair" id="g-sair" aria-label="Sair">${GPS_IC.baixo}</button>
+    <div class="g2-pill"><img src="icons/simbolo.svg" alt=""><div><b class="ellip">${esc(titulo)}</b><span id="g-sinal">${est ? 'Esteira · sensor de movimento' : 'Procurando GPS…'}</span></div></div>
+    <div class="g2-cola"></div>
+    <div class="g2-meio" id="g-meio">
+      ${est ? '' : `<div class="g2-lado"><button class="g2-rd" id="g-3d" aria-label="Mudar a visão do mapa">3D</button><button class="g2-rd" id="g-centro" aria-label="Centralizar em você">${GPS_IC.alvo}</button></div>`}
+      <div class="gps-passo" id="g-passo" hidden></div>
+      <div class="g2-stats">
+        <div class="g2-st-h"><b>${est ? 'Esteira' : 'Corrida'}</b><button class="g2-exp" id="g-exp" aria-label="Mais números">${GPS_IC.expandir}</button></div>
+        <div class="g2-tres"><div><b id="g-tempo">0:00</b><span>Tempo</span></div><div><b id="g-pm">–</b><span>Pace médio (/km)</span></div><div><b id="g-dist">0,00</b><span>Distância (km)</span></div></div>
+        <div class="g2-extra" id="g-extra" ${est ? '' : 'hidden'}><div><b id="g-pace">–</b><span>Pace agora</span></div>${est ? '<div><b id="g-cad">–</b><span>Cadência</span></div><div><b id="g-np">0</b><span>Passos</span></div>' : '<div><b id="g-volta">1</b><span>Volta</span></div><div><b id="g-vkm">0,00</b><span>Km na volta</span></div>'}</div>
+        <div class="gps-prox" id="g-prox"></div>
+      </div>
+    </div>
+    <div class="g2-folha" id="g-folha">
+      <button class="g2-grip" id="g-grip" aria-label="Opções do treino"></button>
+      <div id="g-rec"></div>
+      ${est ? '<div class="est-local" id="g-local"></div>' : ''}
+      <div class="g2-bts" id="g-bts"></div>
+      <p class="g2-dica" id="g-dica"></p>
+      <div class="g2-opc" id="g-opc" hidden></div>
+    </div>
     <div class="gps-trava" id="g-trava" hidden><div class="gps-trava-c"><div class="h3">Tela travada</div><p class="small" style="margin:6px 0 18px">Os toques estão desligados para não atrapalhar a corrida.</p><button class="btn ghost" id="g-dest">Segure para destravar</button></div></div>
   </div>`;
+  const tela = {}; $app._gps = tela; const minha = () => $app._gps === tela; // outra tela do treino abriu: esta para de mexer na página
   const $ = (s) => document.getElementById(s);
 
   // som, vibração e voz nas trocas
@@ -7767,13 +7775,16 @@ async function viewGps(id, modo) {
     falar(txt);
   };
   const desenha = () => {
+    if (!minha()) return;
     const mov = movAgora() / 1000, s = passoAtual();
     $('g-tempo').textContent = fmtDurLongo(mov);
-    $('g-dist').innerHTML = `${est ? '~' : ''}${(st.dist / 1000).toFixed(2).replace('.', ',')}<small> km</small>`;
+    $('g-dist').textContent = `${est ? '~' : ''}${(st.dist / 1000).toFixed(2).replace('.', ',')}`;
     const pa = paceAgora();
     $('g-pm').textContent = st.dist > 50 ? (est ? '~' : '') + fmtPace(mov / (st.dist / 1000)).replace('/km', '') : '–';
     $('g-pace').textContent = pa ? (est ? '~' : '') + fmtPace(pa).replace('/km', '') : '–';
-    if (est) { const cd = cadAgora(); $('g-cad').innerHTML = cd ? `${cd}<small> ppm</small>` : '–'; $('g-np').textContent = String(st.passos || 0); }
+    if (est) { const cd = cadAgora(); $('g-cad').textContent = cd ? `${cd} ppm` : '–'; $('g-np').textContent = String(st.passos || 0); }
+    else { $('g-volta').textContent = String(st.voltas.length + 1); $('g-vkm').textContent = ((st.dist - st.pIni.d) / 1000).toFixed(2).replace('.', ','); }
+    $('g-passo').hidden = !passos.length;
     if (s) {
       const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve, fT = mov - st.pIni.t, fD = st.dist - st.pIni.d;
       const falta = s.t ? Math.max(0, s.t - fT) : Math.max(0, s.d - fD), pr = s.t ? fT / s.t : fD / s.d;
@@ -7790,30 +7801,51 @@ async function viewGps(id, modo) {
       $('g-passo').style.setProperty('--zc', 'var(--ok)');
       $('g-passo').innerHTML = '<div class="gps-p-n">Treino completo</div><p class="small" style="margin-top:6px">Pode desacelerar e tocar em Terminar para salvar.</p>';
       $('g-prox').innerHTML = '';
-    } else {
-      const v = st.voltas.length + 1, fD = st.dist - st.pIni.d;
-      $('g-passo').style.setProperty('--zc', 'var(--acc)');
-      $('g-passo').innerHTML = `<div class="gps-p-h"><span class="gps-z">${est ? 'Esteira livre' : 'Corrida livre'}</span><span class="tiny">Volta ${v}</span></div><div class="gps-p-f">${(fD / 1000).toFixed(2).replace('.', ',')}<small> km nesta volta</small></div><div class="gps-bar"><i style="width:${Math.min(100, fD / 10).toFixed(1)}%"></i></div>`;
-      $('g-prox').innerHTML = '';
-    }
-    const E = st.estado, chave = E + gpsOk + podeSemSinal + !!passoAtual() + (st.local || '');
+    } else $('g-prox').innerHTML = '';
+    const E = st.estado, chave = E + gpsOk + podeSemSinal + !!passoAtual() + (st.local || '') + st.voz + pref.voltas + !!st.auto + !!outro;
     if (chave === btsChave) return;
     if (est) {
       const gl = $('g-local'); gl.hidden = E !== 'pronto';
       gl.innerHTML = `<span>Onde está o celular?</span><div class="est-seg"><button type="button" data-loc="corpo" class="${st.local === 'corpo' ? 'on' : ''}">Bolso ou braçadeira</button><button type="button" data-loc="mao" class="${st.local === 'mao' ? 'on' : ''}">Na mão</button></div>${st.local === 'mao' ? '<p class="tiny">Na mão a contagem é um pouco menos precisa. Evite segurar no corrimão.</p>' : '<p class="tiny">Mais preciso: o celular sente cada pisada.</p>'}`;
       gl.querySelectorAll('[data-loc]').forEach((b) => b.onclick = () => { st.local = b.dataset.loc; store.set('nx-esteira-local', st.local); salvar(); desenha(); });
     } btsChave = chave; // botões só mudam quando o estado muda (não some no meio do toque)
+    const circ = (i, ic, rot, cls = '') => `<button type="button" class="g2-c ${cls}" id="${i}"><span class="g2-c-ic">${ic}</span><span>${rot}</span></button>`;
+    const grande = (i, ic, rot, cls = '', dis = false) => `<button type="button" class="g2-play ${cls}" id="${i}" aria-label="${rot}" ${dis ? 'disabled' : ''}>${ic}</button>`;
+    const vozB = circ('g-vozb', st.voz ? GPS_IC.som : GPS_IC.mudo, st.voz ? 'Voz ligada' : 'Voz desligada', st.voz ? '' : 'off');
+    $('g-rec').innerHTML = E === 'pronto' && outro ? `<div class="g2-rec"><b>Você tem um treino em andamento</b><p class="small muted">${esc(outro.titulo)} · ${fmtKm(outro.dist, 2)} · ${fmtDurLongo(outro.mov / 1000)}</p><div class="row" style="gap:8px;margin-top:8px"><a class="btn sm" href="#/gps/${outro.id}${outro.est ? '/esteira' : ''}">Continuar</a><button class="btn ghost sm" id="g-desc">Descartar</button></div></div>` : '';
     $('g-bts').innerHTML = E === 'pronto'
-      ? (gpsOk ? `<button class="btn block gps-go" id="g-ini">${I.play} Começar</button>` : podeSemSinal ? `<button class="btn block ghost" id="g-ini">${I.play} Começar mesmo assim</button>` : `<button class="btn block gps-go" id="g-ini" disabled>Esperando o GPS…</button>`)
+      ? circ('g-tipo', est ? GPS_IC.esteira : I.run, est ? 'Esteira' : 'Na rua', 'on') + grande('g-ini', I.play, 'Começar', gpsOk ? '' : podeSemSinal ? 'fraco' : 'esperando', !gpsOk && !podeSemSinal) + circ('g-treino', I.cal, p ? 'Treino' : 'Livre', p ? 'on' : '')
       : E === 'correndo'
-        ? `<button class="btn ghost" id="g-trv" aria-label="Travar a tela">${GPS_IC.trava}</button><button class="btn grow gps-pausa" id="g-pau">Pausar</button>${passos.length && passoAtual() ? `<button class="btn ghost" id="g-pul">Pular ›</button>` : ''}`
-        : `<button class="btn grow gps-go" id="g-con">${I.play} Continuar</button><button class="btn ghost grow" id="g-fim">Terminar</button>`;
-    $('g-dica').textContent = E === 'pronto' ? (est ? (st.local === 'mao' ? 'Corra com o celular na mão, balançando o braço normalmente (não no suporte da esteira), e toque em Começar.' : 'Coloque o celular no bolso ou na braçadeira (preso ao corpo, não no suporte da esteira) e toque em Começar.') : gpsOk ? 'Fique em um lugar aberto. Toque em Começar quando for sair.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Ao ar livre o GPS acha o sinal mais rápido.') : E === 'pausado' ? (recuperado && !marcaMov ? 'Treino recuperado. Toque em Continuar para seguir.' : 'Treino pausado.') : est ? 'Distância estimada pelos passos. No fim, confirme com o painel da esteira.' : 'Mantenha a tela ligada.';
+        ? circ('g-trv', GPS_IC.trava, 'Travar') + grande('g-pau', GPS_IC.pausa, 'Pausar', 'pausa') + (passos.length && passoAtual() ? circ('g-pul', GPS_IC.pular, 'Pular parte') : !passos.length && pref.voltas ? circ('g-vlt', GPS_IC.volta, 'Volta') : vozB)
+        : circ('g-fim', GPS_IC.parar, 'Terminar', 'fim') + grande('g-con', I.play, 'Continuar') + vozB;
+    $('g-dica').textContent = E === 'pronto' ? (est ? (st.local === 'mao' ? 'Corra com o celular na mão, balançando o braço normalmente (não no suporte da esteira), e toque em começar.' : 'Coloque o celular no bolso ou na braçadeira (preso ao corpo, não no suporte da esteira) e toque em começar.') : gpsOk ? 'GPS pronto. Toque no botão quando for sair.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Procurando o GPS. Ao ar livre ele acha o sinal mais rápido.') : E === 'pausado' ? (st.auto ? 'Pausa automática. O treino volta sozinho quando você voltar a correr.' : recuperado && !marcaMov ? 'Treino recuperado. Toque em continuar para seguir.' : 'Treino pausado.') : est ? 'Distância estimada pelos passos. No fim, confirme com o painel da esteira.' : 'A tela fica acesa durante o treino.';
+    if (folhaAberta) $('g-opc').innerHTML = opcHTML();
     liga();
+  };
+  // opções (puxar a alça da folha): voz, pausa automática, contar voltas
+  const linhaOpc = (i, ic, t, d, on) => `<label class="g2-li"><span class="g2-li-ic">${ic}</span><div class="grow"><b>${t}</b><small>${d}</small></div><input type="checkbox" class="g2-sw" id="${i}" ${on ? 'checked' : ''}></label>`;
+  const opcHTML = () => `<div class="g2-lista">
+      ${linhaOpc('o-voz', GPS_IC.som, 'Avisos de voz', passos.length ? 'Cada parte do treino e o seu pace' : 'Cada quilômetro e o seu pace', st.voz)}
+      ${est ? '' : linhaOpc('o-auto', GPS_IC.autop, 'Pausa automática', 'Pausa quando você para e volta sozinho', pref.autopausa)}
+      ${passos.length ? '' : linhaOpc('o-vlt', GPS_IC.volta, 'Contar voltas', 'Botão para marcar as voltas (pista, quarteirão)', pref.voltas)}
+      <div class="g2-li"><span class="g2-li-ic">${I.raio}</span><div class="grow"><b>Tela acesa</b><small>Fica ligada sozinha durante o treino</small></div></div>
+    </div>`;
+  const ligaOpc = () => {
+    const o = $('g-opc'); if (!o) return;
+    o.onchange = (e) => {
+      const c = e.target; if (!c.classList.contains('g2-sw')) return;
+      if (c.id === 'o-voz') { st.voz = c.checked; salvar(); }
+      if (c.id === 'o-auto') { pref.autopausa = c.checked; store.set('nx-gps-pref', pref); }
+      if (c.id === 'o-vlt') { pref.voltas = c.checked; store.set('nx-gps-pref', pref); }
+      btsChave = ''; desenha();
+    };
   };
   const liga = () => {
     const b = (i, f) => { const el = $(i); if (el) el.onclick = f; };
     b('g-ini', comecar); b('g-pau', pausar); b('g-con', continuar); b('g-fim', terminar); b('g-pul', () => fecharPasso()); b('g-trv', () => { $('g-trava').hidden = false; });
+    b('g-vlt', () => marcarVolta()); b('g-treino', abrirTreinos); b('g-tipo', abrirTipo);
+    b('g-vozb', () => { st.voz = !st.voz; salvar(); btsChave = ''; desenha(); if (st.voz) falar('Voz ligada.'); else try { speechSynthesis.cancel(); } catch {} });
+    b('g-desc', () => { if (!confirm('Descartar o treino em andamento?')) return; store.del(GPS_KEY); location.reload(); });
   };
 
   // fecha a parte atual (volta) e passa para a próxima
@@ -7830,22 +7862,34 @@ async function viewGps(id, modo) {
     } else { vibrar(200); beep(1); falar(`${st.voltas.length} quilômetro${st.voltas.length > 1 ? 's' : ''}. Pace ${paceFala(v.seg / (v.d / 1000))}.`); }
     salvar(); desenha();
   };
+  const durFala = (x) => { x = Math.round(x); const m = Math.floor(x / 60), sg = x % 60; return `${m ? `${m} minuto${m > 1 ? 's' : ''}` : ''}${m && sg ? ' e ' : ''}${sg || !m ? `${sg} segundos` : ''}`; };
+  const marcarVolta = () => {
+    const mov = movAgora() / 1000, v = { d: Math.round(st.dist - st.pIni.d), seg: Math.round(mov - st.pIni.t) };
+    if (v.seg < 3) return;
+    st.voltas.push(v); st.pIni = { t: mov, d: st.dist }; ultTroca = Date.now();
+    vibrar(200); beep(1); falar(`Volta ${st.voltas.length}. ${durFala(v.seg)}${v.d > 50 ? `. Pace ${paceFala(v.seg / (v.d / 1000))}` : ''}.`);
+    salvar(); desenha();
+  };
   const verificaPasso = () => {
     if (st.estado !== 'correndo') return;
     const s = passoAtual(), mov = movAgora() / 1000;
     if (s) { if ((s.t && mov - st.pIni.t >= s.t) || (s.d && st.dist - st.pIni.d >= s.d)) fecharPasso(); }
-    else if (!passos.length && st.dist - st.pIni.d >= 1000) fecharPasso();
+    else if (!passos.length && !pref.voltas && st.dist - st.pIni.d >= 1000) fecharPasso();
   };
 
   // GPS
   const onPos = (pos) => {
-    if (!document.getElementById('g-sinal')) return; // já saiu da tela do treino
+    if (!document.getElementById('g-sinal') || !minha()) return; // já saiu da tela do treino
     const c = pos.coords, pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6)], t = pos.timestamp || Date.now();
     gpsOk = c.accuracy <= 35;
+    eu = pt; if (Date.now() - ultPosSalva > 60000) { store.set('nx-gps-ult', pt); ultPosSalva = Date.now(); }
     $('g-sinal').textContent = c.accuracy <= 15 ? 'GPS ótimo' : c.accuracy <= 35 ? 'GPS bom' : `GPS fraco (±${Math.round(c.accuracy)} m)`;
     $('g-sinal').className = 'tiny ' + (c.accuracy <= 35 ? 'gps-ok' : 'gps-fraco');
     if (st.estado === 'pronto') desenha();
-    if (st.estado !== 'correndo') { ultimo = null; return; }
+    if (st.estado === 'pausado' && st.auto && c.accuracy <= 35) { // pausa automática: voltou a se mover, retoma
+      if (!autoBase) autoBase = pt; else if (gpsDist(autoBase, pt) > 15) { continuar(); falar('Retomando.'); }
+    }
+    if (st.estado !== 'correndo') { ultimo = null; atualizaMapa(); return; }
     if (c.accuracy > 35) return;
     if (ultimo) {
       const inc = gpsDist(ultimo, pt), dt = (t - ultimoT) / 1000;
@@ -7853,7 +7897,7 @@ async function viewGps(id, modo) {
       if (inc / dt > 9) return; // salto do GPS (mais rápido que 9 m/s): ignora
       if (inc < 2 || (c.speed != null && c.speed < 0.4 && inc < 6)) return; // parado: não soma o tremor do sinal
       if (dt > 30) st.lacunas++; // ficou um tempo sem sinal (tela apagada): liga em linha reta
-      st.dist += inc;
+      st.dist += inc; ultMov = Date.now();
     }
     ultimo = pt; ultimoT = t;
     st.rota.push(pt);
@@ -7861,8 +7905,8 @@ async function viewGps(id, modo) {
     janela.push({ t: Date.now(), d: st.dist }); if (janela.length > 40) janela.shift();
     const sr = st.serie, ul = sr.t[sr.t.length - 1];
     if (ul == null || mov - ul >= 5) { const j = janela.filter((x) => Date.now() - x.t < 15000); const vel = j.length > 1 ? (j[j.length - 1].d - j[0].d) / ((j[j.length - 1].t - j[0].t) / 1000) : 0; sr.t.push(Math.round(mov)); sr.d.push(Math.round(st.dist)); sr.vel.push(+(isFinite(vel) ? vel : 0).toFixed(2)); }
-    const km = Math.floor(st.dist / 1000); if (km > st.parciais.length) { const antT = st.parciais.reduce((a, x) => a + x.seg, 0); st.parciais.push({ km: st.parciais.length + 1, seg: Math.round(mov - antT) }); }
-    verificaPasso(); desenha();
+    const km = Math.floor(st.dist / 1000); if (km > st.parciais.length) { const antT = st.parciais.reduce((a, x) => a + x.seg, 0); st.parciais.push({ km: st.parciais.length + 1, seg: Math.round(mov - antT) }); if (pref.voltas && !passos.length) falar(`${km} quilômetro${km > 1 ? 's' : ''}.`); }
+    verificaPasso(); desenha(); atualizaMapa();
   };
   const onErro = (e) => { $('g-sinal').textContent = e.code === 1 ? 'Sem permissão de localização' : 'GPS sem sinal'; $('g-sinal').className = 'tiny gps-fraco'; if (e.code === 1) toast('Permita o acesso à localização para treinar pelo celular (configurações do navegador).', true); };
   const onMov = (ev) => {
@@ -7903,22 +7947,24 @@ async function viewGps(id, modo) {
   const comecar = () => {
     if (est) ligarSensor(); // o iPhone só libera o sensor a partir de um toque
     actx = actx || (() => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } })();
-    st.inicio = new Date().toISOString(); st.estado = 'correndo'; marcaMov = Date.now(); ultimo = null;
+    st.inicio = new Date().toISOString(); st.estado = 'correndo'; marcaMov = Date.now(); ultimo = null; ultMov = Date.now(); st.auto = false;
     pedirTela(); beep(1); vibrar(200);
     const s = passoAtual(); if (s) anunciar(s); else falar('Corrida iniciada.');
     salvar(); desenha();
   };
-  const pausar = () => { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; ultimo = null; salvar(); falar('Pausado.'); desenha(); };
-  const continuar = () => { if (est) ligarSensor(); ligarGPS(); st.estado = 'correndo'; marcaMov = Date.now(); ultimo = null; pedirTela(); recuperado && falar('Continuando.'); salvar(); desenha(); };
+  const pausar = () => { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; st.auto = false; ultimo = null; salvar(); falar('Pausado.'); desenha(); };
+  const continuar = () => { if (est) ligarSensor(); ligarGPS(); st.estado = 'correndo'; st.auto = false; autoBase = null; ultMov = Date.now(); marcaMov = Date.now(); ultimo = null; pedirTela(); recuperado && falar('Continuando.'); salvar(); desenha(); };
+  // parado por 10 s (semáforo, água): pausa sozinho e tira esse tempo parado do treino
+  const autoPausar = () => { const parado = Date.now() - ultMov; st.mov = Math.max(0, movAgora() - parado); marcaMov = 0; st.estado = 'pausado'; st.auto = true; autoBase = eu; ultimo = null; vibrar(150); falar('Pausa automática.'); salvar(); desenha(); };
   const terminar = () => {
     openSheet(`<div class="h2">Terminar o treino?</div><p class="small muted" style="margin-top:6px">${fmtKm(st.dist, 2)} em ${fmtDurLongo(movAgora() / 1000)}.</p>
       <div class="stack" style="margin-top:16px"><button class="btn block" id="t-sal">${I.check} Terminar e salvar</button><button class="btn ghost block" id="t-vol">Voltar ao treino</button><button class="link-btn small" id="t-desc" style="margin-top:6px;color:var(--err)">Descartar este treino</button></div>`, (r) => {
       r.querySelector('#t-vol').onclick = () => closeSheet();
-      r.querySelector('#t-desc').onclick = () => { if (!confirm('Descartar? A corrida não será salva.')) return; closeSheet(true); encerrar(); store.del(GPS_KEY); location.hash = '#/gps'; };
+      r.querySelector('#t-desc').onclick = () => { if (!confirm('Descartar? A corrida não será salva.')) return; closeSheet(true); encerrar(); store.del(GPS_KEY); location.hash = '#/'; };
       r.querySelector('#t-sal').onclick = () => finalizar(); // abre a ficha de salvar no mesmo painel
     });
   };
-  const encerrar = () => { clearInterval(tickRef); desligarGPS(); desligarSensor(); soltarTela(); document.removeEventListener('visibilitychange', onVis); try { speechSynthesis.cancel(); } catch {} };
+  const encerrar = () => { try { mapa && mapa.remove(); } catch {} mapa = null; clearInterval(tickRef); desligarGPS(); desligarSensor(); soltarTela(); document.removeEventListener('visibilitychange', onVis); try { speechSynthesis.cancel(); } catch {} };
   const finalizar = () => {
     if (!est) return salvarTreino();
     const mov = Math.round(movAgora() / 1000);
@@ -7961,12 +8007,71 @@ async function viewGps(id, modo) {
   // tela apagou e voltou: GPS e tela acesa de novo; o tempo corre certo porque é pelo relógio do aparelho
   const onVis = () => { if (document.visibilityState === 'visible') { ultimo = null; if (st.estado === 'correndo') pedirTela(); desenha(); } else salvar(); };
   document.addEventListener('visibilitychange', onVis);
-  $('g-voz').onclick = () => { st.voz = !st.voz; $('g-voz').innerHTML = st.voz ? GPS_IC.som : GPS_IC.mudo; salvar(); };
+  // mapa: ruas de verdade (OpenFreeMap, dados do OpenStreetMap), o seu ponto e o percurso na cor da Nexos
+  const linhaRota = () => st.rota.length > 1 ? { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: st.rota.map(([la, lo]) => [lo, la]) } } : { type: 'FeatureCollection', features: [] };
+  const atualizaMapa = () => {
+    if (!mapa || !mapaPronto) return;
+    if (eu && euMk) { euMk.setLngLat([eu[1], eu[0]]); if (!euNoMapa) { euMk.addTo(mapa); euNoMapa = true; } }
+    const fonte = mapa.getSource('rota'); if (fonte) fonte.setData(linhaRota());
+    if (seguir && eu) mapa.easeTo({ center: [eu[1], eu[0]], padding: folgaMapa(), duration: 700 });
+  };
+  // o seu ponto fica no meio da parte do mapa que aparece (acima dos números e dos botões)
+  const folgaMapa = () => { const ps = $('g-passo'), c = ps && !ps.hidden ? ps : document.querySelector('.g2-stats'); const topo = c ? c.getBoundingClientRect().top : innerHeight * 0.6; return { top: 80, bottom: Math.max(0, innerHeight - topo + 10), left: 0, right: 0 }; };
+  const iniciarMapa = () => {
+    if (est) return;
+    carregarMapaLib().then(() => {
+      const box = $('g-mapa'); if (!box || mapa) return;
+      const raiz = document.documentElement, escuro = raiz.dataset.tema === 'escuro';
+      const cor = getComputedStyle(raiz).getPropertyValue(escuro ? '--p1' : '--accC').trim() || '#2f6bff';
+      const ini = eu || (st.rota.length ? st.rota[st.rota.length - 1] : store.get('nx-gps-ult', [-2.53, -44.29]));
+      let trocou = false;
+      mapa = new window.maplibregl.Map({ container: box, style: `https://tiles.openfreemap.org/styles/${escuro ? 'dark' : 'liberty'}`, center: [ini[1], ini[0]], zoom: 15.5, attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false });
+      mapa.addControl(new window.maplibregl.AttributionControl({ compact: true, customAttribution: 'OpenFreeMap' }), 'top-left');
+      mapa.on('error', (e) => { if (!mapaPronto && escuro && !trocou) { trocou = true; try { mapa.setStyle('https://tiles.openfreemap.org/styles/liberty'); } catch {} } else if (!mapaPronto) { const m = $('g-mapa-msg'); if (m) m.textContent = 'Mapa indisponível agora. O GPS continua funcionando.'; } void e; });
+      mapa.on('style.load', () => {
+        if (!mapa.getSource('rota')) {
+          mapa.addSource('rota', { type: 'geojson', data: linhaRota() });
+          mapa.addLayer({ id: 'rota-borda', type: 'line', source: 'rota', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 9, 'line-opacity': 0.9 } });
+          mapa.addLayer({ id: 'rota', type: 'line', source: 'rota', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': cor, 'line-width': 5.5 } });
+        }
+        mapaPronto = true; const m = $('g-mapa-msg'); if (m) m.remove();
+        atualizaMapa();
+      });
+      const el = document.createElement('div'); el.className = 'g2-eu'; euMk = new window.maplibregl.Marker({ element: el });
+      mapa.on('dragstart', () => { seguir = false; const c = $('g-centro'); if (c) c.classList.add('solto'); });
+    }).catch(() => { const m = $('g-mapa-msg'); if (m) m.textContent = 'Mapa indisponível agora. O GPS continua funcionando.'; });
+  };
+  const b3 = $('g-3d'); if (b3) b3.onclick = () => { if (!mapa) return; p3d = !p3d; b3.textContent = p3d ? '2D' : '3D'; mapa.easeTo({ pitch: p3d ? 60 : 0, zoom: p3d ? 16.5 : 15.5, duration: 600 }); };
+  const bc = $('g-centro'); if (bc) bc.onclick = () => { seguir = true; bc.classList.remove('solto'); if (mapa && eu) mapa.easeTo({ center: [eu[1], eu[0]], padding: folgaMapa(), zoom: Math.max(mapa.getZoom(), 15.5), duration: 600 }); };
+  $('g-exp').onclick = () => { const x = $('g-extra'); x.hidden = !x.hidden; };
+  $('g-grip').onclick = () => { folhaAberta = !folhaAberta; $('g-folha').classList.toggle('aberta', folhaAberta); const o = $('g-opc'); o.hidden = !folhaAberta; if (folhaAberta) { o.innerHTML = opcHTML(); ligaOpc(); } };
+  // escolher o treino da semana (ou corrida livre) e o tipo (rua ou esteira)
+  const irPara = (h) => { closeSheet(true); if (st.estado !== 'pronto') return; location.hash = h; };
+  const abrirTreinos = async () => {
+    if (st.estado !== 'pronto') return;
+    const ini = inicioSemana(), fim = new Date(ini); fim.setDate(ini.getDate() + 6);
+    const pl = (await buscarPlano(S.user.id, isoDia(ini), isoDia(fim)).catch(() => [])).filter((x) => !semCorrida(x) && estruturaDe(x).length);
+    const hoje = hojeISO(), suf = est ? '/esteira' : '';
+    openSheet(`<p class="eyebrow">Treinar pelo celular</p><div class="h2" style="margin-top:4px">Escolha o treino</div>
+      <div class="stack" style="margin-top:14px">
+        <button type="button" class="list-item" data-ir="#/gps/livre${suf}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><b>Corrida livre</b><div class="small muted">Tempo, distância e pace, com aviso a cada 1 km</div></div>${!p ? I.check : I.chev}</button>
+        ${pl.length ? pl.map((x) => `<button type="button" class="list-item" data-ir="#/gps/${x.id}${suf}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.cal}</span><div class="grow" style="min-width:0"><b>${esc(x.titulo || nomeTipo(x.tipo))}</b><div class="small muted g2-trd">${x.data === hoje ? 'Hoje' : fmtDiaSem(x.data)} · ${esc(descreverEstrutura(estruturaDe(x), perfil))}</div></div>${p && p.id === x.id ? I.check : I.chev}</button>`).join('') : '<p class="small muted">Nenhum treino liberado nesta semana. Quando o treinador liberar, ele aparece aqui.</p>'}
+      </div>`, (r) => { r.querySelectorAll('[data-ir]').forEach((x) => x.onclick = () => irPara(x.dataset.ir)); });
+  };
+  const abrirTipo = () => {
+    if (st.estado !== 'pronto') return;
+    const base = '#/gps/' + id;
+    openSheet(`<p class="eyebrow">Treinar pelo celular</p><div class="h2" style="margin-top:4px">Onde você vai correr?</div>
+      <div class="stack" style="margin-top:14px">
+        <button type="button" class="list-item" data-ir="${base}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><b>Na rua</b><div class="small muted">GPS com mapa, distância e pace</div></div>${!est ? I.check : I.chev}</button>
+        <button type="button" class="list-item" data-ir="${base}/esteira" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${GPS_IC.esteira}</span><div class="grow"><b>Na esteira</b><div class="small muted">Sensor de movimento conta os passos; no fim você confirma a distância do painel</div></div>${est ? I.check : I.chev}</button>
+      </div>`, (r) => { r.querySelectorAll('[data-ir]').forEach((x) => x.onclick = () => irPara(x.dataset.ir)); });
+  };
   $('g-sair').onclick = () => {
-    if (st.estado === 'pronto') { encerrar(); location.hash = '#/gps'; return; }
-    if (st.estado === 'correndo' && !confirm('Sair da tela do treino? Ele fica pausado e você pode continuar depois em Conexões → Treinar pelo celular.')) return;
+    if (st.estado === 'pronto') { encerrar(); location.hash = '#/'; return; }
+    if (st.estado === 'correndo' && !confirm('Sair da tela do treino? Ele fica pausado e você pode continuar depois em Treinar pelo celular.')) return;
     if (st.estado === 'correndo') { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; }
-    salvar(); encerrar(); location.hash = '#/gps';
+    salvar(); encerrar(); location.hash = '#/';
   };
   // destravar: segurar 1 s
   let segura = 0; const dest = $('g-dest');
@@ -7974,9 +8079,9 @@ async function viewGps(id, modo) {
   const sol = () => { clearTimeout(segura); dest.classList.remove('segurando'); };
   dest.addEventListener('pointerdown', ini); dest.addEventListener('pointerup', sol); dest.addEventListener('pointerleave', sol); dest.addEventListener('contextmenu', (e) => e.preventDefault());
   // relógio da tela + checagem das partes por tempo
-  const tick = () => { if (!document.getElementById('g-tempo')) return encerrar(); if (est && st.estado === 'correndo') serieEsteira(); verificaPasso(); if (est) sinalEsteira(); if (st.estado === 'correndo') { falarPace(); desenha(); if (++nTick % 5 === 0) salvar(); } };
+  const tick = () => { if (!document.getElementById('g-tempo') || !minha()) return encerrar(); if (!est && pref.autopausa && st.estado === 'correndo' && ultMov && Date.now() - ultMov > 10000 && st.dist > 30) autoPausar(); if (est && st.estado === 'correndo') serieEsteira(); verificaPasso(); if (est) sinalEsteira(); if (st.estado === 'correndo') { falarPace(); desenha(); if (++nTick % 5 === 0) salvar(); } };
   tickRef = setInterval(tick, 1000);
-  ligarGPS(); desenha();
+  ligarGPS(); desenha(); iniciarMapa();
   setTimeout(() => { podeSemSinal = true; if (document.getElementById('g-bts')) desenha(); }, 15000); // sem sinal bom em 15 s: libera começar assim mesmo
   // saiu da tela por navegação: libera GPS e tela
   const sairRota = () => { if (location.hash !== rotaTela) { if (st.estado === 'correndo') { st.mov = movAgora(); marcaMov = 0; st.estado = 'pausado'; salvar(); } encerrar(); window.removeEventListener('hashchange', sairRota); } };
