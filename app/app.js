@@ -8836,7 +8836,7 @@ async function staffFinanceiro() {
   document.getElementById('fin-cfg').onclick = () => ajustesFinanceiro(base);
   ['cfg-pix', 'cfg-planos'].forEach((id) => { const b = document.getElementById(id); if (b) b.onclick = () => ajustesFinanceiro(base); });
   const sp = document.getElementById('sem-plano');
-  if (sp) sp.onclick = () => openSheet(`<div class="h2">Alunos sem plano</div><p class="small muted" style="margin:6px 0 12px">Toque no aluno para definir o plano em “Dados”.</p>${semPlano.map((a) => `<a class="list-item" href="#/aluno/${a.user_id}/dados" style="color:inherit"><div class="av">${esc(initials(a.nome))}</div><b class="grow">${esc(a.nome)}</b>${I.chev}</a>`).join('')}`);
+  if (sp) sp.onclick = () => planoEmLote(semPlano, base);
   const lt = document.getElementById('lembrar-todos');
   if (lt) lt.onclick = async () => { for (const c of atrasadas) await lembrarCobranca(c, nome[c.aluno_id], true); toast(`Lembrete enviado para ${atrasadas.length} aluno${atrasadas.length > 1 ? 's' : ''}.`); staffFinanceiro(); };
   document.getElementById('fin-l').onclick = async (e) => {
@@ -8844,6 +8844,40 @@ async function staffFinanceiro() {
     if (conf) { e.stopPropagation(); await marcarPaga(lista.find((c) => c.id === conf.dataset.conf), 'pix'); return; }
     if (lemb) { e.stopPropagation(); const c = lista.find((x) => x.id === lemb.dataset.lemb); return lembrarCobranca(c, nome[c.aluno_id]); }
     if (row) detalheCobranca(lista.find((c) => c.id === row.dataset.cob), nome[lista.find((c) => c.id === row.dataset.cob).aluno_id] || {});
+  };
+}
+/** alunos sem plano: marca vários e aplica o mesmo plano de uma vez (a aba Dados continua para o ajuste individual) */
+function planoEmLote(semPlano, base) {
+  const ativos = base.planos.filter((p) => p.ativo !== false);
+  openSheet(`<div class="h2">Alunos sem plano</div><p class="small muted" style="margin:6px 0 10px">Marque os alunos, escolha o plano e salve. Para ajustar um aluno só, use a seta.</p>
+    <div class="row between" style="margin-bottom:6px"><button type="button" class="btn ghost sm" id="lt-todos">Marcar todos</button><span class="small muted" id="lt-n">0 marcados</span></div>
+    <div class="stack" id="lt-l">${semPlano.map((a) => `<div class="list-item lt-it" data-al="${a.user_id}"><label class="lt-chk"><input type="checkbox" value="${a.user_id}"><div class="av">${esc(initials(a.nome))}</div><b class="grow">${esc(a.nome)}</b></label><a class="icon-btn sm" href="#/aluno/${a.user_id}/dados" aria-label="Abrir dados de ${esc(a.nome)}">${I.chev}</a></div>`).join('')}</div>
+    <form id="lt-f" class="lt-form"><label class="field"><span>Plano</span><select class="input" name="plano" required><option value="">Escolha o plano</option>${ativos.map((p) => `<option value="${p.id}">${esc(p.nome)} · ${brl(p.valor)}</option>`).join('')}</select></label>
+      <div class="grid2"><label class="field"><span>Vence dia</span><input class="input" name="dia" data-mask="num" data-max="2" inputmode="numeric" value="10"></label><label class="field"><span>Início</span><input class="input" type="month" name="inicio" value="${esc(compDe())}"></label></div>
+      <button class="btn block" id="lt-ok" disabled>Aplicar plano</button></form>`, (r) => bindLote(r, semPlano, base));
+}
+function bindLote(r, semPlano, base) {
+  const box = r.querySelectorAll('#lt-l input[type=checkbox]'), f = r.querySelector('#lt-f'), ok = r.querySelector('#lt-ok');
+  const marcados = () => [...box].filter((b) => b.checked).map((b) => b.value);
+  const atual = () => { const n = marcados().length; r.querySelector('#lt-n').textContent = `${n} marcado${n === 1 ? '' : 's'}`; ok.disabled = !n; ok.textContent = n ? `Aplicar plano a ${n} aluno${n > 1 ? 's' : ''}` : 'Aplicar plano'; r.querySelector('#lt-todos').textContent = n === box.length ? 'Desmarcar todos' : 'Marcar todos'; r.querySelectorAll('.lt-it').forEach((it) => it.classList.toggle('on', it.querySelector('input').checked)); };
+  r.querySelector('#lt-l').addEventListener('change', atual);
+  r.querySelector('#lt-todos').onclick = () => { const todos = marcados().length !== box.length; box.forEach((b) => { b.checked = todos; }); atual(); };
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const ids = marcados(); if (!ids.length) return;
+    if (!f.plano.value) return toast('Escolha o plano.', true);
+    const dd = Math.round(num(f.dia.value) || 10);
+    if (dd < 1 || dd > 28) return toast('Use um dia de 1 a 28.', true);
+    const financeiro = { plano_id: f.plano.value, valor: null, dia: dd, inicio: f.inicio.value || compDe() };
+    ok.disabled = true; ok.textContent = 'Salvando…';
+    const res = await Promise.all(ids.map((id) => sb.from('nx_membros').update({ financeiro }).eq('org_id', S.org.id).eq('user_id', id).then((x) => !x.error, () => false)));
+    const feitos = ids.filter((_, i) => res[i]);
+    if (!feitos.length) { atual(); return toast('Não foi possível salvar.', true); }
+    const alunos = base.alunos.filter((a) => feitos.includes(a.user_id)).map((a) => ({ ...a, financeiro }));
+    const n = await gerarCobrancas(compDe(), { ...base, alunos }).catch(() => 0);
+    closeSheet();
+    toast(`Plano aplicado a ${feitos.length} aluno${feitos.length > 1 ? 's' : ''}${n ? ` e ${n} mensalidade${n > 1 ? 's' : ''} do mês gerada${n > 1 ? 's' : ''}` : ''}.${feitos.length < ids.length ? ` ${ids.length - feitos.length} não salvou.` : ''}`, feitos.length < ids.length);
+    staffFinanceiro();
   };
 }
 async function marcarPaga(c, forma, depois) {

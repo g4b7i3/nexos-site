@@ -3009,3 +3009,10 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .pse-lista b{grid-row:span 2;align-self:center}
 .pse-lista span{font-weight:700;font-size:.9rem}
 .pse-lista em{font-style:normal;font-size:.8rem;opacity:.75}
+/* plano em lote */
+.lt-it{padding:6px 6px 6px 10px}
+.lt-it.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.lt-chk{display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer}
+.lt-chk input{width:20px;height:20px;flex:none;accent-color:var(--acc)}
+.lt-chk b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lt-form{position:sticky;bottom:-1px;background:var(--bg2);padding:12px 0 4px;margin-top:12px;border-top:1px solid var(--line)}
