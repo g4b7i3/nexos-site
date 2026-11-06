@@ -9675,6 +9675,7 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = `<form class="card" id="f-dados">
       <label class="field"><span>Nome</span><input class="input" name="nome" value="${esc(m.nome)}" required></label>
       <div class="grid2"><label class="field"><span>WhatsApp</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999" value="${esc(MASCARA.tel(m.telefone || ''))}"></label><label class="field"><span>Nascimento</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${dataBR(m.nascimento)}"></label></div>
+      <label class="field"><span>Apelido (usado nos avisos do app)</span><input class="input" name="apelido" maxlength="30" value="${esc(m.apelido || '')}" placeholder="Ex.: Nando, Beth, Jade. Em branco usa o primeiro nome"></label>
       <label class="field"><span>Objetivo</span><input class="input" name="objetivo" value="${esc(m.objetivo || '')}"></label>
       <label class="field"><span>Observações de saúde / restrições</span><textarea class="textarea" name="observacoes">${esc(m.observacoes || '')}</textarea></label>
       <button class="btn block">Salvar dados</button></form>
@@ -9776,7 +9777,7 @@ async function staffAluno(alunoId, aba, extra) {
     if (planoInfo) bindPlanoDoAluno(m, planoInfo, () => staffAluno(alunoId, 'dados'));
     document.getElementById('f-dados').onsubmit = async (e) => {
       e.preventDefault(); const f = e.target;
-      const upd = { nome: f.nome.value.trim(), telefone: f.telefone.value.trim() || null, nascimento: dataISO(f.nascimento.value) || null, objetivo: f.objetivo.value.trim() || null, observacoes: f.observacoes.value.trim() || null };
+      const upd = { nome: f.nome.value.trim(), apelido: f.apelido.value.trim().slice(0, 30) || null, telefone: f.telefone.value.trim() || null, nascimento: dataISO(f.nascimento.value) || null, objetivo: f.objetivo.value.trim() || null, observacoes: f.observacoes.value.trim() || null };
       const { error: er } = await sb.from('nx_membros').update(upd).eq('org_id', S.org.id).eq('user_id', alunoId);
       er ? toast('Não foi possível salvar.', true) : (toast('Dados salvos!'), staffAluno(alunoId, 'dados'));
     };
