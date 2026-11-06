@@ -2421,3 +2421,21 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .selo-n{font-family:var(--f-h);font-weight:700;letter-spacing:-.02em}
 .selo-s{font-family:var(--f-b);font-weight:800;letter-spacing:.12em}
 .mom-card .btn.ghost,.prova-modo .btn.ghost{color:#fff!important;border-color:rgba(255,255,255,.3)!important;background:rgba(255,255,255,.08)!important}
+/* tour de boas-vindas */
+.tour{position:fixed;inset:0;z-index:400}
+.tour-luz{position:fixed;border-radius:18px;box-shadow:0 0 0 9999px rgba(5,12,28,.72),0 0 0 3px #46d6ff,0 0 24px 4px rgba(70,214,255,.5);transition:all .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.tour-box{position:fixed;left:16px;right:16px;max-width:420px;margin:0 auto;padding:16px;border-radius:20px;color:#fff;background:radial-gradient(120% 90% at 100% 0%,rgba(70,214,255,.3),transparent 55%),linear-gradient(150deg,#0d2a66,#0a1a42 60%,#071230);box-shadow:0 18px 40px -12px rgba(0,0,0,.6);transition:top .35s cubic-bezier(.2,.8,.2,1)}
+.tour-box b{display:block;font-family:var(--f-h);font-size:1.1rem;font-weight:600;margin-top:6px}
+.tour-box p{font-size:.9rem;line-height:1.45;color:rgba(255,255,255,.82);margin-top:6px}
+.tour-box .muted{color:rgba(255,255,255,.7)!important}
+.tour-top{display:flex;justify-content:space-between;align-items:center}
+.tour-n{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7fe3ff}
+.tour-top .link-btn{color:rgba(255,255,255,.7)}
+.tour-bts{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
+.tour-bts .btn.ghost{color:#fff!important;border-color:rgba(255,255,255,.3)!important;background:rgba(255,255,255,.08)!important}
+.tour-pts{display:flex;gap:4px;justify-content:center;margin-top:12px}
+.tour-pts i{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);transition:width .3s}
+.tour-pts i.ok{background:rgba(127,227,255,.6)}.tour-pts i.on{width:18px;background:#46d6ff}
+.tour-conv{text-align:center}
+.tour-conv-ic{width:60px;height:60px;margin:4px auto 12px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#46d6ff,#2f6bff);box-shadow:0 10px 22px -10px rgba(47,107,255,.7)}
+.tour-conv-ic svg{width:26px;height:26px}

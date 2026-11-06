@@ -964,7 +964,11 @@ function alunoMais() {
       ${it('#/pagamentos', I.money, 'Pagamentos e plano', 'Mensalidades e formas de pagamento')}
       <div id="mais-notif"></div>
       ${it('#/perfil', I.user, 'Meu perfil', 'Foto, dados, tema claro ou escuro e sair')}
+    </div>
+    <p class="sec-lbl">Ajuda</p><div class="stack">
+      <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo app</b><div class="small muted">Um passeio rápido por tudo o que o app faz</div></div>${I.chev}</button>
     </div>`;
+  document.getElementById('mais-tour').onclick = () => iniciarTour();
   secaoNotificacoes(document.getElementById('mais-notif')).catch(() => {});
   const bc = document.getElementById('mais-ciclo');
   if (bc) bc.onclick = async () => { const c = await buscarCiclo(S.user.id).catch(() => null); c ? abrirCiclo(c, () => alunoMais()) : ativarCiclo(() => alunoMais()); };
@@ -1822,6 +1826,73 @@ async function carregarAudios(root) {
   (data || []).forEach((u, i) => { const a = els[i] && els[i].querySelector('audio'); if (a && u.signedUrl) a.src = u.signedUrl; });
 }
 
+
+/* ---------- tour de boas-vindas pelo app (aluno) ---------- */
+const TOUR_PASSOS = [
+  { rota: '#/', sel: '.hoje-hero', t: 'Seu dia em um lugar só', d: 'Aqui aparecem a sua saudação, o que tem de treino hoje, a hidratação e quantas semanas seguidas você está treinando.' },
+  { rota: '#/', sel: '#pend-sec:not([hidden])', t: 'A preencher', d: 'O que está esperando por você: o check-in da manhã (sono, energia, dor e estresse), como foi o último treino e recados do treinador. Leva segundos e ajuda o treinador a ajustar o seu treino.' },
+  { rota: '#/', sel: '.hoje-main > .stack', t: 'Treino de hoje', d: 'O treino do dia com o passo a passo, os ritmos e o recado do treinador. Toque para abrir os detalhes.' },
+  { rota: '#/', sel: '#agua-box', t: 'Hidratação', d: 'Toque no copo a cada água que beber. A meta é calculada pelo seu peso e pelo treino do dia, e o seu treinador acompanha.' },
+  { rota: '#/', sel: '#fab-reg', t: 'Botão de registrar', d: 'Treinar pelo celular (na rua ou na esteira), registrar uma corrida feita sem relógio ou falar com o treinador.' },
+  { rota: '#/', sel: '#dock a[href="#/planilha"]', t: 'Planilha', d: 'A sua semana de treinos de corrida e de força, liberada pelo treinador.' },
+  { rota: '#/historico', sel: '.sec-mom', t: 'Seus momentos', d: 'Medalhas das suas conquistas, retrospectiva do mês e do ano e o seu antes e depois. Tudo vira card para o story.' },
+  { rota: '#/historico', sel: '.sec-det', t: 'Sua evolução', d: 'Previsões de prova, relatórios, histórico de treinos, avaliações físicas e fotos.' },
+  { rota: '#/', sel: '#dock a[href="#/conversa"]', t: 'Treinador', d: 'Conversa direta com o seu treinador, inclusive com mensagens de voz.' },
+  { rota: '#/mais', sel: 'a[href="#/conexoes"]', t: 'Conecte o seu relógio', d: 'Garmin e outras marcas: as corridas chegam sozinhas e os treinos vão para o relógio.' },
+  { rota: '#/mais', sel: '#mais-notif', t: 'Notificações', d: 'Ative para receber o treino do dia, os lembretes de água e as mensagens do treinador.' },
+  { rota: '#/mais', sel: '#mais-tour', t: 'Pronto!', d: 'Para ver este tour de novo, é só vir aqui em Mais > Tour pelo app. Bons treinos!' },
+];
+function esperarEl(sel, ms = 4000) {
+  return new Promise((ok) => { const t0 = Date.now(); const f = () => { const e = document.querySelector(sel); if (e && e.getBoundingClientRect().height > 0) return ok(e); if (Date.now() - t0 > ms) return ok(null); setTimeout(f, 120); }; f(); });
+}
+async function iniciarTour() {
+  closeSheet(true);
+  let i = 0; const ov = document.createElement('div'); ov.className = 'tour'; ov.innerHTML = '<div class="tour-luz"></div><div class="tour-box" role="dialog" aria-live="polite"></div>'; document.body.append(ov);
+  const luz = ov.querySelector('.tour-luz'), box = ov.querySelector('.tour-box');
+  const sair = (feito) => { ov.remove(); window.removeEventListener('resize', pos); window.removeEventListener('scroll', pos); if (feito) { sb.rpc('nx_tour', { p_estado: 'feito' }).catch(() => {}); S.me.tour = 'feito'; } if (location.hash !== '#/') location.hash = '#/'; };
+  let alvo = null;
+  function pos() {
+    if (!alvo) return; const r = alvo.getBoundingClientRect(), m = 8;
+    Object.assign(luz.style, { left: r.left - m + 'px', top: r.top - m + 'px', width: r.width + m * 2 + 'px', height: r.height + m * 2 + 'px' });
+    const bh = box.offsetHeight, emBaixo = r.bottom + bh + 24 < innerHeight || r.top < bh + 24;
+    box.style.top = (emBaixo ? Math.min(innerHeight - bh - 12, r.bottom + 16) : Math.max(12, r.top - bh - 16)) + 'px';
+  }
+  async function vai(n) {
+    i = n; const p = TOUR_PASSOS[i]; if (!p) return sair(true);
+    if (location.hash !== p.rota && !(p.rota === '#/' && (location.hash === '' || location.hash === '#'))) { location.hash = p.rota; await new Promise((r) => setTimeout(r, 450)); }
+    box.innerHTML = '<p class="small muted">Carregando…</p>'; luz.style.opacity = '0';
+    alvo = await esperarEl(p.sel);
+    if (!alvo) { if (i < TOUR_PASSOS.length - 1) return vai(i + 1); }
+    if (alvo) { alvo.scrollIntoView({ block: 'center', behavior: semMov() ? 'auto' : 'smooth' }); await new Promise((r) => setTimeout(r, 380)); }
+    box.innerHTML = `<div class="tour-top"><span class="tour-n">${i + 1} de ${TOUR_PASSOS.length}</span><button type="button" class="link-btn small" data-t="sair">Sair do tour</button></div>
+      <b>${p.t}</b><p>${p.d}</p>
+      <div class="tour-bts">${i ? '<button type="button" class="btn ghost sm" data-t="volta">Voltar</button>' : '<span></span>'}<button type="button" class="btn sm" data-t="prox">${i === TOUR_PASSOS.length - 1 ? 'Concluir' : 'Próximo'}</button></div>
+      <div class="tour-pts">${TOUR_PASSOS.map((_, j) => `<i class="${j === i ? 'on' : j < i ? 'ok' : ''}"></i>`).join('')}</div>`;
+    luz.style.opacity = alvo ? '1' : '0'; pos();
+  }
+  window.addEventListener('resize', pos);
+  window.addEventListener('scroll', pos, { passive: true });
+  ov.onclick = (e) => { const b = e.target.closest('[data-t]'); if (!b) return; if (b.dataset.t === 'sair') return sair(false); if (b.dataset.t === 'volta') return vai(Math.max(0, i - 1)); if (b.dataset.t === 'prox') return vai(i + 1); };
+  vai(0);
+}
+// convite: aparece uma vez por sessão para quem ainda não fez nem recusou
+function convidarTour() {
+  if (S.staff || !S.me || S.me.tour || sessionStorage.getItem('nx-tour-conv')) return;
+  setTimeout(() => {
+    if (!$sheet.hidden || document.querySelector('.tour,.retro,.replay') || location.hash.replace('#', '').replace('/', '')) return;
+    try { sessionStorage.setItem('nx-tour-conv', '1'); } catch {}
+    openSheet(`<div class="tour-conv"><div class="tour-conv-ic">${I.play}</div><p class="eyebrow">Bem-vindo ao app da Nexos</p><div class="h2" style="margin-top:4px">Quer conhecer tudo o que o app faz?</div>
+      <p class="muted" style="margin-top:8px">Um tour rápido, de 1 minuto, mostrando cada parte: treino do dia, check-in, hidratação, planilha, medalhas, conexão com o relógio e mais.</p>
+      <button class="btn block" id="tr-sim" style="margin-top:16px">Fazer o tour</button>
+      <div class="row" style="gap:8px;margin-top:8px"><button class="btn ghost grow" id="tr-depois">Agora não</button><button class="btn ghost grow" id="tr-nao">Não quero</button></div>
+      <p class="tiny dim center" style="margin-top:10px">Você pode fazer o tour quando quiser em Mais > Tour pelo app.</p></div>`, (r) => {
+      r.querySelector('#tr-sim').onclick = () => iniciarTour();
+      r.querySelector('#tr-depois').onclick = () => closeSheet();
+      r.querySelector('#tr-nao').onclick = () => { sb.rpc('nx_tour', { p_estado: 'recusado' }).catch(() => {}); S.me.tour = 'recusado'; closeSheet(); toast('Tudo bem. O tour fica em Mais > Tour pelo app.'); };
+    });
+  }, 1500);
+}
+
 /* ---------- recordes pessoais de corrida ---------- */
 const DIST_REC = [[1, '1 km'], [5, '5 km'], [10, '10 km'], [21.0975, 'Meia maratona']];
 function melhoresDaCorrida(c) {
@@ -2075,6 +2146,7 @@ async function alunoHoje() {
     b.innerHTML = `<div class="rec-card"><span class="rec-ic">${TROFEU_IC}</span><div class="grow"><span class="eyebrow">${recs.length > 1 ? 'Novos recordes pessoais' : 'Novo recorde pessoal'}</span>${recs.map((r) => `<div class="rec-l"><b>${r.n} em ${fmtDurLongo(r.t)}</b><small>antes ${fmtDurLongo(r.antes)} · ${fmtDurLongo(r.antes - r.t)} mais rápido</small></div>`).join('')}</div></div>`;
   }).catch(() => {});
   momentosHoje(document.getElementById('momentos'), perfC, provaProx).catch((e) => console.error(e));
+  convidarTour();
   if (fC) processarTestes(S.me).then((r) => { if (r && r.length) toast(`Suas zonas de treino foram atualizadas pelo ${TESTE_NOME[r[0].tipo]}.`); }).catch(() => {});
   montarAgua(document.getElementById('agua-box'), minTreinoHoje).catch((e) => console.error(e));
   if (fM) faseDaSemana(S.user.id, isoDia(inicioSemana())).then((f) => { const t = document.getElementById('fase-tile'); if (!t || !FASES_F[f]) return; const x = FASES_F[f]; t.hidden = false; t.style.setProperty('--fc', x.cor); t.classList.add('tile-fase'); t.innerHTML = `<span class="tile-l">${FORCA_IC}Força</span><b>${x.n}</b><small>${x.reps}</small>`; }).catch(() => {});
@@ -2202,9 +2274,9 @@ async function alunoHistorico(aba) {
     $app.innerHTML = `<p class="eyebrow">Evolução</p><h1 class="h1">Sua evolução</h1>
       <div class="stack" style="margin-top:16px">${freqSemanaHTML(datas)}${constanciaHTML(datas)}
       <p class="sec-lbl" style="margin-top:8px">Seus momentos</p>
-      <div class="sec-grid">${[['#/medalhas', TROFEU_IC, 'Medalhas', 'Suas conquistas e cards para o story'], ['#/retrospectiva', I.cal, 'Retrospectivas', 'Seu mês e seu ano em tela cheia'], ['#/antes-depois', I.hist, 'Antes e depois', 'Primeiro mês contra agora']].map(([h, ic, t, d]) => `<a class="sec-tile mom" href="${h}"><span class="st-ic">${ic}</span><b>${t}</b><small>${d}</small></a>`).join('')}</div>
+      <div class="sec-grid sec-mom">${[['#/medalhas', TROFEU_IC, 'Medalhas', 'Suas conquistas e cards para o story'], ['#/retrospectiva', I.cal, 'Retrospectivas', 'Seu mês e seu ano em tela cheia'], ['#/antes-depois', I.hist, 'Antes e depois', 'Primeiro mês contra agora']].map(([h, ic, t, d]) => `<a class="sec-tile mom" href="${h}"><span class="st-ic">${ic}</span><b>${t}</b><small>${d}</small></a>`).join('')}</div>
       <p class="sec-lbl" style="margin-top:8px">Detalhes</p>
-      <div class="sec-grid">${abasH.map(([k]) => `<a class="sec-tile" href="#/historico/${k}"><span class="st-ic">${INFO[k][0]}</span><b>${INFO[k][1]}</b><small>${INFO[k][2]}</small></a>`).join('')}</div></div>`;
+      <div class="sec-grid sec-det">${abasH.map(([k]) => `<a class="sec-tile" href="#/historico/${k}"><span class="st-ic">${INFO[k][0]}</span><b>${INFO[k][1]}</b><small>${INFO[k][2]}</small></a>`).join('')}</div></div>`;
     return;
   }
   const head = `<a class="back" href="#/historico">${I.back} Evolução</a><div class="sec-tit"><span class="st-ic">${INFO[aba][0]}</span><div><p class="eyebrow">Sua evolução</p><h1 class="h2">${INFO[aba][1]}</h1></div></div>`;
