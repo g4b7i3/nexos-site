@@ -1391,7 +1391,7 @@ async function desenharStory(cv, o) {
   fundoStory(x, W, H);
   const lg = await logoNx(); if (lg) { const h = 52, w = (lg.width / lg.height) * h; x.drawImage(lg, 90, 120, w, h); }
   let y = 360;
-  if (o.medalha) { desenharMedalha(x, W / 2, 560, 170, o.cor || '#46d6ff'); y = 840; }
+  if (o.medalha) { desenharMedalha(x, W / 2, 580, 180, o.grupo || 'nexos', o.rotulo); y = 870; }
   x.textAlign = o.medalha ? 'center' : 'left'; const cx = o.medalha ? W / 2 : 90;
   x.fillStyle = '#46d6ff'; x.font = "700 34px 'Manrope'"; try { x.letterSpacing = '7px'; } catch {}
   x.fillText(String(o.eyebrow || '').toUpperCase(), cx, y); try { x.letterSpacing = '0px'; } catch {}
@@ -1415,14 +1415,17 @@ async function desenharStory(cv, o) {
   x.textAlign = 'left'; x.font = "700 34px 'Manrope'"; x.fillStyle = '#fff'; x.fillText(o.nome || '', 90, H - 150);
   x.font = "500 30px 'Manrope'"; x.fillStyle = 'rgba(255,255,255,.6)'; x.fillText('Treino acompanhado pela Nexos Performance e Saúde', 90, H - 100);
 }
-function desenharMedalha(x, cx, cy, r, cor) {
+function desenharMedalha(x, cx, cy, r, g, rt) {
+  const [, c1, c2] = GRUPOS_M[g] || GRUPOS_M.nexos;
+  const hex = (k) => { x.beginPath(); [[0, -1], [0.866, -0.5], [0.866, 0.5], [0, 1], [-0.866, 0.5], [-0.866, -0.5]].forEach(([a, b], i) => (i ? x.lineTo(cx + a * r * k, cy + b * r * k) : x.moveTo(cx + a * r * k, cy + b * r * k))); x.closePath(); };
   x.save();
-  x.fillStyle = cor; x.globalAlpha = 0.9; [[-1, 0.55], [1, 0.55]].forEach(([s]) => { x.beginPath(); x.moveTo(cx + s * r * 0.15, cy - r * 1.55); x.lineTo(cx + s * r * 0.75, cy - r * 1.55); x.lineTo(cx + s * r * 0.35, cy - r * 0.6); x.lineTo(cx - s * r * 0.05, cy - r * 0.6); x.closePath(); x.fill(); });
-  x.globalAlpha = 1;
-  const g = x.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r); g.addColorStop(0, '#fff6d6'); g.addColorStop(0.45, '#f6c445'); g.addColorStop(1, '#c4851c');
-  x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
-  x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = r * 0.06; x.beginPath(); x.arc(cx, cy, r * 0.78, 0, 7); x.stroke();
-  x.fillStyle = '#fff'; x.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.22 : r * 0.5; x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill();
+  const gl = x.createRadialGradient(cx, cy, r * 0.4, cx, cy, r * 2); gl.addColorStop(0, 'rgba(70,214,255,.45)'); gl.addColorStop(1, 'rgba(70,214,255,0)'); x.fillStyle = gl; x.beginPath(); x.arc(cx, cy, r * 2, 0, 7); x.fill();
+  const gr = x.createLinearGradient(cx - r, cy - r, cx + r, cy + r); gr.addColorStop(0, c2); gr.addColorStop(1, c1); hex(1); x.fillStyle = gr; x.fill();
+  x.strokeStyle = 'rgba(255,255,255,.4)'; x.lineWidth = r * 0.025; x.stroke();
+  hex(0.8); x.strokeStyle = 'rgba(255,255,255,.3)'; x.lineWidth = r * 0.02; x.stroke();
+  const sh = x.createLinearGradient(0, cy - r, 0, cy); sh.addColorStop(0, 'rgba(255,255,255,.35)'); sh.addColorStop(1, 'rgba(255,255,255,0)'); hex(1); x.save(); x.clip(); x.fillStyle = sh; x.fillRect(cx - r, cy - r, r * 2, r); x.restore();
+  if (rt) { x.fillStyle = '#fff'; x.textAlign = 'center'; x.font = `800 ${rt[0].length > 3 ? r * 0.42 : rt[0].length > 2 ? r * 0.5 : r * 0.62}px 'Unbounded'`; x.fillText(rt[0], cx, cy + (rt[1] ? r * 0.12 : r * 0.22)); if (rt[1]) { x.font = `700 ${r * 0.16}px 'Manrope'`; x.fillStyle = 'rgba(255,255,255,.85)'; try { x.letterSpacing = '4px'; } catch {} x.fillText(rt[1], cx, cy + r * 0.42); try { x.letterSpacing = '0px'; } catch {} } }
+  else try { const k = (r * 1.05) / 24; x.translate(cx - 12 * k, cy - 12 * k); x.scale(k, k); x.strokeStyle = '#fff'; x.lineWidth = 1.9; x.lineCap = 'round'; x.lineJoin = 'round'; x.stroke(new Path2D(ICONE_M[g] || ICONE_M.nexos)); } catch {}
   x.restore();
 }
 async function compartilharCanvas(cv, nome) {
@@ -1451,7 +1454,15 @@ async function historicoAluno(id) {
 const datasAtiv = (h) => [...h.corridas.map((c) => c.data), ...h.sessoes.map((s) => s.iniciado_em)].sort();
 
 /* ---------- 2) medalhas ---------- */
-const GRUPOS_M = { corrida: ['Corrida', '#2f6bff'], constancia: ['Constância', '#ff8a3d'], forca: ['Força', '#8b5cf6'], saude: ['Saúde', '#1fa86b'], nexos: ['Nexos', '#0b62d6'] };
+const GRUPOS_M = { corrida: ['Corrida', '#2f6bff', '#46d6ff'], constancia: ['Constância', '#1d4ed8', '#7fe3ff'], forca: ['Força', '#1e3a8a', '#4f8bff'], saude: ['Saúde', '#0369a1', '#5eead4'], nexos: ['Nexos', '#0b1834', '#2f6bff'] };
+// ícones das medalhas (traço branco, 24 x 24)
+const ICONE_M = {
+  corrida: 'M5 19c3 0 3-6 7-6s4-6 7-6M5 19a1.6 1.6 0 1 0 0 .01M19 7l0-3 3 1.5-3 1.5',
+  constancia: 'M12 3c.6 3 3.6 4.6 4.6 7.4 1.4 3.9-.9 8.6-4.6 8.6s-6-3.5-4.8-7.2c.5 1.6 1.6 2.4 2.6 2.6-.6-3.2.8-6.6 2.2-11.4z',
+  forca: 'M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12',
+  saude: 'M12 3.5s6 6.6 6 10.7a6 6 0 0 1-12 0C6 10.1 12 3.5 12 3.5z',
+  nexos: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+};
 function calcMarcos(h, inicio) {
   const out = [];
   const add = (k, g, nome, desc, quando, prog, falta) => out.push({ k, g, nome, desc, quando: quando || null, prog: Math.max(0, Math.min(1, prog || 0)), falta });
@@ -1483,15 +1494,23 @@ function calcMarcos(h, inicio) {
   if (inicio) [[30, 'Primeiro mês de Nexos'], [180, 'Seis meses de Nexos'], [365, 'Um ano de Nexos']].forEach(([n, nome]) => { const d = somaDias(isoDia(inicio), n); add('n' + n, 'nexos', nome, `${n === 30 ? '1 mês' : n === 180 ? '6 meses' : '1 ano'} treinando com a Nexos`, d <= hojeISO() ? d : null, diasDesde(inicio) / n, d <= hojeISO() ? '' : `faltam ${Math.ceil(n - diasDesde(inicio))} dias`); });
   return out;
 }
-const MEDALHA_SVG = (cor, on = true) => `<svg viewBox="0 0 64 64" class="med-svg ${on ? '' : 'off'}" aria-hidden="true"><path d="M22 4h10l-4 18h-8z" fill="${cor}" opacity=".85"/><path d="M42 4H32l4 18h8z" fill="${cor}"/><circle cx="32" cy="40" r="20" fill="${on ? 'url(#mg)' : '#c9d2e3'}"/><circle cx="32" cy="40" r="15" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6"/><path d="m32 30 2.9 6 6.6.9-4.8 4.6 1.2 6.5L32 44.9 26.1 48l1.2-6.5-4.8-4.6 6.6-.9z" fill="#fff"/><defs><radialGradient id="mg" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#fff3c9"/><stop offset=".5" stop-color="#f6c445"/><stop offset="1" stop-color="#c4851c"/></radialGradient></defs></svg>`;
+const ROTULO_M = (k) => { const n = +(String(k).match(/\d+/) || [0])[0]; if (/^km/.test(k)) return [String(n), 'KM']; if (/^d/.test(k)) return [n === 21 ? '21K' : n === 42 ? '42K' : n + 'K', n === 21 ? 'MEIA' : n === 42 ? 'MARATONA' : 'PRIMEIROS']; if (/^s/.test(k)) return [String(n), 'SEMANAS']; if (/^f/.test(k)) return [String(n), 'TREINOS']; if (k === 'a7') return ['7', 'DIAS']; if (k === 'a30') return ['30', 'DIAS']; if (k === 'c30') return ['30', 'CHECK-INS']; if (k === 'n30') return ['1', 'MÊS']; if (k === 'n180') return ['6', 'MESES']; if (k === 'n365') return ['1', 'ANO']; return null; };
+const SELO_SVG = (g, on = true, k = '') => { const [, c1, c2] = GRUPOS_M[g] || GRUPOS_M.nexos; const id = 'sg-' + g; const rt = k ? ROTULO_M(k) : null; return `<svg viewBox="0 0 72 80" class="selo ${on ? 'on' : 'off'}" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c2}"/><stop offset="1" stop-color="${c1}"/></linearGradient><linearGradient id="${id}-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+  <path d="M36 3 67 21v38L36 77 5 59V21z" fill="${on ? `url(#${id})` : 'none'}" stroke="${on ? 'rgba(255,255,255,.35)' : 'currentColor'}" stroke-width="${on ? 1.5 : 2}" stroke-dasharray="${on ? '' : '4 4'}"/>
+  ${on ? `<path d="M36 3 67 21v14L5 35V21z" fill="url(#${id}-b)" opacity=".5"/><path d="M36 11 60 25v30L36 69 12 55V25z" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.2"/>` : ''}
+  ${rt ? `<text x="36" y="${rt[1] ? 44 : 49}" text-anchor="middle" class="selo-n" fill="${on ? '#fff' : 'currentColor'}" font-size="${rt[0].length > 3 ? 15 : rt[0].length > 2 ? 18 : 22}">${rt[0]}</text>${rt[1] ? `<text x="36" y="57" text-anchor="middle" class="selo-s" fill="${on ? 'rgba(255,255,255,.85)' : 'currentColor'}" font-size="${rt[1].length > 8 ? 5.4 : 6.6}">${rt[1]}</text>` : ''}`
+    : `<g transform="translate(18 22) scale(1.5)" fill="none" stroke="${on ? '#fff' : 'currentColor'}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${ICONE_M[g] || ICONE_M.nexos}"/></g>`}</svg>`; };
+const MEDALHA_SVG = (cor, on = true, g = 'corrida') => SELO_SVG(g, on);
 async function viewMedalhas() {
   loading();
   const h = await historicoAluno(S.user.id); const ms = calcMarcos(h, S.me.criado_em);
   const tem = ms.filter((m) => m.quando).length;
-  $app.innerHTML = `<a class="back" href="#/historico">${I.back} Evolução</a><p class="eyebrow">Conquistas</p><h1 class="h1">Suas medalhas</h1>
-    <p class="small muted" style="margin-top:6px">${tem} de ${ms.length} conquistadas. Cada medalha vira um card para o story.</p>
-    ${Object.entries(GRUPOS_M).map(([g, [nome, cor]]) => { const l = ms.filter((m) => m.g === g); if (!l.length) return ''; return `<p class="sec-lbl" style="margin-top:20px">${nome}</p><div class="med-grid">${l.map((m) => `<button type="button" class="med ${m.quando ? 'on' : ''}" data-m="${m.k}">${MEDALHA_SVG(cor, !!m.quando)}<b>${esc(m.nome)}</b><small>${m.quando ? fmtDia(isoDia(m.quando)) : esc(m.falta || '')}</small>${m.quando ? '' : `<i class="med-prog"><i style="width:${Math.round(m.prog * 100)}%"></i></i>`}</button>`).join('')}</div>`; }).join('')}`;
-  $app.onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; const m = ms.find((x) => x.k === b.dataset.m); if (!m) return; if (!m.quando) return toast(`${m.desc}. ${m.falta ? m.falta.charAt(0).toUpperCase() + m.falta.slice(1) + '.' : ''}`); abrirStory({ eyebrow: 'Nova conquista', titulo: m.nome, texto: m.desc + '.', medalha: true, cor: GRUPOS_M[m.g][1] }, `conquista-${m.k}.png`); };
+  const ult = ms.filter((m) => m.quando).sort((a, b) => (a.quando < b.quando ? 1 : -1))[0];
+  const pct = Math.round((tem / ms.length) * 100);
+  $app.innerHTML = `<a class="back" href="#/historico">${I.back} Evolução</a>
+    <section class="med-hero"><div class="med-anel" style="--p:${pct}"><b>${tem}</b><span>de ${ms.length}</span></div><div class="grow"><span class="hh-data">Conquistas</span><h1>Suas medalhas</h1><p>${ult ? `Última: <b>${esc(ult.nome)}</b> em ${fmtCurto(ult.quando)}` : 'A primeira está perto. Cada medalha vira um card para o story.'}</p></div></section>
+    ${Object.entries(GRUPOS_M).map(([g, [nome]]) => { const l = ms.filter((m) => m.g === g); if (!l.length) return ''; const n = l.filter((m) => m.quando).length; return `<div class="med-sec"><p class="sec-lbl">${nome} <span class="med-cont">${n}/${l.length}</span></p><div class="med-grid">${l.map((m) => `<button type="button" class="med ${m.quando ? 'on' : ''}" data-m="${m.k}">${SELO_SVG(g, !!m.quando, m.k)}<b>${esc(m.nome)}</b><small>${m.quando ? fmtDia(isoDia(m.quando)) : esc(m.falta || '')}</small>${m.quando ? '' : `<i class="med-prog"><i style="width:${Math.max(4, Math.round(m.prog * 100))}%"></i></i>`}</button>`).join('')}</div></div>`; }).join('')}`;
+  $app.onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; const m = ms.find((x) => x.k === b.dataset.m); if (!m) return; if (!m.quando) return toast(`${m.desc}. ${m.falta ? m.falta.charAt(0).toUpperCase() + m.falta.slice(1) + '.' : ''}`); abrirStory({ eyebrow: 'Nova conquista', titulo: m.nome, texto: m.desc + '.', medalha: true, grupo: m.g, rotulo: ROTULO_M(m.k) }, `conquista-${m.k}.png`); };
 }
 
 /* ---------- 3) retrospectiva ---------- */
@@ -1741,16 +1760,16 @@ async function momentosHoje(box, perfil, provaProx) {
   // medalha da prova (até 3 dias depois)
   if (provaFeita && !vistos['prova-' + provaFeita.id]) {
     const c = h.corridas.filter((x) => isoDia(x.data) === provaFeita.data && ehCorrHist(x)).sort((a, b) => b.distancia_m - a.distancia_m)[0];
-    if (c) cards.push({ k: 'prova-' + provaFeita.id, festa: true, html: `<div class="card mom-card ouro"><div class="mom-med">${MEDALHA_SVG('#ff8a3d')}</div><div class="grow"><span class="eyebrow">Prova concluída</span><div class="h3">${esc(provaFeita.titulo)}</div><p class="small muted">${f1(c.distancia_m / 1000)} km em <b>${fmtDurLongo(c.duracao_s)}</b> · ${fmtPace(paceDe(c))}</p><div class="row mom-bts"><button class="btn sm" data-story="prova">Card para o story</button><button class="link-btn small" data-fecha="prova-${provaFeita.id}">Fechar</button></div></div></div>`, story: { eyebrow: 'Prova concluída', titulo: provaFeita.titulo, grande: fmtDurLongo(c.duracao_s), texto: `${f1(c.distancia_m / 1000)} km · pace ${fmtPace(paceDe(c))}`, medalha: true, cor: '#ff8a3d' }, nome: 'prova-concluida.png' });
+    if (c) cards.push({ k: 'prova-' + provaFeita.id, festa: true, html: `<div class="card mom-card"><div class="mom-med">${SELO_SVG('nexos')}</div><div class="grow"><span class="eyebrow">Prova concluída</span><div class="h3">${esc(provaFeita.titulo)}</div><p class="small muted">${f1(c.distancia_m / 1000)} km em <b>${fmtDurLongo(c.duracao_s)}</b> · ${fmtPace(paceDe(c))}</p><div class="row mom-bts"><button class="btn sm" data-story="prova">Card para o story</button><button class="link-btn small" data-fecha="prova-${provaFeita.id}">Fechar</button></div></div></div>`, story: { eyebrow: 'Prova concluída', titulo: provaFeita.titulo, grande: fmtDurLongo(c.duracao_s), texto: `${f1(c.distancia_m / 1000)} km · pace ${fmtPace(paceDe(c))}`, medalha: true, grupo: 'nexos' }, nome: 'prova-concluida.png' });
   }
   // nova medalha (conquistada nos últimos 3 dias)
   const nova = calcMarcos(h, S.me.criado_em).filter((m) => m.quando && isoDia(m.quando) >= isoDia(Date.now() - 3 * 864e5) && !vistos['m-' + m.k]).sort((a, b) => (a.quando < b.quando ? 1 : -1))[0];
-  if (nova) cards.push({ k: 'm-' + nova.k, festa: true, html: `<div class="card mom-card"><div class="mom-med">${MEDALHA_SVG(GRUPOS_M[nova.g][1])}</div><div class="grow"><span class="eyebrow">Nova conquista</span><div class="h3">${esc(nova.nome)}</div><p class="small muted">${esc(nova.desc)}</p><div class="row mom-bts"><button class="btn sm" data-story="m">Card para o story</button><a class="btn ghost sm" href="#/medalhas">Ver medalhas</a><button class="link-btn small" data-fecha="m-${nova.k}">Fechar</button></div></div></div>`, story: { eyebrow: 'Nova conquista', titulo: nova.nome, texto: nova.desc + '.', medalha: true, cor: GRUPOS_M[nova.g][1] }, nome: `conquista-${nova.k}.png` });
+  if (nova) cards.push({ k: 'm-' + nova.k, festa: true, html: `<div class="card mom-card"><div class="mom-med">${SELO_SVG(nova.g, true, nova.k)}</div><div class="grow"><span class="eyebrow">Nova conquista</span><div class="h3">${esc(nova.nome)}</div><p class="small muted">${esc(nova.desc)}</p><div class="row mom-bts"><button class="btn sm" data-story="m">Card para o story</button><a class="btn ghost sm" href="#/medalhas">Ver medalhas</a><button class="link-btn small" data-fecha="m-${nova.k}">Fechar</button></div></div></div>`, story: { eyebrow: 'Nova conquista', titulo: nova.nome, texto: nova.desc + '.', medalha: true, grupo: nova.g, rotulo: ROTULO_M(nova.k) }, nome: `conquista-${nova.k}.png` });
   // retrospectiva do mês que acabou (primeiros 7 dias do mês) e do ano (dezembro e começo de janeiro)
   const hj = new Date(), mesAnt = isoDia(new Date(hj.getFullYear(), hj.getMonth() - 1, 15)).slice(0, 7);
-  if (hj.getDate() <= 7 && !vistos['r-' + mesAnt] && datasAtiv(h).some((d) => isoDia(d).slice(0, 7) === mesAnt)) cards.push({ k: 'r-' + mesAnt, html: `<a class="card mom-card retro-cta" href="#/retrospectiva/${mesAnt}"><div class="mom-ic">${I.hist}</div><div class="grow"><span class="eyebrow">Retrospectiva</span><div class="h3">Seu ${MESES_N[+mesAnt.slice(5) - 1]} está pronto</div><p class="small muted">Km, horas, recordes e evolução em tela cheia.</p></div>${I.chev}</a>` });
+  if (hj.getDate() <= 7 && !vistos['r-' + mesAnt] && datasAtiv(h).some((d) => isoDia(d).slice(0, 7) === mesAnt)) cards.push({ k: 'r-' + mesAnt, html: `<a class="card mom-card retro-cta" href="#/retrospectiva/${mesAnt}"><div class="mom-ic">${I.cal}</div><div class="grow"><span class="eyebrow">Retrospectiva</span><div class="h3">Seu ${MESES_N[+mesAnt.slice(5) - 1]} está pronto</div><p class="small muted">Km, horas, recordes e evolução em tela cheia.</p></div>${I.chev}</a>` });
   const ano = hj.getMonth() === 11 && hj.getDate() >= 15 ? String(hj.getFullYear()) : hj.getMonth() === 0 && hj.getDate() <= 15 ? String(hj.getFullYear() - 1) : null;
-  if (ano && !vistos['ra-' + ano] && datasAtiv(h).some((d) => isoDia(d).startsWith(ano))) cards.push({ k: 'ra-' + ano, html: `<a class="card mom-card retro-cta ano" href="#/retrospectiva/${ano}"><div class="mom-ic">${I.hist}</div><div class="grow"><span class="eyebrow">Retrospectiva ${ano}</span><div class="h3">Seu ano na Nexos</div><p class="small muted">Tudo o que você construiu em ${ano}.</p></div>${I.chev}</a>` });
+  if (ano && !vistos['ra-' + ano] && datasAtiv(h).some((d) => isoDia(d).startsWith(ano))) cards.push({ k: 'ra-' + ano, html: `<a class="card mom-card retro-cta ano" href="#/retrospectiva/${ano}"><div class="mom-ic">${I.cal}</div><div class="grow"><span class="eyebrow">Retrospectiva ${ano}</span><div class="h3">Seu ano na Nexos</div><p class="small muted">Tudo o que você construiu em ${ano}.</p></div>${I.chev}</a>` });
   // antes e depois aos 3 meses
   const ini = datasAtiv(h)[0]; const dd = ini ? diasDesde(ini) : 0;
   if (dd >= 90 && dd <= 100 && !vistos.ad90) cards.push({ k: 'ad90', html: `<a class="card mom-card" href="#/antes-depois"><div class="mom-ic">${I.hist}</div><div class="grow"><span class="eyebrow">3 meses de Nexos</span><div class="h3">Seu antes e depois está pronto</div><p class="small muted">Primeiro mês contra agora: pace, FC, volume e composição.</p></div>${I.chev}</a>` });
