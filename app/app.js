@@ -935,7 +935,7 @@ async function alunoHoje() {
     <section class="hoje-hero">
       <div class="hh-top"><span class="hh-data">${fmtDiaSem(hoje)}</span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
       <h1>${saud}, ${esc(firstName(S.me.nome) || "atleta")}</h1>
-      <p>${descanso ? 'Hoje é dia de descanso. Recuperar também é treino.' : 'Seu treino, sua evolução e sua água em um só lugar.'}</p>
+      <p>${descanso ? 'Hoje é dia de descanso. Recuperar também é treino.' : 'Treino, evolução e hidratação acompanhados pela sua equipe técnica.'}</p>
       <div class="hh-stats">
         <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>em sequência</small></span></div>
         ${fC ? `<div><span class="hh-ic">${icCorr(S.me)}</span><span><b>${kmSem ? f1(kmSem) : '0'}</b> km<small>nesta semana</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosSem}</b> ${nTreinosSem === 1 ? 'treino' : 'treinos'}<small>nesta semana</small></span></div>`}
