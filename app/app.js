@@ -8768,10 +8768,16 @@ async function qrSVG(texto) {
   return q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
 }
 
+/* ---------- Pix de cada treinador (o aluno paga direto na chave do próprio treinador) ---------- */
+async function meuPix(forcar) {
+  if (!forcar && S.cache.meuPix !== undefined) return S.cache.meuPix || {};
+  const { data } = await sb.from('nx_pix_treinador').select('chave,nome,cidade').eq('user_id', S.user.id).eq('ativo', true).maybeSingle().then((r) => r, () => ({ data: null }));
+  S.cache.meuPix = data || null; return data || {};
+}
 /* ---------- geração das mensalidades do mês ---------- */
 async function carregarFinanceiroBase() {
   const [{ data: planos }, { data: alunos }] = await Promise.all([
-    sb.from('nx_planos').select('*').eq('org_id', S.org.id).order('valor'),
+    sb.from('nx_planos').select('*').eq('org_id', S.org.id).eq('dono', S.user.id).order('valor'), // cada treinador com os próprios planos
     sb.from('nx_membros').select('user_id,nome,ativo,telefone,financeiro,treinador_id').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
   ]);
   return { planos: planos || [], alunos: (alunos || []).filter(ehMeuAluno) }; // financeiro de cada treinador: só os próprios alunos
@@ -8807,7 +8813,8 @@ async function staffFinanceiro() {
   const tot = { pago: 0, aberto: 0, atraso: 0 };
   lista.forEach((c) => { const k = statusCob(c).k; if (k === 'paga') tot.pago += +c.valor; else if (k === 'atrasada') tot.atraso += +c.valor; else tot.aberto += +c.valor; });
   const semPlano = base.alunos.filter((a) => a.ativo && !(a.financeiro || {}).plano_id);
-  const pix = (S.org.config || {}).pix || {};
+  await meuPix();
+  const pix = S.cache.meuPix || {};
   const atrasadas = lista.filter((c) => statusCob(c).k === 'atrasada');
   const filtros = [['todas', 'Todas'], ['receber', 'A receber'], ['atrasada', 'Atrasadas'], ['informada', 'Avisaram'], ['paga', 'Pagas']];
   const passa = (c) => { const k = statusCob(c).k; return st.filtro === 'todas' || (st.filtro === 'receber' ? k === 'aberta' : k === st.filtro); };
@@ -8815,7 +8822,7 @@ async function staffFinanceiro() {
     <div class="row between"><div><p class="eyebrow">Financeiro</p><h1 class="h1">Mensalidades</h1></div><button class="icon-btn" id="fin-cfg" aria-label="Planos e Pix">${I.gear}</button></div>
     <div class="mes-nav"><button class="icon-btn sm" id="m-a" aria-label="Mês anterior">${I.back}</button><b>${nomeMes(st.comp)}</b><button class="icon-btn sm" id="m-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
     <div class="fin-tot"><div class="ok"><span>Recebido</span><b>${brl(tot.pago)}</b></div><div><span>A receber</span><b>${brl(tot.aberto)}</b></div><div class="${tot.atraso ? 'err' : ''}"><span>Atrasado</span><b>${brl(tot.atraso)}</b></div></div>
-    ${!pix.chave ? `<button class="aviso-linha" id="cfg-pix">${I.bell}<span><b>Cadastre a chave Pix da Nexos</b> para o aluno pagar pelo app.</span>${I.chev}</button>` : ''}
+    ${!pix.chave ? `<button class="aviso-linha" id="cfg-pix">${I.bell}<span><b>Cadastre a sua chave Pix</b> para os seus alunos pagarem pelo app.</span>${I.chev}</button>` : ''}
     ${!base.planos.length ? `<button class="aviso-linha" id="cfg-planos">${I.plus}<span><b>Crie os planos</b> (ex.: Corrida mensal R$ 150) para gerar as mensalidades.</span>${I.chev}</button>`
       : semPlano.length ? `<button class="aviso-linha" id="sem-plano">${I.users}<span><b>${semPlano.length} aluno${semPlano.length > 1 ? 's' : ''} sem plano</b>: defina para gerar a mensalidade.</span>${I.chev}</button>` : ''}
     <div class="row between" style="margin-top:18px;gap:10px;flex-wrap:wrap"><div class="chips" id="fin-f">${filtros.map(([k, l]) => `<button class="chip ${st.filtro === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
@@ -8848,7 +8855,7 @@ async function lembrarCobranca(c, aluno, silencioso) {
   notificar('cobranca', c.id);
   await sb.from('nx_cobrancas').update({ lembrete_em: new Date().toISOString() }).eq('id', c.id);
   if (silencioso) return;
-  const pix = (S.org.config || {}).pix || {};
+  const pix = await meuPix();
   const tel = String((aluno || {}).telefone || '').replace(/\D/g, '');
   const msg = `Olá, ${firstName((aluno || {}).nome)}! Passando para lembrar da mensalidade da Nexos de ${brl(c.valor)}, ${quandoVence(c)}.${pix.chave ? `\n\nPix copia e cola:\n${pixCopiaECola({ ...pix, valor: c.valor, txid: 'NX' + c.competencia.replace('-', '') })}` : ''}\n\nVocê também pode pagar pelo app. Obrigado!`;
   openSheet(`<div class="h2">Lembrete enviado no app</div><p class="small muted" style="margin:6px 0 16px">${esc(firstName((aluno || {}).nome))} recebe uma notificação (se ativou no celular). Quer mandar também pelo WhatsApp?</p>
@@ -8873,15 +8880,16 @@ function detalheCobranca(c, aluno, depois) {
   });
 }
 function ajustesFinanceiro(base) {
-  const pix = (S.org.config || {}).pix || {};
+  const pix = S.cache.meuPix || {};
   const admin = S.me.papel === 'admin';
   const desenhar = (r) => {
     r.querySelector('#pl-l').innerHTML = base.planos.length ? base.planos.map((p) => `<div class="list-item" data-pl="${p.id}"><div class="grow"><b>${esc(p.nome)}</b><div class="small muted">${brl(p.valor)} · ${(CICLOS.find((c) => c[0] === p.meses) || [, 'Mensal'])[1]}${p.ativo ? '' : ' · inativo'}</div></div>${I.chev}</div>`).join('') : '<p class="small muted">Nenhum plano ainda.</p>';
   };
   openSheet(`<p class="eyebrow">Ajustes do financeiro</p>
     <div class="section" style="margin-top:12px"><div class="section-h"><h2 class="h2">Planos</h2><button class="btn sm" id="pl-novo">${I.plus} Novo plano</button></div><div id="pl-l" class="stack"></div></div>
-    <div class="section"><div class="section-h"><h2 class="h2">Pix da Nexos</h2></div>
-      ${admin ? `<form id="f-pix"><label class="field"><span>Chave Pix</span><input class="input" name="chave" value="${esc(pix.chave || '')}" placeholder="CNPJ, e-mail, chave aleatória ou celular (+5598…)" required></label>
+    <div class="section"><div class="section-h"><h2 class="h2">Minha chave Pix</h2></div>
+      <p class="small muted" style="margin:-4px 0 10px">Os seus alunos pagam direto nesta chave. Cada treinador tem a sua, e os planos e mensalidades também são separados.</p>
+      ${true ? `<form id="f-pix"><label class="field"><span>Chave Pix</span><input class="input" name="chave" value="${esc(pix.chave || '')}" placeholder="CNPJ, e-mail, chave aleatória ou celular (+5598…)" required></label>
       <div class="grid2"><label class="field"><span>Nome do recebedor</span><input class="input" name="nome" value="${esc(pix.nome || '')}" placeholder="Como aparece no banco" required></label><label class="field"><span>Cidade</span><input class="input" name="cidade" value="${esc(pix.cidade || 'São Luís')}" required></label></div>
       <p class="tiny dim" style="margin:-4px 0 12px">O app gera o QR Code e o “copia e cola” com o valor certo. O dinheiro cai direto na conta da chave.</p>
       <button class="btn block">Salvar Pix</button></form>` : `<p class="small muted">${pix.chave ? 'Chave cadastrada: ' + esc(pix.chave) : 'Peça ao administrador para cadastrar a chave Pix.'}</p>`}</div>
@@ -8942,10 +8950,10 @@ function ajustesFinanceiro(base) {
     r.querySelector('#pl-l').onclick = (e) => { const it = e.target.closest('[data-pl]'); if (it) formPlano(base.planos.find((p) => p.id === it.dataset.pl)); };
     const fp = r.querySelector('#f-pix');
     if (fp) fp.onsubmit = async (e) => {
-      e.preventDefault(); const cfg = { ...(S.org.config || {}), pix: { chave: fp.chave.value.trim(), nome: fp.nome.value.trim(), cidade: fp.cidade.value.trim() } };
-      const { error } = await sb.from('nx_orgs').update({ config: cfg }).eq('id', S.org.id);
+      e.preventDefault(); const px = { chave: fp.chave.value.trim(), nome: fp.nome.value.trim(), cidade: fp.cidade.value.trim() };
+      const { error } = await sb.from('nx_pix_treinador').upsert({ user_id: S.user.id, org_id: S.org.id, ...px, ativo: true, atualizado_em: new Date().toISOString() }, { onConflict: 'user_id' });
       if (error) return toast('Não foi possível salvar.', true);
-      S.org.config = cfg; toast('Pix salvo!'); closeSheet(); staffFinanceiro();
+      S.cache.meuPix = px; toast('Pix salvo! Seus alunos já pagam nesta chave.'); closeSheet(); staffFinanceiro();
     };
   });
 }
@@ -9132,7 +9140,7 @@ function cartaoCobrancaHTML(c) {
 async function pagarComPix(c) {
   const { data: org } = await sb.from('nx_orgs').select('config').eq('id', S.org.id).maybeSingle();
   if (pagCfg(org && org.config).conectado) return pagarOnline(c, org.config);
-  const pix = ((org && org.config) || {}).pix || {};
+  const pix = (await sb.rpc('nx_meu_pix').then((r) => r.data, () => null)) || {};
   if (!pix.chave) return openSheet('<div class="h2">Pix ainda não configurado</div><p class="muted" style="margin:10px 0 18px">Fale com o seu treinador para combinar o pagamento.</p><button class="btn block" data-close>Entendi</button>');
   const codigo = pixCopiaECola({ ...pix, valor: c.valor, txid: 'NX' + c.competencia.replace('-', '') });
   openSheet(`<p class="eyebrow">Pagar com Pix</p><div class="h2" style="margin-top:4px">${brl(c.valor)}</div><p class="small muted">${esc(c.descricao || '')} · para ${esc(pix.nome)}</p>
