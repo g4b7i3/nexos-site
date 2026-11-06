@@ -9214,7 +9214,7 @@ async function staffHoje() {
     S.cache.nomes = null;
     if (r.enviado) { toast(`${firstName(m.nome)} aprovado! O acesso foi para ${r.email}.`); return staffHoje(); }
     if (r.senha) return mostrarCredenciais({ nome: m.nome, telefone: m.telefone, email: r.email, senha: r.senha }, false, true, 'acesso'), staffHoje();
-    toast(`${firstName(m.nome)} aprovado! Ele entra com a senha que já tem.`); staffHoje();
+    toast(`${firstName(m.nome)} aprovado! Já pode entrar no app com a senha que criou.`); staffHoje();
   });
   $app.querySelectorAll('[data-recusar]').forEach((b) => b.onclick = async () => {
     const m = pendentes.find((x) => x.user_id === b.dataset.recusar); if (!m) return;
@@ -12542,7 +12542,7 @@ async function staffFichaResposta(id) {
   const diasT = (l) => (l || []).slice().sort().map((i) => DSEM[i].slice(0, 3)).join(', ');
   $app.innerHTML = `<a class="back" href="#/formularios">${I.back} Formulários</a>
     <div class="card plan-head"><div class="ph-id"><div class="av lg">${esc(initials(d.nome || '?'))}</div><div class="grow" style="min-width:0"><h1 class="h2">${esc(d.nome || 'Sem nome')}</h1><div class="small muted">Ficha enviada ${fmtData(r.criado_em)}${rs.mods ? ' · ' + esc(rs.mods) : ''}</div></div></div>
-      ${pend ? `<div class="aviso-acesso"><b>Esta pessoa ainda não tem acesso ao app.</b><span class="small muted">${r.aluno_id ? 'O pedido está esperando a sua aprovação.' : 'Ela mandou a ficha, mas não chegou a pedir o acesso.'}</span><button class="btn block" id="ap-acesso" style="margin-top:12px">${I.mail} Aprovar e enviar acesso por e-mail</button></div>` : ''}
+      ${pend ? `<div class="aviso-acesso"><b>Esta pessoa ainda não tem acesso ao app.</b><span class="small muted">${r.aluno_id ? 'O pedido está esperando a sua aprovação.' : 'Ela mandou a ficha, mas não chegou a pedir o acesso.'}</span><button class="btn block" id="ap-acesso" style="margin-top:12px">${I.check} Aprovar acesso</button></div>` : ''}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" id="ed-ficha">✎ Editar ficha</button>${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div></div>
     ${rs.sim.length ? `<div class="card ficha-alerta"><b>${icT(I.alerta, 'warn')}PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
     <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id || pend ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
@@ -12595,9 +12595,9 @@ async function staffFichaResposta(id) {
       S.cache.nomes = null; S.cache.pendentes = Math.max(0, (S.cache.pendentes || 1) - 1);
       if (res.enviado) toast(`Acesso aprovado! O login foi para ${res.email}.`);
       else if (res.senha) mostrarCredenciais({ nome: d.nome, telefone: d.telefone, email: res.email, senha: res.senha }, false, true, 'acesso');
-      else toast('Acesso aprovado! Ela entra com a senha que já tem.');
+      else toast('Acesso aprovado! Já pode entrar no app com a senha que criou.');
       staffFichaResposta(id);
-    } catch (e) { apA.disabled = false; apA.innerHTML = `${I.mail} Aprovar e enviar acesso por e-mail`; toast(e.message, true); }
+    } catch (e) { apA.disabled = false; apA.innerHTML = `${I.check} Aprovar acesso`; toast(e.message, true); }
   };
   document.getElementById('apagar').onclick = async () => { if (!confirm('Apagar esta ficha? Não dá para desfazer.')) return; await sb.from('nx_form_respostas').delete().eq('id', id); location.hash = '#/formularios'; };
 }
