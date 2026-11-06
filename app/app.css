@@ -3016,3 +3016,5 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .lt-chk input{width:20px;height:20px;flex:none;accent-color:var(--acc)}
 .lt-chk b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lt-form{position:sticky;bottom:-1px;background:var(--bg2);padding:12px 0 4px;margin-top:12px;border-top:1px solid var(--line)}
+.int-rel{margin-top:12px;padding:12px;border-radius:var(--r-sm);background:var(--s1);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.int-rel p{margin:0;flex:1;min-width:180px}

@@ -3170,7 +3170,7 @@ async function alunoHoje() {
   if (S.me.sexo === 'F') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx) return;
     if (!c) { if (store.get('nx_ciclo_conv', false)) return; bx.innerHTML = `<div class="ciclo-l ciclo-conv" style="--cf:#e85d75"><i></i><span class="grow"><b>Ciclo menstrual</b> · ajuste o treino a cada fase</span><button type="button" class="link-btn small" id="cic-at">Ativar</button><button type="button" class="link-btn small" id="cic-nao" style="color:var(--dim)">Agora não</button></div>`;
       bx.querySelector('#cic-at').onclick = () => ativarCiclo(() => alunoHoje()); bx.querySelector('#cic-nao').onclick = () => { store.set('nx_ciclo_conv', true); bx.innerHTML = ''; }; return; } bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => { location.hash = '#/ciclo'; }; }).catch(() => {});
-  if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
+  if (fC && planoSem.length) sb.from('nx_integracoes').select('provedor,escopo').eq('user_id', S.user.id).in('provedor', ['garmin', 'intervals']).then(({ data }) => { if ((data || []).some((i) => i.provedor === 'garmin' || icuEscreve(i))) sincronizarGarmin(S.user.id, planoSem, perfC, false); }, () => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
   // oferta de cobrança automática feita pelo treinador
   assinaturaDoAluno(S.user.id).then((a) => { const box = document.getElementById('auto-hoje'); if (box && a) { box.innerHTML = autoAlunoHTML(a); bindAutoAluno(a); const ps = document.getElementById('pend-sec'); if (ps && box.innerHTML.trim()) ps.hidden = false; } }).catch(() => {});
@@ -7129,7 +7129,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       if (error) { e.currentTarget.disabled = false; return toast('Não foi possível salvar.', true); }
       closeSheet(); toast('Treino salvo!'); aoSalvar();
       // treino já liberado e enviado ao Garmin: manda a versão nova para o relógio
-      if (sessao && sessao.liberado && S.cache.garmOn) enviarGarmin(alunoId, [{ ...sessao, ...row, id: sessao.id, liberado: true }], perfil).then((r) => { if (r.enviados) toast('Treino atualizado também no Garmin do aluno ⌚'); }).catch(() => {});
+      if (sessao && sessao.liberado && S.cache.garmOn) enviarGarmin(alunoId, [{ ...sessao, ...row, id: sessao.id, liberado: true }], perfil).then((r) => { if (r.enviados) toast(`Treino atualizado também no ${nomeRelogio(r)} do aluno ⌚`); }).catch(() => {});
     };
     const dup = r.querySelector('#t-dup');
     if (dup) dup.onclick = async () => { const row = linha(); const d = dia(row.data); d.setDate(d.getDate() + 1); const { error } = await sb.from('nx_plano_corrida').insert({ ...row, data: isoDia(d), org_id: S.org.id, aluno_id: alunoId, criado_por: S.user.id }); if (error) return toast('Não foi possível duplicar.', true); closeSheet(); toast('Duplicado no dia seguinte. Arraste para onde quiser.'); aoSalvar(); };
@@ -7155,15 +7155,15 @@ function verTreinoPlanilha(p, perfil, feito) {
     <div class="stack" style="margin-top:12px">${est.map((s) => s.k === 'rep' ? `<div class="serie-v"><b>Repita ${s.n} vezes:</b>${(s.passos || []).map((x) => passoH(x)).join('')}</div>` : passoH(s)).join('')}</div>
     ${p.descricao ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Observação do treinador</span><p style="margin-top:6px;white-space:pre-line">${esc(p.descricao)}</p></div>` : ''}
     ${feito ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:16px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>` : `<button class="btn block" id="reg-agora" style="margin-top:16px">${I.plus} Registrar esta corrida</button>`}
-    ${!feito && !S.staff && p.data >= hojeISO() && est.length ? `<button class="btn ghost block gar-btn" id="gar-env" style="margin-top:8px" hidden>${RELOGIO_IC} ${p.garmin_enviado_em ? 'Já está no seu Garmin ✓ · reenviar' : 'Enviar para o meu Garmin'}</button>` : ''}
+    ${!feito && !S.staff && p.data >= hojeISO() && est.length ? `<button class="btn ghost block gar-btn" id="gar-env" style="margin-top:8px" hidden>${RELOGIO_IC} ${p.garmin_enviado_em ? 'Já está no seu relógio ✓ · reenviar' : 'Enviar para o meu relógio'}</button>` : ''}
     <button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`, (r) => {
     const b = r.querySelector('#reg-agora'); if (b) b.onclick = () => registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; });
     const g = r.querySelector('#gar-env');
     if (g) {
-      sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) g.hidden = false; }).catch(() => {});
+      sb.from('nx_integracoes').select('provedor,escopo').eq('user_id', S.user.id).in('provedor', ['garmin', 'intervals']).then(({ data }) => { if ((data || []).some((i) => i.provedor === 'garmin' || icuEscreve(i))) g.hidden = false; }, () => {});
       g.onclick = async () => {
         g.disabled = true; g.textContent = 'Enviando…';
-        try { const res = await enviarGarmin(S.user.id, [p], perfil); if (res.enviados) { p.garmin_enviado_em = new Date().toISOString(); g.innerHTML = `${RELOGIO_IC} No seu Garmin ✓`; toast('Treino enviado! Sincronize o relógio para ele aparecer.'); } else { g.disabled = false; g.textContent = 'Tentar de novo'; toast(res.sem_garmin ? 'Conecte o Garmin na aba Conexões.' : 'Não consegui enviar agora. Tente de novo.', true); } }
+        try { const res = await enviarGarmin(S.user.id, [p], perfil); if (res.enviados) { p.garmin_enviado_em = new Date().toISOString(); g.innerHTML = `${RELOGIO_IC} No seu relógio ✓`; toast(res.via === 'intervals' ? 'Treino enviado! Abra o app do relógio (Zepp, Coros, Huawei…) e sincronize para ele aparecer.' : 'Treino enviado! Sincronize o relógio para ele aparecer.'); } else { g.disabled = false; g.textContent = 'Tentar de novo'; toast(res.precisa_reconectar ? 'Reconecte o relógio na aba Conexões para liberar o envio de treinos.' : res.sem_garmin ? 'Conecte o relógio na aba Conexões.' : 'Não consegui enviar agora. Tente de novo.', true); } }
         catch (er) { g.disabled = false; g.textContent = 'Tentar de novo'; toast(er.message, true); }
       };
     }
@@ -7308,7 +7308,7 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
     const prSem = provas.filter((p) => p.data >= isoDia(dias[0]) && p.data <= isoDia(dias[6]));
     h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''}">${prSem.length ? `<div class="sem-prova-l">${icT(I.flag)}Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div>${staff && doPlano.length ? (() => { const nLib = doPlano.filter((p) => p.liberado !== false).length; const de = isoDia(dias[0]), ate = isoDia(dias[6]);
       return nLib === doPlano.length
-        ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" data-desliberar="${de}|${ate}">Cancelar liberação</button></div>${S.cache.garmOn ? (() => { const tr = doPlano.filter((p) => p.tipo !== 'folga' && estruturaDe(p).length && p.data >= hojeISO()); const env = tr.filter((p) => p.garmin_enviado_em).length; const err = tr.some((p) => p.garmin_erro); return tr.length ? `<div class="gar-bar ${env === tr.length ? 'ok' : err ? 'err' : ''}"><span>${RELOGIO_IC} ${env === tr.length ? 'No Garmin e no relógio do aluno ✓' : err ? 'Não consegui enviar ao Garmin' : `${tr.length - env} treino${tr.length - env > 1 ? 's' : ''} ainda não enviado${tr.length - env > 1 ? 's' : ''} ao Garmin`}</span><button type="button" class="link-btn small" data-garmin="${de}|${ate}">${env ? 'Reenviar' : 'Enviar ao Garmin'}</button></div>` : ''; })() : ''}`
+        ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" data-desliberar="${de}|${ate}">Cancelar liberação</button></div>${S.cache.garmOn ? (() => { const tr = doPlano.filter((p) => p.tipo !== 'folga' && estruturaDe(p).length && p.data >= hojeISO()); const env = tr.filter((p) => p.garmin_enviado_em).length; const err = tr.some((p) => p.garmin_erro); return tr.length ? `<div class="gar-bar ${env === tr.length ? 'ok' : err ? 'err' : ''}"><span>${RELOGIO_IC} ${env === tr.length ? (S.cache.relNome === 'relógio' ? 'No relógio do aluno ✓' : 'No Garmin e no relógio do aluno ✓') : err ? `Não consegui enviar ao ${S.cache.relNome || 'Garmin'}` : `${tr.length - env} treino${tr.length - env > 1 ? 's' : ''} ainda não enviado${tr.length - env > 1 ? 's' : ''} ao ${S.cache.relNome || 'Garmin'}`}</span><button type="button" class="link-btn small" data-garmin="${de}|${ate}">${env ? 'Reenviar' : `Enviar ao ${S.cache.relNome || 'Garmin'}`}</button></div>` : ''; })() : ''}`
         : `<div class="lib-bar"><span>${nLib ? `${doPlano.length - nLib} treino${doPlano.length - nLib > 1 ? 's' : ''} ainda não liberado${doPlano.length - nLib > 1 ? 's' : ''}` : 'Rascunho: o aluno ainda não vê esta semana'}</span><button type="button" class="btn sm lib-btn" data-liberar="${de}|${ate}">Liberar semana</button></div>`; })() : ''}<div class="cal-dias">`;
     dias.forEach((d) => {
       const k = isoDia(d); const itens = plano.filter((p) => p.data === k);
@@ -7346,7 +7346,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   const comCiclo = (staff ? m.sexo : S.me.sexo) === 'F';
   const [ativsTodas, plano, integs, modelosOrg, provas, provasProx, forcaTr, forcaSe, forcaLib, ciclo] = await Promise.all([
     buscarCorridas(alunoId), buscarPlano(alunoId, isoDia(ini), isoDia(fim)),
-    sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em').eq('user_id', alunoId).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []),
+    sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em,escopo').eq('user_id', alunoId).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []),
     staff ? sb.from('nx_modelos_corrida').select('*').eq('org_id', S.org.id).order('criado_em').then((r) => r.data || []).catch(() => []) : Promise.resolve([]),
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', isoDia(ini)).lte('data', isoDia(fim)).then((r) => r.data || []).catch(() => []),
     sb.from('nx_participacoes').select('*').eq('aluno_id', alunoId).gte('data', hojeISO()).order('data').limit(3).then((r) => r.data || []).catch(() => []),
@@ -7359,7 +7359,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   const forcaCal = comForca ? { tr: forcaTr, se: forcaSe, lib: forcaLib, off: dispDe(m).off_forca || [] } : null;
   const corridas = ativsTodas.filter(ehCorr); // força, pedal etc. do relógio aparecem na planilha e na lista, mas não entram nos km
   const integ = integs.find((x) => x.provedor === 'intervals') || null, garm = integs.find((x) => x.provedor === 'garmin') || null;
-  S.cache.garmOn = !!garm;
+  S.cache.garmOn = !!garm || icuEscreve(integ); S.cache.relNome = garm ? 'Garmin' : 'relógio';
   const perfil = perfilCorrida(m);
   const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
   if (!st.testesOk) { st.testesOk = true; processarTestes(m).then((r) => { if (r && r.length) { toast(`Zonas atualizadas pelo ${TESTE_NOME[r[0].tipo]}.`); recarregar(); } }).catch((e) => console.error(e)); }
@@ -7472,7 +7472,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   if (q('#intervals-box')) bindIntervals(q('#intervals-box'), integ, staff, alunoId, recarregar);
   if (q('#garmin-box')) bindGarmin(q('#garmin-box'), recarregar);
   // sincronização automática com o Garmin: todo treino liberado que ainda não está no relógio vai sozinho
-  if (garm) sincronizarGarmin(alunoId, plano, perfil, staff).then((n) => { if (n) recarregar(); });
+  if (garm || icuEscreve(integ)) sincronizarGarmin(alunoId, plano, perfil, staff).then((n) => { if (n) recarregar(); });
   if (sub === 'planilha') {
     box.querySelectorAll('[data-pol]').forEach((b) => b.onclick = () => polimentoSheet(alunoId, provasProx.find((x) => x.id === b.dataset.pol), perfil, recarregar));
     box.querySelectorAll('[data-semp]').forEach((b) => b.onclick = async () => {
@@ -7508,7 +7508,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       const gb = e.target.closest('[data-garmin]');
       if (gb) {
         const [de, ate] = gb.dataset.garmin.split('|'); gb.disabled = true; gb.textContent = 'Enviando…';
-        try { const r = await enviarGarmin(alunoId, plano.filter((p) => p.data >= de && p.data <= ate), perfil); toast(r.sem_garmin ? 'O aluno não está com o Garmin conectado.' : r.enviados ? `${r.enviados} treino${r.enviados > 1 ? 's' : ''} no Garmin do aluno ⌚` : r.erros ? 'Não consegui enviar ao Garmin. Tente de novo em instantes.' : 'Nada para enviar nesta semana.', !r.enviados); }
+        try { const r = await enviarGarmin(alunoId, plano.filter((p) => p.data >= de && p.data <= ate), perfil); toast(r.precisa_reconectar ? 'O aluno precisa reconectar o relógio no app (aba Conexões) para receber os treinos.' : r.sem_garmin ? 'O aluno não está com relógio conectado.' : r.enviados ? `${r.enviados} treino${r.enviados > 1 ? 's' : ''} no ${nomeRelogio(r)} do aluno ⌚` : r.erros ? `Não consegui enviar ao ${nomeRelogio(r)}. Tente de novo em instantes.` : 'Nada para enviar nesta semana.', !r.enviados); }
         catch (er) { toast(er.message, true); }
         return recarregar();
       }
@@ -7602,9 +7602,12 @@ function notificarAluno(acao, alunoId) { try { sb.functions.invoke('nx-push', { 
 /* ---------- Intervals.icu ---------- */
 function intervalsCardHTML(integ, staff) {
   if (integ) return `<div class="card"><div class="row between" style="gap:12px"><div><b>Intervals.icu conectado ✓</b><p class="small muted">${integ.ultima_sync ? 'Última sincronização ' + quando(integ.ultima_sync) + ' às ' + fmtHora(integ.ultima_sync) : 'Aguardando a primeira sincronização'}${integ.erro ? ` · <span style="color:var(--warn)">${esc(integ.erro)}</span>` : ''}</p></div>
-    <div class="row" style="gap:6px">${staff ? '' : '<button class="btn ghost sm" id="int-sync">Sincronizar</button><button class="link-btn small" id="int-off">Desconectar</button>'}</div></div></div>`;
+    <div class="row" style="gap:6px">${staff ? '' : '<button class="btn ghost sm" id="int-sync">Sincronizar</button><button class="link-btn small" id="int-off">Desconectar</button>'}</div></div>
+    ${icuEscreve(integ) ? `<p class="tiny dim" style="margin-top:10px">${RELOGIO_IC} Os treinos liberados vão para o calendário do Intervals e, de lá, para o relógio. <b>Amazfit:</b> no app Zepp, ligue o Intervals.icu em Perfil → Contas de terceiros e sincronize em Treino → Meu plano de treino (Zepp OS 5 ou mais novo). <b>Coros, Huawei e outros:</b> ative o envio de treinos para a marca nas Conexões do Intervals.</p>`
+      : staff ? '<p class="tiny dim" style="margin-top:10px">Para receber os treinos no relógio, o aluno precisa tocar em “Receber treinos no relógio” no app dele (uma vez só).</p>'
+      : '<div class="int-rel"><p class="small"><b>Receba os treinos no relógio</b><br><span class="muted">Autorize uma vez e os treinos da planilha vão para o seu relógio pelo Intervals.icu.</span></p><button class="btn sm" id="int-on">Receber treinos no relógio</button></div>'}</div>`;
   if (staff) return '<div class="card"><p class="small muted">O aluno ainda não conectou o relógio. Ele faz isso aqui mesmo, na aba de corrida dele. Enquanto isso, as corridas podem ser enviadas por arquivo.</p></div>';
-  return `<div class="card"><b>Corridas chegando sozinhas</b><p class="small muted" style="margin-top:4px">Conecte o seu relógio (Coros, Polar, Suunto, Wahoo e outros) ao <b>Intervals.icu</b>, que é gratuito, e depois conecte o Intervals.icu aqui. As corridas passam a aparecer no app sem você fazer nada.</p>
+  return `<div class="card"><b>Corridas chegando sozinhas</b><p class="small muted" style="margin-top:4px">Conecte o seu relógio (Coros, Polar, Suunto, Wahoo, Amazfit e outros) ao <b>Intervals.icu</b>, que é gratuito, e depois conecte o Intervals.icu aqui. As corridas passam a aparecer no app sem você fazer nada, e os treinos da planilha vão para o relógio nas marcas que aceitam.</p>
     <ol class="small muted passos-int"><li>Crie uma conta grátis em intervals.icu e conecte o seu relógio lá (Configurações → Conexões).</li><li>Volte aqui e toque em “Conectar Intervals.icu”.</li></ol>
     <button class="btn sm" id="int-on" style="margin-top:12px">Conectar Intervals.icu</button>
     <p class="tiny dim" style="margin-top:8px">Tem relógio Garmin? Use o botão “Conectar Garmin” acima, que é direto e oficial.</p></div>`;
@@ -8093,7 +8096,7 @@ function bindAutocuidado() { $app.querySelectorAll('[data-rot]').forEach((b) => 
 /* ---------- aba Conexões (aluno): relógios e apps ---------- */
 async function viewConexoes(ret) {
   loading(); dockAluno();
-  const integs = await sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em').eq('user_id', S.user.id).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []);
+  const integs = await sb.from('nx_integracoes').select('provedor,athlete_id,ultima_sync,erro,conectado_em,escopo').eq('user_id', S.user.id).in('provedor', ['intervals', 'garmin']).then((r) => r.data || []).catch(() => []);
   const integ = integs.find((x) => x.provedor === 'intervals') || null, garm = integs.find((x) => x.provedor === 'garmin') || null;
   let marcaInt = null; try { marcaInt = localStorage.getItem('nx-marca'); } catch {}
   if (!MARCA_NOME[marcaInt] || marcaInt === 'garmin' || marcaInt === 'outro') marcaInt = null;
@@ -8639,7 +8642,7 @@ function garminItem(p, perfil) {
   const montar = (sobre) => [`TREINO\n${estruturaTxt}`, `Total est.: ${tot.soDist ? '' : '≈ '}${tot.km} · ${tot.soTempo ? '' : '≈ '}${tot.tempo}`, p.descricao ? 'Treinador: ' + p.descricao : '', sobre].filter(Boolean).join('\n\n');
   // o Garmin aceita até 500 letras: o texto sobre o tipo de treino sai primeiro se não couber
   let desc = montar(sobreTreino(p.tipo)); if (desc.length > 500) desc = montar('');
-  return { plano_id: p.id, data: p.data, nome: p.titulo || nomeTipo(p.tipo), descricao: desc, passos: est.map((s) => s.k === 'rep' ? { repetir: s.n || 1, passos: (s.passos || []).map((x) => conv(x, true)) } : conv(s, false)) };
+  return { plano_id: p.id, data: p.data, nome: p.titulo || nomeTipo(p.tipo), descricao: desc, obs: p.descricao || '', passos: est.map((s) => s.k === 'rep' ? { repetir: s.n || 1, passos: (s.passos || []).map((x) => conv(x, true)) } : conv(s, false)) };
 }
 /** manda ao Garmin os treinos liberados (de hoje em diante) que ainda não estão lá — uma vez por sessão por aluno */
 async function sincronizarGarmin(alunoId, planos, perfil, staff) {
@@ -8650,7 +8653,7 @@ async function sincronizarGarmin(alunoId, planos, perfil, staff) {
   S.cache.garSync[chave] = [...(S.cache.garSync[chave] || []), ...pend.map((p) => p.id)];
   try {
     const r = await enviarGarmin(alunoId, pend, perfil);
-    if (r.enviados) toast(staff ? `${r.enviados} treino${r.enviados > 1 ? 's' : ''} enviado${r.enviados > 1 ? 's' : ''} ao Garmin do aluno ⌚` : `${r.enviados} treino${r.enviados > 1 ? 's' : ''} da sua planilha ${r.enviados > 1 ? 'foram' : 'foi'} para o seu Garmin ⌚`);
+    if (r.enviados) toast(staff ? `${r.enviados} treino${r.enviados > 1 ? 's' : ''} enviado${r.enviados > 1 ? 's' : ''} ao ${nomeRelogio(r)} do aluno ⌚` : `${r.enviados} treino${r.enviados > 1 ? 's' : ''} da sua planilha ${r.enviados > 1 ? 'foram' : 'foi'} para o seu ${nomeRelogio(r)} ⌚`);
     return r.enviados || 0;
   } catch { return 0; }
 }
@@ -8670,8 +8673,16 @@ async function chamarGarmin(body) {
   const { data, error } = await sb.functions.invoke('nx-garmin', { body: { org_id: S.org.id, ...body } });
   if (error) { let msg = 'Não foi possível falar com o Garmin agora.'; try { const j = await error.context.json(); if (j?.erro) msg = j.erro; } catch {} throw new Error(msg); }
   if (data?.erro) throw new Error(data.erro);
+  // sem Garmin: os treinos vão pelo Intervals.icu (calendário → relógio Coros, Amazfit, Huawei…)
+  if (data?.sem_garmin && (body.acao === 'enviar_treinos' || body.acao === 'remover_treinos')) {
+    const r = await chamarIntervals(body);
+    return r.sem_intervals ? data : { ...r, sem_garmin: !!r.precisa_reconectar };
+  }
   return data;
 }
+/** o relógio recebe treinos? Garmin direto, ou Intervals.icu autorizado a escrever no calendário */
+const icuEscreve = (i) => !!(i && /CALENDAR:WRITE/.test(i.escopo || ''));
+const nomeRelogio = (r) => (r && r.via === 'intervals' ? 'relógio' : 'Garmin');
 function bindGarmin(el, recarregar) {
   const on = el.querySelector('#gar-on'), off = el.querySelector('#gar-off');
   if (on) on.onclick = async () => {
