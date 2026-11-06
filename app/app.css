@@ -2661,3 +2661,7 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .pp-chk summary::-webkit-details-marker{display:none}
 .pp-chk .pm-chk{margin-top:10px}
 @media (max-width:420px){.pp-res{grid-template-columns:1fr 1fr}.pp-tab>div{grid-template-columns:40px 1fr 1.5fr 1fr;padding:8px 10px;font-size:.84rem}}
+.pm-mini{display:flex;align-items:center;gap:10px;padding:12px 16px}
+.pm-mini .eyebrow{flex:none}
+.pm-mini b{font-size:.9rem;min-width:0}
+.prova-modo .pm-tg{color:#9fdcff!important;position:relative;z-index:1}

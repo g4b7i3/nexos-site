@@ -1980,14 +1980,24 @@ function modoProvaHTML(p, perfil) {
   const d = Math.round((dia(p.data) - dia(hojeISO())) / 864e5); const pl = planoDeProva(p, perfil);
   const chk = store.get('nx-prova-chk-' + p.id, {}); const grupo = d <= 0 ? 'dia' : d === 1 ? 'vespera' : null;
   const linhas = pl && pl.splits ? (pl.km > 12 ? pl.splits.filter((s) => s.km % 5 === 0 || s.km === pl.km) : pl.splits) : [];
-  return `<div class="card prova-modo"><div class="pm-top"><span class="eyebrow">Modo prova</span><b>${d === 0 ? 'É hoje!' : d === 1 ? 'Amanhã' : `Faltam ${d} dias`}</b></div>
+  const quando = d === 0 ? 'É hoje!' : d === 1 ? 'Amanhã' : `Faltam ${d} dias`; PM_CTX[p.id] = [p, perfil];
+  // o aluno pode recolher o card; cada prova nova começa aberta
+  if (store.get('nx-prova-oculta-' + p.id, false)) return `<div class="card prova-modo pm-mini" data-pm="${p.id}"><div class="grow" style="min-width:0"><span class="eyebrow">Modo prova · ${quando}</span><b class="ellip" style="display:block">${esc(p.titulo)}</b></div><button type="button" class="link-btn small pm-tg" data-pm-tg="mostrar">Mostrar</button></div>`;
+  return `<div class="card prova-modo" data-pm="${p.id}"><div class="pm-top"><span class="eyebrow">Modo prova</span><div class="row" style="gap:10px;align-items:center"><b>${quando}</b><button type="button" class="link-btn small pm-tg" data-pm-tg="ocultar">Ocultar</button></div></div>
     <div class="h3" style="margin-top:4px">${esc(p.titulo)}</div><a class="btn sm pm-plano" href="#/prova/${p.id}">Plano de prova completo</a><p class="small muted">${fmtDiaSem(p.data)}${p.cidade ? ' · ' + esc(p.cidade) : ''}${pl ? ` · ${String(f1(pl.km)).replace(',0', '')} km` : ''}</p>
     ${pl && pl.T ? `<div class="pm-alvo"><div><span>Tempo alvo</span><b>${fmtDurLongo(pl.T)}</b></div><div><span>Pace médio</span><b>${fmtPace(pl.pa)}</b></div></div>
       <p class="tiny dim">${pl.fonte === 'sua meta' ? 'Pela sua meta' : 'Pela previsão do seu último teste'}. Estratégia: 1º km um pouco mais contido e fechamento levemente mais forte.</p>
       <details class="pm-split"><summary>Ritmo por km</summary><div class="pm-tab">${linhas.map((s) => `<div><span>km ${String(f1(s.km)).replace(',0', '')}</span><b>${fmtPace(s.pace).replace('/km', '')}</b><em>${fmtDurLongo(s.acc)}</em></div>`).join('')}</div></details>` : '<p class="small muted" style="margin-top:8px">Combine com o seu treinador o tempo alvo para ver o ritmo por km.</p>'}
     ${grupo ? `<p class="sec-lbl" style="margin-top:12px">${grupo === 'dia' ? 'Checklist do dia' : 'Checklist da véspera'}</p><div class="pm-chk" data-prova="${p.id}">${CHECK_PROVA[grupo].map((t, j) => `<label><input type="checkbox" data-ck="${grupo}${j}" ${chk[grupo + j] ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>` : `<p class="tiny dim" style="margin-top:10px">Na véspera e no dia aparece aqui o checklist da prova.</p>`}</div>`;
 }
+const PM_CTX = {};
 function bindModoProva(root) {
+  root.querySelectorAll('[data-pm-tg]').forEach((b) => b.onclick = () => {
+    const card = b.closest('[data-pm]'), id = card.dataset.pm, ocultar = b.dataset.pmTg === 'ocultar';
+    store.set('nx-prova-oculta-' + id, ocultar);
+    const ctx = PM_CTX[id], pai = card.parentElement; if (!ctx || !pai) return;
+    card.outerHTML = modoProvaHTML(ctx[0], ctx[1]); bindModoProva(pai);
+  });
   root.querySelectorAll('.pm-chk').forEach((b) => b.onchange = (e) => { const i = e.target.closest('[data-ck]'); if (!i) return; const k = 'nx-prova-chk-' + b.dataset.prova; const st = store.get(k, {}); st[i.dataset.ck] = i.checked; store.set(k, st); });
 }
 
