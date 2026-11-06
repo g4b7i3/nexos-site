@@ -1588,7 +1588,9 @@ function abrirComemoracao(x, depois) {
 
 /* ---------- alerta de carga ---------- */
 // carga de cada treino = minutos x esforço percebido de 0 a 10 (Foster, 2001); sem esforço anotado, usa a média do próprio aluno (ou 5)
-// compara os últimos 7 dias com a média semanal das 4 semanas anteriores (aguda x crônica, Gabbett 2016) e, na corrida, os km (Nielsen 2014)
+// principal: na corrida, treino dos últimos 7 dias mais de 10% maior que o mais longo dos 30 dias anteriores (Frandsen et al. 2025, Br J Sports Med,
+// 5.205 corredores: >10% aumentou o risco de lesão; >100% mais que dobrou). A relação aguda:crônica e o aumento de km da semana
+// não tiveram associação clara com lesão nesse estudo (e são questionadas por Impellizzeri et al. 2020); ficam só como monitoramento.
 function calcCarga(corrs, sess, agora = Date.now()) {
   const it = [...(corrs || []).map((c) => ({ t: Date.parse(c.data), min: Math.round((+c.duracao_s || 0) / 60), pse: c.rpe, km: ehCorrHist(c) ? (+c.distancia_m || 0) / 1000 : 0 })),
     ...(sess || []).filter((s) => s.finalizado_em).map((s) => ({ t: Date.parse(s.iniciado_em), min: Math.min(minutos(s.iniciado_em, s.finalizado_em), 150), pse: s.esforco, km: 0 }))].filter((x) => x.min > 0 && x.t <= agora);
@@ -1599,15 +1601,23 @@ function calcCarga(corrs, sess, agora = Date.now()) {
   const acwr = ativas >= 3 && cr > 0 && ua[0] >= 200 ? ua[0] / cr : null;
   const kmCr = km.slice(1).reduce((a, v) => a + v, 0) / 4;
   const kmPct = ativas >= 3 && kmCr >= 8 && km[0] >= 10 ? Math.round((km[0] / kmCr - 1) * 100) : null;
-  const nivel = acwr != null && acwr >= 1.5 ? 'alto' : (acwr != null && acwr >= 1.3) || (kmPct != null && kmPct >= 30) ? 'atencao' : null;
+  // salto de um treino isolado em relação ao mais longo dos 30 dias anteriores
+  const runs = it.filter((x) => x.km > 0).sort((a, b) => a.t - b.t);
+  let salto = null;
+  runs.filter((x) => agora - x.t < 7 * 864e5).forEach((x) => {
+    const ant30 = runs.filter((y) => y.t < x.t - 36e5 && y.t >= x.t - 30 * 864e5); if (ant30.length < 3) return;
+    const mx = Math.max(...ant30.map((y) => y.km)); if (mx < 3) return;
+    const pct = Math.round((x.km / mx - 1) * 100); if (pct > 10 && (!salto || pct > salto.pct)) salto = { pct, km: x.km, mx };
+  });
+  const nivel = salto && salto.pct > 100 ? 'alto' : salto || (acwr != null && acwr >= 1.5) ? 'atencao' : null;
   const partes = [];
-  if (acwr != null && acwr >= 1.3) partes.push(`carga ${f1(acwr)}x a média das 4 semanas anteriores`);
-  if (kmPct != null && kmPct >= 30) partes.push(`${f1(km[0])} km em 7 dias, ${kmPct}% acima da média`);
-  const curto = acwr != null && acwr >= 1.3 ? `Carga ${f1(acwr)}x a média` : kmPct != null ? `Km da semana +${kmPct}%` : '';
-  return { acwr, ua: Math.round(ua[0]), cr: Math.round(cr), km: km[0], kmCr, kmPct, nivel, txt: partes.join(' · '), curto };
+  if (salto) partes.push(`treino de ${f1(salto.km)} km, ${salto.pct}% acima do mais longo dos 30 dias anteriores (${f1(salto.mx)} km)`);
+  if (acwr != null && acwr >= 1.5) partes.push(`carga da semana ${f1(acwr)}x a média das 4 anteriores`);
+  const curto = salto ? `Treino +${salto.pct}%` : acwr != null && acwr >= 1.5 ? `Carga ${f1(acwr)}x a média` : '';
+  return { acwr, ua: Math.round(ua[0]), cr: Math.round(cr), km: km[0], kmCr, kmPct, salto, nivel, txt: partes.join(' · '), curto };
 }
 async function buscarCargas(ids) {
-  const ini = new Date(Date.now() - 35 * 864e5).toISOString();
+  const ini = new Date(Date.now() - 38 * 864e5).toISOString();
   let qc = sb.from('nx_corridas').select('aluno_id,data,tipo,duracao_s,distancia_m,rpe').eq('org_id', S.org.id).gte('data', ini);
   let qs = sb.from('nx_sessoes').select('aluno_id,iniciado_em,finalizado_em,esforco').eq('org_id', S.org.id).not('finalizado_em', 'is', null).gte('iniciado_em', ini);
   if (ids) { qc = qc.in('aluno_id', ids); qs = qs.in('aluno_id', ids); }
@@ -1616,7 +1626,7 @@ async function buscarCargas(ids) {
   [...new Set([...cs, ...ss].map((x) => x.aluno_id))].forEach((id) => { out[id] = calcCarga(cs.filter((c) => c.aluno_id === id), ss.filter((s) => s.aluno_id === id)); });
   return out;
 }
-const cargaTag = (c) => (c && c.nivel ? `<span class="tag ${c.nivel === 'alto' ? 'err' : 'warn'}">${c.acwr != null && c.acwr >= 1.3 ? `Carga ${f1(c.acwr)}x` : `+${c.kmPct}% km`}</span>` : '');
+const cargaTag = (c) => (c && c.nivel ? `<span class="tag ${c.nivel === 'alto' ? 'err' : 'warn'}">${c.salto ? `Treino +${c.salto.pct}%` : `Carga ${f1(c.acwr)}x`}</span>` : '');
 
 /* ---------- painel de prontidão da equipe ---------- */
 const PRONT_CURTO = { sono: 'Sono', energia: 'Energia', dor: 'Dor', estresse: 'Estresse' };
@@ -1827,8 +1837,8 @@ function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave, cg) {
   // corrida: volume da semana e carga aguda x crônica
   if (fazC && base.c) {
     // mesmo cálculo do alerta de carga (painel de prontidão), para os números baterem
-    if (cg && cg.kmPct != null && cg.kmPct >= 10) dados.push(`${f1(cg.km)} km nos últimos 7 dias, ${cg.kmPct}% acima da média das 4 semanas anteriores (${f1(cg.kmCr)} km). Subida rápida de volume é o principal fator de risco de lesão na corrida.`);
-    if (cg && cg.acwr != null && cg.acwr >= 1.3) dados.push(`Carga dos últimos 7 dias ${f1(cg.acwr)}x a média das 4 semanas anteriores (acima de 1,3x o risco de lesão sobe, Gabbett 2016).`);
+    if (cg && cg.salto) dados.push(`Treino de ${f1(cg.salto.km)} km nos últimos 7 dias, ${cg.salto.pct}% acima do mais longo dos 30 dias anteriores (${f1(cg.salto.mx)} km). Um treino isolado mais de 10% maior que o mais longo do último mês aumentou o risco de lesão no maior estudo sobre o tema (Frandsen et al. 2025).`);
+    if (cg && cg.acwr != null && cg.acwr >= 1.5) dados.push(`Carga dos últimos 7 dias ${f1(cg.acwr)}x a média das 4 semanas anteriores. Serve como monitoramento; essa relação sozinha não previu lesão nos estudos mais recentes.`);
     const forte = corrs.find((c) => diasDesde(c.data) <= 2 && (c.rpe >= 8 || /tiro|interval|prova|fartlek/i.test(c.tipo + ' ' + (c.titulo || ''))));
     if (forte) dados.push(`Treino forte de corrida há ${diasDesde(forte.data) || 'menos de 1'} dia(s)${forte.rpe ? ` (esforço ${forte.rpe}/10)` : ''}.`);
     blocos.push({ t: 'Corrida', padrao: base.c[0], sug: base.c[1] });
@@ -3579,7 +3589,7 @@ async function metricasForcaHTML(alunoId, semanaRef, sess) {
     </div>
     <div class="mf-graf"><div class="mf-cols">${barras}</div><div class="mf-leg"><span><i class="f"></i>Força</span><span><i class="c"></i>Corrida</span><span class="dim">letra = fase da semana</span></div></div>
     <details class="mf-det"><summary>Cargas por fase</summary>${tabela}</details>
-    <p class="tiny dim" style="margin-top:8px">Carga da sessão = PSE × minutos (Foster, 2001). Aguda : crônica = semana atual ÷ média das 4 anteriores; entre 0,8 e 1,3 é a faixa considerada segura (Gabbett, 2016).</p></div>`;
+    <p class="tiny dim" style="margin-top:8px">Carga da sessão = PSE × minutos (Foster, 2001). Aguda : crônica = semana atual ÷ média das 4 anteriores, para acompanhar a tendência; nos estudos mais recentes ela não previu lesão sozinha (Impellizzeri et al. 2020; Frandsen et al. 2025). Na corrida, o que mais pesa é não fazer um treino mais de 10% maior que o mais longo dos últimos 30 dias.</p></div>`;
 }
 
 /* termômetro: cansaço e sono (0 bom · 1 médio · 2 ruim) */
@@ -3795,7 +3805,7 @@ function calcAval(a) {
 const clsIMC = (v) => v == null ? '' : v < 18.5 ? 'Abaixo do peso' : v < 25 ? 'Peso adequado' : v < 30 ? 'Sobrepeso' : v < 35 ? 'Obesidade grau I' : v < 40 ? 'Obesidade grau II' : 'Obesidade grau III';
 const clsRCQ = (v, sx) => v == null || !sx ? '' : v < (sx === 'M' ? 0.9 : 0.85) ? 'Dentro da referência' : 'Acima da referência';
 const clsCint = (v, sx) => v == null || !sx ? '' : sx === 'M' ? (v >= 102 ? 'Risco muito aumentado' : v >= 94 ? 'Risco aumentado' : 'Dentro da referência') : (v >= 88 ? 'Risco muito aumentado' : v >= 80 ? 'Risco aumentado' : 'Dentro da referência');
-const clsPA = (s, d) => { if (!s || !d) return ''; if (s >= 180 || d >= 110) return 'Hipertensão estágio 3'; if (s >= 160 || d >= 100) return 'Hipertensão estágio 2'; if (s >= 140 || d >= 90) return 'Hipertensão estágio 1'; if (s >= 130 || d >= 85) return 'Pré-hipertensão'; if (s >= 120 || d >= 80) return 'Normal'; return 'Ótima'; };
+const clsPA = (s, d) => { if (!s || !d) return ''; if (s >= 180 || d >= 110) return 'Hipertensão estágio 3'; if (s >= 160 || d >= 100) return 'Hipertensão estágio 2'; if (s >= 140 || d >= 90) return 'Hipertensão estágio 1'; if (s >= 120 || d >= 80) return 'Pré-hipertensão'; return 'Normal'; }; // Diretriz Brasileira de Hipertensão Arterial 2025
 const mediana = (l) => { const v = l.filter((x) => x != null).sort((a, b) => a - b); if (!v.length) return null; const m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 // zonas de FC pela FC de limiar (Friel, 2009): Z1 < 85%, Z2 85-89%, Z3 90-94%, Z4 95-99%, Z5 100% ou mais da LTHR
 function zonasFCLimiar(lthr, fcMax) {
@@ -3987,7 +3997,7 @@ async function viewRelatorio(avId) {
       <div class="zonas">${zonasFC(r.fc_max, av.fc_rep).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate} bpm</em></div>`).join('')}</div></div>` : ''}
     ${av.observacoes ? `<div class="card" style="margin-top:24px;border-color:rgba(70,214,255,.3)"><span class="eyebrow">Recado do avaliador</span><p style="margin-top:6px;white-space:pre-line">${esc(av.observacoes)}</p></div>` : ''}
     ${av.proxima ? `<div class="card"><span class="eyebrow">Próxima avaliação</span><div class="h3" style="margin-top:4px">${fmtDia(av.proxima)}</div></div>` : ''}
-    <p class="tiny dim" style="margin-top:16px">Os percentuais de gordura são estimativas por equações de referência (Jackson & Pollock, Petroski, Faulkner, conversão de Siri) ou pela balança de bioimpedância. Servem para acompanhar a sua evolução ao longo do tempo e não são diagnóstico. Classificações de IMC, cintura e cintura/quadril seguem a OMS; pressão arterial, a Diretriz Brasileira de Hipertensão (2020). FC máxima por Tanaka (2001); zonas por Karvonen; metabolismo basal por Katch-McArdle ou Mifflin-St Jeor.</p>
+    <p class="tiny dim" style="margin-top:16px">Os percentuais de gordura são estimativas por equações de referência (Jackson & Pollock, Petroski, Faulkner, conversão de Siri) ou pela balança de bioimpedância. Servem para acompanhar a sua evolução ao longo do tempo e não são diagnóstico. Classificações de IMC, cintura e cintura/quadril seguem a OMS; pressão arterial, a Diretriz Brasileira de Hipertensão Arterial (2025), que passou a chamar de pré-hipertensão a pressão de 120/80 a 139/89. FC máxima por Tanaka (2001); zonas por Karvonen; metabolismo basal por Katch-McArdle ou Mifflin-St Jeor.</p>
     <p class="tiny dim" style="margin-top:6px">Nexos Performance e Saúde · São Luís–MA</p>`;
   document.getElementById('imprimir').onclick = () => window.print();
 }
@@ -5964,6 +5974,10 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     }
     const sem4 = ant.filter((x) => Date.parse(x.data) > t0 - 28 * 864e5).reduce((a, x) => a + x.distancia_m, 0) / 4000;
     if (sem4 > 0) sec.comp.push(`Sua média nas últimas 4 semanas é de ${N1(sem4)} km por semana; este treino representa ${Math.round((km / sem4) * 100)}% disso.`);
+    // salto de treino isolado (Frandsen et al. 2025): mais de 10% acima do mais longo dos 30 dias anteriores
+    const ult30 = ant.filter((x) => Date.parse(x.data) > t0 - 30 * 864e5 && Date.parse(x.data) < t0 - 36e5);
+    const mx30 = ult30.length >= 3 ? Math.max(...ult30.map((x) => x.distancia_m / 1000)) : 0;
+    if (mx30 >= 3 && km > mx30 * 1.1) { const pc = Math.round((km / mx30 - 1) * 100); sec.comp.push(`Este treino foi ${pc}% maior que o mais longo dos 30 dias anteriores (${N1(mx30)} km). Saltos acima de 10% num treino isolado aumentaram o risco de lesão no maior estudo sobre o tema; se for proposital, capriche na recuperação.`); }
   }
   // ---------- 7. corpo ----------
   let alerta = '';
@@ -10355,7 +10369,7 @@ async function staffFeed() {
      hipertrofia com ≥10 séries por músculo/semana (retorno diminui depois de ~18–20), qualquer carga de ~30–100% 1RM se a série for
      perto da falha (2–3 reps sobrando); falha total não traz ganho extra; amplitude completa; máquina = peso livre; potência com subida rápida.
    - Robinson et al. 2024 (Sports Med): mais perto da falha → mais hipertrofia; para força, a distância da falha pesa pouco.
-   - Pelland et al. (Sports Med): mais volume semanal → mais ganho, com retorno decrescente.
+   - Pelland et al. 2026 (Sports Med 56:481): mais volume semanal → mais ganho, com retorno decrescente.
    - Singer et al. 2024 (Front Sports Act Living): descanso >60 s dá pequena vantagem para hipertrofia; acima de ~90 s pouco muda.
    - Wolf et al. 2023 (IJSC) e Maeo et al. 2021/2022: treinar o músculo alongado ajuda (mesa flexora sentada > deitada; tríceps acima da cabeça > pulley).
    - Plotkin et al. 2023 (Front Physiol): elevação pélvica e agachamento dão glúteo parecido; agachamento dá mais coxa.
@@ -11373,7 +11387,7 @@ const BIB_FORCA = [
    Base científica:
    · distribuição de intensidade com ~80% leve (Seiler 2010; Stöggl & Sperlich 2014) e muito volume de limiar controlado
      com pausas curtas no estilo norueguês (Haugen et al. 2022; Casado et al. 2021 e 2023);
-   · progressão de volume gradual com semana de recuperação a cada 3–4 semanas (Nielsen et al. 2014; Gabbett 2016);
+   · progressão gradual, sem treino isolado mais de 10% acima do mais longo dos últimos 30 dias (Frandsen et al. 2025), e semana de recuperação a cada 3–4 semanas;
    · fases base → construção → específica → polimento (periodização em blocos; Issurin 2010);
    · polimento: volume 40–60% menor mantendo a intensidade e a frequência (Bosquet et al. 2007; Mujika & Padilla 2003). */
 const CIC_OBJ = [['trilhas', 'Trilhas'], ['modelos', 'Modelos de treino'], ['ini', 'Começar a correr'], ['5k', '5 km'], ['10k', '10 km'], ['21k', 'Meia maratona'], ['42k', 'Maratona'], ['ultra', 'Ultra'], ['trail', 'Trilha (trail)'], ['volta', 'Volta após lesão'], ['bloco', 'Blocos e transição']];
@@ -11889,7 +11903,7 @@ function viewCicloForca(id) {
   const MODELO = {
     Linear: 'Periodização linear: começa com mais repetições e carga menor e, a cada bloco, diminui as repetições e aumenta a carga. Programas periodizados ganham mais força do que os não periodizados (Williams et al. 2017).',
     'Linear reverso': 'Linear reverso: começa pesado e termina com muitas repetições. Indicado quando o objetivo final é resistência muscular (Rhea et al. 2003).',
-    'Ondulatório semanal': 'Ondulatório semanal: a faixa de repetições muda de uma semana para a outra. Com o mesmo volume, linear e ondulatório trazem ganhos parecidos de força e hipertrofia (Harries et al. 2015; Moesgaard et al. 2022); a escolha pode ser pela preferência e pela rotina do aluno.',
+    'Ondulatório semanal': 'Ondulatório semanal: a faixa de repetições muda de uma semana para a outra. Com o mesmo volume, a hipertrofia é parecida entre linear e ondulatório; para força máxima, o ondulatório teve pequena vantagem, principalmente em quem já treina (Moesgaard et al. 2022, Sports Med; Harries et al. 2015).',
     'Ondulatório diário': 'Ondulatório diário (DUP): treino A em força, B em hipertrofia e C em resistência na mesma semana (Rhea et al. 2002). O app mostra ao aluno a faixa certa em cada treino.',
     Blocos: 'Periodização em blocos (Issurin 2010): concentra um objetivo por vez (acumulação, transmutação, realização), em blocos de 2 a 4 semanas.',
     'Linear em blocos': 'Macrociclo em blocos lineares, cada um com a sua semana leve. A semana leve (metade das séries, carga ~10% menor) ajuda a recuperar e a consolidar os ganhos (Bell et al. 2023).',
@@ -11956,7 +11970,7 @@ const SEQ_POR = {
   acum: 'Volta à acumulação (hipertrofia): músculo maior dá base para a próxima fase de força.',
   forca: 'Converter a base em força: menos repetições e mais carga.',
   pot: 'Transformar a força em potência: carga moderada movida rápido.',
-  varia: 'Variar o estímulo com o mesmo volume: ondulatório, blocos e linear rendem parecido, e trocar o modelo ajuda quando o aluno estagna.',
+  varia: 'Variar o estímulo com o mesmo volume: para hipertrofia os modelos rendem parecido; para força, o ondulatório tem pequena vantagem em quem já treina (Moesgaard et al. 2022). Trocar o modelo também ajuda quando o aluno estagna.',
   leve: 'Semana leve antes do próximo bloco: recupera e consolida os ganhos.',
   menos: 'Mês com menos provas: quando o aluno acumulou cansaço, reduz o número de provas e volta a ter semanas de treino completas.',
   corr: 'Ajustar a força à fase da corrida: pesado na base, manutenção na temporada de provas.',
@@ -12790,7 +12804,7 @@ async function staffDossie(alunoId, semSel) {
       ${fC ? sec('Corrida', `
         <div class="lab-bloco"><div class="lab-bt"><b>Volume semanal e carga</b><span class="lab-leg"><i style="background:${corP().p2}"></i>km por semana <i style="background:#e0a400"></i>carga dos 7 dias x média das 4 anteriores</span></div>
           ${labGraf({ barras: sems.map((s) => s.km), linha: sems.map((s) => s.cg.acwr), rot, faixa: [0.8, 1.3], maxL: 2, fmtL: (v) => f1(v), uniB: ' km' })}
-          <p class="tiny dim">Faixa verde: 0,8 a 1,3, onde o risco de lesão é menor (Gabbett, 2016). Carga = minutos x esforço de todos os treinos, corrida e força.</p></div>
+          <p class="tiny dim">Faixa verde de 0,8 a 1,3: referência de monitoramento (Gabbett 2016), mas os estudos mais recentes não confirmaram que ela prevê lesão (Impellizzeri et al. 2020; Frandsen et al. 2025). O alerta do app olha o salto de um treino isolado. Carga = minutos x esforço de todos os treinos, corrida e força.</p></div>
         <div class="lab-2">
           <div class="lab-bloco"><div class="lab-bt"><b>Distribuição de intensidade</b></div>
             ${distT ? `<div class="lab-int">${[['leve', 'Leve', '#3ddc97'], ['mod', 'Moderado', '#ffcf5c'], ['forte', 'Forte', '#ff8a8a']].map(([k, l, c]) => `<i style="flex:${dist[k] || 0.0001};background:${c}"></i>`).join('')}</div>
@@ -13291,7 +13305,7 @@ async function staffBiblioteca(aba) {
           : `<div class="card guia-niv"><span class="eyebrow">Como montar · ${nomeNiv[sel]}</span><ul>${GUIA_FORCA[sel].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
         <div class="chips" id="fcat" style="margin-top:14px">${[['todos', 'Todos os objetivos'], ...CATS_FORCA].map(([k, l]) => `<button class="chip ${st.cat === k ? 'on' : ''}" data-fcat="${k}">${l}</button>`).join('')}</div>
         <div class="cols" style="margin-top:16px">${lista.map(cardProg).join('')}</div>
-        <p class="tiny dim" style="margin-top:18px">Bases: ACSM 2026 (Currier et al., Med Sci Sports Exerc); Robinson 2024 e Pelland (Sports Med); Singer 2024; Wolf 2023; Maeo 2021 e 2022; Plotkin 2023; Wewege 2021; Llanos-Lagos 2024; Lauersen 2014; Rønnestad 2011; Iversen 2021; Sødal 2023; van Dyk 2019; Harøy 2019; Watson 2018 (LIFTMOR); Su 2023; Hayden 2021 (Cochrane).</p>`}
+        <p class="tiny dim" style="margin-top:18px">Bases: ACSM 2026 (Currier et al., Med Sci Sports Exerc); Robinson 2024 e Pelland 2026 (Sports Med); Singer 2024; Wolf 2023; Maeo 2021 e 2022; Plotkin 2023; Wewege 2021; Llanos-Lagos 2024; Lauersen 2014; Rønnestad 2011; Iversen 2021; Sødal 2023; van Dyk 2019; Harøy 2019; Watson 2018 (LIFTMOR); Su 2023; Hayden 2021 (Cochrane).</p>`}
         <a class="fab" href="#/modelo/novo" aria-label="Novo modelo">${I.plus}</a>`;
     };
     desenhar();
