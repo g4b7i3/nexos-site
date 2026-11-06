@@ -2934,3 +2934,23 @@ html[data-tema="claro"] .ck-d.pior{color:#c53030}
 .ck-sub{padding:10px 0 0;font-size:.8rem;font-weight:800}
 .ck-sub+.ck-row>span:first-child,.ck-sub+.ck-row+.ck-row>span:first-child{padding-left:10px;color:var(--mute)}
 .ck-conf{border:1.5px solid var(--acc)}
+
+/* ciclos prontos de corrida */
+.cic-cta{display:flex;gap:12px;align-items:center;margin-top:14px;border:1.5px solid var(--acc)}
+.cic-barra{display:flex;gap:2px;margin-top:12px;height:8px}
+.cic-barra i{flex:1;border-radius:3px}
+.cic-leg{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:.72rem;color:var(--mute);font-weight:700}
+.cic-leg span{display:inline-flex;align-items:center;gap:5px}
+.cic-leg i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.cic-res{grid-template-columns:repeat(3,1fr)}
+.cic-macro ol{margin:8px 0 6px 18px;font-size:.88rem;line-height:1.7}
+.cic-sem{padding:12px 14px}
+.cic-sem summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+.cic-sem summary::-webkit-details-marker{display:none}
+.cic-sem summary>svg{width:16px;height:16px;transition:transform .2s;color:var(--mute)}
+.cic-sem[open] summary>svg{transform:rotate(90deg)}
+.cic-fase{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:800;background:color-mix(in srgb,var(--fc) 18%,transparent);color:var(--fc)}
+html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
+.cic-tr{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+.cic-dia{flex:none;width:38px;font-size:.74rem;font-weight:800;color:var(--acc);padding-top:2px}
+.cic-tr b{font-size:.9rem}
