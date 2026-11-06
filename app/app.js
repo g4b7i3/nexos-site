@@ -258,7 +258,7 @@ const dockAluno = () => setDock([
   { href: '#/mais', match: ['#/mais', '#/eventos', '#/conexoes', '#/pagamentos', '#/perfil', '#/saude', '#/termo', '#/agua', '#/prontidao', '#/recordes'], icon: I.grid, label: 'Mais', cls: 'so-mob' },
 ]);
 const dockStaff = () => setDock([
-  { href: '#/', match: ['#/', '#', '#/feed'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.pendentes || 0) || '' },
+  { href: '#/', match: ['#/', '#', '#/feed', '#/prontidao-equipe'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.pendentes || 0) || '' },
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
@@ -322,6 +322,7 @@ async function router() {
       if (a === 'mais') return staffMais();
       if (a === 'erros') return await staffErros();
       if (a === 'saude-sistema') return await staffSaudeSistema();
+      if (a === 'prontidao-equipe') return await staffProntidao(b);
       if (a === 'antes-depois' && b) return await viewAntesDepois(b);
       if (a === 'formularios') return await staffFormularios(b);
       if (a === 'mensagens') return await staffMensagens(b);
@@ -941,6 +942,88 @@ async function prontStaffHTML(m) {
 }
 
 
+/* ---------- alerta de carga ---------- */
+// carga de cada treino = minutos x esforço percebido de 0 a 10 (Foster, 2001); sem esforço anotado, usa a média do próprio aluno (ou 5)
+// compara os últimos 7 dias com a média semanal das 4 semanas anteriores (aguda x crônica, Gabbett 2016) e, na corrida, os km (Nielsen 2014)
+function calcCarga(corrs, sess, agora = Date.now()) {
+  const it = [...(corrs || []).map((c) => ({ t: Date.parse(c.data), min: Math.round((+c.duracao_s || 0) / 60), pse: c.rpe, km: ehCorrHist(c) ? (+c.distancia_m || 0) / 1000 : 0 })),
+    ...(sess || []).filter((s) => s.finalizado_em).map((s) => ({ t: Date.parse(s.iniciado_em), min: Math.min(minutos(s.iniciado_em, s.finalizado_em), 150), pse: s.esforco, km: 0 }))].filter((x) => x.min > 0 && x.t <= agora);
+  const cp = it.filter((x) => x.pse != null), pm = cp.length ? cp.reduce((a, x) => a + x.pse, 0) / cp.length : 5;
+  const ua = [0, 0, 0, 0, 0], km = [0, 0, 0, 0, 0];
+  it.forEach((x) => { const w = Math.floor((agora - x.t) / (7 * 864e5)); if (w < 0 || w > 4) return; ua[w] += Math.min(x.min, 240) * (x.pse != null ? x.pse : pm); km[w] += x.km; });
+  const ant = ua.slice(1), ativas = ant.filter((v) => v > 0).length, cr = ant.reduce((a, v) => a + v, 0) / 4;
+  const acwr = ativas >= 3 && cr > 0 && ua[0] >= 200 ? ua[0] / cr : null;
+  const kmCr = km.slice(1).reduce((a, v) => a + v, 0) / 4;
+  const kmPct = ativas >= 3 && kmCr >= 8 && km[0] >= 10 ? Math.round((km[0] / kmCr - 1) * 100) : null;
+  const nivel = acwr != null && acwr >= 1.5 ? 'alto' : (acwr != null && acwr >= 1.3) || (kmPct != null && kmPct >= 30) ? 'atencao' : null;
+  const partes = [];
+  if (acwr != null && acwr >= 1.3) partes.push(`carga ${f1(acwr)}x a média das 4 semanas anteriores`);
+  if (kmPct != null && kmPct >= 30) partes.push(`${f1(km[0])} km em 7 dias, ${kmPct}% acima da média`);
+  const curto = acwr != null && acwr >= 1.3 ? `Carga ${f1(acwr)}x a média` : kmPct != null ? `Km da semana +${kmPct}%` : '';
+  return { acwr, ua: Math.round(ua[0]), cr: Math.round(cr), km: km[0], kmCr, kmPct, nivel, txt: partes.join(' · '), curto };
+}
+async function buscarCargas(ids) {
+  const ini = new Date(Date.now() - 35 * 864e5).toISOString();
+  let qc = sb.from('nx_corridas').select('aluno_id,data,tipo,duracao_s,distancia_m,rpe').eq('org_id', S.org.id).gte('data', ini);
+  let qs = sb.from('nx_sessoes').select('aluno_id,iniciado_em,finalizado_em,esforco').eq('org_id', S.org.id).not('finalizado_em', 'is', null).gte('iniciado_em', ini);
+  if (ids) { qc = qc.in('aluno_id', ids); qs = qs.in('aluno_id', ids); }
+  const [cs, ss] = await Promise.all([qc.limit(3000).then((r) => r.data || [], () => []), qs.limit(3000).then((r) => r.data || [], () => [])]);
+  const out = {};
+  [...new Set([...cs, ...ss].map((x) => x.aluno_id))].forEach((id) => { out[id] = calcCarga(cs.filter((c) => c.aluno_id === id), ss.filter((s) => s.aluno_id === id)); });
+  return out;
+}
+const cargaTag = (c) => (c && c.nivel ? `<span class="tag ${c.nivel === 'alto' ? 'err' : 'warn'}">${c.acwr != null && c.acwr >= 1.3 ? `Carga ${f1(c.acwr)}x` : `+${c.kmPct}% km`}</span>` : '');
+
+/* ---------- painel de prontidão da equipe ---------- */
+const PRONT_CURTO = { sono: 'Sono', energia: 'Energia', dor: 'Dor', estresse: 'Estresse' };
+async function staffProntidao(diaSel) {
+  loading();
+  const hj = hojeISO(); const dS = /^\d{4}-\d{2}-\d{2}$/.test(diaSel || '') && diaSel <= hj ? diaSel : hj, ehHoje = dS === hj;
+  const [membT, pronts, cargas] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,sexo').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome').then((r) => r.data || [], () => []),
+    sb.from('nx_prontidao').select('*').eq('org_id', S.org.id).eq('dia', dS).then((r) => r.data || [], () => []),
+    ehHoje ? buscarCargas(null).catch(() => ({})) : Promise.resolve({}),
+  ]);
+  dockStaff();
+  const al = membT.filter((m) => ehMeuAluno(m) && m.ativo && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
+  const pr = Object.fromEntries(pronts.map((p) => [p.aluno_id, p]));
+  const resp = al.filter((m) => pr[m.user_id]), sem = al.filter((m) => !pr[m.user_id]);
+  const atencao = resp.filter((m) => pr[m.user_id].alerta).sort((a, b) => pr[a.user_id].total - pr[b.user_id].total);
+  const moder = resp.filter((m) => !pr[m.user_id].alerta && pr[m.user_id].total < 16).sort((a, b) => pr[a.user_id].total - pr[b.user_id].total);
+  const prontos = resp.filter((m) => !pr[m.user_id].alerta && pr[m.user_id].total >= 16).sort((a, b) => pr[b.user_id].total - pr[a.user_id].total);
+  const comCarga = al.filter((m) => cargas[m.user_id] && cargas[m.user_id].nivel).sort((a, b) => (cargas[b.user_id].acwr || 0) - (cargas[a.user_id].acwr || 0));
+  const abaDe = (m) => (faz('corrida', m) ? 'corrida' : 'forca');
+  const linha = (m) => { const p = pr[m.user_id], [n, cls] = prontNivel(p.total), c = cargas[m.user_id];
+    return `<a class="card pe-lin" href="#/aluno/${m.user_id}/saude" style="color:inherit"><div class="row" style="gap:12px;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0">
+      <div class="row between" style="gap:8px"><b class="ellip">${esc(m.nome)}</b><span class="pe-tot ${cls}">${p.total}<small>/20</small></span></div>
+      <div class="pe-itens">${['sono', 'energia', 'dor', 'estresse'].map((k) => `<span><i style="background:${PRONT_COR[p[k] - 1]}"></i>${PRONT_CURTO[k]} <b>${p[k]}</b></span>`).join('')}</div>
+      ${p.dor_locais && p.dor_locais.length ? `<div class="pe-dor">${p.dor_locais.map((k) => `<span class="tag err">${esc(nomeRegDor(k))}</span>`).join('')}${p.dor_int != null ? `<span class="small muted">intensidade ${p.dor_int}/10</span>` : ''}</div>` : ''}
+      ${p.obs ? `<p class="small muted pe-obs">"${esc(p.obs)}"</p>` : ''}
+      ${c && c.nivel ? `<div class="pe-dor">${cargaTag(c)}<span class="small muted">${esc(c.txt)}</span></div>` : ''}
+      <span class="tiny dim">Prontidão ${n.toLowerCase()}</span></div></div></a>`; };
+  const grupo = (id, t, sub, l) => (l.length ? `<div class="section" id="${id}"><div class="section-h"><h2 class="h2">${t}</h2><span class="tag">${l.length}</span></div>${sub ? `<p class="small muted" style="margin:-4px 0 10px">${sub}</p>` : ''}<div class="stack">${l.map(linha).join('')}</div></div>` : '');
+  const nav = `<div class="mes-nav pe-nav"><a class="icon-btn sm" href="#/prontidao-equipe/${somaDias(dS, -1)}" aria-label="Dia anterior">${I.back}</a><b>${ehHoje ? 'Hoje' : dS === somaDias(hj, -1) ? 'Ontem' : fmtCurto(dS)}</b>${ehHoje ? '<span class="icon-btn sm" style="visibility:hidden"></span>' : `<a class="icon-btn sm" href="#/prontidao-equipe/${somaDias(dS, 1)}" aria-label="Próximo dia" style="transform:scaleX(-1)">${I.back}</a>`}</div>`;
+  $app.innerHTML = `<a class="back" href="#/">${I.back} Hoje</a><p class="eyebrow">Equipe</p><h1 class="h1">Prontidão</h1>
+    <p class="small muted" style="margin-top:6px">Check-in da manhã dos seus alunos: sono, energia, dor muscular e estresse, de 4 (pior) a 20 (melhor).</p>
+    ${nav}
+    <div class="pe-resumo">
+      <div><b>${resp.length}<small>/${al.length}</small></b><span>responderam</span></div>
+      <a href="#pe-atencao" class="${atencao.length ? 'err' : ''}"><b>${atencao.length}</b><span>${atencao.length === 1 ? 'pede' : 'pedem'} atenção</span></a>
+      <a href="#pe-prontos" class="ok"><b>${prontos.length}</b><span>prontos para treinar</span></a>
+      ${ehHoje ? `<a href="#pe-carga" class="${comCarga.length ? 'warn' : ''}"><b>${comCarga.length}</b><span>alerta de carga</span></a>` : ''}
+    </div>
+    ${grupo('pe-atencao', 'Pedem atenção', 'Prontidão baixa, dor ou algum item no pior nível. Vale conversar e ajustar o treino de hoje.', atencao)}
+    ${grupo('pe-moder', 'Prontidão moderada', 'Podem treinar, com atenção à intensidade.', moder)}
+    ${grupo('pe-prontos', 'Prontos para treinar', 'Prontidão boa (16 a 20): podem seguir o treino planejado, inclusive os mais fortes.', prontos)}
+    ${ehHoje ? `<div class="section" id="pe-carga"><div class="section-h"><h2 class="h2">Alerta de carga</h2>${comCarga.length ? `<span class="tag warn">${comCarga.length}</span>` : ''}</div>
+      <p class="small muted" style="margin:-4px 0 10px">Compara os últimos 7 dias com a média das 4 semanas anteriores (minutos x esforço de cada treino, corrida e força). Acima de 1,3x o risco de lesão começa a subir; acima de 1,5x sobe bastante. Na corrida, aumentar mais de 30% os km também acende o alerta.</p>
+      ${comCarga.length ? `<div class="stack">${comCarga.map((m) => { const c = cargas[m.user_id]; return `<a class="list-item" href="#/aluno/${m.user_id}/${abaDe(m)}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small muted">${esc(c.txt)}</span></div>${cargaTag(c)}</a>`; }).join('')}</div>` : '<div class="card"><p class="small muted">Ninguém com aumento brusco de carga agora.</p></div>'}</div>` : ''}
+    ${sem.length ? `<div class="section" id="pe-sem"><div class="section-h"><h2 class="h2">Sem check-in ${ehHoje ? 'hoje' : 'neste dia'}</h2><span class="tag">${sem.length}</span></div>
+      <div class="pe-chips">${sem.map((m) => `<a href="#/aluno/${m.user_id}/saude">${avAluno(m, 'sm')}<span class="ellip">${esc(firstName(m.nome))}</span></a>`).join('')}</div>
+      ${ehHoje ? '<p class="tiny dim" style="margin-top:8px">O check-in aparece para o aluno de manhã, na tela Hoje.</p>' : ''}</div>` : ''}`;
+  $app.querySelectorAll('.pe-resumo a[href^="#pe-"]').forEach((a) => a.onclick = (e) => { e.preventDefault(); const el = document.querySelector(a.getAttribute('href')); if (el) el.scrollIntoView({ behavior: semMov() ? 'auto' : 'smooth', block: 'start' }); });
+}
+
 /* ---------- Mais (aluno): o que não cabe na barra do celular ---------- */
 function alunoMais() {
   const it = (href, ic, t, d, extra = '') => `<a class="list-item" href="${href}" style="color:inherit"${extra}><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
@@ -1053,12 +1136,13 @@ async function dadosSugestoes(alunoIds, diasPront = 2) {
   const ids = [...new Set(comDor.map((p) => p.aluno_id))];
   if (!ids.length) return [];
   const ini28 = isoDia(Date.now() - 28 * 864e5);
-  const [membs, corrs, trs, sess, ajs] = await Promise.all([
+  const [membs, corrs, trs, sess, ajs, cargas] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,sexo,modalidades,foto_url').eq('org_id', S.org.id).in('user_id', ids).then((r) => r.data || [], () => []),
     sb.from('nx_corridas').select('aluno_id,data,distancia_m,rpe,tipo,titulo').in('aluno_id', ids).gte('data', ini28).then((r) => r.data || [], () => []),
     sb.from('nx_treinos').select('aluno_id,titulo,nx_treino_itens(nx_exercicios(nome))').in('aluno_id', ids).eq('ativo', true).then((r) => r.data || [], () => []),
     sb.from('nx_sessoes').select('aluno_id,iniciado_em,psr,fase,treino_titulo').in('aluno_id', ids).gte('iniciado_em', isoDia(Date.now() - 7 * 864e5)).then((r) => r.data || [], () => []),
     sb.from('nx_ajustes_dor').select('id,chave,criado_em,desfeito_em').eq('org_id', S.org.id).in('aluno_id', ids).is('desfeito_em', null).then((r) => r.data || [], () => []),
+    buscarCargas(ids).catch(() => ({})),
   ]);
   const out = [], vistos = new Set();
   for (const p of comDor) { // pronts vêm do mais novo ao mais antigo: vale a queixa mais recente de cada região
@@ -1068,14 +1152,14 @@ async function dadosSugestoes(alunoIds, diasPront = 2) {
     for (const k of regs) {
       if (vistos.has(p.aluno_id + k)) continue; vistos.add(p.aluno_id + k);
       const chave = `${p.id}:${k}`; if (ocultas.has(chave)) continue;
-      const sg = montarSugestao(p, k, m, corrs.filter((c) => c.aluno_id === p.aluno_id), trs.filter((t) => t.aluno_id === p.aluno_id), sess.filter((x) => x.aluno_id === p.aluno_id), rep(k), chave);
+      const sg = montarSugestao(p, k, m, corrs.filter((c) => c.aluno_id === p.aluno_id), trs.filter((t) => t.aluno_id === p.aluno_id), sess.filter((x) => x.aluno_id === p.aluno_id), rep(k), chave, cargas[p.aluno_id]);
       if (sg) sg.ajuste = ajs.find((a) => a.chave === chave) || null;
       out.push(sg);
     }
   }
   return out.filter(Boolean);
 }
-function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave) {
+function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave, cg) {
   const b = baseReg(k), base = SUG_DOR[b]; if (!base) return null;
   const fazC = faz('corrida', m), fazF = faz('musculacao', m);
   const blocos = [], dados = [], alertas = [];
@@ -1085,14 +1169,9 @@ function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave) {
   if (base.alerta) alertas.push(base.alerta);
   // corrida: volume da semana e carga aguda x crônica
   if (fazC && base.c) {
-    const seg = inicioSemana(), km = (l) => l.reduce((a, c) => a + (+c.distancia_m || 0), 0) / 1000;
-    const kmSem = km(corrs.filter((c) => new Date(c.data) >= seg));
-    const ant = [1, 2, 3].map((w) => km(corrs.filter((c) => { const d = new Date(c.data); return d >= new Date(seg - w * 7 * 864e5) && d < new Date(seg - (w - 1) * 7 * 864e5); })));
-    const media = ant.reduce((a, x) => a + x, 0) / 3;
-    const k7 = km(corrs.filter((c) => new Date(c.data) >= new Date(Date.now() - 7 * 864e5))), k28 = km(corrs) / 4;
-    const acwr = k28 > 0 ? k7 / k28 : null;
-    if (media > 0 && kmSem > 0) { const pct = Math.round((kmSem / media - 1) * 100); if (pct >= 10) dados.push(`Volume desta semana ${f1(kmSem)} km, ${pct}% acima da média das 3 anteriores (${f1(media)} km). Subida rápida de volume é o principal fator de risco de lesão na corrida.`); }
-    if (acwr && acwr > 1.3) dados.push(`Carga aguda x crônica em ${acwr.toFixed(2).replace('.', ',')} (acima de 1,3 o risco de lesão sobe, Gabbett 2016).`);
+    // mesmo cálculo do alerta de carga (painel de prontidão), para os números baterem
+    if (cg && cg.kmPct != null && cg.kmPct >= 10) dados.push(`${f1(cg.km)} km nos últimos 7 dias, ${cg.kmPct}% acima da média das 4 semanas anteriores (${f1(cg.kmCr)} km). Subida rápida de volume é o principal fator de risco de lesão na corrida.`);
+    if (cg && cg.acwr != null && cg.acwr >= 1.3) dados.push(`Carga dos últimos 7 dias ${f1(cg.acwr)}x a média das 4 semanas anteriores (acima de 1,3x o risco de lesão sobe, Gabbett 2016).`);
     const forte = corrs.find((c) => diasDesde(c.data) <= 2 && (c.rpe >= 8 || /tiro|interval|prova|fartlek/i.test(c.tipo + ' ' + (c.titulo || ''))));
     if (forte) dados.push(`Treino forte de corrida há ${diasDesde(forte.data) || 'menos de 1'} dia(s)${forte.rpe ? ` (esforço ${forte.rpe}/10)` : ''}.`);
     blocos.push({ t: 'Corrida', padrao: base.c[0], sug: base.c[1] });
@@ -1864,6 +1943,28 @@ const TOUR_PASSOS = [
   { rota: '#/mais', sel: 'a[href="#/perfil"]', t: 'Seu perfil', d: 'Foto, dados, tema claro ou escuro e sair da conta.' },
   { rota: '#/mais', sel: '#mais-tour', t: 'Pronto!', d: 'Você viu tudo. Para rever este tour, é só vir aqui em Mais > Tour pelo app. Bons treinos!' },
 ];
+// tour do painel do treinador
+const TOUR_STAFF = [
+  { rota: '#/', sel: 'h1.h1', t: 'Seu dia de treinador', d: 'A tela Hoje junta tudo o que pede a sua atenção. Aqui em cima, quantos alunos seus precisam de você hoje.' },
+  { rota: '#/', sel: '.stats', t: 'Números da assessoria', d: 'Alunos ativos, treinos feitos nos últimos 7 dias e quanto há a receber no mês.' },
+  { rota: '#/', sel: '#pront-eq', t: 'Prontidão de hoje', d: 'Quantos alunos responderam o check-in da manhã, quem pede atenção e quem está pronto para treinar. Toque para abrir o painel completo.' },
+  { rota: '#/', sel: '#alertas', t: 'Alunos que pedem atenção', d: 'Dor relatada, prontidão baixa, alerta de carga, dias sem treinar, planilha acabando, mensagens e pagamentos. Toque no aluno e o app leva direto ao ponto certo.' },
+  { rota: '#/', sel: '#sug-hoje .section', t: 'Sugestões do app', d: 'Quando um aluno marca dor no check-in, o app monta um ajuste pronto para a corrida e a força. Você revisa, aplica, desfaz ou descarta.' },
+  { rota: '#/', sel: '.rs-grid', t: 'Resumo da semana', d: 'Quem treinou, quem faltou, provas nos próximos 14 dias e quem ainda está com a semana sem liberar.' },
+  { rota: '#/', sel: '#ativ-corpo,.empty', t: 'Atividade da semana', d: 'Cada treino que chega dos alunos. Marque como visto e o aluno recebe o aviso de que você analisou.' },
+  { rota: '#/prontidao-equipe', sel: '.pe-resumo', t: 'Painel de prontidão', d: 'O check-in de todos em uma tela: quem pede atenção, quem está moderado, quem está pronto para treinar forte e quem ainda não respondeu. Dá para voltar aos dias anteriores.' },
+  { rota: '#/prontidao-equipe', sel: '#pe-carga', t: 'Alerta de carga', d: 'Avisa quando um aluno aumenta a carga rápido demais em relação às semanas anteriores, o que eleva o risco de lesão. Você também recebe uma notificação.' },
+  { rota: '#/alunos', sel: 'h1.h1', t: 'Atletas', d: 'Todos os seus alunos, com ícones de alerta. Abra um aluno para montar a planilha de corrida, os treinos de força, ver avaliações, saúde, check-ins e conversar.' },
+  { rota: '#/mensagens', sel: '#cv-lista,h1.h1', t: 'Mensagens', d: 'As conversas com todos os alunos em um lugar. Você pode mandar texto ou recado de voz.' },
+  { rota: '#/treinos', sel: 'h1.h1', t: 'Treinos', d: 'Sua biblioteca de modelos de corrida e força por nível, para montar planilhas mais rápido.' },
+  { rota: '#/relatorios', sel: 'h1.h1', t: 'Relatórios', d: 'A evolução dos alunos por período: volume, frequência, previsões e quem precisa de atenção.' },
+  { rota: '#/mais', sel: 'a[href="#/financeiro"]', t: 'Financeiro', d: 'Mensalidades, Pix e quem está em dia.' },
+  { rota: '#/mais', sel: 'a[href="#/formularios"]', t: 'Formulários', d: 'Gere o link da ficha de entrada e mande no WhatsApp. Quem preencher aparece no Hoje para você aprovar.' },
+  { rota: '#/mais', sel: 'a[href="#/eventos"]', t: 'Eventos', d: 'Treinões da Nexos e os alunos inscritos em cada prova.' },
+  { rota: '#/mais', sel: 'a[href="#/saude-sistema"]', t: 'Saúde do sistema', d: 'Erros do app, conexões do Garmin, notificações e avisos automáticos, com botões para resolver.' },
+  { rota: '#/mais', sel: 'a[href="#/perfil"]', t: 'Perfil e equipe', d: 'Sua conta, os treinadores da equipe e as notificações. Ative as notificações para receber os avisos no celular.' },
+  { rota: '#/mais', sel: '#mais-tour', t: 'Pronto!', d: 'Você viu o painel todo. Para rever este tour, é só vir aqui em Mais > Tour pelo painel.' },
+];
 function esperarEl(sel, ms = 2000) {
   return new Promise((ok) => { const t0 = Date.now(); const f = () => { const e = document.querySelector(sel); if (e && e.getBoundingClientRect().height > 0) return ok(e); if (Date.now() - t0 > ms) return ok(null); setTimeout(f, 120); }; f(); });
 }
@@ -1873,7 +1974,7 @@ async function iniciarTour() {
   const luz = ov.querySelector('.tour-luz'), box = ov.querySelector('.tour-box');
   const sair = (feito) => { ov.remove(); window.removeEventListener('resize', pos); window.removeEventListener('scroll', pos); if (feito) { sb.rpc('nx_tour', { p_estado: 'feito' }).catch(() => {}); S.me.tour = 'feito'; } if (location.hash !== '#/') location.hash = '#/'; };
   // só o que o aluno assinou: passos de corrida ou de força ficam de fora para quem não tem
-  const passos = TOUR_PASSOS.filter((p) => !p.so || faz(p.so)).map((p) => ({ ...p, d: typeof p.d === 'function' ? p.d() : p.d }));
+  const passos = (S.staff ? TOUR_STAFF : TOUR_PASSOS).filter((p) => !p.so || faz(p.so)).map((p) => ({ ...p, d: typeof p.d === 'function' ? p.d() : p.d }));
   let alvo = null;
   function pos() {
     if (!alvo) return; const r = alvo.getBoundingClientRect(), m = 8;
@@ -1901,18 +2002,18 @@ async function iniciarTour() {
 }
 // convite: aparece uma vez por sessão para quem ainda não fez nem recusou
 function convidarTour() {
-  if (S.staff || !S.me || S.me.tour || sessionStorage.getItem('nx-tour-conv')) return; // tour null = ainda não viu esta versão
+  if (!S.me || S.me.tour || sessionStorage.getItem('nx-tour-conv')) return; // tour null = ainda não viu esta versão
   setTimeout(() => {
     if (!$sheet.hidden || document.querySelector('.tour,.retro,.replay') || location.hash.replace('#', '').replace('/', '')) return;
     try { sessionStorage.setItem('nx-tour-conv', '1'); } catch {}
-    openSheet(`<div class="tour-conv"><div class="tour-conv-ic">${I.play}</div><p class="eyebrow">Bem-vindo ao app da Nexos</p><div class="h2" style="margin-top:4px">Quer conhecer tudo o que o app faz?</div>
-      <p class="muted" style="margin-top:8px">Um tour rápido, de 1 minuto, mostrando cada parte: treino do dia, check-in, hidratação, planilha, medalhas, conexão com o relógio e mais.</p>
+    openSheet(`<div class="tour-conv"><div class="tour-conv-ic">${I.play}</div><p class="eyebrow">${S.staff ? 'Painel do treinador' : 'Bem-vindo ao app da Nexos'}</p><div class="h2" style="margin-top:4px">${S.staff ? 'Quer conhecer tudo o que o painel faz?' : 'Quer conhecer tudo o que o app faz?'}</div>
+      <p class="muted" style="margin-top:8px">${S.staff ? 'Um tour rápido mostrando cada parte: alertas, prontidão da equipe, alerta de carga, sugestões, atletas, mensagens, relatórios e gestão.' : 'Um tour rápido, de 1 minuto, mostrando cada parte: treino do dia, check-in, hidratação, planilha, medalhas, conexão com o relógio e mais.'}</p>
       <button class="btn block" id="tr-sim" style="margin-top:16px">Fazer o tour</button>
       <div class="row" style="gap:8px;margin-top:8px"><button class="btn ghost grow" id="tr-depois">Agora não</button><button class="btn ghost grow" id="tr-nao">Não quero</button></div>
-      <p class="tiny dim center" style="margin-top:10px">Você pode fazer o tour quando quiser em Mais > Tour pelo app.</p></div>`, (r) => {
+      <p class="tiny dim center" style="margin-top:10px">Você pode fazer o tour quando quiser em Mais > ${S.staff ? 'Tour pelo painel' : 'Tour pelo app'}.</p></div>`, (r) => {
       r.querySelector('#tr-sim').onclick = () => iniciarTour();
       r.querySelector('#tr-depois').onclick = () => closeSheet();
-      r.querySelector('#tr-nao').onclick = () => { sb.rpc('nx_tour', { p_estado: 'recusado' }).catch(() => {}); S.me.tour = 'recusado'; closeSheet(); toast('Tudo bem. O tour fica em Mais > Tour pelo app.'); };
+      r.querySelector('#tr-nao').onclick = () => { sb.rpc('nx_tour', { p_estado: 'recusado' }).catch(() => {}); S.me.tour = 'recusado'; closeSheet(); toast(`Tudo bem. O tour fica em Mais > ${S.staff ? 'Tour pelo painel' : 'Tour pelo app'}.`); };
     });
   }, 1500);
 }
@@ -2570,7 +2671,8 @@ async function metricasForcaHTML(alunoId, semanaRef, sess) {
     return { k, uaF, uaC, tot: uaF + uaC, nF: ss.length, nC: cc.length, psr: psr.length ? psr.reduce((a, b) => a + b, 0) / psr.length : null, pse: pse.length ? pse.reduce((a, b) => a + b, 0) / pse.length : null, fase: faseDe[k] || null };
   });
   const atual = W[W.length - 1], cron = W.slice(-5, -1).filter((w) => w.tot > 0);
-  const acwr = cron.length >= 2 && atual.tot ? atual.tot / (cron.reduce((a, w) => a + w.tot, 0) / cron.length) : null;
+  // mesmo cálculo do alerta de carga: últimos 7 dias x média das 4 semanas anteriores
+  const acwr = calcCarga(corr, sess, Math.min(Date.now(), dia(somaDias(semanaRef, 7)).getTime())).acwr;
   const acwrTag = acwr == null ? '' : acwr > 1.5 ? 'err' : acwr > 1.3 ? 'warn' : acwr < 0.8 ? 'warn' : 'ok';
   const mx = Math.max(1, ...W.map((w) => w.tot));
   const barras = W.map((w) => { const fx = FASES_F[w.fase]; return `<div class="mf-col ${w.k === semanaRef ? 'on' : ''}" title="${fmtCurto(w.k)}: força ${w.uaF} UA · corrida ${w.uaC} UA"><div class="mf-bar"><i class="c" style="height:${(w.uaC / mx) * 100}%"></i><i class="f" style="height:${(w.uaF / mx) * 100}%"></i></div><span class="mf-fase" ${fx ? `style="background:${fx.cor}"` : ''}>${fx ? fx.c : '–'}</span><small>${fmtCurto(w.k)}</small></div>`; }).join('');
@@ -2584,7 +2686,7 @@ async function metricasForcaHTML(alunoId, semanaRef, sess) {
       <div><span>PSR antes do treino</span><b style="color:${psrCor(atual.psr)}">${atual.psr == null ? '–' : f1(atual.psr)}</b><small>${atual.psr == null ? 'sem registro' : PSR_TXT(Math.round(atual.psr))}</small></div>
       <div><span>PSE média</span><b style="color:${rpeCor(atual.pse == null ? null : Math.round(atual.pse))}">${atual.pse == null ? '–' : f1(atual.pse)}</b><small>${atual.nF} força · ${atual.nC} corrida</small></div>
       <div><span>Carga da semana</span><b>${atual.tot || '–'}</b><small>${atual.tot ? `${atual.uaF} força · ${atual.uaC} corrida (UA)` : 'PSE × minutos'}</small></div>
-      <div><span>Aguda : crônica</span><b>${acwr == null ? '–' : f1(acwr, 2)}</b><small>${acwr == null ? 'precisa de mais semanas' : `<span class="tag ${acwrTag}">${acwr > 1.5 ? 'pico de carga' : acwr > 1.3 ? 'subiu rápido' : acwr < 0.8 ? 'abaixo do habitual' : 'faixa segura'}</span>`}</small></div>
+      <div><span>Aguda : crônica</span><b>${acwr == null ? '–' : f1(acwr) + 'x'}</b><small>${acwr == null ? 'precisa de mais semanas' : `<span class="tag ${acwrTag}">${acwr > 1.5 ? 'pico de carga' : acwr > 1.3 ? 'subiu rápido' : acwr < 0.8 ? 'abaixo do habitual' : 'faixa segura'}</span>`}</small></div>
     </div>
     <div class="mf-graf"><div class="mf-cols">${barras}</div><div class="mf-leg"><span><i class="f"></i>Força</span><span><i class="c"></i>Corrida</span><span class="dim">letra = fase da semana</span></div></div>
     <details class="mf-det"><summary>Cargas por fase</summary>${tabela}</details>
@@ -7280,6 +7382,7 @@ async function staffHoje() {
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const segAtual = isoDia(inicioSemana()), segPass = somaDias(segAtual, -7), segProx = somaDias(segAtual, 7);
   const prontP = sb.from('nx_prontidao').select('aluno_id,dia,total,dor,dor_locais,alerta').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
+  const cargasP = buscarCargas(null).catch(() => ({}));
   const [{ data: membrosT }, sessT, corrT, anamsT, avsT, cobsT, provasEqT, planoResT, treinosResT, libsResT] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
@@ -7305,9 +7408,10 @@ async function staffHoje() {
   sess.forEach((s) => { if (!ultimoTreino[s.aluno_id] || s.iniciado_em > ultimoTreino[s.aluno_id]) ultimoTreino[s.aluno_id] = s.iniciado_em; });
   corr.forEach((c) => { if (!ultimoTreino[c.aluno_id] || c.data > ultimoTreino[c.aluno_id]) ultimoTreino[c.aluno_id] = c.data; });
   const ultAval = {}; avs.forEach((a) => { if (!ultAval[a.aluno_id]) ultAval[a.aluno_id] = a; });
-  const pronts = await prontP;
+  const [pronts, cargas] = await Promise.all([prontP, cargasP]);
   const alertas = ativos.map((m) => {
     const id = m.user_id, l = [];
+    const cg = cargas[id]; if (cg && cg.nivel) l.push({ p: cg.nivel === 'alto' ? 1 : 2, t: cg.curto, cls: cg.nivel === 'alto' ? 'err' : 'warn', ir: `#/aluno/${id}/${faz('corrida', m) ? 'corrida' : 'forca'}` });
     const pr = pronts.find((x) => x.aluno_id === id && x.alerta);
     if (pr) l.push({ p: 1, t: `Prontidão baixa hoje (${pr.total}/20)${pr.dor_locais && pr.dor_locais.length ? ' · dor: ' + pr.dor_locais.map(nomeRegDor).join(', ') : ''}`, cls: 'err', ir: `#/aluno/${id}/saude` });
     const dorS = sess.find((s) => s.aluno_id === id && s.dor && !s.visto_treinador && s.iniciado_em > seteDias);
@@ -7388,6 +7492,8 @@ async function staffHoje() {
       <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm" data-aprovar="${m.user_id}">${I.check} Aprovar</button><button class="btn sm ghost" data-recusar="${m.user_id}">Recusar</button><a class="link-btn small" href="#/aluno/${m.user_id}/saude" style="margin-left:auto">Ver ficha</a></div></div>`).join('')}</div></div>` : ''}
     ${cartaoPushHTML()}
     <div class="stats"><a class="stat" href="#/alunos" style="color:inherit"><b>${ativos.length}</b><span>alunos ativos</span></a><div class="stat"><b>${treinosSemana}</b><span>treinos em 7 dias</span></div><a class="stat" href="#/financeiro" style="color:inherit"><b>${aReceber ? brl(aReceber).replace(',00', '') : 'R$ 0'}</b><span>a receber no mês</span></a></div>
+    ${(() => { const resp = ativos.filter((m) => pronts.some((p) => p.aluno_id === m.user_id)); const at = pronts.filter((p) => p.alerta && vis.has(p.aluno_id)).length; const ok = pronts.filter((p) => !p.alerta && p.total >= 16 && vis.has(p.aluno_id)).length; const cgN = ativos.filter((m) => cargas[m.user_id] && cargas[m.user_id].nivel).length;
+      return ativos.length ? `<a class="card pe-card" id="pront-eq" href="#/prontidao-equipe" style="color:inherit"><span class="ativ-ic">${PRONT_IC}</span><div class="grow" style="min-width:0"><b>Prontidão de hoje</b><div class="small muted">${resp.length} de ${ativos.length} responderam o check-in${at ? ` · <span style="color:var(--err)">${at} pede${at > 1 ? 'm' : ''} atenção</span>` : ''}${ok ? ` · ${ok} pronto${ok > 1 ? 's' : ''} para treinar` : ''}${cgN ? ` · <span style="color:var(--warn)">${cgN} com alerta de carga</span>` : ''}</div></div>${I.chev}</a>` : ''; })()}
     ${ehSeg ? resumoHTML : ''}
     ${(() => { const aniv = ativos.filter((m) => ehAniversario(m.nascimento)); const prox = ativos.filter((m) => !ehAniversario(m.nascimento) && [1, 2, 3, 4, 5, 6].some((d) => ehAniversario(m.nascimento, d)));
       if (!aniv.length && !prox.length) return '';
@@ -7405,6 +7511,7 @@ async function staffHoje() {
     </div>`;
   dadosSugestoes(ativos.map((m) => m.user_id), 1).then((sg) => { const bx = document.getElementById('sug-hoje'); if (!bx || !sg.length) return; bx.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Sugestões do app</h2><span class="tag acc">${sg.length}</span></div><div class="stack">${sg.map((x) => sugCardHTML(x)).join('')}</div></div>`; bindSugestoes(bx, sg, () => { if (!bx.querySelector('.sug-card')) bx.innerHTML = ''; }); }).catch((e) => console.error(e));
   bindCartaoPush();
+  convidarTour();
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
     const m = pendentes.find((x) => x.user_id === b.dataset.aprovar); if (!m) return;
@@ -9796,9 +9903,14 @@ function staffMais() {
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
+      ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, treinadores e notificações' : 'Sua conta e notificações')}
+    </div>
+    <p class="sec-lbl">Ajuda</p><div class="stack">
+      <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo painel</b><div class="small muted">Um passeio rápido por tudo o que o painel do treinador faz</div></div>${I.chev}</button>
     </div>`;
+  document.getElementById('mais-tour').onclick = () => iniciarTour();
 }
 
 /* ---------- biblioteca de exercícios ---------- */
