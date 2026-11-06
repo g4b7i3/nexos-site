@@ -159,6 +159,7 @@ function closeSheet(semVoltar) {
   $sheet.hidden = true; $sheetBody.innerHTML = ''; document.body.style.overflow = ''; const sh = $sheet.querySelector('.sheet'); if (sh) sh.style.transform = '';
   // o painel abriu um passo no histórico: fechar pelo X tira esse passo (o "voltar" do celular também fecha)
   if (estava && !semVoltar && history.state && history.state.nxPainel) history.back();
+  if (estava) document.dispatchEvent(new Event('nx:painel-fechado'));
 }
 window.addEventListener('popstate', () => { if (!$sheet.hidden) closeSheet(true); });
 // arrastar o painel para baixo fecha (quando ele está no topo)
@@ -821,7 +822,7 @@ async function alunoHoje() {
     <div class="saud-row"><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a><div style="min-width:0"><p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
     <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é day off' : 'seu treino de hoje'}</h1></div></div>
     <div class="hoje-grid"><div class="hoje-main">
-    ${cartaoCobrancaHTML(cobP)}
+    ${cartaoCobrancaHTML(cobP)}<div id="auto-hoje"></div>
     <div class="stack" style="margin-top:16px">
       ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
       ${corrDoDia.map(cardCorr).join('')}
@@ -873,6 +874,8 @@ async function alunoHoje() {
       bx.querySelector('#cic-at').onclick = () => ativarCiclo(() => alunoHoje()); bx.querySelector('#cic-nao').onclick = () => { store.set('nx_ciclo_conv', true); bx.innerHTML = ''; }; return; } bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
+  // oferta de cobrança automática feita pelo treinador
+  assinaturaDoAluno(S.user.id).then((a) => { const box = document.getElementById('auto-hoje'); if (box && a) { box.innerHTML = autoAlunoHTML(a); bindAutoAluno(a); } }).catch(() => {});
 }
 
 /* check-in rápido de uma corrida que veio do relógio */
@@ -5430,8 +5433,41 @@ function ajustesFinanceiro(base) {
       ${admin ? `<form id="f-pix"><label class="field"><span>Chave Pix</span><input class="input" name="chave" value="${esc(pix.chave || '')}" placeholder="CNPJ, e-mail, chave aleatória ou celular (+5598…)" required></label>
       <div class="grid2"><label class="field"><span>Nome do recebedor</span><input class="input" name="nome" value="${esc(pix.nome || '')}" placeholder="Como aparece no banco" required></label><label class="field"><span>Cidade</span><input class="input" name="cidade" value="${esc(pix.cidade || 'São Luís')}" required></label></div>
       <p class="tiny dim" style="margin:-4px 0 12px">O app gera o QR Code e o “copia e cola” com o valor certo. O dinheiro cai direto na conta da chave.</p>
-      <button class="btn block">Salvar Pix</button></form>` : `<p class="small muted">${pix.chave ? 'Chave cadastrada: ' + esc(pix.chave) : 'Peça ao administrador para cadastrar a chave Pix.'}</p>`}</div>`, (r) => {
+      <button class="btn block">Salvar Pix</button></form>` : `<p class="small muted">${pix.chave ? 'Chave cadastrada: ' + esc(pix.chave) : 'Peça ao administrador para cadastrar a chave Pix.'}</p>`}</div>
+    <div class="section"><div class="section-h"><h2 class="h2">Pagamento online</h2>${pagCfg(S.org.config).conectado ? `<span class="tag ok">Conectado${pagCfg(S.org.config).ambiente === 'producao' ? '' : ' · teste'}</span>` : '<span class="tag">Desligado</span>'}</div>
+      ${!admin ? '<p class="small muted">Só o administrador configura o pagamento online.</p>' : pagCfg(S.org.config).conectado ? `
+      <p class="small muted">Pix com QR Code, cartão, Pix Automático e cartão recorrente pelo Asaas. Os pagamentos se confirmam sozinhos.</p>
+      <form id="f-pagcfg" style="margin-top:12px"><div class="grid2"><label class="field"><span>Acréscimo no cartão (%)</span><input class="input" name="acres" data-mask="dec" inputmode="decimal" value="${String(pagCfg(S.org.config).acrescimo_cartao || 0).replace('.', ',')}"></label><label class="field"><span>Parcelas no cartão (máx.)</span><select class="input" name="parc">${[1, 2, 3, 4, 6, 12].map((n) => `<option value="${n}" ${(+pagCfg(S.org.config).parcelas_max || 3) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></label></div>
+      <p class="tiny dim" style="margin:-4px 0 12px">O acréscimo cobre os juros da operadora. Parcelas só aparecem em valores a partir de R$ 300.</p>
+      <button class="btn ghost block">Salvar</button></form>
+      <button class="link-btn small" id="pag-desc" style="margin-top:10px;color:var(--err)">Desconectar o Asaas</button>` : `
+      <p class="small muted">Com a conta da Nexos no Asaas, o aluno paga pelo app com Pix (QR Code) ou cartão, e pode ativar o Pix Automático ou o cartão recorrente. Tudo se confirma sozinho.</p>
+      <form id="f-asaas" style="margin-top:12px"><label class="field"><span>Chave da API do Asaas</span><input class="input mono" name="chave" type="password" autocomplete="off" placeholder="$aact_..." required></label>
+      <label class="field"><span>Ambiente</span><select class="input" name="amb"><option value="teste">Teste (sandbox)</option><option value="producao">Produção (dinheiro de verdade)</option></select></label>
+      <p class="tiny dim" style="margin:-4px 0 12px">No Asaas: Integrações, Chave de API. A chave fica guardada só no servidor e não aparece de novo no app.</p>
+      <button class="btn block">Conectar</button></form>`}</div>`, (r) => {
     desenhar(r);
+    const fa = r.querySelector('#f-asaas');
+    if (fa) fa.onsubmit = async (e) => {
+      e.preventDefault(); const bt = fa.querySelector('button'); bt.disabled = true; bt.textContent = 'Conectando…';
+      try {
+        const res = await chamarPag({ acao: 'configurar', chave: fa.chave.value.trim(), ambiente: fa.amb.value });
+        S.org.config = { ...(S.org.config || {}), pagamentos: { ...pagCfg(S.org.config), gateway: 'asaas', ambiente: res.ambiente, conectado: true } };
+        if (res.webhook) { toast('Asaas conectado!'); closeSheet(); staffFinanceiro(); }
+        else openSheet(`<div class="h2">Conectado, falta um passo</div><p class="small muted" style="margin:8px 0 12px">Não conseguimos cadastrar o aviso automático no Asaas${res.webhook_erro ? ` (${esc(res.webhook_erro)})` : ''}. No Asaas, vá em Integrações, Webhooks, e cadastre:</p>
+          <label class="field"><span>URL</span><input class="input mono" readonly value="${esc(res.webhook_url)}"></label><label class="field"><span>Token de autenticação</span><input class="input mono" readonly value="${esc(res.webhook_token || '')}"></label>
+          <p class="tiny dim">Marque os eventos de cobranças, assinaturas e Pix Automático. Esse token aparece só agora.</p><button class="btn block" data-close style="margin-top:12px">Feito</button>`);
+      } catch (er) { bt.disabled = false; bt.textContent = 'Conectar'; toast(er.message, true); }
+    };
+    const fc = r.querySelector('#f-pagcfg');
+    if (fc) fc.onsubmit = async (e) => {
+      e.preventDefault(); const ac = num(fc.acres.value) || 0; if (ac < 0 || ac > 30) return toast('Use um acréscimo de 0 a 30%.', true);
+      const cfg = { ...(S.org.config || {}), pagamentos: { ...pagCfg(S.org.config), acrescimo_cartao: ac, parcelas_max: +fc.parc.value } };
+      const { error } = await sb.from('nx_orgs').update({ config: cfg }).eq('id', S.org.id);
+      if (error) return toast('Não foi possível salvar.', true); S.org.config = cfg; toast('Pagamento online salvo!');
+    };
+    const pd = r.querySelector('#pag-desc');
+    if (pd) pd.onclick = async () => { if (!confirm('Desconectar o Asaas? Os alunos voltam a pagar pelo Pix manual.')) return; try { await chamarPag({ acao: 'desconectar' }); S.org.config = { ...(S.org.config || {}), pagamentos: { ...pagCfg(S.org.config), conectado: false } }; toast('Asaas desconectado.'); closeSheet(); staffFinanceiro(); } catch (er) { toast(er.message, true); } };
     const formPlano = (p) => openSheet(`<p class="eyebrow">${p ? 'Editar plano' : 'Novo plano'}</p><form id="f-pl" style="margin-top:12px">
       <label class="field"><span>Nome</span><input class="input" name="nome" value="${esc(p ? p.nome : '')}" placeholder="Ex.: Corrida mensal" required></label>
       <div class="grid2"><label class="field"><span>Valor (R$)</span><input class="input" name="valor" data-mask="dec" inputmode="decimal" value="${p ? String(p.valor).replace('.', ',') : ''}" required></label><label class="field"><span>Cobrança</span><select class="input" name="meses">${CICLOS.map(([k, l]) => `<option value="${k}" ${p && p.meses === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
@@ -5465,10 +5501,14 @@ async function planoDoAlunoHTML(m) {
   const base = await carregarFinanceiroBase();
   const { data: cobs } = await sb.from('nx_cobrancas').select('*').eq('org_id', S.org.id).eq('aluno_id', m.user_id).neq('status', 'cancelada').order('vencimento', { ascending: false }).limit(6);
   const fz = m.financeiro || {};
-  return { base, cobs: cobs || [], html: `<div class="card" id="plano-card"><b>Plano e pagamento</b>
+  const auto = await assinaturaDoAluno(m.user_id).catch(() => null);
+  const plA = base.planos.find((p) => p.id === fz.plano_id);
+  const valorPlano = plA ? (fz.valor != null && fz.valor !== '' ? +fz.valor : +plA.valor) : 0;
+  return { base, cobs: cobs || [], auto, valorPlano, mesesPlano: plA ? plA.meses || 1 : 1, descPlano: plA ? plA.nome : '', html: `<div class="card" id="plano-card"><b>Plano e pagamento</b>
     ${base.planos.length ? `<form id="f-plano" style="margin-top:12px"><label class="field"><span>Plano</span><select class="input" name="plano"><option value="">Sem plano (não gera mensalidade)</option>${base.planos.filter((p) => p.ativo || p.id === fz.plano_id).map((p) => `<option value="${p.id}" ${fz.plano_id === p.id ? 'selected' : ''}>${esc(p.nome)} · ${brl(p.valor)}</option>`).join('')}</select></label>
       <div class="grid3"><label class="field"><span>Valor</span><input class="input" name="valor" data-mask="dec" inputmode="decimal" value="${fz.valor != null && fz.valor !== '' ? String(fz.valor).replace('.', ',') : ''}" placeholder="do plano"></label><label class="field"><span>Vence dia</span><input class="input" name="dia" data-mask="num" data-max="2" inputmode="numeric" value="${esc(fz.dia || 10)}"></label><label class="field"><span>Início</span><input class="input" type="month" name="inicio" value="${esc(fz.inicio || compDe())}"></label></div>
       <button class="btn ghost block sm">Salvar plano do aluno</button></form>` : '<p class="small muted" style="margin-top:6px">Crie os planos em Financeiro → Ajustes.</p>'}
+    ${autoStaffHTML(auto, m, valorPlano, plA ? plA.meses || 1 : 1)}
     ${(cobs || []).length ? `<div class="stack" style="margin-top:12px">${cobs.map((c) => { const s = statusCob(c); return `<div class="cob-mini" data-cobm="${c.id}"><span>${esc(nomeMes(c.competencia))}</span><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span></div>`; }).join('')}</div>` : ''}</div>` };
 }
 function bindPlanoDoAluno(m, info, recarregar) {
@@ -5487,6 +5527,138 @@ function bindPlanoDoAluno(m, info, recarregar) {
   };
   const card = document.getElementById('plano-card');
   if (card) card.addEventListener('click', (e) => { const r = e.target.closest('[data-cobm]'); if (r) detalheCobranca(info.cobs.find((c) => c.id === r.dataset.cobm), m, recarregar); });
+  bindAutoStaff(m, info.auto, info.valorPlano, info.mesesPlano, info.descPlano, recarregar);
+}
+
+/* ---------- pagamento online (Asaas): Pix com QR Code, cartão, Pix Automático e cartão recorrente ---------- */
+const pagCfg = (cfg) => ((cfg || {}).pagamentos || {});
+async function chamarPag(body) {
+  const { data, error } = await sb.functions.invoke('nx-pagamentos', { body: { org_id: S.org.id, ...body } });
+  if (error) { let m = 'Não foi possível falar com o pagamento agora. Tente de novo.'; try { const j = await error.context.json(); m = j.erro || m; } catch {} throw new Error(m); }
+  if (data && data.erro) throw new Error(data.erro);
+  return data || {};
+}
+const fmtCPF = (v) => { const d = String(v || '').replace(/\D/g, '').slice(0, 14); return d.length <= 11 ? d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2') : d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2'); };
+function cpfValido(v) {
+  const d = String(v || '').replace(/\D/g, ''); if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+  const dv = (n) => { let s = 0; for (let i = 0; i < n; i++) s += +d[i] * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === +d[9] && dv(10) === +d[10];
+}
+// pede o CPF uma vez (vai só para o Asaas, que exige o CPF do pagador; a Nexos não guarda)
+function pedirCPF() {
+  return new Promise((ok) => {
+    let feito = false;
+    openSheet(`<p class="eyebrow">Pagamento seguro</p><div class="h2" style="margin-top:4px">Seu CPF</div>
+      <p class="small muted" style="margin-top:6px">O banco exige o CPF de quem paga. Ele vai direto para a empresa de pagamentos e é pedido só desta vez.</p>
+      <form id="f-cpf" style="margin-top:14px"><label class="field"><span>CPF</span><input class="input" name="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" required></label>
+      <button class="btn block" type="submit">Continuar ${I.arrow}</button></form>`, (r) => {
+      const f = r.querySelector('#f-cpf');
+      f.cpf.oninput = () => { f.cpf.value = fmtCPF(f.cpf.value); };
+      f.onsubmit = (e) => { e.preventDefault(); if (!cpfValido(f.cpf.value)) return toast('Confira o CPF.', true); feito = true; f.querySelector('button').disabled = true; f.querySelector('button').textContent = 'Preparando…'; ok(f.cpf.value.replace(/\D/g, '')); }; // a próxima tela substitui esta
+      document.addEventListener('nx:painel-fechado', () => { if (!feito) ok(null); }, { once: true });
+    });
+  });
+}
+async function comCPF(fn) { let r = await fn(); if (r && r.precisa_cpf) { const cpf = await pedirCPF(); if (!cpf) return null; r = await fn(cpf); } return r; }
+function telaPixOnline({ titulo, valor, sub, payload, qr, aguardar }) {
+  openSheet(`<p class="eyebrow">${esc(titulo)}</p><div class="h2" style="margin-top:4px">${valor != null ? brl(valor) : ''}</div>${sub ? `<p class="small muted">${sub}</p>` : ''}
+    <div class="qr-box">${qr ? `<img src="data:image/png;base64,${qr}" alt="QR Code Pix" width="220" height="220">` : '<div class="boot-bar"><i></i></div>'}</div>
+    ${payload ? `<label class="field"><span>Pix copia e cola</span><textarea class="textarea mono" id="pix-cod" readonly rows="3">${esc(payload)}</textarea></label><button class="btn block" id="copiar-pix">Copiar código Pix</button>` : '<p class="small muted center">O código Pix ainda não ficou pronto. Tente de novo em instantes.</p>'}
+    <p class="pag-aguarda" id="pag-st"><span class="pulso"></span>Aguardando o pagamento. A confirmação chega sozinha.</p>`, async (r) => {
+    if (!qr && payload) { try { r.querySelector('.qr-box').innerHTML = await qrSVG(payload); } catch { r.querySelector('.qr-box').remove(); } }
+    const cp = r.querySelector('#copiar-pix'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(payload); toast('Código copiado! Cole no app do banco.'); } catch { r.querySelector('#pix-cod').select(); toast('Selecione e copie o código.', true); } };
+    if (!aguardar) return;
+    const t0 = Date.now();
+    const iv = setInterval(async () => {
+      if (!document.getElementById('pag-st') || Date.now() - t0 > 15 * 60e3) return clearInterval(iv);
+      if (await aguardar()) { clearInterval(iv); const st = document.getElementById('pag-st'); if (st) { st.className = 'pag-aguarda ok'; st.innerHTML = `${I.check} Pagamento confirmado. Obrigado!`; } setTimeout(() => { closeSheet(); router(); }, 1800); }
+    }, 4000);
+  });
+}
+async function pagarOnline(c, cfg) {
+  const pc = pagCfg(cfg), acres = +pc.acrescimo_cartao || 0, maxP = Math.max(1, +pc.parcelas_max || 3);
+  const comAcres = Math.round(+c.valor * (1 + acres / 100) * 100) / 100;
+  openSheet(`<p class="eyebrow">Pagar mensalidade</p><div class="h2" style="margin-top:4px">${brl(c.valor)}</div><p class="small muted">${esc(c.descricao || nomeMes(c.competencia))}</p>
+    <div class="stack" style="margin-top:16px">
+      <button class="pag-op" data-op="pix"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Pix</b><small>QR Code ou copia e cola · confirmação na hora</small></div>${I.chev}</button>
+      <button class="pag-op" data-op="cartao"><span class="ativ-ic">${I.card || I.money}</span><div class="grow"><b>Cartão de crédito</b><small>${acres ? `${brl(comAcres)} (acréscimo de ${String(acres).replace('.', ',')}% da operadora)` : 'Página segura do Asaas'}${maxP > 1 && +c.valor >= 300 ? ` · até ${maxP}x` : ''}</small></div>${I.chev}</button>
+    </div>
+    <p class="tiny dim center" style="margin-top:12px">Pagamento processado pelo Asaas. A Nexos não vê os dados do seu cartão.</p>`, (r) => {
+    r.onclick = async (e) => {
+      const b = e.target.closest('[data-op]'); if (!b) return;
+      const forma = b.dataset.op;
+      let parcelas = 1;
+      if (forma === 'cartao' && maxP > 1 && +c.valor >= 300) {
+        parcelas = await new Promise((ok) => {
+          let esc_ = true;
+          openSheet(`<div class="h2">Em quantas vezes?</div><div class="stack" style="margin-top:12px">${Array.from({ length: maxP }, (_, i) => i + 1).map((n) => `<button class="pag-op" data-n="${n}"><div class="grow"><b>${n}x de ${brl(comAcres / n)}</b><small>${n === 1 ? 'à vista' : `total ${brl(comAcres)}`}</small></div>${I.chev}</button>`).join('')}</div>`, (r2) => { r2.onclick = (e2) => { const bn = e2.target.closest('[data-n]'); if (bn) { esc_ = false; ok(+bn.dataset.n); } }; });
+          document.addEventListener('nx:painel-fechado', () => { if (esc_) ok(0); }, { once: true });
+        });
+        if (!parcelas) return;
+      }
+      b.disabled = true; b.querySelector('small').textContent = 'Preparando o pagamento…';
+      try {
+        const res = await comCPF((cpf) => chamarPag({ acao: 'pagar', cobranca: c.id, forma, parcelas, ...(cpf ? { cpf } : {}) }));
+        if (!res) { b.disabled = false; return; }
+        if (forma === 'pix') {
+          telaPixOnline({ titulo: 'Pagar com Pix', valor: c.valor, sub: esc(c.descricao || ''), payload: res.payload, qr: res.qr, aguardar: async () => { const { data } = await sb.from('nx_cobrancas').select('status').eq('id', c.id).maybeSingle(); return data && data.status === 'paga'; } });
+        } else {
+          if (res.link) window.open(res.link, '_blank', 'noopener');
+          openSheet(`<div class="h2">Pagamento no cartão</div><p class="muted" style="margin:10px 0 16px">Abrimos a página segura do Asaas${res.parcelas > 1 ? ` (${res.parcelas}x)` : ''}. Assim que o pagamento for aprovado, a mensalidade aparece como paga aqui no app.</p>${res.link ? `<a class="btn block" href="${esc(res.link)}" target="_blank" rel="noopener">Abrir a página de pagamento</a>` : ''}<button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`);
+        }
+      } catch (er) { b.disabled = false; toast(er.message, true); }
+    };
+  });
+}
+
+/* ---------- cobrança automática (Pix Automático ou cartão recorrente) ---------- */
+const FORMA_AUTO = { pix_automatico: 'Pix Automático', cartao: 'Cartão recorrente' };
+const ST_AUTO = { oferecida: ['Aguardando o aluno ativar', 'warn'], pendente: ['Aguardando a autorização', 'warn'], ativa: ['Ativa', 'ok'], recusada: ['Recusada', 'err'], cancelada: ['Cancelada', ''], expirada: ['Expirou', 'err'], erro: ['Com erro', 'err'] };
+async function assinaturaDoAluno(alunoId) {
+  const { data } = await sb.from('nx_assinaturas').select('*').eq('aluno_id', alunoId).not('status', 'in', '(cancelada)').order('criado_em', { ascending: false }).limit(1).then((r) => r, () => ({ data: [] }));
+  return (data || [])[0] || null;
+}
+// card do treinador, na aba Dados do aluno
+function autoStaffHTML(a, m, valorPlano, mesesPlano) {
+  if (!pagCfg(S.org.config).conectado) return '';
+  if (a) { const [l, cls] = ST_AUTO[a.status] || [a.status, '']; return `<div class="auto-card"><div class="row between" style="gap:8px"><b>Cobrança automática</b><span class="tag ${cls}">${l}</span></div><p class="small muted" style="margin-top:4px">${FORMA_AUTO[a.forma]} · ${brl(a.valor)} ${a.ciclo_meses > 1 ? `a cada ${a.ciclo_meses} meses` : 'por mês'}${a.status === 'oferecida' ? ' · o aluno ativa pelo app' : ''}${a.erro ? ` · ${esc(a.erro)}` : ''}</p><button type="button" class="link-btn small" id="auto-canc" data-a="${a.id}" style="color:var(--err);margin-top:6px">${a.status === 'oferecida' || a.status === 'erro' || a.status === 'recusada' || a.status === 'expirada' ? 'Remover' : 'Cancelar cobrança automática'}</button></div>`; }
+  if (!valorPlano) return '<div class="auto-card"><b>Cobrança automática</b><p class="small muted" style="margin-top:4px">Defina o plano do aluno para oferecer a cobrança automática.</p></div>';
+  return `<div class="auto-card"><b>Cobrança automática</b><p class="small muted" style="margin-top:4px">O aluno autoriza uma vez e paga sozinho ${mesesPlano > 1 ? `a cada ${mesesPlano} meses` : 'todo mês'} (${brl(valorPlano)}). A confirmação chega automática.</p>
+    <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button type="button" class="btn sm" data-oferta="pix_automatico">Oferecer Pix Automático</button><button type="button" class="btn ghost sm" data-oferta="cartao">Oferecer cartão recorrente</button></div></div>`;
+}
+function bindAutoStaff(m, a, valorPlano, mesesPlano, descricao, recarregar) {
+  const card = document.getElementById('plano-card'); if (!card) return;
+  card.querySelectorAll('[data-oferta]').forEach((b) => b.onclick = async () => {
+    const { error } = await sb.from('nx_assinaturas').insert({ org_id: S.org.id, aluno_id: m.user_id, forma: b.dataset.oferta, valor: valorPlano, ciclo_meses: [1, 3, 6, 12].includes(mesesPlano) ? mesesPlano : 1, descricao: descricao || 'Plano Nexos', status: 'oferecida' });
+    if (error) { console.error(error); return toast('Não foi possível oferecer agora.', true); }
+    toast(`${FORMA_AUTO[b.dataset.oferta]} oferecido. ${firstName(m.nome)} ativa pelo app.`); recarregar();
+  });
+  const cc = card.querySelector('#auto-canc');
+  if (cc) cc.onclick = async () => {
+    if (!confirm('Cancelar a cobrança automática deste aluno?')) return;
+    try { if (a.status === 'oferecida') { const { error } = await sb.from('nx_assinaturas').delete().eq('id', a.id); if (error) throw error; } else await chamarPag({ acao: 'cancelar_automatica', assinatura: a.id }); toast('Cobrança automática cancelada.'); recarregar(); }
+    catch (er) { toast(er.message || 'Não foi possível cancelar.', true); }
+  };
+}
+// card do aluno: ativar a cobrança automática oferecida pelo treinador
+function autoAlunoHTML(a) {
+  if (!a || !['oferecida', 'pendente', 'erro'].includes(a.status)) return '';
+  const pix = a.forma === 'pix_automatico';
+  return `<div class="card auto-aluno"><div class="row" style="gap:12px"><span class="go">${I.money}</span><div class="grow"><b>${pix ? 'Ative o Pix Automático' : 'Ative a cobrança no cartão'}</b><div class="small muted">${brl(a.valor)} ${a.ciclo_meses > 1 ? `a cada ${a.ciclo_meses} meses` : 'por mês'}, ${pix ? 'debitado sozinho da sua conta' : 'cobrado sozinho no seu cartão'}. Sem precisar lembrar.</div></div></div>
+    <button class="btn block sm" id="auto-ativar" style="margin-top:12px">${a.status === 'pendente' ? 'Continuar a ativação' : 'Ativar agora'}</button></div>`;
+}
+function bindAutoAluno(a) {
+  const b = document.getElementById('auto-ativar'); if (!b || !a) return;
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Preparando…';
+    try {
+      const res = await comCPF((cpf) => chamarPag({ acao: 'ativar_automatica', assinatura: a.id, ...(cpf ? { cpf } : {}) }));
+      b.disabled = false; b.textContent = 'Continuar a ativação';
+      if (!res) return;
+      if (res.forma === 'pix_automatico') telaPixOnline({ titulo: 'Autorizar Pix Automático', valor: a.valor, sub: 'Pague este primeiro Pix pelo app do banco e aceite a autorização. Os próximos saem sozinhos.', payload: res.payload, qr: res.qr, aguardar: async () => { const { data } = await sb.from('nx_assinaturas').select('status').eq('id', a.id).maybeSingle(); return data && data.status === 'ativa'; } });
+      else { if (res.link) window.open(res.link, '_blank', 'noopener'); openSheet(`<div class="h2">Cartão recorrente</div><p class="muted" style="margin:10px 0 16px">Abrimos a página segura do Asaas. Pague a primeira mensalidade com o cartão: as próximas são cobradas sozinhas no mesmo cartão.</p>${res.link ? `<a class="btn block" href="${esc(res.link)}" target="_blank" rel="noopener">Abrir a página de pagamento</a>` : ''}<button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`); }
+    } catch (er) { b.disabled = false; b.textContent = 'Tentar de novo'; toast(er.message, true); }
+  };
 }
 
 /* ---------- lado do aluno ---------- */
@@ -5503,6 +5675,7 @@ function cartaoCobrancaHTML(c) {
 }
 async function pagarComPix(c) {
   const { data: org } = await sb.from('nx_orgs').select('config').eq('id', S.org.id).maybeSingle();
+  if (pagCfg(org && org.config).conectado) return pagarOnline(c, org.config);
   const pix = ((org && org.config) || {}).pix || {};
   if (!pix.chave) return openSheet('<div class="h2">Pix ainda não configurado</div><p class="muted" style="margin:10px 0 18px">Fale com o seu treinador para combinar o pagamento.</p><button class="btn block" data-close>Entendi</button>');
   const codigo = pixCopiaECola({ ...pix, valor: c.valor, txid: 'NX' + c.competencia.replace('-', '') });
@@ -5525,9 +5698,12 @@ async function viewPagamentos() {
   loading();
   const { data } = await sb.from('nx_cobrancas').select('*').eq('org_id', S.org.id).eq('aluno_id', S.user.id).neq('status', 'cancelada').order('vencimento', { ascending: false }).limit(24);
   const l = data || [];
+  const auto = await assinaturaDoAluno(S.user.id).catch(() => null);
   $app.innerHTML = `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Pagamentos</p><h1 class="h1">Minhas mensalidades</h1>
+    ${autoAlunoHTML(auto)}${auto && auto.status === 'ativa' ? `<div class="lib-bar ok" style="margin-top:12px"><span>${I.check} ${FORMA_AUTO[auto.forma]} ativo: ${brl(auto.valor)} ${auto.ciclo_meses > 1 ? `a cada ${auto.ciclo_meses} meses` : 'por mês'}</span></div>` : ''}
     <div class="stack" style="margin-top:16px" id="pg-l">${l.map((c) => { const s = statusCob(c); return `<div class="list-item" ${s.k === 'aberta' || s.k === 'atrasada' ? `data-pagar="${c.id}"` : ''}><div class="grow"><b>${esc(nomeMes(c.competencia))}</b><div class="small muted">${quandoVence(c)}</div></div><div class="cob-v"><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span></div></div>`; }).join('') || '<div class="empty"><div class="h3">Nenhuma mensalidade</div><p class="small">Quando houver mensalidade, ela aparece aqui.</p></div>'}</div>`;
   document.getElementById('pg-l').onclick = (e) => { const it = e.target.closest('[data-pagar]'); if (it) pagarComPix(l.find((c) => c.id === it.dataset.pagar)); };
+  bindAutoAluno(auto);
 }
 
 /* ================= HOJE: o que pede atenção ================= */

@@ -2028,3 +2028,18 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .mf-th{border-top:0;font-size:.72rem;font-weight:800;color:var(--mute)}
 .mf-tr em{color:var(--dim);font-style:normal}
 .fase-card .tiny b,.fase-card .small b{display:inline;font-size:inherit;font-family:inherit;color:inherit}
+
+/* ===== pagamento online ===== */
+.pag-op{display:flex;align-items:center;gap:12px;width:100%;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--card);text-align:left;color:var(--ink)}
+.pag-op b{display:block}
+.pag-op small{display:block;color:var(--mute);font-size:.8rem;margin-top:2px}
+.pag-op:hover{border-color:var(--acc)}
+.pag-op:disabled{opacity:.7}
+.qr-box img{display:block;width:220px;height:220px;margin:0 auto;border-radius:12px;background:#fff;padding:8px}
+.pag-aguarda{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;font-size:.88rem;color:var(--mute)}
+.pag-aguarda .pulso{width:9px;height:9px;border-radius:50%;background:var(--acc);animation:pagPulso 1.2s ease-in-out infinite}
+.pag-aguarda.ok{color:var(--ok);font-weight:700}
+.pag-aguarda.ok svg{width:18px;height:18px}
+@keyframes pagPulso{50%{opacity:.25;transform:scale(.7)}}
+.auto-card{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--s1);border:1px dashed var(--line2)}
+.auto-aluno{margin-top:12px;border-color:color-mix(in srgb,var(--acc) 35%,transparent)}
