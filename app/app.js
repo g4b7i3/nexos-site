@@ -1173,7 +1173,7 @@ async function alunoHoje() {
     </div>
     <div class="semana-comp" style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
     </div></div>
-    <button class="fab-reg" id="fab-reg">${I.plus}<span>Registrar</span></button>`;
+    <button class="fab-reg mini" id="fab-reg" aria-label="Registrar">${I.plus}</button>`;
   const pendSec = document.getElementById('pend-sec');
   const mostrarPend = () => { if (pendSec) pendSec.hidden = !document.querySelector('#pend .card,#pend .list-item,#pend .auto-aluno'); };
   { const ab = document.getElementById('agua-box'), sm = document.getElementById('agua-slot-m'); if (ab && sm && !matchMedia('(min-width:900px)').matches) sm.appendChild(ab); }
@@ -1188,7 +1188,6 @@ async function alunoHoje() {
   montarAgua(document.getElementById('agua-box'), minTreinoHoje).catch((e) => console.error(e));
   if (fM) faseDaSemana(S.user.id, isoDia(inicioSemana())).then((f) => { const t = document.getElementById('fase-tile'); if (!t || !FASES_F[f]) return; const x = FASES_F[f]; t.hidden = false; t.style.setProperty('--fc', x.cor); t.classList.add('tile-fase'); t.innerHTML = `<span class="tile-l">${FORCA_IC}Força</span><b>${x.n}</b><small>${x.reps}</small>`; }).catch(() => {});
   if (fC) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).limit(1).then(({ data }) => { if (data && data.length) return; const b = document.getElementById('rel-pend'); if (!b || store.get('nx-rel-pend-off', false)) return; b.innerHTML = `<a class="list-item msg-row" href="#/conexoes"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Conecte o seu relógio</b><div class="small muted">Garmin e outras marcas: as corridas chegam sozinhas</div></div>${I.chev}</a>`; mostrarPend(); }).catch(() => {});
-  { const fab = document.getElementById('fab-reg'); let tk = 0; const onS = () => { if (!document.body.contains(fab)) return window.removeEventListener('scroll', onS); if (tk) return; tk = requestAnimationFrame(() => { tk = 0; fab.classList.toggle('mini', window.scrollY > 80); }); }; window.addEventListener('scroll', onS, { passive: true }); }
   document.getElementById('fab-reg').onclick = () => openSheet(`<p class="eyebrow">Registrar</p><div class="stack" style="margin-top:12px">
       ${fC ? `<a class="pag-op" href="#/gps" data-close><span class="ativ-ic">${I.play}</span><div class="grow"><b>Treinar pelo celular</b><small>Na rua (GPS) ou na esteira</small></div>${I.chev}</a>
       <button class="pag-op" data-r="corr"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Registrar uma corrida</b><small>Distância, tempo e como foi</small></div>${I.chev}</button>` : ''}

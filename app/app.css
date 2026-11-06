@@ -2187,3 +2187,4 @@ html[data-tema="escuro"] .cp-cab{fill:#4d5f82}
 .rec-item.vazio .rec-ic{background:var(--s2);color:var(--mute)}
 .rec-item .h2{font-family:var(--f-h)}
 #mais-notif:empty{display:none}
+.fab-reg.mini{width:56px;height:56px;border-radius:50%}.fab-reg.mini svg{width:24px;height:24px}
