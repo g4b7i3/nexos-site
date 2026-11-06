@@ -11376,7 +11376,7 @@ const BIB_FORCA = [
    · progressão de volume gradual com semana de recuperação a cada 3–4 semanas (Nielsen et al. 2014; Gabbett 2016);
    · fases base → construção → específica → polimento (periodização em blocos; Issurin 2010);
    · polimento: volume 40–60% menor mantendo a intensidade e a frequência (Bosquet et al. 2007; Mujika & Padilla 2003). */
-const CIC_OBJ = [['trilhas', 'Trilhas'], ['modelos', 'Modelos de treino'], ['ini', 'Começar a correr'], ['5k', '5 km'], ['10k', '10 km'], ['21k', 'Meia maratona'], ['42k', 'Maratona'], ['ultra', 'Ultra'], ['bloco', 'Blocos e transição']];
+const CIC_OBJ = [['trilhas', 'Trilhas'], ['modelos', 'Modelos de treino'], ['ini', 'Começar a correr'], ['5k', '5 km'], ['10k', '10 km'], ['21k', 'Meia maratona'], ['42k', 'Maratona'], ['ultra', 'Ultra'], ['trail', 'Trilha (trail)'], ['volta', 'Volta após lesão'], ['bloco', 'Blocos e transição']];
 const CIC_NIV = { ini: 'Iniciante', int: 'Intermediário', ava: 'Avançado', pro: 'Profissional' };
 const DIAS_SEM = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const CIC_FASE_COR = { Adaptação: '#9aa8c0', Base: '#3ddc97', Construção: '#46d6ff', Específica: '#ffcf5c', Polimento: '#ff9f43', Prova: '#ff6b6b', Recuperação: '#b794ff', Transição: '#9aa8c0', Teste: '#ff9f43' };
@@ -11706,7 +11706,7 @@ const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = c.gen ? c.gen(c) :
 const cicKm = (sem, perfil) => sem.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
 
 // biblioteca de ciclos (treinador)
-const cicCardHTML = (c) => { const S2 = cicSemanas(c), p = perfilNiv(c.niv), kms = S2.map((s) => cicKm(s, p)); const tr = Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length); const np = S2.reduce((a, s) => a + s.sess.filter(([, t]) => t.tipo === 'prova').length, 0); return `<a class="card tap cic-card" href="#/treinos/ciclos/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[c.niv]}</span><span class="tag">${c.sem} semana${c.sem > 1 ? 's' : ''}</span><span class="tag">~${tr} treinos/semana</span><span class="tag">${Math.round(Math.min(...kms))} a ${Math.round(Math.max(...kms))} km/sem</span>${c.obj === 'slz' ? `<span class="tag">${np} provas</span>` : ''}</div></div>${I.chev}</div>${cicBarra(S2)}${c.desc ? `<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p>` : ''}</a>`; };
+const cicCardHTML = (c) => { const S2 = cicSemanas(c), p = perfilNiv(c.niv), kms = S2.map((s) => cicKm(s, p)); const tr = Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length); const np = S2.reduce((a, s) => a + s.sess.filter(([, t]) => t.tipo === 'prova').length, 0); return `<a class="card tap cic-card" href="#/treinos/ciclos/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${c.obj === 'volta' ? 'Todos os níveis' : CIC_NIV[c.niv]}</span><span class="tag">${c.sem} semana${c.sem > 1 ? 's' : ''}</span><span class="tag">~${tr} treinos/semana</span><span class="tag">${Math.round(Math.min(...kms))} a ${Math.round(Math.max(...kms))} km/sem</span>${c.obj === 'slz' ? `<span class="tag">${np} provas</span>` : ''}</div></div>${I.chev}</div>${cicBarra(S2)}${c.desc ? `<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p>` : ''}</a>`; };
 const trlCard = (t, forca) => { const cs = t.seq.map((x) => (forca ? CICLOS_FORCA : CICLOS_CORR).find((c) => c.id === x)).filter(Boolean), tot = cs.reduce((a, c) => a + cicSem(c), 0); return `<a class="card tap cic-card" href="${forca ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/'}${t.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(t.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[t.niv]}</span><span class="tag">${cs.length} ciclos</span><span class="tag">${tot} semanas</span></div></div>${I.chev}</div><div class="cic-barra trl-barra">${cs.map((c, i) => `<i style="flex:${cicSem(c)};background:hsl(${(i * 47 + 190) % 360} 70% 55%)"></i>`).join('')}</div><p class="small muted" style="margin-top:8px">${esc(t.desc)}</p><p class="tiny dim" style="margin-top:6px">${cs.map((c) => esc(c.nome)).join(' → ')}</p></a>`; };
 async function viewCiclos(id) {
   if (id) return id === 'slz' ? viewSLZ() : id === 'anual' ? viewMacro() : /^t-/.test(id) ? viewTrilha(id, false) : viewCiclo(id);
@@ -11723,6 +11723,7 @@ async function viewCiclos(id) {
       ${st.o === 'modelos' ? `<p class="small muted" style="margin-top:12px"><b>Periodização</b> é como as fases se encadeiam ao longo do ciclo. <b>Distribuição de intensidade</b> é como cada semana se divide entre leve e forte. Escolha o modelo e o nível do aluno.</p>
         <div class="chips wrap" id="cic-m" style="margin-top:10px">${MOD_CORR.map(([k, l]) => `<button type="button" class="chip ${k === st.m ? 'on' : ''}" data-m="${k}">${l}</button>`).join('')}</div>
         <div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${mi.tipo}</span><div class="h3" style="margin-top:2px">${esc((MOD_CORR.find((x) => x[0] === st.m) || [])[1])}</div><p class="small" style="margin-top:6px">${mi.oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${mi.quando}</p><p class="tiny dim" style="margin-top:6px">${mi.ci}</p></div>` : ''}
+      ${st.o === 'trail' ? CIC_INFO_TRAIL : st.o === 'volta' ? CIC_INFO_VOLTA : ''}
       ${st.o === 'bloco' ? `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Macrociclo sugerido da temporada</span><ol>${CIC_MACRO.map((x) => `<li>${x}</li>`).join('')}</ol><p class="tiny dim">Aplique um ciclo depois do outro, cada um começando na segunda-feira seguinte ao fim do anterior.</p></div>` : ''}
       ${st.o === 'trilhas' ? `<p class="small muted" style="margin-top:12px"><b>Trilhas</b> são ciclos encadeados na ordem certa: cada um começa na segunda-feira seguinte ao fim do anterior. Aplique a trilha inteira de uma vez ou abra cada ciclo para ver o que vem depois.</p><div class="stack" style="margin-top:12px">${TRILHAS_CORR.map((t) => trlCard(t, false)).join('')}</div>` : ''}
       <div class="stack" style="margin-top:12px">${L.map(cicCardHTML).join('')}</div>`;
@@ -11747,17 +11748,19 @@ function viewCiclo(id) {
     polimento: 'Polimento: volume 40–60% menor nas duas últimas semanas, mantendo a intensidade e o número de treinos. Chega na prova descansado e afiado.',
     pos: 'Recuperação depois da prova: só corridas leves e curtas. Dores musculares e marcadores de dano costumam levar de 1 a 2 semanas para normalizar depois de maratonas.',
     trans: 'Descanso ativo: mantém o hábito e a base sem cansar, recuperando a cabeça e o corpo antes da próxima temporada.',
+    trail: 'Treino de trail por tempo e esforço: subidas curtas na base, subidas longas e limiar na construção, descidas e longões em terreno na fase específica (com dois longões seguidos nos ciclos longos) e polimento antes da prova. Caminhar nas subidas íngremes é mais econômico (Giovanelli et al. 2016) e treinar descidas protege a musculatura do dano excêntrico da prova (McHugh 2003). Acima de 90 min, 30 a 60 g de carboidrato por hora (Thomas, Erdman & Burke 2016).',
+    volta: 'Protocolo de volta à corrida: corre e caminha progressivo até 30 min contínuos, sempre em dias alternados e em terreno plano. Só avança se a dor ficar em até 2 de 10 durante e sumir até a manhã seguinte; se passar disso, volta uma etapa (Silbernagel et al. 2007; Warden et al. 2014). Exige liberação do médico ou fisioterapeuta. Faça força de panturrilha, glúteo e quadríceps nos dias sem corrida.',
     slz: 'Cada prova tem um papel: forte (no máximo, com véspera e dias seguintes leves), treino (ritmo de limiar, no lugar do treino de qualidade) ou leve (participação). Os treinos intensos da semana, contando a prova, ficam no limite do nível, e a maior parte do volume continua leve. As provas estão nos sábados e domingos do modelo: depois de aplicar, mova cada uma para a data real.',
   };
   const semHTML = (s, i) => `<details class="card cic-sem" ${i === 0 ? 'open' : ''}><summary><div class="grow"><b>Semana ${i + 1}</b> <span class="cic-fase" style="--fc:${CIC_FASE_COR[s.fase] || '#9aa8c0'}">${s.rec ? 'Recuperação' : s.fase}</span></div><span class="small muted">${f1(cicKm(s, perfil))} km · ${s.sess.length} treinos</span>${I.chev}</summary>
     <div class="stack" style="margin-top:10px;gap:8px">${s.sess.map(([d, t]) => `<div class="cic-tr"><span class="cic-dia">${DIAS_SEM[d]}</span><div class="grow" style="min-width:0"><b>${esc(t.titulo)}</b>${t.estrutura.length ? `<div style="margin:6px 0 2px">${perfilHTML(t.estrutura, perfil)}</div><p class="tiny dim">${f1(kmDe(t, perfil))} km · ${esc(descreverEstrutura(t.estrutura))}</p>` : ''}</div></div>`).join('')}</div></details>`;
   const slz = c.obj === 'slz';
-  $app.innerHTML = `<a class="back" href="${slz ? '#/treinos/ciclos/slz' : '#/treinos/ciclos'}">${I.back} ${slz ? 'Macrociclo São Luís' : 'Ciclos prontos'}</a><p class="eyebrow">${ehMod ? 'Modelo de treino' : slz ? 'Macrociclo São Luís' : esc((CIC_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
+  $app.innerHTML = `<a class="back" href="${slz ? '#/treinos/ciclos/slz' : '#/treinos/ciclos'}">${I.back} ${slz ? 'Macrociclo São Luís' : 'Ciclos prontos'}</a><p class="eyebrow">${ehMod ? 'Modelo de treino' : slz ? 'Macrociclo São Luís' : esc((CIC_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${c.obj === 'volta' ? 'Todos os níveis' : CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
     ${c.desc ? `<p class="muted" style="margin-top:6px">${esc(c.desc)}</p>` : ''}
     <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b>${c.sem}</b><span>semanas</span></div><div><b>${Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length)}</b><span>treinos por semana</span></div><div><b>${Math.round(Math.max(...S2.map((s) => cicKm(s, perfil))))}</b><span>km na semana mais forte</span></div></div>${cicBarra(S2)}</div>
     <button class="btn block" id="cic-apl" style="margin-top:12px">${I.users} Aplicar a um aluno</button>
     ${c.mod ? `<div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${MOD_INFO[c.mod].tipo}</span><p class="small" style="margin-top:6px">${MOD_INFO[c.mod].oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${MOD_INFO[c.mod].quando}</p><p class="small" style="margin-top:6px"><b>Base científica:</b> ${MOD_INFO[c.mod].ci}</p><p class="tiny dim" style="margin-top:6px">A última semana termina com um teste para medir a evolução. Se o aluno tiver prova, troque o teste pela prova.</p></div>` : ''}
-    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${slz ? SLZ_REFS : CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
+    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${slz ? SLZ_REFS : { trail: 'Scheer et al. 2020 (Int J Sports Med); Giovanelli et al. 2016 (J Appl Physiol); McHugh 2003 (Scand J Med Sci Sports); Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc); Seiler 2010 (Int J Sports Physiol Perform).', volta: 'Warden et al. 2014 (J Orthop Sports Phys Ther); Silbernagel et al. 2007 (Am J Sports Med); Nielsen et al. 2014 (J Orthop Sports Phys Ther).' }[c.modo] || CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
     ${seqHTML(proximosCorr(c), '#/treinos/ciclos/')}
     <p class="sec-lbl">Semana a semana</p><div class="stack">${S2.map(semHTML).join('')}</div>`;
   document.getElementById('cic-apl').onclick = () => cicAplicar(c, S2);
@@ -11766,7 +11769,7 @@ async function cicAplicar(c, S2) {
   const ms = await sb.from('nx_membros').select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
   const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m));
   const prox = (() => { const d = inicioSemana(); d.setDate(d.getDate() + 7); return isoDia(d); })();
-  const temProva = c.modo === 'prova' || c.modo === 'polimento';
+  const temProva = c.modo === 'prova' || c.modo === 'polimento' || c.modo === 'trail';
   const pre = S.cache.cicPre || {}; S.cache.cicPre = null;
   openSheet(`<p class="eyebrow">Aplicar ciclo</p><div class="h2" style="margin-top:4px">${esc(c.nome)}</div>
     <form id="f-cic" style="margin-top:14px">
@@ -12417,6 +12420,98 @@ function viewSLZ() {
   };
   desenha();
 }
+
+/* ---------- Trilha (trail): treino por tempo e esforço, subidas, descidas e longões em terreno ----------
+   Base: Scheer et al. 2020 (Int J Sports Med, definição de corrida fora de estrada); Giovanelli et al. 2016 (J Appl Physiol, caminhar é
+   mais econômico nas subidas íngremes); McHugh 2003 (Scand J Med Sci Sports, efeito protetor da carga excêntrica repetida);
+   Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc, carboidrato durante o exercício). */
+const OBS_TR = {
+  lon: 'Em trilha ou terreno com subidas, por tempo e esforço (ritmo de conversa), não por pace. Caminhe firme nas subidas íngremes e desça controlado. Treine a hidratação e, acima de 90 min, 30 a 60 g de carboidrato por hora.',
+  b2b: 'Primeiro dia do “back-to-back”: longão no sábado e outro no domingo. Treina correr cansado sem precisar de um longão enorme num dia só.',
+  desc: 'Descidas em ritmo firme e controlado, passos curtos e rápidos, olhando 2 a 3 metros à frente. Prepara a musculatura para o impacto das descidas da prova (a carga excêntrica repetida diminui a dor e o dano nas provas).',
+  sub: 'Subida longa e contínua em esforço de limiar; em rampa muito íngreme, caminhe forte com as mãos nas coxas. Desça trotando devagar.',
+  pro: 'Ritmo por esforço, não por pace: o terreno e o desnível mudam tudo. Comece mais leve do que parece necessário e coma e beba desde o começo.',
+};
+const sLonT = (min, b2b) => cT('longao', `Longão em trilha ${Math.round(min / 5) * 5} min${b2b ? ' (dia 1)' : ''}`, [_C(Math.round(min / 5) * 5, 'min', 'leve')], b2b ? OBS_TR.b2b + ' ' + OBS_TR.lon : OBS_TR.lon);
+const sDesc = (n) => cT('tiros', `Descidas ${n} × 1 min`, [_A(10, 'min'), serie(n, [_C(1, 'min', 'limiar'), _R(2, 'min', 'leve')]), _D(10, 'min')], OBS_TR.desc);
+const sSubT = (n, min) => cT('ritmo', `Subidas ${n} × ${min} min`, [_A(15, 'min'), serie(n, [_C(min, 'min', 'limiar'), _R(min, 'min', 'rec')]), _D(10, 'min')], OBS_TR.sub);
+const sProvaT = (km) => cT('prova', `Prova trail ${km} km`, [_C(km, 'km', km <= 15 ? 'limiar' : 'maratona')], OBS_TR.pro);
+function gerarTrail(c) {
+  const n = c.sem, T = n >= 16 ? 2 : 1, R = n - T - 1, b = Math.max(1, Math.round(R * 0.4)), co = Math.max(1, Math.round(R * 0.35));
+  const [l0, l1] = c.lon, N = c.niv, E = { ini: 4.5, int: 7, ava: 9 }[N];
+  return Array.from({ length: n }, (_, i) => {
+    const fase = i < b ? 'Base' : i < b + co ? 'Construção' : i < R ? 'Específica' : i < n - 1 ? 'Polimento' : 'Prova';
+    const rec = i < R - 1 && i % 4 === 3, p = R > 1 ? Math.min(1, i / (R - 1)) : 1, red = rec ? 0.65 : 1;
+    const k = (a, z) => Math.max(2, Math.round(lerp(a, z, p) * red));
+    if (fase === 'Prova') return { fase, sess: [[1, sRod(E * 0.6, true)], [3, sFar(4, true)], ...(N === 'ava' ? [[4, sRod(E * 0.5)]] : []), [6, sProvaT(c.prova)]] };
+    const pol = fase === 'Polimento';
+    const lon = pol ? l1 * (i === n - 2 ? 0.4 : 0.6) : lerp(l0, l1, p) * (rec ? 0.7 : 1);
+    const q1 = pol ? sSubT(3, 3) : fase === 'Base' ? sSub(k(6, 10), 80) : fase === 'Construção' ? sSubT(k(3, 5), N === 'ini' ? 2 : 3) : sSubT(k(4, 6), N === 'ini' ? 3 : 4);
+    const q2 = pol ? sRod(E * 0.7, true) : fase === 'Base' ? sFar(k(6, 10), N === 'ini') : fase === 'Construção' ? sMin(k(3, 4), 6) : sDesc(k(5, 9));
+    const b2b = c.b2b && fase === 'Específica' && !rec;
+    const S = [[1, q1], [6, b2b ? sLonT(lon * 0.8) : sLonT(lon)]];
+    if (N === 'ini') S.push([3, fase === 'Específica' && !pol ? sDesc(k(4, 6)) : sRod(E, true)]);
+    else {
+      S.push([2, sRod(E * (pol ? 0.7 : 1))], [3, q2]);
+      if (c.dias >= 5) S.push([4, sRod(E * (pol ? 0.6 : 0.9))]);
+      if (b2b) S.push([5, sLonT(lon * 0.5, true)]);
+      else if (c.dias >= 6) S.push([5, sRod(E * (pol ? 0.6 : 1), true)]);
+    }
+    return { fase, rec, sess: S.sort((x, y) => x[0] - y[0]) };
+  });
+}
+/* ---------- Volta à corrida depois de lesão: corre e caminha progressivo, com regra da dor ----------
+   Base: Warden et al. 2014 (J Orthop Sports Phys Ther, volta após fratura por estresse); Silbernagel et al. 2007 (Am J Sports Med,
+   modelo de monitoramento da dor); Nielsen et al. 2014 (J Orthop Sports Phys Ther, progressão de volume). */
+const VL_DOR = 'Regra da dor: dor até 2 de 10 durante a corrida e que some até a manhã seguinte, siga em frente. Dor 3 ou mais, mancar, ou dor maior na manhã seguinte: pare, volte para a etapa anterior e avise o treinador. Nunca corra em dias seguidos nesta fase.';
+const VL_PRE = 'Antes da primeira corrida, confira: liberação do médico ou fisioterapeuta, caminhada rápida de 30 min sem dor, 10 saltitos em um pé só sem dor (em cada perna) e 20 elevações de panturrilha em uma perna. ';
+const VL_E = [[5, 1, 2], [5, 2, 2], [5, 3, 1], [4, 5, 1], [3, 8, 1], [2, 12, 1], ['c', 20], ['c', 25], ['c', 30], ['a', 30]];
+const vlSess = (e, pre) => {
+  const obs = (pre ? VL_PRE : '') + VL_DOR;
+  if (e[0] === 'c') return { ...sCont(e[1]), obs: 'Corrida contínua, leve (ritmo de conversa), em terreno plano. ' + obs };
+  if (e[0] === 'a') return cT('rodagem', 'Contínuo 30 min + 4 acelerações', [_C(30, 'min', 'leve'), serie(4, [_C(80, 'm', 'tiros'), _R(1, 'min', 'rec')])], 'Corrida leve e, no fim, 4 acelerações de 80 m soltas, sem sprint. Primeiro estímulo mais rápido depois da lesão. ' + obs);
+  return { ...sCC(e[0], e[1], e[2]), obs: `Corra ${e[1]} min leve e caminhe ${e[2]} min, ${e[0]} vezes, em terreno plano. ` + obs };
+};
+function gerarVolta(c) {
+  // etapas de corre e caminha repetidas (c.rep vezes) antes de avançar; as contínuas, uma vez cada
+  const tot = c.sem * 3, est = VL_E.slice(c.ini);
+  const seq = []; est.forEach((e) => { const r = typeof e[0] === 'number' ? c.rep : 1; for (let k = 0; k < r && seq.length < tot; k++) seq.push(e); });
+  while (seq.length < tot) seq.push(seq.length >= tot - 3 ? ['a', 30] : ['c', 30]);
+  return Array.from({ length: c.sem }, (_, w) => {
+    const ss = seq.slice(w * 3, w * 3 + 3);
+    return { fase: ss.every((e) => e[0] === 'c' || e[0] === 'a') ? 'Base' : 'Adaptação', sess: ss.map((e, j) => [[1, 3, 5][j], vlSess(e, w === 0 && j === 0)]) };
+  });
+}
+CICLOS_CORR.push(
+  { id: 'tr-ini', obj: 'trail', niv: 'ini', sem: 10, nome: 'Primeiro trail (até 12 km)', modo: 'trail', gen: gerarTrail, dias: 3, lon: [50, 100], prova: 10, desc: 'Para quem corre 10 km no asfalto e quer estrear na trilha: subidas, descidas e longões por tempo em terreno.' },
+  { id: 'tr-int21', obj: 'trail', niv: 'int', sem: 12, nome: 'Trail de 21 km · intermediário', modo: 'trail', gen: gerarTrail, dias: 4, lon: [75, 160], prova: 21, desc: 'Subidas curtas na base, subidas longas e limiar na construção, descidas na fase específica. Longão por tempo até cerca de 2h40.' },
+  { id: 'tr-ava21', obj: 'trail', niv: 'ava', sem: 12, nome: 'Trail de 21 a 30 km · avançado', modo: 'trail', gen: gerarTrail, dias: 6, lon: [90, 180], prova: 25, b2b: true, desc: 'Seis treinos por semana, com longões seguidos no fim de semana (back-to-back) na fase específica.' },
+  { id: 'tr-int42', obj: 'trail', niv: 'int', sem: 16, nome: 'Trail de 42 km · intermediário', modo: 'trail', gen: gerarTrail, dias: 5, lon: [90, 240], prova: 42, b2b: true, desc: 'Para quem já fez um trail de 21 km. Longão por tempo até cerca de 4h e fins de semana com dois longões seguidos.' },
+  { id: 'tr-ava50', obj: 'trail', niv: 'ava', sem: 18, nome: 'Ultra trail de 50 a 60 km · avançado', modo: 'trail', gen: gerarTrail, dias: 6, lon: [120, 270], prova: 50, b2b: true, desc: 'Para quem já completou um trail de 42 km ou uma maratona. Longões de até 4h30, back-to-back e muito treino de subida e descida.' },
+  { id: 'vl-curta', obj: 'volta', niv: 'ini', sem: 4, ini: 2, rep: 1, nome: 'Volta após pausa curta (2 a 4 semanas parado)', modo: 'volta', gen: gerarVolta, desc: 'Lesão leve ou pausa curta, já sem dor no dia a dia. Começa no corre 3 min e caminha 1 min e chega a 30 min contínuos.' },
+  { id: 'vl-media', obj: 'volta', niv: 'ini', sem: 6, ini: 0, rep: 2, nome: 'Volta após lesão moderada (1 a 2 meses parado)', modo: 'volta', gen: gerarVolta, desc: 'Tendinite, entorse ou lesão muscular já tratada. Começa no corre 1 min e caminha 2 min, com cada etapa repetida antes de avançar.' },
+  { id: 'vl-longa', obj: 'volta', niv: 'ini', sem: 8, ini: 0, rep: 3, nome: 'Volta após lesão longa ou fratura por estresse', modo: 'volta', gen: gerarVolta, desc: 'Mais de 2 meses parado ou fratura por estresse, só com liberação médica. Progressão mais lenta, sempre em dias alternados.' },
+);
+Object.assign(SEQ_CORR, {
+  'tr-ini': [['tr-int21', 'dist'], ['tr-ini', 'repete']], 'tr-int21': [['bl-pos', 'rec'], ['tr-int42', 'dist'], ['tr-ava21', 'sobe']], 'tr-ava21': [['bl-pos', 'rec'], ['tr-ava50', 'dist']],
+  'tr-int42': [['bl-pos', 'rec'], ['bl-trans', 'trans'], ['tr-ava50', 'dist']], 'tr-ava50': [['bl-pos', 'rec'], ['bl-trans', 'trans']],
+  'vl-curta': [['ini-base', 'base'], ['bl-base-int', 'base']], 'vl-media': [['ini-base', 'base'], ['vl-media', 'repete']], 'vl-longa': [['ini-base', 'base'], ['ini-30', 'base']],
+});
+const CIC_INFO_TRAIL = `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Como é o treino de trail</span><ol>
+  <li><b>Por tempo e esforço, não por pace.</b> O desnível e o terreno mudam o ritmo; os longões são em minutos.</li>
+  <li><b>Caminhar nas subidas íngremes é técnica.</b> Acima de uns 15–20% de inclinação, caminhar forte gasta menos energia que correr (Giovanelli et al. 2016).</li>
+  <li><b>Descer também se treina.</b> A descida é excêntrica e é ela que mais dói depois da prova; treinar descidas protege a musculatura nas seguintes (McHugh 2003).</li>
+  <li><b>Comer e beber é treino.</b> Acima de 90 min, 30 a 60 g de carboidrato por hora, até 90 g nas provas muito longas (Thomas, Erdman & Burke 2016).</li>
+  <li><b>Back-to-back:</b> dois longões em dias seguidos simulam o cansaço da prova longa com menos risco que um longão enorme.</li></ol>
+  <p class="tiny dim">Scheer et al. 2020 (Int J Sports Med); Giovanelli et al. 2016 (J Appl Physiol); McHugh 2003 (Scand J Med Sci Sports); Thomas, Erdman & Burke 2016 (Med Sci Sports Exerc).</p></div>`;
+const CIC_INFO_VOLTA = `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Antes de começar</span><ol>
+  <li><b>Liberação:</b> do médico ou do fisioterapeuta que acompanhou a lesão. O protocolo não substitui avaliação.</li>
+  <li><b>Critérios para a primeira corrida:</b> caminhada rápida de 30 min sem dor, 10 saltitos em um pé só sem dor e 20 elevações de panturrilha em uma perna.</li>
+  <li><b>Regra da dor:</b> até 2 de 10 durante e que passa até a manhã seguinte, segue. 3 ou mais, mancar ou piora no dia seguinte, volta uma etapa (Silbernagel et al. 2007).</li>
+  <li><b>Dias alternados:</b> o osso e o tendão precisam de 48 h entre as cargas no começo; nunca correr em dias seguidos nesta fase (Warden et al. 2014).</li>
+  <li><b>Força junto:</b> panturrilha, glúteo e quadríceps 2 a 3 vezes por semana, nos dias sem corrida.</li>
+  <li><b>Depois do protocolo:</b> volume subindo aos poucos, sem saltos grandes de uma semana para a outra (Nielsen et al. 2014).</li></ol>
+  <p class="tiny dim">Warden et al. 2014 (J Orthop Sports Phys Ther); Silbernagel et al. 2007 (Am J Sports Med); Nielsen et al. 2014 (J Orthop Sports Phys Ther).</p></div>`;
 
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
