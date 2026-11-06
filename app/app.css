@@ -2784,3 +2784,4 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .apr-fim b{font-size:2.2rem;font-weight:800;line-height:1}
 .apr-x{color:#dc2626;font-weight:700}.apr-v{color:#16a34a;font-weight:700}
 .apr-area,.apr-tema{display:block}
+.apr-rep{display:block;margin:12px auto 0;color:var(--dim)}
