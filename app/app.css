@@ -2954,3 +2954,11 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .cic-tr{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
 .cic-dia{flex:none;width:38px;font-size:.74rem;font-weight:800;color:var(--acc);padding-top:2px}
 .cic-tr b{font-size:.9rem}
+
+/* respostas do check-in */
+.ps-lin[data-pront]{cursor:pointer;border-radius:10px;transition:background .15s}
+.ps-lin[data-pront]:hover,.ps-lin[data-pront]:active{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.pd-v{flex:none;padding:3px 10px;border-radius:20px;color:#fff;font-weight:800;font-size:.78rem}
+.pd-op{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pd-op span{padding:5px 10px;border-radius:20px;border:1.5px solid var(--line);font-size:.8rem;color:var(--mute)}
+.pd-op span.on{color:var(--ink);font-weight:800}

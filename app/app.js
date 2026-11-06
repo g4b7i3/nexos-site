@@ -1050,15 +1050,30 @@ function abrirProntidao(aoSalvar) {
     };
   });
 }
+// respostas completas de um check-in (toque numa linha da tabela de prontidão)
+const PRONT_ROWS = new Map();
+function prontDetalhe(x) {
+  const [n, cls] = prontNivel(x.total);
+  const motivos = [...PRONT_Q.filter(([k]) => x[k] === 1).map(([k, , op]) => `${PRONT_CURTO[k]}: “${op[0]}”`), ...(x.dor <= 2 && x.dor !== 1 ? ['Dor muscular marcada como “Dor”'] : []), ...(x.total <= 10 ? ['Soma de 10 ou menos'] : [])];
+  const hora = x.criado_em ? new Date(x.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  openSheet(`<p class="eyebrow">Check-in da manhã</p><div class="h2" style="margin-top:4px">${fmtDia(x.dia)}${hora ? ` · ${hora}` : ''}</div>
+    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><span class="tag ${cls}">Prontidão ${n.toLowerCase()}: ${x.total} de 20</span>${x.alerta ? '<span class="tag err">Em alerta</span>' : ''}</div>
+    <div class="stack" style="margin-top:14px;gap:12px">${PRONT_Q.map(([k, t, op]) => `<div class="pd-q"><div class="row between" style="gap:8px"><b>${t}</b><span class="pd-v" style="background:${PRONT_COR[x[k] - 1]}">${x[k]} de 5</span></div>
+      <div class="pd-op">${op.map((o, i) => `<span class="${i + 1 === x[k] ? 'on' : ''}" style="${i + 1 === x[k] ? `border-color:${PRONT_COR[i]};background:color-mix(in srgb,${PRONT_COR[i]} 18%,transparent)` : ''}">${o}</span>`).join('')}</div>
+      ${k === 'dor' && (x.dor_locais || []).length ? `<p class="small" style="margin-top:6px;color:var(--err)">Onde dói${x.dor_int != null ? ` (${x.dor_int}/10)` : ''}: ${x.dor_locais.map((d) => esc(nomeRegDor(d))).join(', ')}</p>` : ''}</div>`).join('')}</div>
+    ${x.obs ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Comentário do aluno</span><p style="margin-top:6px">${esc(x.obs)}</p></div>` : ''}
+    <div class="card" style="margin-top:12px"><span class="eyebrow">Como ler</span><p class="small" style="margin-top:6px">A prontidão é a soma das 4 respostas (de 4 a 20). <b>Boa</b>: 16 a 20 · <b>Moderada</b>: 12 a 15 · <b>Baixa</b>: 11 ou menos.${motivos.length ? ` Em alerta por: ${motivos.join('; ')}.` : ''}</p></div>`);
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-pront]'); if (!b) return; const x = PRONT_ROWS.get(b.dataset.pront); if (x) prontDetalhe(x); });
 async function prontStaffHTML(m) {
   const ini = isoDia(Date.now() - 13 * 864e5);
   const rows = await sb.from('nx_prontidao').select('*').eq('aluno_id', m.user_id).gte('dia', ini).order('dia', { ascending: false }).then((r) => r.data || [], () => []);
   if (!rows.length) return `<div class="card pront-staff"><div class="row between"><b>${PRONT_IC} Prontidão</b><span class="tiny dim">check-in da manhã</span></div><p class="small muted" style="margin-top:8px">O aluno ainda não respondeu o check-in nos últimos 14 dias.</p></div>`;
   const media = rows.reduce((a, x) => a + x.total, 0) / rows.length;
   return `<div class="card pront-staff"><div class="row between"><b>${PRONT_IC} Prontidão</b><span class="tiny dim">últimos 14 dias</span></div>
-    <p class="small muted" style="margin-top:6px">Média <b>${f1(media)}/20</b> em ${rows.length} ${rows.length === 1 ? 'resposta' : 'respostas'}. Escala de 4 (pior) a 20 (melhor) com sono, energia, dor muscular e estresse.</p>
+    <p class="small muted" style="margin-top:6px">Média <b>${f1(media)}/20</b> em ${rows.length} ${rows.length === 1 ? 'resposta' : 'respostas'}. Cada pergunta vale de 1 a 5, e 5 é sempre o melhor (na dor, 5 = nenhuma dor). Toque num dia para ver as respostas.</p>
     <div class="ps-cab tiny dim"><span></span><span>Sono</span><span>Energia</span><span>Dor</span><span>Estresse</span><span>Total</span></div>
-    ${rows.map((x) => { const [n, cls] = prontNivel(x.total); return `<div class="ps-lin${x.alerta ? ' alerta' : ''}"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`; }).join('')}</div>`;
+    ${rows.map((x) => { PRONT_ROWS.set(x.id, x); const [n, cls] = prontNivel(x.total); return `<div class="ps-lin${x.alerta ? ' alerta' : ''}" data-pront="${x.id}" role="button" tabindex="0"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`; }).join('')}</div>`;
 }
 
 
