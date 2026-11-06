@@ -7877,30 +7877,40 @@ async function viewGps(id, modo) {
     else if (!passos.length && !pref.voltas && st.dist - st.pIni.d >= 1000) fecharPasso();
   };
 
-  // GPS
+  // GPS: filtro de Kalman simples (cada ponto pesa conforme a precisão) e passo mínimo, para o tremor do sinal não virar distância
+  let kf = null;
+  const filtrar = (pt, acc, t) => {
+    const a = Math.max(acc, 3);
+    if (!kf || t - kf.t > 30000) { kf = { la: pt[0], lo: pt[1], v: a * a, t }; return [pt[0], pt[1]]; }
+    const dt = Math.max(0, (t - kf.t) / 1000); kf.v += dt * 9; // até ~3 m/s de mudança esperada por segundo
+    const k = kf.v / (kf.v + a * a); kf.la += k * (pt[0] - kf.la); kf.lo += k * (pt[1] - kf.lo); kf.v *= 1 - k; kf.t = t;
+    return [+kf.la.toFixed(6), +kf.lo.toFixed(6)];
+  };
   const onPos = (pos) => {
     if (!document.getElementById('g-sinal') || !minha()) return; // já saiu da tela do treino
     const c = pos.coords, pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6)], t = pos.timestamp || Date.now();
-    gpsOk = c.accuracy <= 35;
+    gpsOk = c.accuracy <= 25;
     eu = pt; if (Date.now() - ultPosSalva > 60000) { store.set('nx-gps-ult', pt); ultPosSalva = Date.now(); }
-    $('g-sinal').textContent = c.accuracy <= 15 ? 'GPS ótimo' : c.accuracy <= 35 ? 'GPS bom' : `GPS fraco (±${Math.round(c.accuracy)} m)`;
-    $('g-sinal').className = 'tiny ' + (c.accuracy <= 35 ? 'gps-ok' : 'gps-fraco');
+    $('g-sinal').textContent = c.accuracy <= 12 ? 'GPS ótimo' : c.accuracy <= 25 ? 'GPS bom' : `GPS fraco (±${Math.round(c.accuracy)} m)`;
+    $('g-sinal').className = 'tiny ' + (c.accuracy <= 25 ? 'gps-ok' : 'gps-fraco');
     if (st.estado === 'pronto') desenha();
-    if (st.estado === 'pausado' && st.auto && c.accuracy <= 35) { // pausa automática: voltou a se mover, retoma
-      if (!autoBase) autoBase = pt; else if (gpsDist(autoBase, pt) > 15) { continuar(); falar('Retomando.'); }
+    const fp = c.accuracy <= 35 ? filtrar(pt, c.accuracy, t) : null;
+    if (st.estado === 'pausado' && st.auto && fp && c.accuracy <= 25) { // pausa automática: voltou a se mover, retoma
+      if (!autoBase) autoBase = fp; else if (gpsDist(autoBase, fp) > Math.max(15, c.accuracy)) { continuar(); falar('Retomando.'); }
     }
     if (st.estado !== 'correndo') { ultimo = null; atualizaMapa(); return; }
-    if (c.accuracy > 35) return;
+    if (!fp) return;
     if (ultimo) {
-      const inc = gpsDist(ultimo, pt), dt = (t - ultimoT) / 1000;
+      const inc = gpsDist(ultimo, fp), dt = (t - ultimoT) / 1000;
       if (dt <= 0) return;
       if (inc / dt > 9) return; // salto do GPS (mais rápido que 9 m/s): ignora
-      if (inc < 2 || (c.speed != null && c.speed < 0.4 && inc < 6)) return; // parado: não soma o tremor do sinal
+      if (inc < Math.max(4, c.accuracy * 0.5)) return; // passo menor que a incerteza do sinal: espera juntar mais (não perde distância, só soma depois)
+      if (c.speed != null && c.speed < 0.5 && inc < c.accuracy) return; // o próprio GPS diz que está parado
       if (dt > 30) st.lacunas++; // ficou um tempo sem sinal (tela apagada): liga em linha reta
       st.dist += inc; ultMov = Date.now();
     }
-    ultimo = pt; ultimoT = t;
-    st.rota.push(pt);
+    ultimo = fp; ultimoT = t;
+    st.rota.push(fp);
     const mov = movAgora() / 1000;
     janela.push({ t: Date.now(), d: st.dist }); if (janela.length > 40) janela.shift();
     const sr = st.serie, ul = sr.t[sr.t.length - 1];
