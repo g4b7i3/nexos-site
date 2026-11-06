@@ -1125,18 +1125,23 @@ function dicaEditar(d, depois) {
       <label class="field"><span>Título</span><input class="input" name="titulo" maxlength="90" required value="${esc(d?.titulo || '')}"></label>
       <label class="field"><span>Texto</span><textarea class="input" name="texto" rows="6" maxlength="1500" required>${esc(d?.texto || '')}</textarea></label>
       <label class="field"><span>Fonte (estudo ou diretriz)</span><input class="input" name="fonte" maxlength="400" value="${esc(d?.fonte || '')}" placeholder="Ex.: Walsh NP et al. Br J Sports Med, 2021."></label>
-      <label class="check-row" style="display:flex;gap:10px;align-items:center;margin:4px 0 14px"><input type="checkbox" name="publicada" ${d?.publicada ? 'checked' : ''}> <span>Publicada (os alunos veem)</span></label>
+      <label class="check-row" style="display:flex;gap:10px;align-items:center;margin:4px 0 8px"><input type="checkbox" name="publicada" ${d?.publicada ? 'checked' : ''}> <span>Publicada (os alunos veem)</span></label>
+      ${d?.avisada_em ? `<p class="tiny dim" style="margin:0 0 14px">Os alunos já foram avisados desta dica em ${fmtCurto(d.avisada_em)}. Salvar de novo não manda outra notificação.</p>` : `<label class="check-row" id="dica-avisar-l" style="display:flex;gap:10px;align-items:center;margin:0 0 14px" ${d?.publicada ? '' : 'hidden'}><input type="checkbox" name="avisar" checked> <span>Avisar os alunos por notificação</span></label>`}
       <button class="btn block" type="submit">Salvar</button>
       ${d ? '<button class="btn block ghost" type="button" id="dica-apagar" style="margin-top:8px">Apagar dica</button>' : ''}
     </form>`, (el) => {
     const f = el.querySelector('#f-dica');
+    const avL = el.querySelector('#dica-avisar-l'); if (avL) f.publicada.onchange = () => { avL.hidden = !f.publicada.checked; };
     f.onsubmit = async (e) => {
       e.preventDefault();
       const row = { categoria: f.categoria.value, titulo: f.titulo.value.trim(), texto: f.texto.value.trim(), fonte: f.fonte.value.trim() || null, publicada: f.publicada.checked, atualizado_em: new Date().toISOString() };
       if (row.publicada && !row.fonte) return toast('Coloque a fonte antes de publicar.', true);
-      const { error } = await (d ? sb.from('nx_dicas').update(row).eq('id', d.id) : sb.from('nx_dicas').insert({ ...row, org_id: S.org.id }));
+      const { data: salva, error } = await (d ? sb.from('nx_dicas').update(row).eq('id', d.id).select('id').single() : sb.from('nx_dicas').insert({ ...row, org_id: S.org.id }).select('id').single());
       if (error) return toast('Não foi possível salvar a dica.', true);
-      closeSheet(); toast(row.publicada ? 'Dica publicada. Os alunos já veem em Mais.' : 'Dica salva como rascunho.'); depois && depois();
+      // notificação só na primeira publicação (o servidor também garante isso)
+      const avisar = row.publicada && !d?.avisada_em && f.avisar && f.avisar.checked;
+      if (avisar) notificar('dica', (salva && salva.id) || d?.id);
+      closeSheet(); toast(!row.publicada ? 'Dica salva como rascunho.' : avisar ? 'Dica publicada e alunos avisados.' : 'Dica publicada. Os alunos já veem em Mais.'); depois && depois();
     };
     const ap = el.querySelector('#dica-apagar'); if (ap) ap.onclick = async () => { if (ap.dataset.ok !== '1') { ap.dataset.ok = '1'; ap.textContent = 'Toque de novo para apagar'; return; } const { error } = await sb.from('nx_dicas').delete().eq('id', d.id); if (error) return toast('Não foi possível apagar.', true); closeSheet(); toast('Dica apagada.'); depois && depois(); };
   });
