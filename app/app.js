@@ -3171,10 +3171,79 @@ function constanciaHTML(datas, titulo = 'Sua constância') {
   return `<div class="card ov-card"><div class="row between"><b>${titulo}</b><span class="tag ${st[1]}">${st[0]}</span></div>
     <div class="ov-num"><div><span>Último treino</span><b>${dias == null ? '–' : dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`}</b></div><div><span>Média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x por semana</b></div></div></div>`;
 }
+/* ---------- Evolução > Atividades: feed de tudo o que o aluno fez (relógio, celular e força no app) ---------- */
+const ATV_FILTROS = [['todas', 'Todas'], ['corrida', 'Corrida'], ['forca', 'Força'], ['outras', 'Outras']];
+function atvTitulo(c) {
+  if (c.titulo && !/^(running|corrida|run)$/i.test(c.titulo.trim())) return c.titulo;
+  const h = atvData(c.data).getHours(), temHora = /T\d\d:\d\d/.test(String(c.data)) && !/T00:00:00/.test(String(c.data));
+  const per = !temHora ? '' : h < 5 ? ' da madrugada' : h < 12 ? ' da manhã' : h < 17 ? ' da tarde' : h < 19 ? ' ao entardecer' : ' da noite';
+  return nomeAtiv(c) + per;
+}
+const atvData = (d) => new Date(/^\d{4}-\d\d-\d\d$/.test(String(d)) ? d + 'T12:00:00' : d);
+const atvDur = (s) => { if (!s) return '–'; s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${h}h ${String(m).padStart(2, '0')}min` : `${m}min ${String(x).padStart(2, '0')}s`; };
+function atvGrupo(x) {
+  if (x.k === 'ses') return 'forca';
+  if (x.c.tipo === 'forca') return 'forca';
+  return ehCorr(x.c) ? 'corrida' : 'outras';
+}
+function atvCard(x, rotas) {
+  if (x.k === 'ses') {
+    const s = x.s, d = new Date(s.iniciado_em), min = s.finalizado_em ? minutos(s.iniciado_em, s.finalizado_em) : null;
+    return `<div class="card atv"><div class="atv-top"><span class="atv-ic fo">${HALTER_S}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(s.treino_titulo || 'Treino de força')}</b><span class="small muted">${d.getDate()} de ${MESES_N[d.getMonth()]} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · no app</span></div></div>
+      <div class="atv-num"><div><small>Tempo</small><b>${min != null ? min + ' min' : '–'}</b></div><div><small>Esforço</small><b>${s.esforco != null ? s.esforco + '/10' : '–'}</b></div><div><small>Carga</small><b>${min != null && s.esforco != null ? cargaSessao(s.esforco, min) + ' UA' : '–'}</b></div></div></div>`;
+  }
+  const c = x.c, d = atvData(c.data), R = rotas[c.id];
+  const temHora = /T\d\d:\d\d/.test(String(c.data)) && !/T00:00:00/.test(String(c.data));
+  const fonte = c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'celular' ? 'GPS do celular' : c.fonte === 'relogio' ? 'relógio' : 'registrada à mão';
+  const corr = ehCorr(c), dist = comDist(c);
+  const nums = dist
+    ? [['Distância', fmtKm(c.distancia_m, 2)], corr ? ['Ritmo', fmtPace(paceDe(c))] : ['FC média', c.fc_media ? c.fc_media + ' bpm' : '–'], ['Tempo', atvDur(c.duracao_s)]]
+    : [['Tempo', atvDur(c.duracao_s)], ['FC média', c.fc_media ? c.fc_media + ' bpm' : '–'], ['Esforço', c.rpe != null ? c.rpe + '/10' : '–']];
+  let mapa = '';
+  if (R && R.length > 5) { const passo = Math.max(1, Math.ceil(R.length / 300)); mapa = `<div class="atv-mapa">${rotaSVG(R.filter((_, i) => i % passo === 0 || i === R.length - 1), 150)}</div>`; }
+  return `<a class="card tap atv" href="#/corrida/${c.id}" style="color:inherit"><div class="atv-top"><span class="atv-ic ${c.tipo === 'forca' ? 'fo' : ''}">${c.tipo === 'forca' ? HALTER_S : corr ? icCorr(S.me) : I.watch}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(atvTitulo(c))}</b><span class="small muted">${d.getDate()} de ${MESES_N[d.getMonth()]}${temHora ? ` · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : ''} · ${fonte}</span></div>${I.chev}</div>
+    <div class="atv-num">${nums.map(([l, v]) => `<div><small>${l}</small><b>${v}</b></div>`).join('')}</div>
+    ${c.dor || c.plano_id ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}</div>` : ''}${mapa}</a>`;
+}
+async function histAtividades(head) {
+  const [cor, ses] = await Promise.all([
+    sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fc_media,titulo,fonte,rpe,dor,plano_id').eq('aluno_id', S.user.id).order('data', { ascending: false }).limit(1000).then((r) => r.data || [], () => []),
+    buscarSessoes(S.user.id, 300).catch(() => []),
+  ]);
+  const todas = [...cor.map((c) => ({ k: 'cor', t: atvData(c.data).getTime(), c })), ...ses.map((s) => ({ k: 'ses', t: new Date(s.iniciado_em).getTime(), s }))].sort((a, b) => b.t - a.t);
+  const st = { f: 'todas', n: 15 }, rotas = {};
+  const filtradas = () => st.f === 'todas' ? todas : todas.filter((x) => atvGrupo(x) === st.f);
+  $app.innerHTML = head + `<div class="chips" id="atv-f" style="margin-top:14px">${ATV_FILTROS.map(([k, l]) => `<button type="button" class="chip ${k === st.f ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div><div id="atv-l" style="margin-top:12px"></div>`;
+  const box = document.getElementById('atv-l');
+  const desenha = async () => {
+    const L = filtradas(), vis = L.slice(0, st.n);
+    const falta = vis.filter((x) => x.k === 'cor' && !(x.c.id in rotas)).map((x) => x.c.id);
+    if (falta.length) {
+      const { data } = await sb.from('nx_corridas').select('id,rota').in('id', falta).then((r) => r, () => ({ data: [] }));
+      falta.forEach((id) => { rotas[id] = null; }); (data || []).forEach((r) => { rotas[r.id] = r.rota; });
+    }
+    if (!L.length) { box.innerHTML = `<div class="empty"><div class="h3">Nada por aqui ainda</div><p class="small">${st.f === 'todas' ? 'Quando você treinar, pelo relógio, pelo celular ou no app, a atividade aparece aqui.' : 'Nenhuma atividade deste tipo ainda.'}</p></div>`; return; }
+    let html = '', mesAtual = '';
+    vis.forEach((x) => {
+      const d = new Date(x.t), chave = d.getFullYear() + '-' + d.getMonth();
+      if (chave !== mesAtual) {
+        mesAtual = chave;
+        const doMes = L.filter((y) => { const e = new Date(y.t); return e.getFullYear() === d.getFullYear() && e.getMonth() === d.getMonth(); });
+        const km = doMes.filter((y) => y.k === 'cor' && comDist(y.c)).reduce((a, y) => a + y.c.distancia_m, 0);
+        html += `<div class="atv-mes"><b>${MESES_N[d.getMonth()].replace(/^./, (m) => m.toUpperCase())} de ${d.getFullYear()}</b><span>${doMes.length} atividade${doMes.length > 1 ? 's' : ''}${km >= 1000 ? ` · ${fmtKm(km, 1)}` : ''}</span></div>`;
+      }
+      html += atvCard(x, rotas);
+    });
+    box.innerHTML = `<div class="stack">${html}</div>${L.length > st.n ? `<button class="btn ghost block sm" id="atv-mais" style="margin-top:12px">Ver mais (${L.length - st.n})</button>` : ''}`;
+    const m = document.getElementById('atv-mais'); if (m) m.onclick = () => { m.disabled = true; m.textContent = 'Carregando…'; st.n += 15; desenha(); };
+  };
+  document.getElementById('atv-f').onclick = (e) => { const b = e.target.closest('[data-f]'); if (!b || b.dataset.f === st.f) return; st.f = b.dataset.f; st.n = 15; document.querySelectorAll('#atv-f .chip').forEach((x) => x.classList.toggle('on', x === b)); desenha(); };
+  await desenha();
+}
 async function alunoHistorico(aba) {
   loading();
-  const abasH = [['previsoes', 'Previsões'], ['relatorio', 'Relatório'], ['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => (k !== 'corrida' && k !== 'previsoes') || faz('corrida'));
-  const INFO = { previsoes: [I.flag, 'Previsões de desempenho', 'Seus tempos estimados para 5K, 10K, meia e maratona'], relatorio: [I.ficha, 'Relatório do mês', 'Seu resumo mensal em PDF'], treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'] };
+  const abasH = [['atividades', 'Atividades'], ['previsoes', 'Previsões'], ['relatorio', 'Relatório'], ['treinos', 'Treinos'], ['corrida', 'Corrida'], ['cargas', 'Cargas'], ['avaliacoes', 'Avaliações'], ['fotos', 'Fotos']].filter(([k]) => (k !== 'treinos' && k !== 'cargas') || faz('musculacao')).filter(([k]) => (k !== 'corrida' && k !== 'previsoes') || faz('corrida'));
+  const INFO = { previsoes: [I.flag, 'Previsões de desempenho', 'Seus tempos estimados para 5K, 10K, meia e maratona'], relatorio: [I.ficha, 'Relatório do mês', 'Seu resumo mensal em PDF'], treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'], corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'], cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'], avaliacoes: [I.check, 'Avaliações', 'Composição corporal e relatórios'], fotos: [I.cam, 'Fotos', 'Seu progresso visual'], atividades: [I.watch, 'Atividades', 'Tudo o que você fez, com mapa e números'] };
   if (!aba || !abasH.some(([k]) => k === aba)) {
     const [ses, cor] = await Promise.all([buscarSessoes(S.user.id, 200), sb.from('nx_corridas').select('data').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 60 * 864e5)).then((r) => r.data || []).catch(() => [])]);
     const datas = [...ses.map((x) => x.iniciado_em), ...cor.map((c) => c.data)];
@@ -3188,6 +3257,7 @@ async function alunoHistorico(aba) {
   }
   const head = `<a class="back" href="#/historico">${I.back} Evolução</a><div class="sec-tit"><span class="st-ic">${INFO[aba][0]}</span><div><p class="eyebrow">Sua evolução</p><h1 class="h2">${INFO[aba][1]}</h1></div></div>`;
   const bindTabs = () => {};
+  if (aba === 'atividades') return histAtividades(head);
   if (aba === 'previsoes') { $app.innerHTML = head + '<div id="pv-box" style="margin-top:14px"></div>'; return previsoesCard(document.getElementById('pv-box'), await buscarCorridasPrev(S.user.id), perfilCorrida(S.me), { titulo: false }); }
   if (aba === 'relatorio') { $app.innerHTML = head + '<div id="relm"></div>'; return relatorioMes(S.user.id, document.getElementById('relm'), false, S.me); }
   if (aba === 'cargas') {

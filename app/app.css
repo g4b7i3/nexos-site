@@ -2787,3 +2787,20 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .apr-x{color:#dc2626;font-weight:700}.apr-v{color:#16a34a;font-weight:700}
 .apr-area,.apr-tema{display:block}
 .apr-rep{display:block;margin:12px auto 0;color:var(--dim)}
+
+/* Evolução > Atividades */
+.atv{display:block;padding:14px}
+.atv-top{display:flex;align-items:center;gap:10px}
+.atv-ic{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--bg2);border:1px solid var(--line);color:var(--acc)}
+.atv-ic svg{width:20px;height:20px}
+.atv-ic.fo{color:var(--ink)}
+.atv-num{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.atv-num small{display:block;font-size:.72rem;color:var(--mute);font-weight:700}
+.atv-num b{font-family:var(--f-h);font-size:1.12rem;white-space:nowrap}
+.atv-mapa{margin:12px -14px -14px;border-top:1px solid var(--line);background:var(--bg2);border-radius:0 0 var(--r,18px) var(--r,18px);overflow:hidden;display:flex;justify-content:center}
+.atv-mapa .rota{max-width:100%}
+.atv-mes{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:10px 2px 0}
+.atv-mes:first-child{margin-top:0}
+.atv-mes b{font-family:var(--f-h);font-size:.95rem}
+.atv-mes span{font-size:.78rem;color:var(--mute);font-weight:700}
+@media(max-width:380px){.atv-num b{font-size:.98rem}}
