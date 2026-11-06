@@ -7352,7 +7352,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   let corpo = '';
   if (sub === 'planilha') {
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
-    corpo = `${provasBannerHTML(provasProx, staff, !!(m.corrida && m.corrida.sem_polimento))}${staff ? cargaHTML3(cargaCorrida(corridas, perfil)).replace('class="card carga3"', 'class="card carga3 compacto"') : ''}
+    corpo = `${staff ? '<div id="sug-ficha"></div>' : ''}${provasBannerHTML(provasProx, staff, !!(m.corrida && m.corrida.sem_polimento))}${staff ? cargaHTML3(cargaCorrida(corridas, perfil)).replace('class="card carga3"', 'class="card carga3 compacto"') : ''}
       <div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${rotulo}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         ${staff ? (() => { const clip = store.get('nx_clip_corr', null); return `<div class="pl-tools">
           <div class="tool-grp" role="group" aria-label="${semanas > 1 ? 'Semanas' : 'Semana'}"><button type="button" id="copiar-sem" ${plano.length ? '' : 'disabled'} title="Copiar os treinos ${semanas > 1 ? 'destas semanas' : 'desta semana'}">${I.copy}<span>Copiar</span></button><button type="button" id="colar-sem" class="${clip ? 'pronto' : ''}" ${clip ? '' : 'disabled'} title="${clip ? esc('Colar: ' + clip.itens.length + ' treinos de ' + clip.origem) : 'Copie uma semana primeiro'}">${I.paste}<span>Colar</span>${clip ? '<i class="tool-dot"></i>' : ''}</button></div>
@@ -7405,6 +7405,11 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       ${perfil.fcMax || perfil.lthr ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · ${perfil.lthr ? `pela FC de limiar ${perfil.lthr} bpm (teste de 30 min, Friel)` : `FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}`}</span><div class="zonas" style="margin-top:12px">${zonasFCPerfil(perfil).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
   }
   box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${corpo}</div>`;
+  // sugestão de ciclo pela ficha de entrada (as zonas continuam vindo do teste), enquanto nenhum ciclo de corrida foi aplicado
+  if (staff && sub === 'planilha') Promise.all([
+    sb.from('nx_form_respostas').select('dados').eq('aluno_id', alunoId).order('criado_em', { ascending: false }).limit(1).then((r) => (r.data || [])[0], () => null),
+    sb.from('nx_ciclos_aplicados').select('id').eq('aluno_id', alunoId).eq('tipo', 'corrida').limit(1).then((r) => r.data || [], () => [1]),
+  ]).then(([fr, ja]) => { const el = document.getElementById('sug-ficha'); const ds = fr && fr.dados && fr.dados.desemp; if (!el || !ds || ja.length) return; el.innerHTML = sugCicloHTML(analisarDesemp(ds), alunoId); });
   if (sv) { const bl = box.querySelector('.biblio-l'); if (bl) bl.scrollLeft = sv.bl; scrollTo(scrollX, sv.y); requestAnimationFrame(() => { box.style.minHeight = ''; }); }
   if (SUBS.length > 1) box.querySelector('.subtabs').onclick = (e) => { const b = e.target.closest('[data-sub]'); if (b) { st.sub = b.dataset.sub; recarregar(); } };
   const q = (s) => box.querySelector(s);
@@ -13478,6 +13483,92 @@ const FICHA_TERMO = 'Declaro que conheço os riscos próprios da prática de cor
 const fichaLink = (tk) => loginURL() + '#/ficha/' + tk;
 const telWa = (t) => { const d = String(t || '').replace(/\D/g, ''); return d ? (d.length <= 11 ? '55' + d : d) : ''; };
 const fichaMsg = (nome, link) => `Olá${nome ? ', ' + firstName(nome) : ''}! Aqui é da Nexos Performance e Saúde\n\nPara montarmos o seu treino, preencha sua ficha de entrada (leva uns 5 minutos):\n${link}`;
+/* ---------- desempenho recente na ficha de entrada e sugestão de ciclo ----------
+   Só resultados dos últimos 6 meses entram no cálculo: sem treino, o VO2máx e o desempenho caem em poucas semanas
+   (Mujika & Padilla 2000, Sports Med). O nível vem do VDOT de Daniels pelo melhor resultado recente e é limitado pelo
+   volume atual, porque o volume é que mostra o que os tecidos já toleram (Frandsen et al. 2025; Nielsen et al. 2014). */
+const FICHA_CONT = [['nao', 'Não corro hoje (só caminho ou estou parado)'], ['10', 'Até 10 minutos'], ['20', 'De 10 a 20 minutos'], ['30', 'De 20 a 30 minutos'], ['60', 'De 30 a 60 minutos'], ['mais', 'Mais de 1 hora']];
+const FICHA_QUANDO = [['nunca', 'Nunca corri essa distância'], ['3m', 'Nos últimos 3 meses'], ['6m', 'Entre 3 e 6 meses atrás'], ['12m', 'Entre 6 meses e 1 ano atrás'], ['antigo', 'Há mais de 1 ano']];
+const FICHA_DIST = [['5', '5 km', 5000], ['10', '10 km', 10000], ['21', 'Meia maratona (21 km)', 21097], ['42', 'Maratona (42 km)', 42195]];
+const FICHA_ALVO = [['5', '5 km'], ['10', '10 km'], ['21', 'Meia maratona'], ['42', 'Maratona'], ['trail', 'Trail ou ultra'], ['nenhuma', 'Sem prova: saúde e condicionamento']];
+const fichaDesempHTML = () => `<div class="ficha-corr ficha-desemp">
+    <p class="ficha-sub">Seu momento atual na corrida</p>
+    <label class="field"><span>Hoje, quanto tempo você consegue correr sem parar?</span><select class="input" name="cont"><option value="">Selecione</option>${FICHA_CONT.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>
+    <div class="grid2"><label class="field"><span>Km por semana no último mês</span><input class="input" name="km_sem" data-mask="num" data-max="3" inputmode="numeric" placeholder="Ex.: 15"></label>
+    <label class="field"><span>Dias de corrida por semana hoje</span><input class="input" name="dias_sem" data-mask="num" data-max="1" inputmode="numeric" placeholder="Ex.: 3"></label></div>
+    <p class="small muted" style="margin:4px 0 8px">Último resultado em cada distância: prova ou treino feito no seu máximo. Se não lembrar o tempo exato, deixe o tempo em branco.</p>
+    ${FICHA_DIST.map(([k, l]) => `<div class="ficha-pv"><b>${l}</b><select class="input" name="q${k}" aria-label="Quando correu ${l}"><option value="">Quando foi?</option>${FICHA_QUANDO.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select><input class="input" name="t${k}" data-mask="tempo" inputmode="numeric" placeholder="Tempo (ex.: ${{ 5: '28:30', 10: '58:00', 21: '2:05:00', 42: '4:30:00' }[k]})" aria-label="Tempo nos ${l}" hidden></div>`).join('')}
+    <div class="field" style="margin-top:10px"><span>Qual distância quer treinar nos próximos meses?</span><div class="chips wrap">${FICHA_ALVO.map(([k, l]) => `<label class="chipc"><input type="radio" name="alvo" value="${k}"><span>${l}</span></label>`).join('')}</div></div>
+  </div>`;
+const lerDesemp = (fd) => {
+  const o = { cont: fd.get('cont') || null, km_sem: num(fd.get('km_sem')), dias_sem: num(fd.get('dias_sem')), alvo: fd.get('alvo') || null, p: {} };
+  FICHA_DIST.forEach(([k]) => { const q = fd.get('q' + k); if (q) o.p[k] = { q, t: ['nunca', 'antigo'].includes(q) ? null : (String(fd.get('t' + k) || '').trim() || null) }; });
+  return o.cont || Object.keys(o.p).length || o.alvo ? o : null;
+};
+const bindDesemp = (f) => {
+  const ver = () => FICHA_DIST.forEach(([k]) => { const q = f.querySelector(`[name=q${k}]`), t = f.querySelector(`[name=t${k}]`); if (q && t) t.hidden = !q.value || ['nunca', 'antigo'].includes(q.value); });
+  f.addEventListener('change', (e) => { if (/^q\d+$/.test(e.target.name || '')) ver(); }); ver();
+};
+const nivVdot = (v) => (v < 37 ? 'ini' : v < 46 ? 'int' : v < 57 ? 'ava' : 'pro');
+const NIV_ORD = ['ini', 'int', 'ava', 'pro'];
+const minNiv = (a, b) => NIV_ORD[Math.min(NIV_ORD.indexOf(a), NIV_ORD.indexOf(b))];
+// análise do desempenho informado e sugestão de ciclo da biblioteca
+function analisarDesemp(ds) {
+  if (!ds) return null;
+  const P = ds.p || {}, km = ds.km_sem, cont = ds.cont;
+  const pv = FICHA_DIST.map(([k, l, m]) => { const x = P[k]; if (!x) return null; const seg = x.t ? lerTempo(x.t) : null; const ok = seg && seg > m / 1000 * 150 && seg < m / 1000 * 1200; const vd = ok ? vdotDe(m, seg) : null; return { k, l, m, q: x.q, seg: ok ? seg : null, vdot: vd, recente: ['3m', '6m'].includes(x.q) }; }).filter(Boolean);
+  const rec = pv.filter((x) => x.recente && x.vdot);
+  const melhor = rec.sort((a, b) => b.vdot - a.vdot)[0] || null;
+  const fez = (k, quais) => pv.some((x) => x.k === k && quais.includes(x.q));
+  const contMin = { nao: 0, 10: 10, 20: 20, 30: 30, 60: 60, mais: 90 }[cont];
+  const motivos = []; let id = null, niv = 'ini';
+  // nível: VDOT recente, limitado pelo volume atual
+  if (melhor) {
+    niv = nivVdot(melhor.vdot);
+    motivos.push(`Melhor resultado recente: ${melhor.l} em ${fmtDurLongo(melhor.seg)} (VDOT ${Math.round(melhor.vdot)}), nível ${CIC_NIV[niv].toLowerCase()} pelo desempenho.`);
+    if (km != null) { const capV = km < 15 ? 'ini' : km < 30 ? 'int' : km < 50 ? 'ava' : 'pro'; if (NIV_ORD.indexOf(capV) < NIV_ORD.indexOf(niv)) { motivos.push(`O volume atual (${km} km por semana) é de nível ${CIC_NIV[capV].toLowerCase()}: o ciclo começa por aí, porque é o volume que mostra o que músculos, tendões e ossos já toleram hoje.`); niv = capV; } }
+    else if (ds.dias_sem != null && ds.dias_sem <= 3 && NIV_ORD.indexOf(niv) > 1) { niv = 'int'; motivos.push('Corre 3 dias ou menos por semana: os ciclos avançados pedem 5 ou mais.'); }
+  } else if (pv.some((x) => x.vdot && !x.recente)) motivos.push('Os tempos informados são de mais de 6 meses e não entram no cálculo: sem treino, o condicionamento cai em poucas semanas.');
+  const alvo = ds.alvo;
+  // quem ainda não corre 30 min seguidos começa pela adaptação, qualquer que seja o objetivo
+  if (contMin != null && contMin < 30) {
+    id = contMin <= 10 ? 'ini-zero' : 'ini-30';
+    motivos.push(contMin === 0 ? 'Não corre hoje: começa pelo corre e caminha, que adapta tendões e ossos ao impacto.' : `Corre até ${contMin} minutos sem parar: primeiro chegar aos 30 minutos contínuos.`);
+  } else if (!alvo || alvo === 'nenhuma') {
+    id = niv === 'ini' ? 'ini-base' : niv === 'int' ? 'bl-base-int' : 'bl-base-ava';
+    motivos.push('Sem prova em vista: um bloco de base aeróbica, com a maior parte do volume leve. Depois dele, a biblioteca sugere o próximo passo.');
+  } else if (alvo === 'trail') {
+    id = niv === 'ini' ? 'tr-ini' : niv === 'int' ? 'tr-int21' : 'tr-ava21';
+    motivos.push('Objetivo de trail: treino por tempo e esforço, com subidas e descidas.');
+  } else {
+    let a = alvo;
+    if (a === '42' && !(fez('21', ['3m', '6m', '12m']) && (km || 0) >= 30)) { a = '21'; motivos.push('Para a maratona, o recomendado é ter completado uma meia no último ano e correr pelo menos uns 30 km por semana. O ciclo sugerido prepara a meia primeiro.'); }
+    if (a === '21' && !(fez('10', ['3m', '6m']) || (km || 0) >= 20)) { a = '10'; motivos.push('Para a meia, o recomendado é ter corrido 10 km nos últimos meses ou estar com uns 20 km por semana. O ciclo sugerido prepara os 10 km primeiro.'); }
+    if (a === '10' && niv === 'ini' && !(fez('5', ['3m', '6m']) || fez('10', ['3m', '6m'])) && (contMin || 0) < 60) { a = '5'; motivos.push('Ainda sem 5 km recentes: o primeiro ciclo é o de 5 km.'); }
+    id = MAC_CIC[a] && MAC_CIC[a][niv];
+    if (a === alvo) motivos.push(`Objetivo: ${(FICHA_ALVO.find((x) => x[0] === alvo) || [])[1]}.`);
+  }
+  const c = id && CICLOS_CORR.find((x) => x.id === id);
+  return { pv, melhor, niv, ciclo: c || null, motivos };
+}
+function desempHTML(ds, alunoId) {
+  const A = analisarDesemp(ds); if (!A) return '';
+  const qN = (q) => (FICHA_QUANDO.find((x) => x[0] === q) || [, q])[1];
+  return `<div class="card"><span class="eyebrow">Momento atual na corrida</span>
+    ${ds.cont ? `<div class="ficha-l"><span>Corre sem parar</span><b>${esc((FICHA_CONT.find((x) => x[0] === ds.cont) || [, ds.cont])[1])}</b></div>` : ''}
+    ${ds.km_sem != null ? `<div class="ficha-l"><span>Volume</span><b>${ds.km_sem} km por semana${ds.dias_sem != null ? ` · ${ds.dias_sem} dias` : ''}</b></div>` : ''}
+    ${A.pv.map((x) => `<div class="ficha-l"><span>${x.l}</span><b>${x.seg ? fmtDurLongo(x.seg) + ' · ' : ''}${esc(qN(x.q))}${x.vdot ? ` <span class="tag ${x.recente ? 'acc' : ''}">${x.recente ? 'VDOT ' + Math.round(x.vdot) : 'antigo'}</span>` : ''}</b></div>`).join('')}
+    ${ds.alvo ? `<div class="ficha-l"><span>Quer treinar</span><b>${esc((FICHA_ALVO.find((x) => x[0] === ds.alvo) || [, ds.alvo])[1])}</b></div>` : ''}</div>
+    ${sugCicloHTML(A, alunoId)}`;
+}
+const sugCicloHTML = (A, alunoId) => (A && A.ciclo ? `<div class="card sug-ciclo"><span class="eyebrow">Sugestão Nexos</span>
+    <a class="list-item" href="#/treinos/ciclos/${A.ciclo.id}" data-sugal="${alunoId || ''}" style="color:inherit;margin-top:6px"><span class="ativ-ic">${I.run}</span><div class="grow" style="min-width:0"><b>${esc(A.ciclo.nome)}</b><div class="small muted">${A.ciclo.sem} semanas · ${CIC_NIV[A.ciclo.niv]}</div></div>${I.chev}</a>
+    <ul class="small sug-mot">${A.motivos.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
+    <p class="small" style="margin-top:4px"><b>Antes de aplicar:</b> o aluno faz o teste de entrada (5 km, 30 min ou outro do Check-up). É o teste que define as zonas e os ritmos dos treinos; os tempos da ficha servem só para escolher o tipo de ciclo.</p>
+    <a class="btn ghost sm" href="#/checkup" style="margin-top:8px">Pedir o teste no Check-up</a>
+    <p class="tiny dim" style="margin-top:8px">Só resultados dos últimos 6 meses entram na sugestão, porque o condicionamento cai em poucas semanas sem treino (Mujika & Padilla 2000); o nível é limitado pelo volume atual.</p></div>` : '');
+document.addEventListener('click', (e) => { const a = e.target.closest('[data-sugal]'); if (a && a.dataset.sugal) S.cache.cicPre = { aluno: a.dataset.sugal }; });
+
 // disponibilidade do aluno (dias que corre / faz força), marcada na ficha ou pelo treinador
 const dispDe = (m) => (m && m.disponibilidade) || {};
 const dispIcones = (m, i) => { const dp = dispDe(m); return `${(dp.corrida || []).includes(i) ? selo('corrida', 'disp-ic') : ''}${(dp.forca || []).includes(i) ? selo('forca', 'disp-ic') : ''}`; };
@@ -13541,8 +13632,7 @@ async function viewFicha(token) {
         <label class="field"><span>Como é ou foi a sua rotina de exercícios?</span><textarea class="textarea" name="atividade" placeholder="Ex.: musculação 3x por semana há 1 ano, futebol aos sábados"></textarea></label>
         <div class="field"><span>Como avalia o seu condicionamento físico hoje? *</span>${chips('nivel', FICHA_NIVEL, 'radio')}</div>
         <div class="field ficha-corr"><span>Experiência com corrida</span><select class="input" name="corrida_exp"><option value="">Selecione</option>${FICHA_EXP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
-        <div class="grid2 ficha-corr"><label class="field"><span>Maior distância que já correu</span><input class="input" name="maior_dist" placeholder="Ex.: 10 km"></label>
-        <label class="field"><span>Tempo recente (5 ou 10 km)</span><input class="input" name="tempo_recente" placeholder="Ex.: 5 km em 32 min"></label></div>
+        ${fichaDesempHTML()}
         <label class="field ficha-corr"><span>Relógio ou app que usa</span><select class="input" name="relogio"><option value="">Selecione</option>${FICHA_RELOGIOS.map((r) => `<option>${r}</option>`).join('')}</select></label>`)}
       ${sec(4, 'Histórico médico', 'Responda todas. Se tiver dúvida, marque “Não sei”.', `
         ${FICHA_HIST.map((q, i) => `<div class="parq"><p>${q}</p>${sn3('h' + (i + 1))}</div>`).join('')}
@@ -13569,6 +13659,7 @@ async function viewFicha(token) {
       <p class="tiny dim center">Suas respostas vão só para a equipe de treinadores da Nexos.</p>
     </form>`;
   const f = document.getElementById('f-ficha');
+  bindDesemp(f);
   const ajustar = () => {
     const mods = [...f.querySelectorAll('[name=modalidades]:checked')].map((x) => x.value);
     const corrOn = !mods.length || mods.includes('corrida'), forOn = !mods.length || mods.includes('musculacao');
@@ -13623,6 +13714,7 @@ async function viewFicha(token) {
     if (d.nascimento) d.nascimento = dataISO(d.nascimento) || undefined;
     const mods = d.modalidades || [];
     d.disponibilidade = { corrida: mods.includes('corrida') ? fd.getAll('d_corrida').map(Number) : [], forca: mods.includes('musculacao') ? fd.getAll('d_forca').map(Number) : [] };
+    if (!mods.length || mods.includes('corrida')) { const ds = lerDesemp(fd); if (ds) d.desemp = ds; }
     d.hist = {}; FICHA_HIST.forEach((_, i) => { d.hist['h' + (i + 1)] = fd.get('h' + (i + 1)) || null; });
     d.parq = { v: 'plus' }; PARQ_PLUS.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; });
     const falta = (sel, msg) => { const el = f.querySelector(sel); toast(msg, true); if (el) el.closest('.field, .parq, .ficha-aceite, label')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
@@ -13840,6 +13932,7 @@ async function staffFichaResposta(id) {
       <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Objetivos pessoais', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
       <div class="card"><span class="eyebrow">Disponibilidade</span>${lin(selo('corrida', 'sm') + ' Corrida', diasT(dp.corrida))}${lin(selo('forca', 'sm') + ' Força', diasT(dp.forca))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}${lin('Comentário', esc(d.disp_obs || ''))}</div>
       <div class="card"><span class="eyebrow">Histórico esportivo</span>${lin('Esportes', lista(d.esportes, FICHA_ESPORTES) + (d.esportes_outros ? ` (${esc(d.esportes_outros)})` : ''))}${lin('Rotina', esc(d.atividade || ''))}${lin('Condicionamento', esc(nome(FICHA_NIVEL, d.nivel)))}${lin('Corrida', esc(nome(FICHA_EXP, d.corrida_exp)))}${lin('Maior distância', esc(d.maior_dist || ''))}${lin('Tempo recente', esc(d.tempo_recente || ''))}${lin('Relógio', esc(d.relogio || ''))}</div>
+      ${d.desemp ? desempHTML(d.desemp, r.aluno_id) : ''}
       <div class="card"><span class="eyebrow">Histórico médico</span>${rs.histSim.length ? rs.histSim.map(([q, v]) => lin(esc(q), v === 'sim' ? '<span style="color:var(--err)">Sim</span>' : 'Não sei')).join('') : lin('Respostas', 'Tudo “não”')}${lin('Observações', esc(d.obs_medica || ''))}${lin('PAR-Q', rs.sim.length ? `<span style="color:var(--err)">${rs.sim.length} sim</span>` : 'Tudo “não”')}</div>
       ${d.origem || d.obs ? `<div class="card"><span class="eyebrow">Outros</span>${lin('Conheceu por', esc(nome(FICHA_ORIGEM, d.origem)))}${lin('Comentário', esc(d.obs || ''))}</div>` : ''}
       <p class="tiny dim">✓ Aceitou o termo de responsabilidade ao enviar.</p>
@@ -13973,6 +14066,6 @@ async function staffErros() {
   };
 }
 
-if (window.NX_DEMO) window.__nx = { loading, toast, garminItem, CICLOS_CORR, cicSemanas, kmDe, perfilNiv };
+if (window.NX_DEMO) window.__nx = { loading, toast, garminItem, CICLOS_CORR, cicSemanas, kmDe, perfilNiv, analisarDesemp, desempHTML };
 iniciar();
 })();

@@ -2995,3 +2995,10 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .mac-pri button small{font-weight:500;font-size:.68rem;opacity:.75}
 .mac-pri button.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .mac-vazio{border:1px dashed color-mix(in srgb,var(--acc) 60%,var(--line))}
+/* desempenho recente na ficha e sugestão de ciclo */
+.ficha-sub{font-weight:800;margin:14px 0 8px}
+.ficha-pv{display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:10px;padding:10px;border:1px solid var(--line);border-radius:12px}
+.ficha-pv b{font-size:.9rem}
+@media (min-width:560px){.ficha-pv{grid-template-columns:150px 1fr 150px;align-items:center}}
+.sug-ciclo{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
+.sug-mot{margin:8px 0 6px 18px;display:grid;gap:4px}
