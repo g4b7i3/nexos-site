@@ -398,6 +398,7 @@ async function router() {
       if (a === 'laboratorio') { if (b === 'dossie' && c) return await staffDossie(c, d); if (b === 'assessoria') return await staffAssessoria(c); return await staffLaboratorio(); }
       if (a === 'mais') return staffMais();
       if (a === 'desafio') return await staffDesafio();
+      if (a === 'dicas') return await viewDicas(b);
       if (a === 'erros') return await staffErros();
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
@@ -435,6 +436,8 @@ async function router() {
     if (a === 'agua') return await viewAguaAluno();
     if (a === 'ciclo') return await viewCicloAluna(b);
     if (a === 'prontidao') return await viewProntAluno();
+    if (a === 'meta') return await viewMeta();
+    if (a === 'dicas') return await viewDicas(b);
     return await alunoHoje();
   } catch (e) {
     console.error(e); reportarErro(e, 'tela não carregou');
@@ -1088,6 +1091,198 @@ async function pesquisaSatisfacao(box) {
     el.querySelector('#sat-dep').onclick = async () => { if (await salvar({ nota: null, adiada: true })) closeSheet(); };
   });
 }
+/* ================= DICAS, META PESSOAL E RESGATE ================= */
+
+/* ---------- dicas da Nexos: a equipe escreve e publica; o aluno lê ---------- */
+const DICA_CAT = { sono: 'Sono', alimentacao: 'Alimentação', hidratacao: 'Hidratação', recuperacao: 'Recuperação', prova: 'Dia de prova', treino: 'Treino' };
+async function viewDicas(cat) {
+  loading(); S.staff ? dockStaff() : dockAluno();
+  const { data } = await sb.from('nx_dicas').select('*').eq('org_id', S.org.id).order('criado_em', { ascending: false }).then((r) => r, () => ({ data: [] }));
+  const todas = data || [];
+  if (!S.staff) try { store.set('nx-dicas-visto', new Date().toISOString()); } catch {}
+  const pubs = todas.filter((d) => d.publicada), rasc = todas.filter((d) => !d.publicada);
+  const lista = S.staff ? todas : pubs;
+  const cats = Object.keys(DICA_CAT).filter((k) => lista.some((d) => d.categoria === k));
+  const sel = cat && DICA_CAT[cat] ? cat : 'todas';
+  const vis = sel === 'todas' ? pubs : pubs.filter((d) => d.categoria === sel);
+  const item = (d) => `<details class="card dica"><summary><span class="tag acc">${DICA_CAT[d.categoria]}</span><b>${esc(d.titulo)}</b></summary><p>${esc(d.texto)}</p>${d.fonte ? `<p class="tiny dim dica-fonte">Fonte: ${esc(d.fonte)}</p>` : ''}${S.staff ? `<button class="link-btn small" data-dica="${d.id}" style="margin-top:8px">Editar</button>` : ''}</details>`;
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Nexos</p><h1 class="h1">Dicas da Nexos</h1>
+    <p class="muted" style="margin-top:6px">${S.staff ? 'Textos curtos com base científica. Os alunos só veem as dicas publicadas.' : 'Textos curtos da equipe Nexos sobre sono, alimentação, recuperação e prova, com a fonte de cada um.'}</p>
+    ${S.staff ? `<button class="btn block" id="dica-nova" style="margin-top:14px">${I.plus || '+'} Nova dica</button>` : ''}
+    ${S.staff && rasc.length ? `<p class="sec-lbl">Rascunhos para revisar <span class="tag warn">${rasc.length}</span></p><div class="stack">${rasc.map(item).join('')}</div>` : ''}
+    ${S.staff ? `<p class="sec-lbl">Publicadas</p>` : ''}
+    ${cats.length > 1 && pubs.length > 3 ? `<div class="chips" id="dica-cat" style="margin-top:12px"><button class="chip ${sel === 'todas' ? 'on' : ''}" data-c="todas">Todas</button>${cats.filter((k) => pubs.some((d) => d.categoria === k)).map((k) => `<button class="chip ${sel === k ? 'on' : ''}" data-c="${k}">${DICA_CAT[k]}</button>`).join('')}</div>` : ''}
+    <div class="stack" style="margin-top:12px">${vis.map(item).join('') || `<div class="empty"><div class="h3">${S.staff ? 'Nenhuma dica publicada ainda' : 'Em breve'}</div><p class="small muted">${S.staff ? 'Revise um rascunho e marque como publicada.' : 'A equipe está preparando as primeiras dicas.'}</p></div>`}</div>`;
+  const ch = document.getElementById('dica-cat'); if (ch) ch.onclick = (e) => { const b = e.target.closest('[data-c]'); if (b) viewDicas(b.dataset.c); };
+  if (!S.staff) return;
+  document.getElementById('dica-nova').onclick = () => dicaEditar(null, () => viewDicas(sel));
+  $app.querySelectorAll('[data-dica]').forEach((b) => b.onclick = (e) => { e.preventDefault(); dicaEditar(todas.find((d) => d.id === b.dataset.dica), () => viewDicas(sel)); });
+}
+function dicaEditar(d, depois) {
+  openSheet(`<p class="eyebrow">Dicas da Nexos</p><div class="h2">${d ? 'Editar dica' : 'Nova dica'}</div>
+    <form id="f-dica" style="margin-top:14px">
+      <label class="field"><span>Assunto</span><select class="input" name="categoria">${Object.entries(DICA_CAT).map(([k, l]) => `<option value="${k}" ${d && d.categoria === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="field"><span>Título</span><input class="input" name="titulo" maxlength="90" required value="${esc(d?.titulo || '')}"></label>
+      <label class="field"><span>Texto</span><textarea class="input" name="texto" rows="6" maxlength="1500" required>${esc(d?.texto || '')}</textarea></label>
+      <label class="field"><span>Fonte (estudo ou diretriz)</span><input class="input" name="fonte" maxlength="400" value="${esc(d?.fonte || '')}" placeholder="Ex.: Walsh NP et al. Br J Sports Med, 2021."></label>
+      <label class="check-row" style="display:flex;gap:10px;align-items:center;margin:4px 0 14px"><input type="checkbox" name="publicada" ${d?.publicada ? 'checked' : ''}> <span>Publicada (os alunos veem)</span></label>
+      <button class="btn block" type="submit">Salvar</button>
+      ${d ? '<button class="btn block ghost" type="button" id="dica-apagar" style="margin-top:8px">Apagar dica</button>' : ''}
+    </form>`, (el) => {
+    const f = el.querySelector('#f-dica');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const row = { categoria: f.categoria.value, titulo: f.titulo.value.trim(), texto: f.texto.value.trim(), fonte: f.fonte.value.trim() || null, publicada: f.publicada.checked, atualizado_em: new Date().toISOString() };
+      if (row.publicada && !row.fonte) return toast('Coloque a fonte antes de publicar.', true);
+      const { error } = await (d ? sb.from('nx_dicas').update(row).eq('id', d.id) : sb.from('nx_dicas').insert({ ...row, org_id: S.org.id }));
+      if (error) return toast('Não foi possível salvar a dica.', true);
+      closeSheet(); toast(row.publicada ? 'Dica publicada. Os alunos já veem em Mais.' : 'Dica salva como rascunho.'); depois && depois();
+    };
+    const ap = el.querySelector('#dica-apagar'); if (ap) ap.onclick = async () => { if (ap.dataset.ok !== '1') { ap.dataset.ok = '1'; ap.textContent = 'Toque de novo para apagar'; return; } const { error } = await sb.from('nx_dicas').delete().eq('id', d.id); if (error) return toast('Não foi possível apagar.', true); closeSheet(); toast('Dica apagada.'); depois && depois(); };
+  });
+}
+
+/* ---------- meta pessoal do aluno (tempo numa distância, ou meta livre) ---------- */
+const META_DIST = [[5000, '5 km'], [10000, '10 km'], [21097, 'Meia maratona (21,1 km)'], [42195, 'Maratona (42,2 km)']];
+const nomeDist = (m) => (META_DIST.find((x) => x[0] === m) || [0, `${f1(m / 1000)} km`])[1].replace(/ \(.*\)/, '');
+// previsão de hoje para a distância da meta, pelas corridas das últimas 6 semanas (mesma conta das Previsões)
+async function previsaoPara(alunoId, membro, dist) {
+  const corr = await buscarCorridasPrev(alunoId); const pv = previsaoEm(corr, perfilCorrida(membro), Date.now());
+  return pv ? tempoPorVdot(pv.vdot, dist) : null;
+}
+async function metaAtual(alunoId, membro) {
+  const meta = await sb.from('nx_metas').select('*').eq('aluno_id', alunoId).eq('ativa', true).order('criado_em', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null, () => null);
+  if (!meta) return { meta: null };
+  const atual = meta.tipo === 'tempo' ? await previsaoPara(alunoId, membro, meta.distancia_m) : null;
+  return { meta, atual };
+}
+function metaCardHTML({ meta, atual }, { compacto = false, staff = false } = {}) {
+  if (!meta) return '';
+  const hoje = hojeISO(), dias = Math.round((dia(meta.prazo) - dia(hoje)) / 864e5);
+  const prazoTxt = meta.concluida_em ? `Conquistada em ${fmtCurto(meta.concluida_em)}` : dias < 0 ? `Prazo era ${fmtCurto(meta.prazo)}` : dias === 0 ? 'Prazo: hoje' : dias < 21 ? `Faltam ${dias} dias · até ${fmtCurto(meta.prazo)}` : `Faltam ${Math.round(dias / 7)} semanas · até ${fmtCurto(meta.prazo)}`;
+  let titulo, pct = 0, linha = '', ok = !!meta.concluida_em;
+  if (meta.tipo === 'tempo') {
+    titulo = `${nomeDist(meta.distancia_m)} abaixo de ${fmtDurLongo(meta.tempo_alvo_s)}`;
+    if (atual) {
+      const ini = Math.max(meta.tempo_inicial_s || atual, atual);
+      if (atual <= meta.tempo_alvo_s) { pct = 100; ok = true; } else pct = ini > meta.tempo_alvo_s ? Math.max(3, Math.min(97, ((ini - atual) / (ini - meta.tempo_alvo_s)) * 100)) : 3;
+      linha = atual <= meta.tempo_alvo_s ? `Previsão de hoje: <b>${fmtDurLongo(atual)}</b>. Pela previsão, a meta já está no alcance. Agora é confirmar na prova.` : `Previsão de hoje: <b>${fmtDurLongo(atual)}</b> · faltam ${difTxt(atual - meta.tempo_alvo_s)}`;
+    } else linha = 'A previsão aparece depois de algumas corridas de pelo menos 2 km com GPS.';
+  } else {
+    titulo = esc(meta.titulo);
+    const tot = Math.max(1, Math.round((dia(meta.prazo) - dia(isoDia(meta.criado_em))) / 864e5)), passou = tot - Math.max(0, dias);
+    pct = ok ? 100 : Math.max(3, Math.min(100, (passou / tot) * 100));
+    linha = ok ? 'Meta conquistada.' : `A barra mostra quanto do prazo já passou.`;
+  }
+  if (compacto) return `<a class="card meta-card mini" href="#/meta" style="color:inherit"><div class="row between" style="gap:8px"><span class="eyebrow">Minha meta</span><span class="tiny dim">${prazoTxt}</span></div><b class="meta-tit">${titulo}</b><div class="meta-bar ${ok ? 'ok' : ''}"><i style="width:${pct}%"></i></div></a>`;
+  return `<div class="card meta-card${ok ? ' ok' : ''}"><div class="row between" style="gap:8px;align-items:flex-start"><div class="grow" style="min-width:0"><span class="eyebrow">${staff ? 'Meta do aluno' : 'Minha meta'}</span><div class="h3 meta-tit">${titulo}</div></div><button class="link-btn small" id="meta-ed">Editar</button></div>
+    <div class="meta-bar ${ok ? 'ok' : ''}"><i style="width:${pct}%"></i></div>
+    <p class="small" style="margin-top:8px">${linha}</p><p class="tiny dim" style="margin-top:4px">${prazoTxt}${meta.tipo === 'tempo' && meta.tempo_inicial_s ? ` · no início: ${fmtDurLongo(meta.tempo_inicial_s)}` : ''}</p>
+    ${meta.tipo === 'livre' && !meta.concluida_em ? '<button class="btn sm" id="meta-ok" style="margin-top:10px">Conquistei</button>' : ''}
+    ${meta.concluida_em || ok ? '<button class="btn sm ghost" id="meta-nova" style="margin-top:10px">Definir nova meta</button>' : ''}</div>`;
+}
+function metaBind(box, dados, alunoId, membro, depois) {
+  const ed = box.querySelector('#meta-ed'); if (ed) ed.onclick = () => metaEditar(dados.meta, alunoId, membro, depois);
+  const nv = box.querySelector('#meta-nova'); if (nv) nv.onclick = () => metaEditar(null, alunoId, membro, depois);
+  const okB = box.querySelector('#meta-ok'); if (okB) okB.onclick = async () => { const { error } = await sb.from('nx_metas').update({ concluida_em: new Date().toISOString() }).eq('id', dados.meta.id); if (error) return toast('Não foi possível salvar.', true); toast('Parabéns pela conquista!'); depois && depois(); };
+}
+async function metaBox(box, alunoId, membro, { staff = false } = {}) {
+  if (!box) return;
+  const dados = await metaAtual(alunoId, membro);
+  const rec = () => metaBox(box, alunoId, membro, { staff });
+  if (!dados.meta) {
+    box.innerHTML = `<button type="button" class="list-item" id="meta-criar" style="width:100%;text-align:left"><span class="ativ-ic">${I.flag}</span><div class="grow"><b>${staff ? 'Definir meta do aluno' : 'Definir minha meta'}</b><div class="small muted">Ex.: 10 km abaixo de 55 min até março</div></div>${I.chev}</button>`;
+    box.querySelector('#meta-criar').onclick = () => metaEditar(null, alunoId, membro, rec); return;
+  }
+  box.innerHTML = metaCardHTML(dados, { staff }); metaBind(box, dados, alunoId, membro, rec);
+}
+async function viewMeta() {
+  loading(); dockAluno();
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Evolução</p><h1 class="h1">Minha meta</h1>
+    <p class="muted" style="margin-top:6px">Um objetivo com data. Nas metas de tempo, a barra acompanha a sua previsão de desempenho, calculada pelas corridas das últimas 6 semanas.</p>
+    <div id="meta-box" style="margin-top:14px"></div>`;
+  metaBox(document.getElementById('meta-box'), S.user.id, S.me);
+}
+async function metaEditar(meta, alunoId, membro, depois) {
+  const corre = faz('corrida', membro);
+  const tipo0 = meta?.tipo || (corre ? 'tempo' : 'livre');
+  const d0 = meta?.distancia_m || 10000, outra = !META_DIST.some((x) => x[0] === d0);
+  const prazo0 = meta?.prazo || somaDias(hojeISO(), 90);
+  openSheet(`<p class="eyebrow">Meta pessoal</p><div class="h2">${meta ? 'Editar meta' : 'Nova meta'}</div>
+    <form id="f-meta" style="margin-top:14px">
+      ${corre ? `<div class="seg" id="meta-tipo" style="margin-bottom:12px"><button type="button" data-t="tempo" class="${tipo0 === 'tempo' ? 'on' : ''}">Tempo numa distância</button><button type="button" data-t="livre" class="${tipo0 === 'livre' ? 'on' : ''}">Outra meta</button></div>` : ''}
+      <div id="mt-tempo" ${tipo0 === 'tempo' ? '' : 'hidden'}>
+        <label class="field"><span>Distância</span><select class="input" name="dist">${META_DIST.map(([v, l]) => `<option value="${v}" ${!outra && v === d0 ? 'selected' : ''}>${l}</option>`).join('')}<option value="outra" ${outra ? 'selected' : ''}>Outra distância</option></select></label>
+        <label class="field" id="mt-km" ${outra ? '' : 'hidden'}><span>Distância em km</span><input class="input" name="km" data-mask="dec" inputmode="decimal" value="${outra ? String(d0 / 1000).replace('.', ',') : ''}" placeholder="Ex.: 15"></label>
+        <label class="field"><span>Tempo alvo (abaixo de)</span><input class="input" name="alvo" data-mask="tempo" inputmode="numeric" value="${meta?.tempo_alvo_s ? fmtDurLongo(meta.tempo_alvo_s) : ''}" placeholder="Ex.: 55:00 ou 1:55:00"></label>
+        <p class="small muted" id="mt-prev" style="margin:-4px 0 12px"></p>
+      </div>
+      <div id="mt-livre" ${tipo0 === 'livre' ? '' : 'hidden'}>
+        <label class="field"><span>Qual é a meta?</span><input class="input" name="titulo" maxlength="120" value="${esc(meta?.titulo || '')}" placeholder="Ex.: Completar a primeira meia maratona"></label>
+      </div>
+      <label class="field"><span>Até quando</span><input class="input" name="prazo" type="date" required min="${hojeISO()}" value="${prazo0}"></label>
+      <button class="btn block" type="submit">${meta ? 'Salvar' : 'Definir meta'}</button>
+      ${meta ? '<button class="btn block ghost" type="button" id="meta-apagar" style="margin-top:8px">Apagar meta</button>' : ''}
+    </form>`, (el) => {
+    const f = el.querySelector('#f-meta'); let tipo = tipo0;
+    const distAtual = () => (f.dist.value === 'outra' ? Math.round(parseFloat(String(f.km.value).replace(',', '.')) * 1000) || 0 : +f.dist.value);
+    let prevT = null;
+    const dicaAlvo = () => { const p = el.querySelector('#mt-prev'), dd = distAtual(); if (!prevT || !dd) { p.textContent = ''; return; } const v = f.alvo.value.trim(), t = /^\d{1,3}:[0-5]\d(:[0-5]\d)?$/.test(v) ? lerTempo(v) : null; p.textContent = `Previsão de hoje para ${nomeDist(dd)}: ${fmtDurLongo(prevT)}.` + (t && t >= prevT ? ' Pela previsão, esse tempo já está no alcance. Dá para mirar um pouco mais rápido.' : ''); };
+    const mostraPrev = async () => { const dd = distAtual(); prevT = dd ? await previsaoPara(alunoId, membro, dd) : null; dicaAlvo(); };
+    f.alvo.addEventListener('input', dicaAlvo);
+    const tp = el.querySelector('#meta-tipo'); if (tp) tp.onclick = (e) => { const b = e.target.closest('[data-t]'); if (!b) return; tipo = b.dataset.t; tp.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); el.querySelector('#mt-tempo').hidden = tipo !== 'tempo'; el.querySelector('#mt-livre').hidden = tipo !== 'livre'; };
+    f.dist.onchange = () => { el.querySelector('#mt-km').hidden = f.dist.value !== 'outra'; mostraPrev(); };
+    f.km.onchange = mostraPrev; if (tipo0 === 'tempo') mostraPrev();
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const row = { tipo, prazo: f.prazo.value, titulo: null, distancia_m: null, tempo_alvo_s: null };
+      if (tipo === 'tempo') {
+        const dd = distAtual(), v = f.alvo.value.trim(), t = /(^|:)[0-5]\d:[0-5]\d$|^\d{1,3}:[0-5]\d$/.test(v) ? lerTempo(v) : null;
+        if (!dd || dd < 400 || dd > 100000) return toast('Escolha uma distância válida.', true);
+        if (!t || t / (dd / 1000) < 150 || t / (dd / 1000) > 1200) return toast('Tempo inválido. Use o formato 55:00 ou 1:55:00.', true);
+        Object.assign(row, { distancia_m: dd, tempo_alvo_s: Math.round(t) });
+        if (!meta || meta.distancia_m !== dd || !meta.tempo_inicial_s) { const p = await previsaoPara(alunoId, membro, dd); row.tempo_inicial_s = p ? Math.round(p) : null; }
+      } else {
+        row.titulo = f.titulo.value.trim(); if (!row.titulo) return toast('Escreva a meta.', true);
+      }
+      let error;
+      if (meta) ({ error } = await sb.from('nx_metas').update(row).eq('id', meta.id));
+      else {
+        await sb.from('nx_metas').update({ ativa: false }).eq('aluno_id', alunoId).eq('ativa', true).then(() => {}, () => {});
+        ({ error } = await sb.from('nx_metas').insert({ ...row, org_id: S.org.id, aluno_id: alunoId, ativa: true }));
+      }
+      if (error) return toast('Não foi possível salvar a meta.', true);
+      closeSheet(); toast(meta ? 'Meta atualizada.' : 'Meta definida. Agora é treinar!'); depois && depois();
+    };
+    const ap = el.querySelector('#meta-apagar'); if (ap) ap.onclick = async () => { if (ap.dataset.ok !== '1') { ap.dataset.ok = '1'; ap.textContent = 'Toque de novo para apagar'; return; } const { error } = await sb.from('nx_metas').delete().eq('id', meta.id); if (error) return toast('Não foi possível apagar.', true); closeSheet(); toast('Meta apagada.'); depois && depois(); };
+  });
+}
+
+/* ---------- resgate de aluno sumido: mensagem pronta para o WhatsApp ---------- */
+const RESGATE_DIAS = 10;
+function textoResgate(m, dias) {
+  const n = firstName(m.nome) || '';
+  return dias >= 21
+    ? `Oi, ${n}! Tudo bem com você? Faz um tempinho que você não registra treino e senti sua falta. Se a rotina apertou ou aconteceu alguma coisa, me conta. A gente monta um plano mais leve para você voltar no seu ritmo, sem pressa.`
+    : `Oi, ${n}! Tudo bem? Vi que faz ${dias} dias que você não registra treino. Está tudo certo? Se a semana apertou, me fala que eu ajusto o plano para caber na sua rotina.`;
+}
+function abrirResgate(m, dias, depois) {
+  const tel = telWa(m.telefone);
+  openSheet(`<p class="eyebrow">Aluno sem treinar há ${dias} dias</p><div class="h2">Mensagem para ${esc(firstName(m.nome))}</div>
+    <p class="small muted" style="margin-top:6px">Confira e ajuste o texto antes de mandar.</p>
+    <textarea class="input" id="rs-txt" rows="6" style="margin-top:12px">${esc(textoResgate(m, dias))}</textarea>
+    ${tel ? `<button class="btn block" id="rs-wa" style="margin-top:12px">${I.wa} Abrir no WhatsApp</button>` : '<p class="small" style="margin-top:12px;color:var(--warn)">Este aluno não tem telefone cadastrado. Copie o texto e mande pela conversa do app.</p>'}
+    <button class="btn block ghost" id="rs-cp" style="margin-top:8px">Copiar texto</button>
+    <button class="link-btn small" id="rs-ja" style="display:block;margin:10px auto 0">Já mandei por outro meio</button>
+    <p class="tiny dim" style="margin-top:10px;text-align:center">Depois de enviada, o aviso some por 7 dias.</p>`, (el) => {
+    const txt = () => el.querySelector('#rs-txt').value.trim();
+    const registrar = () => sb.from('nx_resgates').insert({ org_id: S.org.id, aluno_id: m.user_id, enviado_em: new Date().toISOString() }).then(() => {}, () => {});
+    const wa = el.querySelector('#rs-wa'); if (wa) wa.onclick = async () => { window.open(`https://wa.me/${tel}?text=${encodeURIComponent(txt())}`, '_blank', 'noopener'); await registrar(); closeSheet(); toast('Registrado. O aviso some por 7 dias.'); depois && depois(); };
+    el.querySelector('#rs-ja').onclick = async () => { await registrar(); closeSheet(); toast('Registrado. O aviso some por 7 dias.'); depois && depois(); };
+    el.querySelector('#rs-cp').onclick = async () => { try { await navigator.clipboard.writeText(txt()); toast('Texto copiado.'); } catch { toast('Não consegui copiar. Selecione o texto e copie.', true); } };
+  });
+}
+
 /* ---------- desafio do mês da equipe ---------- */
 const DES_UNI = { km: ['km', 'km'], treinos: ['treino', 'treinos'], horas: ['hora', 'horas'] };
 const desUni = (t, v) => (DES_UNI[t] || DES_UNI.km)[+v === 1 ? 0 : 1];
@@ -1283,6 +1478,7 @@ function alunoMais() {
   const fC = faz('corrida');
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Tudo do seu app</h1>
     <p class="sec-lbl" style="margin-top:20px">Treino e desempenho</p><div class="stack" id="mais-treino">
+      ${it('#/meta', I.flag, 'Minha meta', 'Seu objetivo com data e barra de progresso')}
       ${fC ? it('#/eventos', I.flag, 'Eventos e provas', 'Treinões da Nexos e suas provas') : ''}
       ${fC ? it('#/recordes', TROFEU_IC, 'Meus recordes', 'Melhores tempos em 1 km, 5 km, 10 km e meia') : ''}
       ${it('#/historico/avaliacoes', I.ficha, 'Avaliações físicas', 'Medidas, composição corporal e relatórios')}
@@ -1294,6 +1490,7 @@ function alunoMais() {
       ${it('#/prontidao', PRONT_IC, 'Check-in e dores', 'Sono, energia, dor e estresse dos últimos dias')}
       ${S.me.sexo === 'F' ? `<a class="list-item" id="mais-ciclo" href="#/ciclo" style="color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Fase, calendário, sintomas e autocuidado</div></div>${I.chev}</a>` : ''}
       ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
+      <span id="mais-dicas" style="display:contents">${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Sono, alimentação, recuperação e prova')}</span>
     </div>
     <p class="sec-lbl">Conta</p><div class="stack" id="mais-conta">
       ${it('#/conexoes', I.watch, 'Conexões', 'Relógio Garmin e outras marcas')}
@@ -1306,6 +1503,9 @@ function alunoMais() {
     </div>`;
   document.getElementById('mais-tour').onclick = () => iniciarTour();
   secaoNotificacoes(document.getElementById('mais-notif')).catch(() => {});
+  // marca quantas dicas foram publicadas desde a última visita
+  const vistoD = store.get('nx-dicas-visto') || '1970-01-01';
+  sb.from('nx_dicas').select('id', { count: 'exact', head: true }).eq('org_id', S.org.id).eq('publicada', true).gt('atualizado_em', vistoD).then((r) => { const n = r.count || 0, b = document.querySelector('#mais-dicas b'); if (n && b) b.insertAdjacentHTML('beforeend', ` <span class="tag acc">${n} nova${n > 1 ? 's' : ''}</span>`); }, () => {});
 
 }
 async function viewRecordes() {
@@ -2624,6 +2824,7 @@ async function alunoHoje() {
     <div id="momentos" class="stack mom-box"></div>
     <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="pront-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
     <div id="desafio-box"></div>
+    <div id="meta-hoje"></div>
     <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
     <div class="stack">
       ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
@@ -2677,6 +2878,7 @@ async function alunoHoje() {
   bindCartaoPush();
   const fEnv = document.getElementById('foto-env');
   desafioCard(document.getElementById('desafio-box'));
+  metaAtual(S.user.id, S.me).then((dm) => { const bx = document.getElementById('meta-hoje'); if (bx && dm.meta) bx.innerHTML = metaCardHTML(dm, { compacto: true }); }, () => {});
   pesquisaSatisfacao(document.getElementById('sat-pend'));
   // reavaliação física: avisa o aluno quando a data marcada já passou e ainda não houve avaliação nova
   sb.from('nx_avaliacoes').select('data,proxima').eq('aluno_id', S.user.id).order('data', { ascending: false }).limit(1).then((r) => {
@@ -8158,6 +8360,7 @@ async function staffHoje() {
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const segAtual = isoDia(inicioSemana()), segPass = somaDias(segAtual, -7), segProx = somaDias(segAtual, 7);
   const prontP = sb.from('nx_prontidao').select('aluno_id,dia,total,dor,dor_locais,alerta').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
+  const resgP = sb.from('nx_resgates').select('aluno_id,enviado_em').eq('org_id', S.org.id).gte('enviado_em', new Date(Date.now() - 7 * 864e5).toISOString()).then((r) => r.data || [], () => []);
   const satP = sb.from('nx_satisfacao').select('aluno_id,nota,criado_em').eq('org_id', S.org.id).eq('adiada', false).lte('nota', 6).gte('criado_em', new Date(Date.now() - 14 * 864e5).toISOString()).then((r) => r.data || [], () => []);
   const cicP = sb.from('nx_ciclo_dias').select('aluno_id,colica_int,fluxo').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
   const cargasP = buscarCargas(null).catch(() => ({}));
@@ -8186,7 +8389,7 @@ async function staffHoje() {
   sess.forEach((s) => { if (!ultimoTreino[s.aluno_id] || s.iniciado_em > ultimoTreino[s.aluno_id]) ultimoTreino[s.aluno_id] = s.iniciado_em; });
   corr.forEach((c) => { if (!ultimoTreino[c.aluno_id] || c.data > ultimoTreino[c.aluno_id]) ultimoTreino[c.aluno_id] = c.data; });
   const ultAval = {}; avs.forEach((a) => { if (!ultAval[a.aluno_id]) ultAval[a.aluno_id] = a; });
-  const [pronts, cargas, cicH, satB] = await Promise.all([prontP, cargasP, cicP, satP]);
+  const [pronts, cargas, cicH, satB, resgs] = await Promise.all([prontP, cargasP, cicP, satP, resgP]);
   const alertas = ativos.map((m) => {
     const id = m.user_id, l = [];
     const ch = cicH.find((x) => x.aluno_id === id); if (ch && ((ch.colica_int != null && ch.colica_int >= 7) || ch.fluxo === 'intenso')) l.push({ p: 2, t: ch.colica_int != null && ch.colica_int >= 7 ? `Cólica forte hoje (${ch.colica_int}/10)` : 'Fluxo menstrual intenso hoje', cls: 'warn', ir: '#/prontidao-equipe' });
@@ -8218,7 +8421,8 @@ async function staffHoje() {
     const atr = cobs.find((c) => c.aluno_id === id && c.status === 'aberta' && c.vencimento < hoje);
     if (atr) l.push({ p: 3, t: 'Mensalidade atrasada', cls: 'warn', ir: '#/financeiro' });
     const ult = ultimoTreino[id]; const dd = ult ? diasDesde(ult) : diasDesde(m.criado_em);
-    if (dd >= 7) l.push({ p: dd >= 21 ? 1 : 3, t: ult ? `Sem treinar há ${dd} dias` : 'Ainda não treinou', cls: dd >= 21 ? 'err' : 'warn', ir: `#/aluno/${id}/conversa` });
+    const rsg = resgs.find((x) => x.aluno_id === id);
+    if (dd >= 7) l.push({ p: rsg ? 4 : dd >= 21 ? 1 : 3, t: ult ? `Sem treinar há ${dd} dias${rsg ? ` · mensagem enviada ${fmtCurto(rsg.enviado_em)}` : ''}` : 'Ainda não treinou', cls: rsg ? '' : dd >= 21 ? 'err' : 'warn', ir: `#/aluno/${id}/conversa`, resg: ult && dd >= RESGATE_DIAS && !rsg ? dd : 0 });
     if (faz('corrida', m)) { const sp = statusPlanilha(fimPl[id]); if (sp.d < 0) l.push({ p: 1, t: fimPl[id] ? 'Planilha acabou, sem a próxima' : 'Sem planilha de corrida', cls: 'err', ir: `#/aluno/${id}/corrida` }); else if (sp.d <= 4) l.push({ p: 2, t: `Planilha acaba ${sp.d === 0 ? 'hoje' : sp.d === 1 ? 'amanhã' : `em ${sp.d} dias`}`, cls: 'warn', ir: `#/aluno/${id}/corrida` }); }
     const av = ultAval[id];
     if (av && av.proxima && av.proxima < hoje) { const dd = Math.round((dia(hoje) - dia(av.proxima)) / 864e5); l.push({ p: dd > 30 ? 2 : 3, t: `Reavaliação vencida desde ${fmtCurto(av.proxima)}${dd > 30 ? ` (${dd} dias)` : ''}`, cls: 'warn', ir: `#/aluno/${id}/avaliacoes` }); }
@@ -8276,7 +8480,7 @@ async function staffHoje() {
       return ativos.length ? `<a class="card pe-card" id="pront-eq" href="#/prontidao-equipe" style="color:inherit"><span class="ativ-ic">${PRONT_IC}</span><div class="grow" style="min-width:0"><b>Prontidão de hoje</b><div class="small muted">${resp.length} de ${ativos.length} responderam o check-in${at ? ` · <span style="color:var(--err)">${at} pede${at > 1 ? 'm' : ''} atenção</span>` : ''}${ok ? ` · ${ok} pronto${ok > 1 ? 's' : ''} para treinar` : ''}${cgN ? ` · <span style="color:var(--warn)">${cgN} com alerta de carga</span>` : ''}</div></div>${I.chev}</a>` : ''; })()}
     ${ehSeg ? resumoHTML : ''}
     <div id="datas-esp"></div>
-    ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
+    ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const rr = l.find((x) => x.resg); return rr ? `<button type="button" class="alerta-wa" data-resgate="${m.user_id}" data-dias="${rr.resg}" aria-label="Mandar mensagem de resgate">${I.wa}</button>` : ''; })()}${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : ''); })()}
     <div id="sug-hoje"></div>
     ${ehSeg ? '' : resumoHTML}
@@ -8290,6 +8494,7 @@ async function staffHoje() {
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
+  $app.querySelectorAll('[data-resgate]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); const m = ativos.find((x) => x.user_id === b.dataset.resgate); if (m) abrirResgate(m, +b.dataset.dias, () => staffHoje()); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
     const m = pendentes.find((x) => x.user_id === b.dataset.aprovar); if (!m) return;
     b.disabled = true; b.textContent = 'Aprovando…';
@@ -8701,6 +8906,8 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = `<div class="card ov-card"><div class="row between"><b>Frequência da semana</b><span class="small muted">${[...diasAtiv].filter((k) => k >= isoDia(seg)).length} dia(s)</span></div><div class="fq">${circ}</div></div>
       <div class="card ov-card"><div class="row between"><b>Engajamento</b><span class="tag ${st[1]}">${st[0]}</span></div>
         <div class="ov-num"><div><span>Último treino há</span><b>${diasSem == null ? '–' : diasSem === 0 ? 'hoje' : diasSem + (diasSem === 1 ? ' dia' : ' dias')}</b></div><div><span>Frequência média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x semana</b></div></div></div>
+      ${diasSem != null && diasSem >= RESGATE_DIAS ? `<button class="list-item resg-item" id="al-resg" data-dias="${diasSem}" style="width:100%;text-align:left"><span class="ativ-ic wa">${I.wa}</span><div class="grow"><b>Mandar mensagem de resgate</b><div class="small muted">Sem treinar há ${diasSem} dias · texto pronto para o WhatsApp</div></div>${I.chev}</button>` : ''}
+      <div id="meta-al" style="margin-top:14px"></div>
       <div class="sec-grid">${SECOES.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`;
   } else if (aba === 'relmes') {
     corpo = '<div id="relm"></div>';
@@ -8800,6 +9007,10 @@ async function staffAluno(alunoId, aba, extra) {
   const dispEd = document.getElementById('disp-ed'); if (dispEd) dispEd.onclick = () => editarDisponibilidade(m, () => silencioso(() => staffAluno(alunoId, aba)));
   if (aba === 'corrida') await viewCorridaPainel(alunoId, document.getElementById('corr'), true, m);
   if (aba === 'relmes') await relatorioMes(alunoId, document.getElementById('relm'), true, m);
+  if (aba === 'inicio') {
+    metaBox(document.getElementById('meta-al'), alunoId, m, { staff: true });
+    const rg = document.getElementById('al-resg'); if (rg) rg.onclick = () => abrirResgate(m, +rg.dataset.dias, () => {});
+  }
   if (aba === 'forca') {
     const fst = S.cache.fsem; const re = () => silencioso(() => staffAluno(alunoId, 'forca'));
     document.getElementById('fs-a').onclick = () => { fst.off -= 1; re(); };
@@ -11098,6 +11309,7 @@ function staffMais() {
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
+      ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}

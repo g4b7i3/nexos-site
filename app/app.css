@@ -2723,3 +2723,21 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .sat-com{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--s1)}
 .sat-nota{min-width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:800;color:#fff}
 .sat-nota.ok{background:#16a34a}.sat-nota.mid{background:#d99a00}.sat-nota.bad{background:#dc2626}
+/* dicas da Nexos */
+.dica summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.dica summary::-webkit-details-marker{display:none}
+.dica summary b{font-size:1rem;line-height:1.3}
+.dica[open] summary{margin-bottom:8px}
+.dica p{line-height:1.55}
+.dica-fonte{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+/* meta pessoal */
+.meta-card .meta-tit{margin-top:2px}
+.meta-card.mini{display:block;margin-top:14px}
+.meta-card.mini .meta-tit{display:block;font-size:.98rem;margin-top:4px}
+.meta-bar{height:10px;border-radius:9px;background:rgba(var(--p2r),.14);margin-top:12px;overflow:hidden}
+.meta-bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--p2),var(--p1));transition:width .6s}
+.meta-bar.ok i{background:linear-gradient(90deg,#16a34a,#4ade80)}
+/* resgate de aluno sumido */
+.alerta-wa{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:#25d366;color:#fff;display:grid;place-items:center;cursor:pointer;margin-right:6px}
+.alerta-wa svg{width:19px;height:19px}
+.ativ-ic.wa{color:#25d366}
