@@ -11366,7 +11366,7 @@ const BIB_FORCA = [
    · progressão de volume gradual com semana de recuperação a cada 3–4 semanas (Nielsen et al. 2014; Gabbett 2016);
    · fases base → construção → específica → polimento (periodização em blocos; Issurin 2010);
    · polimento: volume 40–60% menor mantendo a intensidade e a frequência (Bosquet et al. 2007; Mujika & Padilla 2003). */
-const CIC_OBJ = [['ini', 'Começar a correr'], ['5k', '5 km'], ['10k', '10 km'], ['21k', 'Meia maratona'], ['42k', 'Maratona'], ['ultra', 'Ultra'], ['bloco', 'Blocos e transição']];
+const CIC_OBJ = [['modelos', 'Modelos de treino'], ['ini', 'Começar a correr'], ['5k', '5 km'], ['10k', '10 km'], ['21k', 'Meia maratona'], ['42k', 'Maratona'], ['ultra', 'Ultra'], ['bloco', 'Blocos e transição']];
 const CIC_NIV = { ini: 'Iniciante', int: 'Intermediário', ava: 'Avançado', pro: 'Profissional' };
 const DIAS_SEM = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const CIC_FASE_COR = { Adaptação: '#9aa8c0', Base: '#3ddc97', Construção: '#46d6ff', Específica: '#ffcf5c', Polimento: '#ff9f43', Prova: '#ff6b6b', Recuperação: '#b794ff', Transição: '#9aa8c0', Teste: '#ff9f43' };
@@ -11573,8 +11573,126 @@ function gerarCiclo(c) {
     return { ...w, sess: out, km };
   });
 }
+/* ---------- Modelos de treino de corrida: periodização (como as fases se encadeiam) e distribuição de intensidade
+   (como a semana se divide entre leve e forte), cada um em 4 níveis ---------- */
+const MOD_CORR = [['trad', 'Tradicional (linear)'], ['rev', 'Reversa'], ['blocos', 'Em blocos'], ['multi', 'Multi-ritmo (Canova)'], ['polar', 'Polarizada'], ['pira', 'Piramidal'], ['limiar', 'Limiar (norueguesa)']];
+const MOD_INFO = {
+  trad: { tipo: 'Periodização', oque: 'Do geral para o específico: base aeróbica com muito volume leve, depois limiar e subidas, depois a intensidade da prova (VO₂ e ritmo) e, no fim, o teste ou a prova. É a escola de Arthur Lydiard e a mais usada no mundo.', quando: 'Serve para quase todo mundo e é a mais fácil de acompanhar. Boa escolha para o primeiro ciclo de qualquer aluno.', ci: 'Os programas que melhor funcionam combinam muito volume leve com uma progressão do geral para o específico (Kenneally et al. 2018; Haugen et al. 2022).' },
+  rev: { tipo: 'Periodização', oque: 'O contrário da tradicional: começa pela velocidade e pelo VO₂ (tiros curtos e subidas), passa pelo limiar e termina com volume e treinos longos no ritmo da prova.', quando: 'Provas longas (meia e maratona), alunos que já têm base e respondem bem à intensidade, e temporadas em que o período de calor ou de provas curtas vem antes.', ci: 'Muito usada por treinadores de maratona, mas com pouca pesquisa comparando com a tradicional. Base principalmente prática.' },
+  blocos: { tipo: 'Periodização', oque: 'Um foco de cada vez, em blocos de 3 a 4 semanas: bloco de limiar, bloco de VO₂ e bloco específico, com semana leve entre eles. Concentrar o estímulo faz o corpo responder mais rápido.', quando: 'Alunos intermediários e avançados que estagnaram com o treino misturado, ou quando há pouco tempo até a prova.', ci: 'Issurin 2010 (Sports Med). Em atletas de endurance treinados, blocos de alta intensidade trouxeram mais ganho de VO₂máx do que o mesmo volume distribuído (Rønnestad et al. 2014, Scand J Med Sci Sports).' },
+  multi: { tipo: 'Periodização', oque: 'Vários ritmos treinados juntos, que vão se aproximando do ritmo da prova: fase introdutória, fundamental (ritmos mais lentos e mais rápidos que o da prova), especial (alternados em volta do ritmo da prova) e específica (no ritmo da prova). É a escola de Renato Canova e de muitos treinadores ingleses e quenianos.', quando: 'Alunos avançados e profissionais com prova-alvo definida, principalmente de 10 km a maratona.', ci: 'Modelo de treinadores de elite (Canova), descrito nas revisões sobre o treino dos melhores do mundo (Haugen et al. 2022), mas com pouca pesquisa controlada.' },
+  polar: { tipo: 'Distribuição de intensidade', oque: 'Cerca de 80% do treino bem leve (Z1–Z2) e 15–20% bem forte (Z5), quase nada no meio. As sessões fortes são de VO₂máx; o resto é rodagem leve.', quando: 'Alunos com pouco tempo, que tendem a correr tudo no mesmo ritmo médio, e para quebrar estagnação. Funciona bem com 4 a 6 treinos por semana.', ci: 'Seiler & Kjerland 2006 (Scand J Med Sci Sports); Stöggl & Sperlich 2014 (Front Physiol). Na meta-análise de Rosenblat et al. 2019 (J Strength Cond Res), polarizado teve vantagem pequena sobre o treino de limiar em atletas treinados.' },
+  pira: { tipo: 'Distribuição de intensidade', oque: 'A maior parte leve, uma fatia menor de limiar (Z3–Z4) e uma fatia ainda menor de VO₂ (Z5), como uma pirâmide. Uma sessão de limiar e uma de VO₂ por semana.', quando: 'O equilíbrio mais seguro para a maioria dos corredores, de 5 km à maratona.', ci: 'É a distribuição mais encontrada em corredores de elite ao longo da temporada (Casado et al. 2022, Int J Sports Physiol Perform; Kenneally et al. 2018).' },
+  limiar: { tipo: 'Distribuição de intensidade', oque: 'Modelo norueguês: muito volume leve e duas sessões de limiar controlado por semana, com pausas curtas (lactato ~2–3,5 mmol, esforço 5–6 de 10). Profissionais fazem duplo limiar (manhã e tarde) nas terças e quintas, mais a sessão X no sábado.', quando: 'Alunos de 5 km à maratona que aguentam bem volume. O segredo é controlar o ritmo: limiar não é prova.', ci: 'Casado et al. 2023 (Int J Environ Res Public Health); Haugen et al. 2022 (Sports Med Open); Casado et al. 2021 (J Strength Cond Res).' },
+};
+const CIC_FASE_COR2 = { Velocidade: '#e5484d', 'Bloco de limiar': '#46d6ff', 'Bloco de VO₂': '#ff9f43', 'Bloco específico': '#ffcf5c', Introdutório: '#3ddc97', Fundamental: '#46d6ff', Especial: '#b794ff' };
+Object.assign(CIC_FASE_COR, CIC_FASE_COR2);
+const MOD_FASES = {
+  trad: [['Base', 0.35], ['Construção', 0.35], ['Específica', 0.3]],
+  rev: [['Velocidade', 0.3], ['Construção', 0.35], ['Específica', 0.35]],
+  blocos: [['Bloco de limiar', 0.34], ['Bloco de VO₂', 0.33], ['Bloco específico', 0.33]],
+  multi: [['Introdutório', 0.25], ['Fundamental', 0.3], ['Especial', 0.25], ['Específica', 0.2]],
+  polar: [['Base', 0.3], ['Construção', 0.4], ['Específica', 0.3]],
+  pira: [['Base', 0.3], ['Construção', 0.4], ['Específica', 0.3]],
+  limiar: [['Base', 0.3], ['Construção', 0.4], ['Específica', 0.3]],
+};
+const MOD_NIV = { ini: { sem: 8, dias: 3, km: [12, 22], lon: [5, 10] }, int: { sem: 10, dias: 4, km: [30, 46], lon: [10, 15] }, ava: { sem: 12, dias: 6, km: [50, 75], lon: [14, 20] }, pro: { sem: 12, dias: 7, km: [115, 150], lon: [20, 26] } };
+MOD_CORR.forEach(([m, nome]) => ['ini', 'int', 'ava', 'pro'].forEach((niv) => CICLOS_CORR.push({ id: `m-${m}-${niv}`, obj: 'modelos', mod: m, niv, nome: `${nome} · ${CIC_NIV[niv].toLowerCase()}`, modo: 'modelo', ...MOD_NIV[niv] })));
+// sessões extras dos modelos
+const sVoMin = (n, min, rec = 2) => cT('intervalado', `${n} × ${String(min).replace('.', ',')} min forte`, [_A(10, 'min'), serie(n, [_C(min, 'min', 'intervalado'), _R(rec, 'min', 'rec')]), _D(5, 'min')], OBS.vo2);
+const sMulti = (n) => cT('ritmo', `Multi-ritmo ${n} × (2 km Z3 + 1 km Z4)`, [_A(2), serie(n, [_C(2, 'km', 'maratona'), _C(1, 'km', 'limiar'), _R(2, 'min')]), _D(1)], 'Dois ritmos no mesmo bloco: 2 km moderado (ritmo de maratona) emendando 1 km no limiar. Treina o corpo a trocar de ritmo sem quebrar.');
+const sAlt = (n) => cT('ritmo', `Alternado ${n} × (1 km Z4 + 1 km Z3)`, [_A(2), serie(n, [_C(1, 'km', 'limiar'), _C(1, 'km', 'maratona')]), _D(1)], 'Contínuo, sem parar: 1 km no limiar e 1 km um pouco mais leve (ritmo de maratona), alternando. Bem perto do ritmo da prova.');
+const sFlut = (n) => cT('intervalado', `${n} × 1 km forte com 1 km flutuante`, [_A(3), serie(n, [_C(1000, 'm', 'intervalado'), _C(1000, 'm', 'maratona')]), _D(2)], '1 km forte (Z5) e 1 km de recuperação ainda correndo em ritmo moderado (Z3), sem parar. Específico para 10 km e meia.');
+const sTesteK = (km) => cT('teste', `Teste de ${km} km`, [_A(2), _C(km, 'km', 'intervalado'), _D(1)], `Correr ${km} km no máximo, em percurso plano. O tempo atualiza o VDOT e os ritmos de cada zona do aluno.`);
+function qModelo(mod, F, slot, N, p, R, rec) {
+  const ini = N === 'ini';
+  if (rec) return mod === 'polar' ? (slot === 'q1' ? sVoMin(R(4, 4), 2) : null) : slot === 'q1' ? (ini ? sFar(4, true) : sMil(R(5, 5))) : slot === 'q2' ? sFar(R(6, 6)) : null;
+  if (mod === 'polar') {
+    if (slot === 'q1') return F === 'Base' ? (ini ? sSub(R(6, 8), 60) : sSub(R(8, 10), 100)) : F === 'Construção' ? (ini ? sVoMin(R(4, 6), 2) : s4x4(R(4, 5))) : (ini ? sVoMin(R(5, 6), 2) : sVo(R(5, 6), 1000));
+    if (slot === 'q2') return F === 'Base' ? sVoMin(R(6, 8), 2) : F === 'Construção' ? sVo(R(5, 6), 1000) : sVoMin(4, R(6, 8), 2);
+    if (slot === 'x') return sSub(R(8, 10), 100);
+  }
+  if (mod === 'pira') {
+    if (slot === 'q1') return ini ? sMin(R(3, 5), R(3, 4)) : F === 'Base' ? sMin(R(5, 6), 4) : F === 'Construção' ? sMil(R(6, 10)) : sKm(R(3, 4), 2, 'limiar', 2);
+    if (slot === 'q2') return F === 'Base' ? sFar(R(8, 10)) : F === 'Construção' ? s4x4(4) : sVo(R(5, 6), 1000);
+    if (slot === 'x') return F === 'Base' ? sSub(R(8, 10), 100) : sX(R(14, 18));
+  }
+  if (mod === 'limiar') {
+    if (slot === 'q1') return ini ? sMin(R(4, 6), 3) : F === 'Base' ? sMin(R(6, 8), 3) : sMil(N === 'int' ? R(6, 10) : R(8, 12));
+    if (slot === 'q2') return F === 'Base' ? sBlo(R(4, 5), 6) : F === 'Construção' ? sBlo(R(4, 5), R(6, 8)) : sKm(R(4, 5), 2, 'maratona');
+    if (slot === 'x') return sX(R(16, 22));
+  }
+  if (mod === 'trad') {
+    if (slot === 'q1') return F === 'Base' ? sFar(R(6, 10), ini) : F === 'Construção' ? (ini ? sMin(R(4, 5), 3) : sMil(R(6, 10))) : (ini ? sVo(R(5, 6), 400, 1.5) : sVo(R(5, 6), 1000));
+    if (slot === 'q2') return F === 'Base' ? sSub(R(6, 10), 100) : F === 'Construção' ? sBlo(R(4, 5), R(6, 8)) : sKm(R(3, 4), 2, 'limiar', 2);
+    if (slot === 'x') return F === 'Base' ? sRod(7, true) : F === 'Construção' ? sSub(R(8, 10), 200) : sX(R(16, 20));
+  }
+  if (mod === 'rev') {
+    if (slot === 'q1') return F === 'Velocidade' ? (ini ? sVo(R(6, 8), 200, 1.5) : sVo(R(8, 12), 400, 1)) : F === 'Construção' ? (ini ? sMin(R(4, 5), 3) : sMil(R(6, 10))) : (ini ? sBlo(R(2, 3), 8) : sKm(R(2, 3), 3, 'maratona', 2));
+    if (slot === 'q2') return F === 'Velocidade' ? sSub(R(8, 10), 100) : F === 'Construção' ? sBlo(R(4, 5), R(6, 8)) : sBlo(R(3, 4), 10);
+    if (slot === 'x') return F === 'Velocidade' ? sX(R(16, 20)) : F === 'Construção' ? sFar(R(10, 12)) : sRod(8, true);
+  }
+  if (mod === 'blocos') {
+    if (slot === 'q1') return F === 'Bloco de limiar' ? (ini ? sMin(R(4, 5), 3) : sMil(R(6, 10))) : F === 'Bloco de VO₂' ? (ini ? sVoMin(R(4, 6), 2) : sVo(R(5, 6), 1000)) : (ini ? sMin(5, 4) : sKm(R(3, 4), 2, 'limiar', 2));
+    if (slot === 'q2') return F === 'Bloco de limiar' ? sBlo(R(4, 5), R(6, 8)) : F === 'Bloco de VO₂' ? s4x4(R(4, 5)) : sFar(R(10, 12));
+    if (slot === 'x') return F === 'Bloco de VO₂' ? sX(R(16, 20)) : F === 'Bloco de limiar' ? sMil(R(6, 8)) : sSub(R(8, 10), 200);
+  }
+  if (mod === 'multi') {
+    if (slot === 'q1') return F === 'Introdutório' ? sFar(R(8, 10), ini) : F === 'Fundamental' ? (ini ? sMin(R(4, 5), 3) : sMulti(R(2, 4))) : F === 'Especial' ? (ini ? sFar(10) : sAlt(R(4, 6))) : (ini ? sMin(5, 4) : sKm(R(3, 4), 2, 'limiar', 1.5));
+    if (slot === 'q2') return F === 'Introdutório' ? sSub(R(6, 10), 100) : F === 'Fundamental' ? sBlo(R(3, 4), 10) : F === 'Especial' ? sVo(R(5, 6), 1000) : sFlut(R(5, 6));
+    if (slot === 'x') return F === 'Introdutório' ? sRod(8, true) : F === 'Fundamental' ? sSub(R(8, 10), 200) : sX(R(16, 20));
+  }
+  return null;
+}
+function gerarModelo(c) {
+  const perfil = perfilNiv(c.niv), n = c.sem, R0 = n - 1, fr = MOD_FASES[c.mod];
+  const W = []; let acc = 0;
+  fr.forEach(([f, x], j) => { const q = j === fr.length - 1 ? R0 - acc : Math.max(1, Math.round(R0 * x)); for (let i = 0; i < q; i++) W.push({ fase: f }); acc += q; });
+  W.forEach((w, i) => { w.rec = i % 4 === 3 && i < R0 - 1; }); W.push({ fase: 'Teste' });
+  const N = c.niv, pro = N === 'pro';
+  const SLOT = N === 'ini' ? [[1, 'q1'], [3, 'e'], [5, 'l']]
+    : N === 'int' ? [[1, 'q1'], [2, 'e'], [3, 'q2'], [5, 'l']]
+      : N === 'ava' ? [[1, 'q1'], [2, 'e'], [3, 'q2'], [4, 'e'], [5, 'x'], [6, 'l']]
+        : c.mod === 'limiar' ? [[0, 'e2'], [1, 'dt'], [2, 'e2'], [3, 'dt'], [4, 'e2'], [5, 'x'], [6, 'l']] : [[0, 'e2'], [1, 'q1'], [2, 'e2'], [3, 'q2'], [4, 'e2'], [5, 'x'], [6, 'l']];
+  const minE = { ini: 3, int: 5, ava: 7, pro: 8 }[N], [k0, k1] = c.km, [l0, l1] = c.lon;
+  const tot = {}, idx = {}; W.forEach((w) => { tot[w.fase] = (tot[w.fase] || 0) + 1; });
+  return W.map((w, i) => {
+    idx[w.fase] = (idx[w.fase] || 0) + 1;
+    const p = tot[w.fase] > 1 ? (idx[w.fase] - 1) / (tot[w.fase] - 1) : 1, pt = Math.min(1, i / Math.max(1, R0 - 1));
+    const teste = w.fase === 'Teste', red = w.rec ? 0.65 : 1, R = (a, b) => Math.max(2, Math.round(nRep(a, b, p) * (pro ? 1.15 : 1) * red));
+    const alvo = teste ? k1 * 0.6 : lerp(k0, k1, pt) * (w.rec ? 0.72 : 1), lon = lerp(l0, l1, pt) * (w.rec ? 0.75 : 1);
+    const sess = [];
+    for (const [d, s] of SLOT) {
+      if (s === 'l') continue;
+      if (teste) { if (s === 'q1' || s === 'dt') sess.push([d, N === 'ini' ? sFar(4, true) : sMil(4)]); else if (s === 'x') sess.push([d, sRod(minE, true)]); else sess.push([d, s === 'e2' ? 'E2' : s === 'q2' ? 'E' : 'E']); continue; }
+      if (s === 'dt') {
+        if (w.rec) { sess.push([d, d === 1 ? sMil(8) : sRod(minE + 2, true)]); continue; }
+        const mn = nRep(5, 6, pt);
+        sess.push([d, cT('ritmo', `Duplo limiar · manhã ${mn} × 2 km`, [_A(3), serie(mn, [_C(2, 'km', 'limiar'), _R(1, 'min')]), _D(2)], 'Manhã do duplo limiar (lactato ~2–2,5 mmol): controlado, longe do limite.')]);
+        sess.push([d, d === 1 ? cT('ritmo', `Duplo limiar · tarde ${nRep(8, 12, pt)} × 1000 m`, [_A(3), serie(nRep(8, 12, pt), [_C(1000, 'm', 'limiar'), _R(1, 'min')]), _D(2)], 'Tarde do duplo limiar (lactato ~3–3,5 mmol): um pouco mais rápido que de manhã, todas iguais.') : cT('ritmo', `Duplo limiar · tarde ${nRep(20, 25, pt)} × 400 m`, [_A(3), serie(nRep(20, 25, pt), [_C(400, 'm', 'limiar'), _R(0.5, 'min')]), _D(2)], 'Tarde do duplo limiar: 400 m no limiar com 30 s de pausa.')]);
+        continue;
+      }
+      if (s === 'q1' || s === 'q2' || s === 'x') { const t = qModelo(c.mod, w.fase, s, N, p, R, w.rec); sess.push([d, t || 'E']); continue; }
+      sess.push([d, s === 'e2' ? 'E2' : 'E']);
+    }
+    const dL = SLOT.find((x) => x[1] === 'l')[0];
+    if (teste) sess.push([dL, sTesteK(N === 'ini' ? 3 : 5)]);
+    else { const fim = w.fase === 'Específica' && (c.mod === 'rev' || c.mod === 'multi') && !w.rec && N !== 'ini' ? lon * lerp(0.15, 0.3, p) : 0; sess.push([dL, sLon(lon, fim)]); }
+    const usado = sess.filter((x) => typeof x[1] === 'object').reduce((a, x) => a + kmDe(x[1], perfil), 0);
+    const nE = sess.filter((x) => x[1] === 'E').length + sess.filter((x) => x[1] === 'E2').length * 2;
+    const eKm = nE ? Math.max(minE, (alvo - usado) / nE) : 0;
+    const out = [];
+    sess.forEach(([d, t]) => {
+      if (t === 'E') out.push([d, sRod(eKm, (d === 2 || d === 4) && !teste)]);
+      else if (t === 'E2') { out.push([d, { ...sRod(eKm * 1.15), titulo: `Manhã · Rodagem ${String(r05(eKm * 1.15)).replace('.', ',')} km` }]); out.push([d, { ...sRod(eKm * 0.85), titulo: `Tarde · Rodagem ${String(r05(eKm * 0.85)).replace('.', ',')} km` }]); }
+      else out.push([d, t]);
+    });
+    out.sort((a, b) => a[0] - b[0]);
+    return { ...w, sess: out };
+  });
+}
 const cicCache = {};
-const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = gerarCiclo(c));
+const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = c.modo === 'modelo' ? gerarModelo(c) : gerarCiclo(c));
 const cicKm = (sem, perfil) => sem.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
 
 // biblioteca de ciclos (treinador)
@@ -11582,13 +11700,19 @@ async function viewCiclos(id) {
   if (id) return viewCiclo(id);
   const st = S.cache.cicObj || (S.cache.cicObj = { o: store.get('nx-cic-obj', 'ini') });
   const desenha = () => {
-    const L = CICLOS_CORR.filter((c) => c.obj === st.o);
+    st.m = st.m || store.get('nx-cic-mod', 'trad');
+    const L = CICLOS_CORR.filter((c) => c.obj === st.o && (st.o !== 'modelos' || c.mod === st.m));
+    const mi = MOD_INFO[st.m];
     $app.innerHTML = `<a class="back" href="#/treinos/corrida">${I.back} Treinos de corrida</a><p class="eyebrow">Biblioteca de corrida</p><h1 class="h1">Ciclos prontos</h1>
       <p class="muted" style="margin-top:6px">Ciclos completos, semana a semana. Ao aplicar, todas as semanas vão para a planilha do aluno <b>sem liberar</b>: você ajusta o que quiser e libera semana a semana. Os ritmos de cada zona saem do perfil de corrida de cada aluno.</p>
       <div class="chips" id="cic-o" style="margin-top:14px">${CIC_OBJ.map(([k, l]) => `<button type="button" class="chip ${k === st.o ? 'on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>
+      ${st.o === 'modelos' ? `<p class="small muted" style="margin-top:12px"><b>Periodização</b> é como as fases se encadeiam ao longo do ciclo. <b>Distribuição de intensidade</b> é como cada semana se divide entre leve e forte. Escolha o modelo e o nível do aluno.</p>
+        <div class="chips wrap" id="cic-m" style="margin-top:10px">${MOD_CORR.map(([k, l]) => `<button type="button" class="chip ${k === st.m ? 'on' : ''}" data-m="${k}">${l}</button>`).join('')}</div>
+        <div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${mi.tipo}</span><div class="h3" style="margin-top:2px">${esc((MOD_CORR.find((x) => x[0] === st.m) || [])[1])}</div><p class="small" style="margin-top:6px">${mi.oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${mi.quando}</p><p class="tiny dim" style="margin-top:6px">${mi.ci}</p></div>` : ''}
       ${st.o === 'bloco' ? `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Macrociclo sugerido da temporada</span><ol>${CIC_MACRO.map((x) => `<li>${x}</li>`).join('')}</ol><p class="tiny dim">Aplique um ciclo depois do outro, cada um começando na segunda-feira seguinte ao fim do anterior.</p></div>` : ''}
       <div class="stack" style="margin-top:12px">${L.map((c) => { const S2 = cicSemanas(c), p = perfilNiv(c.niv), kms = S2.map((s) => cicKm(s, p)); const tr = Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length); return `<a class="card tap cic-card" href="#/treinos/ciclos/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[c.niv]}</span><span class="tag">${c.sem} semana${c.sem > 1 ? 's' : ''}</span><span class="tag">~${tr} treinos/semana</span><span class="tag">${Math.round(Math.min(...kms))} a ${Math.round(Math.max(...kms))} km/sem</span></div></div>${I.chev}</div>${cicBarra(S2)}${c.desc ? `<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p>` : ''}</a>`; }).join('')}</div>`;
     document.getElementById('cic-o').onclick = (e) => { const x = e.target.closest('[data-o]'); if (!x) return; st.o = x.dataset.o; store.set('nx-cic-obj', st.o); desenha(); };
+    const cm = document.getElementById('cic-m'); if (cm) cm.onclick = (e) => { const x = e.target.closest('[data-m]'); if (!x) return; st.m = x.dataset.m; store.set('nx-cic-mod', st.m); desenha(); };
   };
   desenha();
 }
@@ -11596,6 +11720,7 @@ async function viewCiclos(id) {
 const cicBarra = (S2) => `<div class="cic-barra">${S2.map((s) => `<i style="background:${CIC_FASE_COR[s.fase] || '#9aa8c0'};opacity:${s.rec ? 0.45 : 1}" title="${esc(s.fase)}"></i>`).join('')}</div><div class="cic-leg">${[...new Set(S2.map((s) => s.fase))].map((f) => `<span><i style="background:${CIC_FASE_COR[f] || '#9aa8c0'}"></i>${f}</span>`).join('')}${S2.some((s) => s.rec) ? '<span><i style="background:#9aa8c0;opacity:.45"></i>Recuperação</span>' : ''}</div>`;
 function viewCiclo(id) {
   const c = CICLOS_CORR.find((x) => x.id === id); if (!c) { location.replace('#/treinos/ciclos'); return; }
+  const ehMod = !!c.mod;
   const S2 = cicSemanas(c), perfil = perfilNiv(c.niv);
   const CIENCIA = {
     corre: 'Progressão de corrida e caminhada: o tempo correndo cresce aos poucos para o corpo (tendões e ossos) se adaptar ao impacto. Três treinos por semana, com um dia de descanso entre eles.',
@@ -11610,11 +11735,12 @@ function viewCiclo(id) {
   };
   const semHTML = (s, i) => `<details class="card cic-sem" ${i === 0 ? 'open' : ''}><summary><div class="grow"><b>Semana ${i + 1}</b> <span class="cic-fase" style="--fc:${CIC_FASE_COR[s.fase] || '#9aa8c0'}">${s.rec ? 'Recuperação' : s.fase}</span></div><span class="small muted">${f1(cicKm(s, perfil))} km · ${s.sess.length} treinos</span>${I.chev}</summary>
     <div class="stack" style="margin-top:10px;gap:8px">${s.sess.map(([d, t]) => `<div class="cic-tr"><span class="cic-dia">${DIAS_SEM[d]}</span><div class="grow" style="min-width:0"><b>${esc(t.titulo)}</b>${t.estrutura.length ? `<div style="margin:6px 0 2px">${perfilHTML(t.estrutura, perfil)}</div><p class="tiny dim">${f1(kmDe(t, perfil))} km · ${esc(descreverEstrutura(t.estrutura))}</p>` : ''}</div></div>`).join('')}</div></details>`;
-  $app.innerHTML = `<a class="back" href="#/treinos/ciclos">${I.back} Ciclos prontos</a><p class="eyebrow">${esc((CIC_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
+  $app.innerHTML = `<a class="back" href="#/treinos/ciclos">${I.back} Ciclos prontos</a><p class="eyebrow">${ehMod ? 'Modelo de treino' : esc((CIC_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
     ${c.desc ? `<p class="muted" style="margin-top:6px">${esc(c.desc)}</p>` : ''}
     <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b>${c.sem}</b><span>semanas</span></div><div><b>${Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length)}</b><span>treinos por semana</span></div><div><b>${Math.round(Math.max(...S2.map((s) => cicKm(s, perfil))))}</b><span>km na semana mais forte</span></div></div>${cicBarra(S2)}</div>
     <button class="btn block" id="cic-apl" style="margin-top:12px">${I.users} Aplicar a um aluno</button>
-    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
+    ${c.mod ? `<div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${MOD_INFO[c.mod].tipo}</span><p class="small" style="margin-top:6px">${MOD_INFO[c.mod].oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${MOD_INFO[c.mod].quando}</p><p class="small" style="margin-top:6px"><b>Base científica:</b> ${MOD_INFO[c.mod].ci}</p><p class="tiny dim" style="margin-top:6px">A última semana termina com um teste para medir a evolução. Se o aluno tiver prova, troque o teste pela prova.</p></div>` : ''}
+    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
     <p class="sec-lbl">Semana a semana</p><div class="stack">${S2.map(semHTML).join('')}</div>`;
   document.getElementById('cic-apl').onclick = () => cicAplicar(c, S2);
 }

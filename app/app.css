@@ -2944,7 +2944,7 @@ html[data-tema="claro"] .ck-d.pior{color:#c53030}
 .cic-leg i{width:9px;height:9px;border-radius:3px;display:inline-block}
 .cic-res{grid-template-columns:repeat(3,1fr)}
 .cic-macro ol{margin:8px 0 6px 18px;font-size:.88rem;line-height:1.7}
-.cic-sem{padding:12px 14px}
+.cic-sem{display:block!important;padding:12px 14px}
 .cic-sem summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
 .cic-sem summary::-webkit-details-marker{display:none}
 .cic-sem summary>svg{width:16px;height:16px;transition:transform .2s;color:var(--mute)}
@@ -2964,3 +2964,8 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .pd-op span.on{color:var(--ink);font-weight:800}
 .cf-sem{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-left:4px solid var(--fc)}
 .cf-sem .fase-c{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:color-mix(in srgb,var(--fc) 18%,transparent);color:var(--fc);font-weight:800;font-family:var(--f-h)}
+.mod-info{border-left:4px solid var(--acc)}
+.chip svg{width:14px;height:14px;flex:none}
+.chips .chip:has(svg){display:inline-flex;align-items:center;gap:6px}
+.cic-sem,.cic-tr{text-align:left}
+.cic-card{display:block}
