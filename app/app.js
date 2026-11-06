@@ -37,6 +37,46 @@ const store = {
 };
 const rpeCor = (n) => n == null ? 'var(--dim)' : n <= 3 ? '#3ddc97' : n <= 6 ? '#46d6ff' : n <= 8 ? '#ffcf5c' : '#ff8a8a';
 const rpeTxt = (n) => n == null ? '' : n <= 2 ? 'Muito leve' : n <= 4 ? 'Leve' : n <= 6 ? 'Moderado' : n <= 8 ? 'Intenso' : 'Máximo';
+// escala de esforço percebido (CR-10 de Borg, usada na PSE da sessão de Foster)
+const ESF_ESC = [
+  ['Repouso', 'Nenhum esforço.'],
+  ['Muito, muito leve', 'Quase nada. Como uma caminhada bem tranquila.'],
+  ['Muito leve', 'Bem fácil. Daria para manter por horas.'],
+  ['Leve', 'Confortável. Respiração tranquila, dá para conversar normalmente.'],
+  ['Leve a moderado', 'Começou a esquentar, mas ainda dá para conversar sem dificuldade.'],
+  ['Moderado', 'Respiração mais forte. Exigiu esforço, mas foi controlado.'],
+  ['Moderado a forte', 'Cansativo. Precisou de concentração para manter.'],
+  ['Forte', 'Difícil. Conversar ficaria complicado.'],
+  ['Muito forte', 'Bem desconfortável. Sobrou pouca coisa no fim.'],
+  ['Quase máximo', 'No limite. Quase não sobrou nada.'],
+  ['Máximo', 'O maior esforço possível. Não dava para fazer mais.'],
+];
+function esforcoHTML(v) {
+  return `<div class="esf" data-v="${v ?? ''}">
+    <div class="esf-num"><b id="esf-num">${v ?? '?'}</b></div>
+    <div class="esf-niv" id="esf-niv">${v == null ? 'Arraste para marcar' : ESF_ESC[v][0]}</div>
+    <p class="esf-desc" id="esf-desc">${v == null ? 'De 0 (repouso) a 10 (o máximo que você aguenta).' : ESF_ESC[v][1]}</p>
+    <input type="range" class="esf-range" min="0" max="10" step="1" value="${v ?? 5}" aria-label="Esforço percebido de 0 a 10">
+    <div class="esf-marcas">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}" aria-label="${n}">${n}</button>`).join('')}</div>
+    <div class="esf-pontas"><span>Repouso</span><span>Máximo</span></div>
+  </div>`;
+}
+function bindEsforco(root, onChange) {
+  const box = root.querySelector('.esf'); if (!box) return;
+  const rg = box.querySelector('.esf-range'), num = box.querySelector('#esf-num');
+  const set = (n, vib) => {
+    n = Math.max(0, Math.min(10, Math.round(n))); rg.value = n;
+    box.classList.add('tem'); box.style.setProperty('--esf', rpeCor(n)); box.style.setProperty('--p', `${n * 10}%`);
+    if (num.textContent !== String(n)) { num.textContent = n; num.classList.remove('pop'); void num.offsetWidth; num.classList.add('pop'); }
+    box.querySelector('#esf-niv').textContent = ESF_ESC[n][0]; box.querySelector('#esf-desc').textContent = ESF_ESC[n][1];
+    box.querySelectorAll('.esf-marcas button').forEach((b) => b.classList.toggle('on', +b.dataset.n === n));
+    if (vib && navigator.vibrate) { try { navigator.vibrate(8); } catch {} }
+    onChange(n);
+  };
+  rg.oninput = () => set(+rg.value, true);
+  box.querySelector('.esf-marcas').onclick = (e) => { const b = e.target.closest('[data-n]'); if (b) set(+b.dataset.n, true); };
+  if (box.dataset.v !== '') set(+box.dataset.v, false);
+}
 function gerarSenha() {
   const a = 'abcdefghjkmnpqrstuvwxyz', d = '23456789';
   const r = (s) => s[Math.floor(Math.random() * s.length)];
@@ -158,10 +198,12 @@ function closeSheet(semVoltar) {
   const estava = !$sheet.hidden;
   $sheet.hidden = true; $sheetBody.innerHTML = ''; document.body.style.overflow = ''; const sh = $sheet.querySelector('.sheet'); if (sh) sh.style.transform = '';
   // o painel abriu um passo no histórico: fechar pelo X tira esse passo (o "voltar" do celular também fecha)
-  if (estava && !semVoltar && history.state && history.state.nxPainel) history.back();
+  if (estava && !semVoltar && history.state && history.state.nxPainel) { voltaDoPainel = true; history.back(); }
   if (estava) document.dispatchEvent(new Event('nx:painel-fechado'));
 }
-window.addEventListener('popstate', () => { if (!$sheet.hidden) closeSheet(true); });
+// o "voltar" que o próprio closeSheet dispara não pode fechar um painel novo aberto logo em seguida (ex.: fechar o aviso e abrir o check-in)
+let voltaDoPainel = false;
+window.addEventListener('popstate', () => { if (voltaDoPainel) { voltaDoPainel = false; return; } if (!$sheet.hidden) closeSheet(true); });
 // arrastar o painel para baixo fecha (quando ele está no topo)
 (() => {
   const sh = $sheet.querySelector('.sheet'); if (!sh) return; let y0 = null, dy = 0;
@@ -2326,20 +2368,28 @@ async function alunoHoje() {
   assinaturaDoAluno(S.user.id).then((a) => { const box = document.getElementById('auto-hoje'); if (box && a) { box.innerHTML = autoAlunoHTML(a); bindAutoAluno(a); const ps = document.getElementById('pend-sec'); if (ps && box.innerHTML.trim()) ps.hidden = false; } }).catch(() => {});
 }
 
+// check-in em dois passos: primeiro o esforço (tela cheia), depois dor, corpo e recado
+function passosCheckin(root, valor) {
+  const vai = (n) => { root.querySelector('#ck-1').hidden = n !== 1; root.querySelector('#ck-2').hidden = n !== 2; try { $sheet.scrollTop = 0; root.scrollTop = 0; } catch {} };
+  root.querySelector('#ck-prox').onclick = () => { if (valor() == null) return toast('Arraste a barra para marcar o esforço.', true); vai(2); };
+  root.querySelector('#ck-volta').onclick = () => vai(1);
+}
 /* check-in rápido de uma corrida que veio do relógio */
 function termometroCorrida(c, depois) {
   let rpe = null, dor = false; const corpo = {};
-  openSheet(`<p class="eyebrow">Check-in · ${resumoAtiv(c)}</p><div class="h2" style="margin-top:4px">Como foi ${comArtigo(c)}?</div>
-    <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
-      <div class="effort" id="eff">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div>
-      <div class="effort-lbl"><span>Repouso</span><span id="eff-txt"></span><span>Máximo</span></div></div>
+  openSheet(`<div id="ck-1"><p class="eyebrow center">${resumoAtiv(c)}</p><div class="h2 center" style="margin-top:4px">Qual foi o esforço ${comArtigo(c).replace(/^a /, 'da ').replace(/^o /, 'do ')}?</div>
+      ${esforcoHTML(c.rpe ?? null)}
+      <button class="btn block" id="ck-prox">Próximo</button></div>
+    <div id="ck-2" hidden><button type="button" class="back" id="ck-volta" style="background:none;border:0;padding:0">${I.back} Esforço</button>
+    <p class="eyebrow" style="margin-top:8px">Check-in</p><div class="h2" style="margin-top:4px">E o corpo, como está?</div>
     <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
       <div class="seg" style="margin-top:8px"><button type="button" class="on" data-dor="0">Não</button><button type="button" data-dor="1">Sim</button></div>
       <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:12px" hidden></div>
     ${corpoHTML()}
     <label class="field" style="margin-top:16px"><span>Comentário para o treinador (opcional)</span><textarea class="textarea" id="t-coment" placeholder="Ex.: senti as pernas pesadas no fim, o calor atrapalhou">${esc(c.comentario || '')}</textarea></label>
-    <button class="btn block" id="t-salvar" style="margin-top:12px">Enviar ${I.check}</button>`, (root) => {
-    root.querySelector('#eff').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; rpe = +b.dataset.n; root.querySelectorAll('#eff button').forEach((x) => { const on = +x.dataset.n === rpe; x.classList.toggle('on', on); x.style.background = on ? rpeCor(rpe) : ''; }); root.querySelector('#eff-txt').textContent = rpeTxt(rpe); };
+    <button class="btn block" id="t-salvar" style="margin-top:12px">Enviar ${I.check}</button></div>`, (root) => {
+    bindEsforco(root, (n) => { rpe = n; });
+    passosCheckin(root, () => rpe);
     root.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => { dor = b.dataset.dor === '1'; root.querySelectorAll('[data-dor]').forEach((x) => { x.classList.toggle('on', x === b); x.classList.toggle('alert', x === b && dor); }); root.querySelector('#dor-local').hidden = !dor; });
     bindCorpo(root, corpo);
     root.querySelector('#t-salvar').onclick = async (e) => {
@@ -2709,23 +2759,20 @@ function bindCorpo(root, v) {
 function abrirCheckin(t, itens, st, key, fase) {
   let esforco = null, dor = false; const corpo = {};
   openSheet(`
-    <p class="eyebrow">Check-in</p><div class="h2" style="margin-top:4px">Como foi o treino?</div>
-    <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Esforço percebido (0 a 10)</span>
-      <div class="effort" id="eff">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div>
-      <div class="effort-lbl"><span>Repouso</span><span id="eff-txt"></span><span>Máximo</span></div></div>
+    <div id="ck-1"><p class="eyebrow center">Treino finalizado</p><div class="h2 center" style="margin-top:4px">Qual foi o esforço do treino?</div>
+      ${esforcoHTML(null)}
+      <button class="btn block" id="ck-prox">Próximo</button>
+      <button class="btn ghost block" data-close style="margin-top:8px">Voltar ao treino</button></div>
+    <div id="ck-2" hidden><button type="button" class="back" id="ck-volta" style="background:none;border:0;padding:0">${I.back} Esforço</button>
+    <p class="eyebrow" style="margin-top:8px">Check-in</p><div class="h2" style="margin-top:4px">E o corpo, como está?</div>
     <div style="margin-top:16px"><span class="small muted" style="font-weight:700">Sentiu alguma dor?</span>
       <div class="seg" style="margin-top:8px"><button type="button" class="on" data-dor="0">Não</button><button type="button" data-dor="1">Sim</button></div>
       <input class="input" id="dor-local" placeholder="Onde? Ex.: joelho direito" style="margin-top:12px" hidden></div>
     ${corpoHTML()}
     <label class="field" style="margin-top:16px"><span>Quer deixar um recado pro treinador? (opcional)</span><textarea class="textarea" id="coment" placeholder="Ex.: senti o ombro no supino"></textarea></label>
-    <button class="btn block" id="salvar-sessao">Salvar treino ${I.check}</button>
-    <button class="btn ghost block" data-close style="margin-top:8px">Voltar ao treino</button>`, (root) => {
-    root.querySelector('#eff').onclick = (e) => {
-      const b = e.target.closest('[data-n]'); if (!b) return;
-      esforco = +b.dataset.n;
-      root.querySelectorAll('#eff button').forEach((x) => { const on = +x.dataset.n === esforco; x.classList.toggle('on', on); x.style.background = on ? rpeCor(esforco) : ''; });
-      root.querySelector('#eff-txt').textContent = rpeTxt(esforco);
-    };
+    <button class="btn block" id="salvar-sessao">Salvar treino ${I.check}</button></div>`, (root) => {
+    bindEsforco(root, (n) => { esforco = n; });
+    passosCheckin(root, () => esforco);
     root.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => {
       dor = b.dataset.dor === '1';
       root.querySelectorAll('[data-dor]').forEach((x) => x.classList.toggle('on', x === b));
@@ -4139,7 +4186,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
       <p class="small muted" id="pace-calc" style="margin:-6px 0 12px"></p>
       <div class="grid2"><label class="field"><span>FC média (bpm)</span><input class="input" name="fc_media" data-mask="num" inputmode="numeric" value="${esc(d.fc_media ?? '')}"></label><label class="field"><span>FC máxima (bpm)</span><input class="input" name="fc_max" data-mask="num" inputmode="numeric" value="${esc(d.fc_max ?? '')}"></label></div>
       ${plano.length ? `<label class="field"><span>É de qual treino da planilha?</span><select class="input" name="plano"><option value="">Corrida avulsa</option>${prox.slice(0, 8).map((p) => `<option value="${p.id}" ${(d.plano_id || sugerido?.id) === p.id ? 'selected' : ''}>${fmtData(p.data + 'T12:00:00')} · ${esc(p.titulo || nomeTipo(p.tipo))}${p.distancia_km ? ' · ' + String(p.distancia_km).replace('.', ',') + ' km' : ''}</option>`).join('')}</select></label>` : ''}
-      <div class="field"><span>Esforço percebido (0 a 10)</span><div class="effort" id="rpe">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-n="${n}" class="${rpe === n ? 'on' : ''}" style="${rpe === n ? 'background:' + rpeCor(n) : ''}">${n}</button>`).join('')}</div></div>
+      <div class="field"><span>Esforço percebido</span>${esforcoHTML(rpe)}</div>
       <div class="field"><span>Sentiu alguma dor?</span><div class="seg"><button type="button" class="${dor ? '' : 'on'}" data-dor="0">Não</button><button type="button" class="${dor ? 'on alert' : ''}" data-dor="1">Sim</button></div>
         <input class="input" id="dor-local" placeholder="Onde? Ex.: panturrilha esquerda" style="margin-top:12px" value="${esc(d.dor_local || '')}" ${dor ? '' : 'hidden'}></div>
       ${corpoHTML(corpo)}
@@ -4149,7 +4196,7 @@ function formCorrida(alunoId, d, plano, onSalvo) {
     const f = r.querySelector('#f-corr');
     const atual = () => { const km = num(f.km.value), s = lerTempo(f.tempo.value); r.querySelector('#pace-calc').textContent = km && s ? `Pace médio: ${fmtPace(s / km)}` : ''; };
     f.oninput = atual; atual();
-    r.querySelector('#rpe').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; rpe = +b.dataset.n; r.querySelectorAll('#rpe button').forEach((x) => { const on = +x.dataset.n === rpe; x.classList.toggle('on', on); x.style.background = on ? rpeCor(rpe) : ''; }); };
+    bindEsforco(r, (n) => { rpe = n; });
     r.querySelectorAll('[data-dor]').forEach((b) => b.onclick = () => { dor = b.dataset.dor === '1'; r.querySelectorAll('[data-dor]').forEach((x) => { x.classList.toggle('on', x === b); x.classList.toggle('alert', x === b && dor); }); r.querySelector('#dor-local').hidden = !dor; });
     bindCorpo(r, corpo);
     f.onsubmit = async (e) => {
