@@ -3262,7 +3262,7 @@ function atvGrupo(x) {
   if (x.c.tipo === 'forca') return 'forca';
   return ehCorr(x.c) ? 'corrida' : 'outras';
 }
-function atvCard(x, rotas) {
+function atvCard(x, rotas, staff) {
   if (x.k === 'ses') {
     const s = x.s, d = new Date(s.iniciado_em), min = s.finalizado_em ? minutos(s.iniciado_em, s.finalizado_em) : null;
     return `<div class="card atv"><div class="atv-top"><span class="atv-ic fo">${HALTER_S}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(s.treino_titulo || 'Treino de força')}</b><span class="small muted">${d.getDate()} de ${MESES_N[d.getMonth()]} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · no app</span></div></div>
@@ -3277,19 +3277,24 @@ function atvCard(x, rotas) {
     : [['Tempo', atvDur(c.duracao_s)], ['FC média', c.fc_media ? c.fc_media + ' bpm' : '–'], ['Esforço', c.rpe != null ? c.rpe + '/10' : '–']];
   let mapa = '';
   if (R && R.length > 5) { const passo = Math.max(1, Math.ceil(R.length / 300)); mapa = `<div class="atv-mapa">${rotaSVG(R.filter((_, i) => i % passo === 0 || i === R.length - 1), 150)}</div>`; }
-  return `<a class="card tap atv" href="#/corrida/${c.id}" style="color:inherit"><div class="atv-top"><span class="atv-ic ${c.tipo === 'forca' ? 'fo' : ''}">${c.tipo === 'forca' ? HALTER_S : corr ? icCorr(S.me) : I.watch}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(atvTitulo(c))}</b><span class="small muted">${d.getDate()} de ${MESES_N[d.getMonth()]}${temHora ? ` · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : ''} · ${fonte}</span></div>${I.chev}</div>
+  return `<a class="card tap atv" href="#/corrida/${c.id}" style="color:inherit"><div class="atv-top"><span class="atv-ic ${c.tipo === 'forca' ? 'fo' : ''}">${c.tipo === 'forca' ? HALTER_S : corr ? icCorr(S.me) : I.watch}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${staff && !c.visto_treinador ? '<i class="alert-dot" style="display:inline-block;margin-right:6px;vertical-align:middle" title="Nova"></i>' : ''}${esc(atvTitulo(c))}</b><span class="small muted">${d.getDate()} de ${MESES_N[d.getMonth()]}${temHora ? ` · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : ''} · ${fonte}</span></div>${I.chev}</div>
     <div class="atv-num">${nums.map(([l, v]) => `<div><small>${l}</small><b>${v}</b></div>`).join('')}</div>
     ${c.dor || c.plano_id ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}</div>` : ''}${mapa}</a>`;
 }
 async function histAtividades(head) {
+  $app.innerHTML = head + '<div id="atv-feed"></div>';
+  await feedAtividades(S.user.id, document.getElementById('atv-feed'), false);
+}
+/** lista de tudo o que o aluno fez (relógio, celular e força no app), com filtros e mapinha; também na ficha do aluno para o treinador */
+async function feedAtividades(alunoId, alvo, staff) {
   const [cor, ses] = await Promise.all([
-    sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fc_media,titulo,fonte,rpe,dor,plano_id').eq('aluno_id', S.user.id).order('data', { ascending: false }).limit(1000).then((r) => r.data || [], () => []),
-    buscarSessoes(S.user.id, 300).catch(() => []),
+    sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fc_media,titulo,fonte,rpe,dor,plano_id,visto_treinador').eq('aluno_id', alunoId).order('data', { ascending: false }).limit(1000).then((r) => r.data || [], () => []),
+    buscarSessoes(alunoId, 300).catch(() => []),
   ]);
   const todas = [...cor.map((c) => ({ k: 'cor', t: atvData(c.data).getTime(), c })), ...ses.map((s) => ({ k: 'ses', t: new Date(s.iniciado_em).getTime(), s }))].sort((a, b) => b.t - a.t);
   const st = { f: 'todas', n: 15 }, rotas = {};
   const filtradas = () => st.f === 'todas' ? todas : todas.filter((x) => atvGrupo(x) === st.f);
-  $app.innerHTML = head + `<div class="chips" id="atv-f" style="margin-top:14px">${ATV_FILTROS.map(([k, l]) => `<button type="button" class="chip ${k === st.f ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div><div id="atv-l" style="margin-top:12px"></div>`;
+  alvo.innerHTML = `<div class="chips" id="atv-f" style="margin-top:14px">${ATV_FILTROS.map(([k, l]) => `<button type="button" class="chip ${k === st.f ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div><div id="atv-l" style="margin-top:12px"></div>`;
   const box = document.getElementById('atv-l');
   const desenha = async () => {
     const L = filtradas(), vis = L.slice(0, st.n);
@@ -3298,7 +3303,7 @@ async function histAtividades(head) {
       const { data } = await sb.from('nx_corridas').select('id,rota').in('id', falta).then((r) => r, () => ({ data: [] }));
       falta.forEach((id) => { rotas[id] = null; }); (data || []).forEach((r) => { rotas[r.id] = r.rota; });
     }
-    if (!L.length) { box.innerHTML = `<div class="empty"><div class="h3">Nada por aqui ainda</div><p class="small">${st.f === 'todas' ? 'Quando você treinar, pelo relógio, pelo celular ou no app, a atividade aparece aqui.' : 'Nenhuma atividade deste tipo ainda.'}</p></div>`; return; }
+    if (!L.length) { box.innerHTML = `<div class="empty"><div class="h3">Nada por aqui ainda</div><p class="small">${st.f === 'todas' ? (staff ? 'Quando o aluno treinar, pelo relógio, pelo celular ou no app, a atividade aparece aqui.' : 'Quando você treinar, pelo relógio, pelo celular ou no app, a atividade aparece aqui.') : 'Nenhuma atividade deste tipo ainda.'}</p></div>`; return; }
     let html = '', mesAtual = '';
     vis.forEach((x) => {
       const d = new Date(x.t), chave = d.getFullYear() + '-' + d.getMonth();
@@ -3308,7 +3313,7 @@ async function histAtividades(head) {
         const km = doMes.filter((y) => y.k === 'cor' && comDist(y.c)).reduce((a, y) => a + y.c.distancia_m, 0);
         html += `<div class="atv-mes"><b>${MESES_N[d.getMonth()].replace(/^./, (m) => m.toUpperCase())} de ${d.getFullYear()}</b><span>${doMes.length} atividade${doMes.length > 1 ? 's' : ''}${km >= 1000 ? ` · ${fmtKm(km, 1)}` : ''}</span></div>`;
       }
-      html += atvCard(x, rotas);
+      html += atvCard(x, rotas, staff);
     });
     box.innerHTML = `<div class="stack">${html}</div>${L.length > st.n ? `<button class="btn ghost block sm" id="atv-mais" style="margin-top:12px">Ver mais (${L.length - st.n})</button>` : ''}`;
     const m = document.getElementById('atv-mais'); if (m) m.onclick = () => { m.disabled = true; m.textContent = 'Carregando…'; st.n += 15; desenha(); };
@@ -7398,8 +7403,8 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       ${!corridas.length ? '<div class="empty" style="margin-top:12px"><div class="h3">Sem corridas ainda</div><p class="small">A evolução aparece conforme as corridas forem registradas.</p></div>' : ''}`;
   } else if (sub === 'corridas') {
     if (staff) relogiosDosAlunos([alunoId]).then((R) => { const r = R[alunoId], el = document.getElementById('rel-staff'); if (el && r && r.modelo) el.insertAdjacentHTML('beforeend', ` Modelo: <b>${esc(r.modelo)}</b>.`); }, () => {});
-    corpo = `${staff ? '' : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}
-      ${ativsTodas.length ? `<div class="stack" style="margin-top:12px">${ativsTodas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}${ehCorr(c) ? `<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span>` : `<b>${esc(nomeAtiv(c))}</b><span class="muted">· ${resumoAtiv(c)}</span>`}</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${ativsTodas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:12px">Ver todas as ${corridas.length} corridas</button>` : ''}`
+    corpo = `${staff ? '<div id="atv-feed"></div>' : `<button class="btn sm" id="reg-c">${I.plus} Registrar corrida</button>`}
+      ${staff ? '' : ativsTodas.length ? `<div class="stack" style="margin-top:12px">${ativsTodas.slice(0, st.todas ? 300 : 12).map((c) => `<a class="card tap corr-item" href="#/corrida/${c.id}"><div class="hist-date"><b>${new Date(c.data).getDate()}</b><span>${MESES[new Date(c.data).getMonth()]}</span></div><div class="grow"><div class="row" style="gap:8px">${staff && !c.visto_treinador ? '<i class="alert-dot"></i>' : ''}${ehCorr(c) ? `<b>${fmtKm(c.distancia_m, 1)}</b><span class="muted">· ${fmtDur(c.duracao_s)} · ${fmtPace(paceDe(c))}</span>` : `<b>${esc(nomeAtiv(c))}</b><span class="muted">· ${resumoAtiv(c)}</span>`}</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">Esforço ${c.rpe}</span>` : ''}${c.fc_media ? `<span class="tag">${c.fc_media} bpm</span>` : ''}${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.plano_id ? '<span class="tag ok">da planilha</span>' : ''}<span class="tag">${c.fonte === 'arquivo' ? 'relógio' : c.fonte === 'intervals' ? 'Intervals' : c.fonte === 'garmin' ? 'Garmin' : 'digitada'}</span></div></div>${I.chev}</a>`).join('')}</div>${ativsTodas.length > 12 && !st.todas ? `<button class="btn ghost block sm" id="ver-todas" style="margin-top:12px">Ver todas as ${corridas.length} corridas</button>` : ''}`
         : `<div class="empty" style="margin-top:12px"><div class="h3">Nenhuma corrida registrada</div><p class="small">${staff ? 'As corridas do aluno aparecem aqui.' : 'Depois de correr, toque em “Registrar corrida”. Dá para enviar o arquivo do relógio.'}</p></div>`}
       ${staff ? `<p class="small muted" style="margin-top:16px" id="rel-staff">${I.watch.replace('<svg', '<svg class="rel-ic"')} ${garm ? 'Garmin conectado: as corridas chegam sozinhas e os treinos liberados vão para o relógio.' : integ ? 'Relógio conectado pelo Intervals.icu.' : 'O aluno ainda não conectou um relógio (ele faz isso na aba Conexões).'}</p>` : `<a class="list-item" href="#/conexoes" style="margin-top:16px">${I.watch}<div class="grow"><b>${garm || integ ? 'Relógio conectado ✓' : 'Conectar o seu relógio'}</b><div class="small muted">${garm || integ ? 'Gerencie na aba Conexões' : 'Garmin, Coros, Polar e outros: as corridas chegam sozinhas'}</div></div>${I.chev}</a>`}`;
   } else {
@@ -7470,6 +7475,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   };
   if (q('#ed-perfil')) q('#ed-perfil').onclick = () => formPerfilCorrida(m, async () => { const { data } = await sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); m = data || m; recarregar(); });
   if (q('#intervals-box')) bindIntervals(q('#intervals-box'), integ, staff, alunoId, recarregar);
+  if (staff && sub === 'corridas' && q('#atv-feed')) feedAtividades(alunoId, q('#atv-feed'), true);
   if (q('#garmin-box')) bindGarmin(q('#garmin-box'), recarregar);
   // sincronização automática com o Garmin: todo treino liberado que ainda não está no relógio vai sozinho
   if (garm || icuEscreve(integ)) sincronizarGarmin(alunoId, plano, perfil, staff).then((n) => { if (n) recarregar(); });
