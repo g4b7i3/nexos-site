@@ -2757,3 +2757,30 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .agua-int button.on{background:var(--p2);border-color:var(--p2);color:#fff}
 .agua-int button.off{grid-column:1/-1}
 .agua-int button.off.on{background:#6b7280;border-color:#6b7280}
+/* aprimoramento intelectual */
+.apr-resumo{margin-top:14px}
+.apr-barra{height:8px;border-radius:9px;background:rgba(var(--p2r),.14);margin-top:10px;overflow:hidden}
+.apr-barra i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--p2),var(--p1))}
+.apr-barra.fina{height:5px;margin:8px 0 12px}
+.apr-num{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:.78rem;color:var(--dim)}
+.apr-num b,.apr-pct{font-weight:800}
+.apr-num b.ok,.apr-pct.ok,.apr-fim b.ok{color:#16a34a}.apr-num b.mid,.apr-pct.mid,.apr-fim b.mid{color:#d99a00}.apr-num b.bad,.apr-pct.bad,.apr-fim b.bad{color:#dc2626}
+.apr-area .h3{font-size:1.02rem}
+.apr-perg{font-size:1.04rem;font-weight:700;line-height:1.45;margin:12px 0 4px;color:var(--ink)}
+.apr-perg.sm{font-size:.92rem;margin:0 0 8px}
+.apr-alts{display:grid;gap:8px;margin-top:12px}
+.apr-alts button{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--s1);color:var(--ink);font:inherit;font-size:.92rem;line-height:1.4;cursor:pointer}
+.apr-alts button span{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.75rem;background:rgba(var(--p2r),.12);color:var(--p2)}
+.apr-alts button em{font-style:normal}
+.apr-alts button:disabled{cursor:default;opacity:.65}
+.apr-alts button.certa{opacity:1;border-color:#16a34a;background:rgba(22,163,74,.1)}
+.apr-alts button.certa span{background:#16a34a;color:#fff}
+.apr-alts button.errada{opacity:1;border-color:#dc2626;background:rgba(220,38,38,.08)}
+.apr-alts button.errada span{background:#dc2626;color:#fff}
+.apr-exp{margin-top:14px;padding:12px;border-radius:12px;border-left:4px solid #16a34a;background:rgba(22,163,74,.07)}
+.apr-exp.bad{border-left-color:#dc2626;background:rgba(220,38,38,.06)}
+.apr-exp p{margin-top:6px;line-height:1.5;font-size:.9rem}
+.apr-fim{text-align:center;margin-top:14px;display:flex;flex-direction:column;gap:4px;align-items:center}
+.apr-fim b{font-size:2.2rem;font-weight:800;line-height:1}
+.apr-x{color:#dc2626;font-weight:700}.apr-v{color:#16a34a;font-weight:700}
+.apr-area,.apr-tema{display:block}
