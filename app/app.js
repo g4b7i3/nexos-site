@@ -6632,7 +6632,10 @@ const PSE_Z = { rec: [1, 2, 'conversa fácil, bem tranquilo'], leve: [3, 4, 'con
 const pseTxt = (z, curto) => { const x = PSE_Z[z] || PSE_Z.leve; return `esforço ${x[0]}${x[1] > x[0] ? ' a ' + x[1] : ''} de 10${curto ? '' : ' · ' + x[2]}`; };
 // pace de cada zona para o aluno: faixa dele (pelo teste) ou média, sempre visível (no modo adaptação, o esforço)
 const paceZonaTxt = (z, perfil) => { if (perfil && perfil.pse) return pseTxt(z); const p = perfil && perfil.paces; if (p && p[z]) return faixaPace(p[z]); return '~' + fmtPace(paceZona(z, perfil)); };
-const PASSOS = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Desaquecimento' };
+const PASSOS = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', ca: 'Caminhada', lv: 'Livre', dq: 'Desaquecimento' };
+// caminhada e livre não têm ritmo-alvo: o aluno segue a orientação escrita
+const PASSO_LIVRE = { ca: 'caminhada em passo firme e confortável', lv: 'livre: no ritmo que quiser, pela sensação' };
+const alvoLivre = (s) => PASSO_LIVRE[s && s.k] || null;
 const passo = (k, v, med, z) => ({ k, v, med, z });
 const serie = (n, passos) => ({ k: 'rep', n, passos });
 /* ---------- biblioteca de corrida por nível (base: método norueguês + ciência atual) ---------- */
@@ -6735,7 +6738,7 @@ function paceZona(z, perfil) {
 function achatar(estrutura, perfil) {
   const out = [];
   const add = (s, rep) => {
-    const pace = paceZona(s.z, perfil);
+    const pace = s.k === 'ca' ? 600 : paceZona(s.z, perfil);
     const m = s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : (s.v * 60) / pace * 1000;
     const seg = s.med === 'min' ? s.v * 60 : (m / 1000) * pace;
     out.push({ ...s, metros: m, seg, rep });
@@ -6772,9 +6775,10 @@ const tempoAsp = (sg) => { sg = Math.round(sg); const h = Math.floor(sg / 3600),
 const paceAsp = (a, b) => `${fmtPace(a).replace('/km', '')} a ${fmtPace(b)}`;
 /** treino escrito passo a passo, frases curtas (cartão do aluno) */
 function linhasTreino(estrutura, perfil) {
-  const verbo = { aq: 'Aquecer', co: 'Correr', rc: 'Recuperar', dq: 'Desaquecer' };
+  const verbo = { aq: 'Aquecer', co: 'Correr', rc: 'Recuperar', ca: 'Caminhar', lv: 'Livre', dq: 'Desaquecer' };
   const frase = (s, verboOn = true) => {
     const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
+    if (alvoLivre(s)) return `${verboOn ? `<b>${verbo[s.k]}</b> ` : ''}${s.med === 'min' ? `${String(s.v).replace('.', ',')} min` : medTxt(s)} <span class="lt-est">${alvoLivre(s)}</span>`;
     if (perfil && perfil.pse) return `${verboOn ? `<b>${verbo[s.k] || 'Correr'}</b> ` : ''}${s.med === 'min' ? `${String(s.v).replace('.', ',')} min` : medTxt(s)} em <b>${z.z}</b> · ${z.d} (${pseTxt(s.z)}) <span class="lt-est">sem olhar o ritmo: siga a sensação</span>`;
     const [a, b] = faixaZona(s.z, perfil); const e = estimaPasso(s, perfil);
     const qto = s.med === 'min' ? `${String(s.v).replace('.', ',')} min` : medTxt(s);
@@ -6800,11 +6804,11 @@ function resumoEstrutura(estrutura, perfil) {
 }
 const medTxt = (s) => s.med === 'km' ? `${String(s.v).replace('.', ',')} km` : s.med === 'm' ? `${s.v} m` : `${String(s.v).replace('.', ',')} min`;
 function descreverEstrutura(estrutura, perfil) {
-  const zt = (p) => { const z = ZONAS_INFO[p.z] || ZONAS_INFO.leve; return `${z.z}${perfil ? ' (' + paceZonaTxt(p.z, perfil).replace('/km', '') + ')' : ''}`; };
+  const zt = (p) => { if (alvoLivre(p)) return `(${alvoLivre(p)})`; const z = ZONAS_INFO[p.z] || ZONAS_INFO.leve; return `${z.z}${perfil ? ' (' + paceZonaTxt(p.z, perfil).replace('/km', '') + ')' : ''}`; };
   const est = (p) => (perfil && !perfil.pse && p.med === 'min' ? ` ≈${estimaPasso(p, perfil).txt}` : '');
   return (estrutura || []).map((s) => s.k === 'rep'
     ? `${s.n}× (${(s.passos || []).map((p) => `${medTxt(p)} ${zt(p)}${est(p)}`).join(' + ')})`
-    : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : ''}${medTxt(s)} ${zt(s)}${est(s)}`).join(' · ');
+    : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : s.k === 'ca' ? 'Caminhada ' : s.k === 'lv' ? 'Livre ' : ''}${medTxt(s)} ${zt(s)}${est(s)}`).join(' · ');
 }
 function perfilHTML(estrutura, perfil, alto = false) {
   const l = achatar(estrutura, perfil); const tot = l.reduce((a, s) => a + s.seg, 0) || 1;
@@ -7055,8 +7059,8 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       <span class="alca" aria-label="Arrastar">⋮⋮</span>
       <select class="input ksel" data-cam="${cam}" data-f="k">${Object.entries(PASSOS).map(([k, l]) => `<option value="${k}" ${s.k === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <input class="input vin" data-cam="${cam}" data-f="v" data-mask="dec" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
-      ${medSel(s.med, cam)}${zonaSel(s.z, cam)}
-      <em class="pace-dica">${perfil.pse ? pseTxt(s.z, true) + ' <span>(modo adaptação)</span>' : `pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'}`} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ≈ ${estimaPasso(s, perfil).txt}</em>
+      ${medSel(s.med, cam)}${alvoLivre(s) ? '<span></span>' : zonaSel(s.z, cam)}
+      <em class="pace-dica">${alvoLivre(s) ? alvoLivre(s) : perfil.pse ? pseTxt(s.z, true) + ' <span>(modo adaptação)</span>' : `pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ≈ ${estimaPasso(s, perfil).txt}`}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
     r.querySelector('#passos').innerHTML = t.estrutura.map((s, i) => s.k === 'rep'
@@ -7096,7 +7100,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
     });
     r.querySelector('.add-passos').onclick = (e) => {
       const b = e.target.closest('[data-add]'); if (!b) return; const k = b.dataset.add;
-      const novo = k === 'rep' ? serie(4, [passo('co', 400, 'm', 'intervalado'), passo('rc', 90, 'm', 'rec')]) : k === 'aq' ? passo('aq', 2, 'km', 'leve') : k === 'dq' ? passo('dq', 1, 'km', 'leve') : k === 'rc' ? passo('rc', 2, 'min', 'rec') : passo('co', 2, 'km', 'leve');
+      const novo = k === 'rep' ? serie(4, [passo('co', 400, 'm', 'intervalado'), passo('rc', 90, 'm', 'rec')]) : k === 'aq' ? passo('aq', 2, 'km', 'leve') : k === 'dq' ? passo('dq', 1, 'km', 'leve') : k === 'rc' ? passo('rc', 2, 'min', 'rec') : k === 'ca' ? passo('ca', 2, 'min', 'rec') : k === 'lv' ? passo('lv', 10, 'min', 'leve') : passo('co', 2, 'km', 'leve');
       const iDq = t.estrutura.findIndex((s) => s.k === 'dq');
       if (k === 'aq') t.estrutura.unshift(novo); else if (k !== 'dq' && iDq >= 0) t.estrutura.splice(iDq, 0, novo); else t.estrutura.push(novo);
       desenhar(r);
@@ -7142,7 +7146,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
 /* ---------- detalhe do treino para o aluno ---------- */
 function verTreinoPlanilha(p, perfil, feito) {
   const est = estruturaDe(p);
-  const passoH = (s, extra = '') => { const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pzt = paceZonaTxt(s.z, perfil); const e = estimaPasso(s, perfil); const alvoT = perfil && perfil.pse ? '' : ` <em class="alvo-t">${e.tipo === 'dist' ? 'dist. est.' : 'tempo est.'} ≈ ${e.txt}</em>`; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
+  const passoH = (s, extra = '') => { if (alvoLivre(s)) return `<div class="passo-v" style="--zc:#9aa8c0"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · <strong>${alvoLivre(s)}</strong></span></div>`; const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve; const pzt = paceZonaTxt(s.z, perfil); const e = estimaPasso(s, perfil); const alvoT = perfil && perfil.pse ? '' : ` <em class="alvo-t">${e.tipo === 'dist' ? 'dist. est.' : 'tempo est.'} ≈ ${e.txt}</em>`; return `<div class="passo-v" style="--zc:${z.c}"><b>${PASSOS[s.k]}${extra}</b><span>${medTxt(s)} · ${z.n} · <strong>${pzt}</strong>${alvoT}</span></div>`; };
   openSheet(`<p class="eyebrow">${fmtDia(p.data)} · ${esc(nomeTipo(p.tipo))}</p><div class="h2" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
     ${sobreTreino(p.tipo) ? `<p class="small muted" style="margin-top:6px">${esc(sobreTreino(p.tipo))}</p>` : ''}
     <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px">${(() => { const t = estimaTotal(est, perfil); return `<b>${t.soDist ? '' : '≈ '}${t.km}</b> · ${t.soTempo ? '' : '≈ '}${t.tempo}`; })()}</p></div>
@@ -8147,7 +8151,7 @@ function gpsPassos(p, perfil) {
   const out = [];
   const add = (s, rep, nrep) => {
     const alvo = s.med === 'min' ? { t: s.v * 60 } : { d: s.med === 'km' ? s.v * 1000 : s.v };
-    const [a, b] = perfil && perfil.pse ? [null, null] : faixaZona(s.z, perfil);
+    const [a, b] = (perfil && perfil.pse) || alvoLivre(s) ? [null, null] : faixaZona(s.z, perfil);
     out.push({ k: s.k, z: s.z, med: s.med, v: s.v, rep, nrep, ...alvo, pa: a, pb: b });
   };
   (estruturaDe(p) || []).forEach((s) => { if (s.k === 'rep') { for (let i = 0; i < (s.n || 1); i++) (s.passos || []).forEach((x) => add(x, i + 1, s.n || 1)); } else add(s); });
@@ -8273,9 +8277,9 @@ async function viewGps(id, modo) {
         <div class="gps-p-n">${gpsNomePasso(s)}</div>
         <div class="gps-p-f">${s.t ? fmtDurLongo(falta) : falta >= 1000 ? (falta / 1000).toFixed(2).replace('.', ',') + ' km' : Math.round(falta) + ' m'}<small>${s.t ? ' faltando' : ' faltando'}</small></div>
         <div class="gps-bar"><i style="width:${Math.min(100, pr * 100).toFixed(1)}%"></i></div>
-        <div class="gps-p-alvo">${!s.pa ? `Esforço <b>${pseTxt(s.z, true)}</b> · ${(PSE_Z[s.z] || PSE_Z.leve)[2]}` : est ? `Velocidade na esteira <b>${kmhDe(s.pb)} a ${kmhDe(s.pa)} km/h</b>` : `Pace alvo <b>${fmtPace(s.pa).replace('/km', '')} a ${fmtPace(s.pb)}</b>`}${noRitmo === 'rapido' ? '<span class="gps-r r">Rápido demais</span>' : noRitmo === 'lento' ? '<span class="gps-r l">Acelere</span>' : noRitmo === 'ok' ? '<span class="gps-r ok">No ritmo</span>' : ''}</div>`;
+        <div class="gps-p-alvo">${alvoLivre(s) ? `<b>${alvoLivre(s)}</b>` : !s.pa ? `Esforço <b>${pseTxt(s.z, true)}</b> · ${(PSE_Z[s.z] || PSE_Z.leve)[2]}` : est ? `Velocidade na esteira <b>${kmhDe(s.pb)} a ${kmhDe(s.pa)} km/h</b>` : `Pace alvo <b>${fmtPace(s.pa).replace('/km', '')} a ${fmtPace(s.pb)}</b>`}${noRitmo === 'rapido' ? '<span class="gps-r r">Rápido demais</span>' : noRitmo === 'lento' ? '<span class="gps-r l">Acelere</span>' : noRitmo === 'ok' ? '<span class="gps-r ok">No ritmo</span>' : ''}</div>`;
       const nx = passos[st.passo + 1];
-      $('g-prox').innerHTML = nx ? `Depois: <b>${gpsNomePasso(nx)}</b> · ${gpsAlvoTxt(nx)} · ${!nx.pa ? pseTxt(nx.z, true) : est ? `${kmhDe(nx.pb)} a ${kmhDe(nx.pa)} km/h` : (ZONAS_INFO[nx.z] || ZONAS_INFO.leve).z}` : 'Última parte do treino';
+      $('g-prox').innerHTML = nx ? `Depois: <b>${gpsNomePasso(nx)}</b> · ${gpsAlvoTxt(nx)} · ${alvoLivre(nx) ? PASSOS[nx.k] : !nx.pa ? pseTxt(nx.z, true) : est ? `${kmhDe(nx.pb)} a ${kmhDe(nx.pa)} km/h` : (ZONAS_INFO[nx.z] || ZONAS_INFO.leve).z}` : 'Última parte do treino';
     } else if (passos.length) {
       $('g-passo').style.setProperty('--zc', 'var(--ok)');
       $('g-passo').innerHTML = '<div class="gps-p-n">Treino completo</div><p class="small" style="margin-top:6px">Pode desacelerar e tocar em Terminar para salvar.</p>';
@@ -8619,16 +8623,16 @@ const RELOGIO_IC = '<svg class="rel-ic" viewBox="0 0 24 24" fill="none" stroke="
 /** converte um treino da planilha para o formato de passos enviado ao Garmin */
 function garminItem(p, perfil) {
   const est = estruturaDe(p); if (!est.length) return null;
-  const INT = { aq: 'WARMUP', dq: 'COOLDOWN', rc: 'RECOVERY', co: 'INTERVAL' };
+  const INT = { aq: 'WARMUP', dq: 'COOLDOWN', rc: 'RECOVERY', co: 'INTERVAL', ca: 'RECOVERY', lv: 'ACTIVE' };
   const conv = (s, emSerie) => {
     const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
-    const [pmin, pmax] = perfil && perfil.pse ? [null, null] : faixaZona(s.z, perfil); // todo passo leva a faixa de pace como alvo (no modo adaptação, sem alvo)
-    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: pmin ? `${zi.z} ${zi.d} · ${fmtPace(pmin).replace('/km', '')}–${fmtPace(pmax)}` : `${zi.z} ${zi.d} · ${pseTxt(s.z, true)}`.slice(0, 100) };
+    const [pmin, pmax] = (perfil && perfil.pse) || alvoLivre(s) ? [null, null] : faixaZona(s.z, perfil); // todo passo leva a faixa de pace como alvo (no modo adaptação, sem alvo)
+    return { int: s.k === 'co' && !emSerie ? 'ACTIVE' : (INT[s.k] || 'ACTIVE'), dur: s.med === 'min' ? 'TIME' : 'DISTANCE', valor: s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : s.v * 60, pmin: pmin && Math.round(pmin), pmax: pmax && Math.round(pmax), nota: alvoLivre(s) ? `${PASSOS[s.k]} · ${alvoLivre(s)}` : pmin ? `${zi.z} ${zi.d} · ${fmtPace(pmin).replace('/km', '')}–${fmtPace(pmax)}` : `${zi.z} ${zi.d} · ${pseTxt(s.z, true)}`.slice(0, 100) };
   };
   const tot = estimaTotal(est, perfil);
   // o treino estruturado por escrito, na mesma ordem do app (aparece no Garmin Connect)
-  const NOMES = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', dq: 'Desaquecimento' };
-  const linhaPasso = (x) => { const zi = ZONAS_INFO[x.z] || ZONAS_INFO.leve; const [a, b] = perfil && perfil.pse ? [null, null] : faixaZona(x.z, perfil); return `${NOMES[x.k] || 'Corrida'} ${medTxt(x)} · ${zi.z} ${zi.d}${a && b ? ` (${fmtPace(a).replace('/km', '')}–${fmtPace(b)})` : perfil && perfil.pse ? ` (${pseTxt(x.z, true)})` : ''}`; };
+  const NOMES = { aq: 'Aquecimento', co: 'Corrida', rc: 'Recuperação', ca: 'Caminhada', lv: 'Livre', dq: 'Desaquecimento' };
+  const linhaPasso = (x) => { if (alvoLivre(x)) return `${NOMES[x.k]} ${medTxt(x)} · ${alvoLivre(x)}`; const zi = ZONAS_INFO[x.z] || ZONAS_INFO.leve; const [a, b] = perfil && perfil.pse ? [null, null] : faixaZona(x.z, perfil); return `${NOMES[x.k] || 'Corrida'} ${medTxt(x)} · ${zi.z} ${zi.d}${a && b ? ` (${fmtPace(a).replace('/km', '')}–${fmtPace(b)})` : perfil && perfil.pse ? ` (${pseTxt(x.z, true)})` : ''}`; };
   const estruturaTxt = est.map((x, i) => x.k === 'rep' ? `${i + 1}. Repetir ${x.n || 1}×:\n${(x.passos || []).map((y) => `   • ${linhaPasso(y)}`).join('\n')}` : `${i + 1}. ${linhaPasso(x)}`).join('\n');
   const montar = (sobre) => [`TREINO\n${estruturaTxt}`, `Total est.: ${tot.soDist ? '' : '≈ '}${tot.km} · ${tot.soTempo ? '' : '≈ '}${tot.tempo}`, p.descricao ? 'Treinador: ' + p.descricao : '', sobre].filter(Boolean).join('\n\n');
   // o Garmin aceita até 500 letras: o texto sobre o tipo de treino sai primeiro se não couber
