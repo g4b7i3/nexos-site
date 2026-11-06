@@ -6123,7 +6123,7 @@ async function viewCorrida(id) {
 
 
 /* ---------- zonas automáticas pelos testes de campo ---------- */
-const TESTE_NOME = { t30: 'teste de 30 min (Friel)', vam: 'teste de VAM', vc: 'teste de velocidade crítica', cooper: 'teste de Cooper', t2400: 'teste de 2.400 m', t10k: 'teste de 10 km', fcmax: 'teste de FC máxima' };
+const TESTE_NOME = { t30: 'teste de 30 min (Friel)', vam: 'teste de VAM', vc: 'teste de velocidade crítica', cooper: 'teste de Cooper', t2400: 'teste de 2.400 m', t10k: 'teste de 10 km', t5k: 'teste de 5 km', t3k: 'teste de 3 km', fcmax: 'teste de FC máxima' };
 function tipoDoTeste(p) {
   const t = semAcento(String((p && p.titulo) || '')).toLowerCase();
   if (/30 ?min/.test(t) && /friel|limiar|teste/.test(t)) return 't30';
@@ -6133,6 +6133,8 @@ function tipoDoTeste(p) {
   if (/2\.?400/.test(t)) return 't2400';
   if (/fc ?max|frequencia cardiaca maxima/.test(t)) return 'fcmax';
   if (/10 ?k|10 ?km/.test(t)) return 't10k';
+  if (/teste de 5 ?km/.test(t)) return 't5k';
+  if (/teste de 3 ?km/.test(t)) return 't3k';
   return null;
 }
 // janela de tempo com maior velocidade média: {v (m/s), i, j}
@@ -6183,10 +6185,10 @@ function calcularTeste(tipo, c) {
     const paces = { rec: faixaPorVel(vc, 0.6, 0.7), leve: faixaPorVel(vc, 0.7, 0.8), maratona: faixaPorVel(vc, 0.82, 0.88), limiar: faixaPorVel(vc, 0.9, 0.97), intervalado: faixaPorVel(vc, 1.0, 1.06), tiros: faixaPorVel(vc, 1.1, 1.2) };
     return { zonas_auto: { tipo, data: hoje, corrida_id: c.id || null, paces, vc: +vc.toFixed(2), dlinha: dl, resumo: `VC ${f1(vc * 3.6)} km/h (${fmtPace(1000 / vc)})${dl > 0 ? ` · D' ${dl} m` : ''}` }, teste_km: 3.6, teste_seg: Math.round(t2), teste_data: hoje };
   }
-  if (tipo === 'cooper' || tipo === 't2400' || tipo === 't10k') {
+  if (tipo === 'cooper' || tipo === 't2400' || tipo === 't10k' || tipo === 't5k' || tipo === 't3k') {
     let km, seg;
     if (tipo === 'cooper') { const w = temS ? melhorJanelaTempo(S_, 720) : null; const dist = w ? w.v * 720 : (c.duracao_s >= 690 && c.duracao_s <= 760 ? c.distancia_m * 720 / c.duracao_s : null); if (!dist) return null; km = +(dist / 1000).toFixed(2); seg = 720; }
-    else { const L = tipo === 't2400' ? 2400 : 10000; const b = temS ? melhorTrechoDist(S_, L) : null; seg = b ? Math.round(b.seg) : (c.distancia_m >= L * 0.99 && c.distancia_m <= L * 1.05 ? Math.round(c.duracao_s * L / c.distancia_m) : null); if (!seg) return null; km = L / 1000; }
+    else { const L = { t2400: 2400, t5k: 5000, t3k: 3000 }[tipo] || 10000; const b = temS ? melhorTrechoDist(S_, L) : null; seg = b ? Math.round(b.seg) : (c.distancia_m >= L * 0.99 && c.distancia_m <= L * 1.05 ? Math.round(c.duracao_s * L / c.distancia_m) : null); if (!seg) return null; km = L / 1000; }
     if (seg / km < 150) return null;
     return { teste_km: km, teste_seg: seg, teste_data: hoje };
   }
@@ -14092,6 +14094,6 @@ async function staffErros() {
   };
 }
 
-if (window.NX_DEMO) window.__nx = { loading, toast, garminItem, CICLOS_CORR, cicSemanas, kmDe, perfilNiv, analisarDesemp, desempHTML };
+if (window.NX_DEMO) window.__nx = { loading, toast, garminItem, CICLOS_CORR, cicSemanas, kmDe, perfilNiv, analisarDesemp, desempHTML, tipoDoTeste, calcularTeste };
 iniciar();
 })();
