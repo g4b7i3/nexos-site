@@ -395,7 +395,7 @@ async function router() {
       if (a === 'feed') return await staffFeed();
       if (a === 'modelo' && b) return await staffTreinoEditor(null, b, 'modelo');
       if (a === 'biblioteca') return b === 'modelos' ? (location.hash = '#/treinos') : await staffBiblioteca();
-      if (a === 'treinos') return b === 'ciclos' ? await viewCiclos(c) : await staffTreinos(b);
+      if (a === 'treinos') return b === 'ciclos' ? await viewCiclos(c) : b === 'ciclos-forca' ? await viewCiclosForca(c) : await staffTreinos(b);
       if (a === 'relatorios') return await staffRelatorios();
       if (a === 'laboratorio') { if (b === 'dossie' && c) return await staffDossie(c, d); if (b === 'assessoria') return await staffAssessoria(c); return await staffLaboratorio(); }
       if (a === 'mais') return staffMais();
@@ -3374,7 +3374,7 @@ async function viewExecucao(treinoId, preview) {
   if (ajF.length) itens = itens.filter((i) => !pausados.includes(i)).map((i) => { const a = ajF.find((y) => y.item_id === i.id && y.tipo === 'reduzir'); return a ? { ...i, observacao: `Ajuste do treinador: ${a.nota || 'carga reduzida nesta semana.'}${i.observacao ? ' · ' + i.observacao : ''}` } : i; });
   t._pausados = pausados.map((i) => (i.nx_exercicios && i.nx_exercicios.nome) || 'Exercício');
   const exIdsT = [...new Set(itens.map((i) => i.exercicio_id))];
-  const fase = await faseDaSemana(t.aluno_id, isoDia(inicioSemana()));
+  const fase = faseDoTreino(await faseDaSemana(t.aluno_id, isoDia(inicioSemana())), t);
   const [prevs, prevsFase] = await Promise.all([ultimasCargas(t.aluno_id, exIdsT), ultimasCargasFase(t.aluno_id, exIdsT, fase)]);
   const key = 'nx-exec-' + t.id;
   const st = preview ? { feitos: [], cargas: {}, ser: {} } : store.get(key, { feitos: [], ini: null, cargas: {}, ser: {} });
@@ -3513,7 +3513,13 @@ const FASES_F = {
   hipertrofia: { n: 'Hipertrofia', c: 'H', reps: '8 a 12 repetições', desc: 'Volume com controle do movimento, chegando perto da falha.', desc2: 'descanso de 60 a 90 s', cor: '#2f6bff' },
   forca: { n: 'Força', c: 'F', reps: '4 a 6 repetições', desc: 'Carga alta e poucas repetições, com técnica impecável.', desc2: 'descanso de 2 a 3 min', cor: '#e39a12' },
   potencia: { n: 'Potência', c: 'P', reps: '4 a 6 repetições', desc: 'Carga moderada movida o mais rápido possível, com controle.', desc2: 'descanso de 2 a 3 min', cor: '#e5484d' },
+  ondulatorio: { n: 'Ondulatório diário', c: 'O', reps: 'muda a cada treino', desc: 'Treino A em força (4 a 6 repetições), B em hipertrofia (8 a 12) e C em resistência (15 a 20).', desc2: 'descanso conforme o treino do dia', cor: '#b794ff' },
+  deload: { n: 'Semana leve', c: 'L', reps: 'as mesmas repetições', desc: 'Metade das séries e carga uns 10% menor: recupera e consolida os ganhos.', desc2: 'descanso normal', cor: '#8a97b2' },
 };
+// as 4 fases de carga (as outras duas são formas de organizar a semana)
+const FASES_BASE = ['resistencia', 'hipertrofia', 'forca', 'potencia'];
+// no ondulatório diário, a fase de cada treino sai da letra (A força, B hipertrofia, C resistência)
+const faseDoTreino = (fase, t) => { if (fase !== 'ondulatorio') return fase; const l = (String(t && t.titulo || '').match(/\b([A-Z])\b/) || [])[1] || 'B'; return l === 'A' ? 'forca' : l === 'C' ? 'resistencia' : 'hipertrofia'; };
 const faseDaSemana = (alunoId, semana) => sb.from('nx_forca_fases').select('fase').eq('aluno_id', alunoId).eq('semana', semana).maybeSingle().then((r) => (r.data && r.data.fase) || null, () => null);
 const faseCardHTML = (f, extra = '') => { const x = FASES_F[f]; if (!x) return ''; return `<div class="fase-card" style="--fc:${x.cor}"><div class="fase-l"><span class="fase-c">${x.c}</span></div><div class="grow" style="min-width:0"><span class="tiny dim">Semana de</span><b>${x.n}</b><div class="fase-meta"><span>${x.reps}</span><span>${x.desc2}</span></div><p class="small muted">${x.desc}</p>${extra}</div></div>`; };
 // PSR: percepção subjetiva de recuperação (Laurent et al., 2011), 0 a 10, antes do treino
@@ -3555,7 +3561,7 @@ async function metricasForcaHTML(alunoId, semanaRef, sess) {
   const porEx = new Map();
   regs.forEach((r) => { const k = r.exercicio_id || r.exercicio_nome; if (!porEx.has(k)) porEx.set(k, { nome: r.exercicio_nome || 'Exercício', ult: r.criado_em, f: {} }); const e = porEx.get(k); if (!e.f[r.fase]) e.f[r.fase] = r; });
   const exs = [...porEx.values()].slice(0, 10);
-  const tabela = exs.length ? `<div class="mf-tab"><div class="mf-tr mf-th"><span>Exercício</span>${Object.values(FASES_F).map((x) => `<span style="color:${x.cor}">${x.c}</span>`).join('')}</div>${exs.map((e) => `<div class="mf-tr"><span class="ellip">${esc(e.nome)}</span>${Object.keys(FASES_F).map((f) => `<span>${e.f[f] ? `<b>${fN(+e.f[f].carga_kg)}</b>` : '<em>–</em>'}</span>`).join('')}</div>`).join('')}</div><p class="tiny dim" style="margin-top:6px">Última carga (kg) de cada exercício em cada fase: R resistência, H hipertrofia, F força, P potência.</p>` : '<p class="small muted">As cargas por fase aparecem aqui quando o aluno registrar treinos em semanas com fase definida.</p>';
+  const tabela = exs.length ? `<div class="mf-tab"><div class="mf-tr mf-th"><span>Exercício</span>${FASES_BASE.map((k) => FASES_F[k]).map((x) => `<span style="color:${x.cor}">${x.c}</span>`).join('')}</div>${exs.map((e) => `<div class="mf-tr"><span class="ellip">${esc(e.nome)}</span>${FASES_BASE.map((f) => `<span>${e.f[f] ? `<b>${fN(+e.f[f].carga_kg)}</b>` : '<em>–</em>'}</span>`).join('')}</div>`).join('')}</div><p class="tiny dim" style="margin-top:6px">Última carga (kg) de cada exercício em cada fase: R resistência, H hipertrofia, F força, P potência.</p>` : '<p class="small muted">As cargas por fase aparecem aqui quando o aluno registrar treinos em semanas com fase definida.</p>';
   return `<div class="card mf-card"><div class="row between" style="gap:8px;flex-wrap:wrap"><b>Métricas da semana</b><span class="tiny dim">força + corrida</span></div>
     <div class="mf-kpis">
       <div><span>PSR antes do treino</span><b style="color:${psrCor(atual.psr)}">${atual.psr == null ? '–' : f1(atual.psr)}</b><small>${atual.psr == null ? 'sem registro' : PSR_TXT(Math.round(atual.psr))}</small></div>
@@ -11656,6 +11662,95 @@ async function cicAplicar(c, S2) {
     };
   });
 }
+/* ---------- Ciclos de força (periodização): sequência de fases semana a semana ----------
+   Cada semana recebe uma fase (resistência, hipertrofia, força, potência, ondulatório diário ou semana leve).
+   O aluno continua com os treinos dele (A, B, C…); a fase muda a faixa de repetições e o descanso daquela semana.
+   Base: Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015 e Rhea et al. 2002/2003 (J Strength Cond Res);
+   Issurin 2010 (Sports Med, blocos); Bell et al. 2023 (Sports Med Open, semana leve); Blagrove et al. 2018 (Sports Med, força para corredores). */
+const CF_COD = { R: 'resistencia', H: 'hipertrofia', F: 'forca', P: 'potencia', O: 'ondulatorio', L: 'deload' };
+const CF_OBJ = [['res', 'Resistência e adaptação'], ['hip', 'Hipertrofia'], ['for', 'Força e potência'], ['corr', 'Para corredores'], ['macro', 'Macrociclos e transição']];
+const CICLOS_FORCA = [
+  { id: 'cf-adapt', obj: 'res', niv: 'ini', nome: 'Adaptação anatômica', seq: 'RRRL', modelo: 'Linear', desc: 'Primeiro mês de quem começa ou volta: muitas repetições com carga leve para aprender os movimentos e preparar tendões e articulações.' },
+  { id: 'cf-resist', obj: 'res', niv: 'int', nome: 'Resistência muscular', seq: 'RRRLRR', modelo: 'Linear', desc: 'Foco em aguentar mais repetições e treinos longos. Bom para iniciantes avançando e para quem treina provas longas.' },
+  { id: 'cf-rev', obj: 'res', niv: 'int', nome: 'Linear reverso (resistência no fim)', seq: 'FFHHLRRR', modelo: 'Linear reverso', desc: 'Começa pesado e termina com muitas repetições. Na comparação de Rhea et al. (2003), foi o modelo que mais melhorou a resistência muscular.' },
+  { id: 'cf-hip-ini', obj: 'hip', niv: 'ini', nome: 'Hipertrofia linear · iniciante', seq: 'RRHHHLHH', modelo: 'Linear', desc: 'Duas semanas de adaptação e depois hipertrofia (8 a 12 repetições), com uma semana leve no meio.' },
+  { id: 'cf-hip-int', obj: 'hip', niv: 'int', nome: 'Hipertrofia em blocos · intermediário', seq: 'HHHLHHHLFFHL', modelo: 'Blocos', desc: '12 semanas: dois blocos de hipertrofia e um bloco curto de força, que ajuda a mover mais carga quando volta para a hipertrofia.' },
+  { id: 'cf-hip-wup', obj: 'hip', niv: 'int', nome: 'Hipertrofia ondulatória semanal', seq: 'HFHRLHFH', modelo: 'Ondulatório semanal', desc: 'A faixa de repetições muda a cada semana (hipertrofia, força, resistência). Variedade de estímulo com o mesmo volume.' },
+  { id: 'cf-dup', obj: 'hip', niv: 'ava', nome: 'Ondulatório diário (DUP)', seq: 'OOOLOOOL', modelo: 'Ondulatório diário', desc: 'Na mesma semana, o treino A é de força (4 a 6 repetições), o B de hipertrofia (8 a 12) e o C de resistência (15 a 20). Semana leve a cada 4.' },
+  { id: 'cf-lin', obj: 'for', niv: 'int', nome: 'Força linear clássica', seq: 'RRHHHLFFFLPP', modelo: 'Linear', desc: '12 semanas do volume para a intensidade: resistência, hipertrofia, força e, no fim, potência. O modelo mais usado e mais simples de acompanhar.' },
+  { id: 'cf-blocos', obj: 'for', niv: 'ava', nome: 'Força em blocos (acumulação, transmutação e realização)', seq: 'HHHFFFLPPL', modelo: 'Blocos', desc: 'Modelo de Issurin: 3 semanas de acumulação (hipertrofia), 3 de transmutação (força) e realização (potência), com semanas leves.' },
+  { id: 'cf-pot', obj: 'for', niv: 'ava', nome: 'Força e potência', seq: 'HFFLFPPL', modelo: 'Linear', desc: 'Para quem já tem base: sobe a carga e termina com potência (carga moderada movida o mais rápido possível).' },
+  { id: 'cf-corr', obj: 'corr', niv: 'int', nome: 'Força para corredores (economia de corrida)', seq: 'RHFLFPFP', modelo: 'Linear', desc: 'Força pesada e potência melhoram a economia de corrida sem aumentar o peso (Blagrove et al. 2018). Combine com a fase de base da corrida.' },
+  { id: 'cf-corr-temp', obj: 'corr', niv: 'int', nome: 'Manutenção de força na temporada de provas', seq: 'FPFL', modelo: 'Manutenção', desc: 'Pouco volume e carga alta para manter a força durante a fase específica e as provas. Repita enquanto durar a temporada.' },
+  { id: 'cf-corr-pre', obj: 'corr', niv: 'ini', nome: 'Pré-temporada do corredor (base de força)', seq: 'RRHHLFFL', modelo: 'Linear', desc: 'Acompanha a Pré-temporada Nexos de corrida: começa leve, constrói hipertrofia e termina com força.' },
+  { id: 'cf-anual', obj: 'macro', niv: 'ava', nome: 'Macrociclo de 6 meses', seq: 'RRRLHHHLHHHLFFFLFFFLPPPL', modelo: 'Linear em blocos', desc: '24 semanas: resistência, dois blocos de hipertrofia, dois de força e um de potência, cada um com a sua semana leve.' },
+  { id: 'cf-deload', obj: 'macro', niv: 'int', nome: 'Semana leve e transição', seq: 'LL', modelo: 'Recuperação', desc: 'Duas semanas leves entre ciclos ou depois de uma prova: metade das séries e carga um pouco menor.' },
+];
+const CF_REFS = 'Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015 e Rhea et al. 2002 e 2003 (J Strength Cond Res); Issurin 2010 (Sports Med); Bell et al. 2023 (Sports Med Open); Blagrove et al. 2018 (Sports Med).';
+const cfFases = (c) => [...c.seq].map((x) => CF_COD[x]);
+const cfBarra = (fs) => `<div class="cic-barra">${fs.map((f) => `<i style="background:${FASES_F[f].cor}" title="${esc(FASES_F[f].n)}"></i>`).join('')}</div><div class="cic-leg">${[...new Set(fs)].map((f) => `<span><i style="background:${FASES_F[f].cor}"></i>${FASES_F[f].n}</span>`).join('')}</div>`;
+async function viewCiclosForca(id) {
+  if (id) return viewCicloForca(id);
+  const st = S.cache.cfObj || (S.cache.cfObj = { o: store.get('nx-cf-obj', 'hip') });
+  const desenha = () => {
+    const L = CICLOS_FORCA.filter((c) => c.obj === st.o);
+    $app.innerHTML = `<a class="back" href="#/treinos">${I.back} Treinos de musculação</a><p class="eyebrow">Biblioteca de força</p><h1 class="h1">Ciclos de força</h1>
+      <p class="muted" style="margin-top:6px">Periodização pronta: cada semana recebe uma fase, que muda a faixa de repetições e o descanso. O aluno continua com os treinos dele (A, B, C). Ao aplicar, as fases vão para as semanas do aluno; a liberação continua com você.</p>
+      <div class="chips" id="cf-o" style="margin-top:14px">${CF_OBJ.map(([k, l]) => `<button type="button" class="chip ${k === st.o ? 'on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>
+      <div class="stack" style="margin-top:12px">${L.map((c) => { const fs = cfFases(c); return `<a class="card tap cic-card" href="#/treinos/ciclos-forca/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[c.niv]}</span><span class="tag">${fs.length} semana${fs.length > 1 ? 's' : ''}</span><span class="tag">${esc(c.modelo)}</span></div></div>${I.chev}</div>${cfBarra(fs)}<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p></a>`; }).join('')}</div>`;
+    document.getElementById('cf-o').onclick = (e) => { const x = e.target.closest('[data-o]'); if (!x) return; st.o = x.dataset.o; store.set('nx-cf-obj', st.o); desenha(); };
+  };
+  desenha();
+}
+function viewCicloForca(id) {
+  const c = CICLOS_FORCA.find((x) => x.id === id); if (!c) { location.replace('#/treinos/ciclos-forca'); return; }
+  const fs = cfFases(c);
+  const MODELO = {
+    Linear: 'Periodização linear: começa com mais repetições e carga menor e, a cada bloco, diminui as repetições e aumenta a carga. Programas periodizados ganham mais força do que os não periodizados (Williams et al. 2017).',
+    'Linear reverso': 'Linear reverso: começa pesado e termina com muitas repetições. Indicado quando o objetivo final é resistência muscular (Rhea et al. 2003).',
+    'Ondulatório semanal': 'Ondulatório semanal: a faixa de repetições muda de uma semana para a outra. Com o mesmo volume, linear e ondulatório trazem ganhos parecidos de força e hipertrofia (Harries et al. 2015; Moesgaard et al. 2022); a escolha pode ser pela preferência e pela rotina do aluno.',
+    'Ondulatório diário': 'Ondulatório diário (DUP): treino A em força, B em hipertrofia e C em resistência na mesma semana (Rhea et al. 2002). O app mostra ao aluno a faixa certa em cada treino.',
+    Blocos: 'Periodização em blocos (Issurin 2010): concentra um objetivo por vez (acumulação, transmutação, realização), em blocos de 2 a 4 semanas.',
+    'Linear em blocos': 'Macrociclo em blocos lineares, cada um com a sua semana leve. A semana leve (metade das séries, carga ~10% menor) ajuda a recuperar e a consolidar os ganhos (Bell et al. 2023).',
+    Manutenção: 'Manutenção: com pouco volume e carga alta é possível manter a força por semanas, desde que a intensidade continue alta.',
+    Recuperação: 'Semanas leves: metade das séries e carga um pouco menor, mantendo os movimentos.',
+  };
+  $app.innerHTML = `<a class="back" href="#/treinos/ciclos-forca">${I.back} Ciclos de força</a><p class="eyebrow">${esc((CF_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
+    <p class="muted" style="margin-top:6px">${esc(c.desc)}</p>
+    <div class="card" style="margin-top:14px"><div class="ck-res"><div><b>${fs.length}</b><span>semanas</span></div><div><b style="font-size:1.05rem">${esc(c.modelo)}</b><span>modelo</span></div></div>${cfBarra(fs)}</div>
+    <button class="btn block" id="cf-apl" style="margin-top:12px">${I.users} Aplicar a um aluno</button>
+    <div class="card" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${MODELO[c.modelo] || ''}</p><p class="tiny dim" style="margin-top:8px">${CF_REFS}</p></div>
+    <p class="sec-lbl">Semana a semana</p><div class="stack">${fs.map((f, i) => { const x = FASES_F[f]; return `<div class="card cf-sem" style="--fc:${x.cor}"><span class="fase-c">${x.c}</span><div class="grow" style="min-width:0"><b>Semana ${i + 1} · ${x.n}</b><p class="small muted" style="margin-top:2px">${x.reps} · ${x.desc2}</p><p class="tiny dim" style="margin-top:2px">${x.desc}</p></div></div>`; }).join('')}</div>`;
+  document.getElementById('cf-apl').onclick = () => cfAplicar(c, fs);
+}
+async function cfAplicar(c, fs) {
+  const ms = await sb.from('nx_membros').select('user_id,nome,ativo,aprovacao,treinador_id,modalidades').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
+  const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('musculacao', m));
+  const prox = (() => { const d = inicioSemana(); d.setDate(d.getDate() + 7); return isoDia(d); })();
+  openSheet(`<p class="eyebrow">Aplicar ciclo de força</p><div class="h2" style="margin-top:4px">${esc(c.nome)}</div>
+    <form id="f-cf" style="margin-top:14px">
+      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}">${esc(m.nome)}</option>`).join('')}</select></label>
+      <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
+      <p class="small" id="cf-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
+      <p class="tiny dim" style="margin-bottom:12px">As fases dessas semanas são trocadas pelas do ciclo. Os treinos do aluno e a liberação das semanas não mudam.</p>
+      <button class="btn block" type="submit">Aplicar ${fs.length} semana${fs.length > 1 ? 's' : ''}</button></form>`, (r) => {
+    const f = r.querySelector('#f-cf');
+    const atual = () => { const ini = isoDia(inicioSemana(dia(f.ini.value || prox))); const fim = dia(ini); fim.setDate(fim.getDate() + 7 * fs.length - 1); r.querySelector('#cf-fim').textContent = `Vai de ${fmtDia(ini)} a ${fmtDia(isoDia(fim))}.`; };
+    f.oninput = atual; atual();
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const alunoId = f.aluno.value; if (!alunoId) return toast('Escolha o aluno.', true);
+      const b = f.querySelector('button[type=submit]'); b.disabled = true;
+      const ini = inicioSemana(dia(f.ini.value || prox));
+      const rows = fs.map((fase, i) => { const d = new Date(ini); d.setDate(d.getDate() + 7 * i); return { org_id: S.org.id, aluno_id: alunoId, semana: isoDia(d), fase, criado_por: S.user.id }; });
+      const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' });
+      if (error) { console.error(error); b.disabled = false; return toast('Não foi possível aplicar. Tente de novo.', true); }
+      const m = alunos.find((x) => x.user_id === alunoId);
+      closeSheet(true); toast(`Ciclo aplicado: ${fs.length} semanas de ${firstName(m && m.nome)}.`);
+      location.hash = `#/aluno/${alunoId}/forca`;
+    };
+  });
+}
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
   if (aba !== 'corrida') return staffBiblioteca('modelos');
@@ -12391,6 +12486,7 @@ async function staffBiblioteca(aba) {
       const cont = (k) => k === 'meus' ? mods.length : BIB_FORCA.filter((pg) => pg.niv === k).length;
       $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('musculacao')}
         <p class="muted small">Biblioteca de força da Nexos por nível e objetivo, montada com as recomendações mais recentes (posição do ACSM de 2026 e meta-análises de 2021 a 2026). Aplique o programa inteiro a um aluno ou salve nos seus modelos para ajustar.</p>
+        <a class="card tap cic-cta" href="#/treinos/ciclos-forca" style="color:inherit"><span class="ativ-ic">${I.cal}</span><div class="grow"><b>Ciclos de força (periodização)</b><div class="small muted">Linear, linear reverso, ondulatório semanal e diário, blocos e macrociclo de 6 meses. Aplica as fases semana a semana no aluno.</div></div>${I.chev}</a>
         <div class="niv-tabs niv-f" id="fniv">${[...NIVEIS_FORCA, ['meus', 'Meus modelos']].map(([k, l]) => `<button type="button" class="${sel === k ? 'on' : ''}" data-fniv="${k}"><b>${l}</b><span>${cont(k)} ${k === 'meus' ? 'modelos' : 'programas'}</span></button>`).join('')}</div>
         ${meus ? `<div class="cols" style="margin-top:16px" id="mods">${mods.map(cardMeu).join('') || '<div class="empty" style="grid-column:1/-1"><div class="h3">Nenhum modelo ainda</div><p class="small">Crie no + ou salve um programa da biblioteca para ajustar do seu jeito.</p></div>'}</div>`
           : `<div class="card guia-niv"><span class="eyebrow">Como montar · ${nomeNiv[sel]}</span><ul>${GUIA_FORCA[sel].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>

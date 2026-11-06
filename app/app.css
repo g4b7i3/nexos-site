@@ -2962,3 +2962,5 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .pd-op{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .pd-op span{padding:5px 10px;border-radius:20px;border:1.5px solid var(--line);font-size:.8rem;color:var(--mute)}
 .pd-op span.on{color:var(--ink);font-weight:800}
+.cf-sem{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-left:4px solid var(--fc)}
+.cf-sem .fase-c{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:color-mix(in srgb,var(--fc) 18%,transparent);color:var(--fc);font-weight:800;font-family:var(--f-h)}
