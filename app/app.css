@@ -2386,9 +2386,9 @@ html[data-tema="escuro"] .cp-lin{stroke:rgba(190,210,245,.35)}
 .mom-med{width:66px;height:74px;filter:drop-shadow(0 8px 16px rgba(var(--p3r),.45))}
 .mom-ic{border-radius:18px;background:linear-gradient(135deg,var(--p1),var(--p3));box-shadow:0 8px 18px -8px rgba(var(--p1r),.7)}
 /* selo */
-.selo{display:block;width:100%;height:100%}
-.selo.off{color:var(--line2)}
-.selo.on{filter:drop-shadow(0 6px 12px rgba(var(--p3r),.35))}
+svg.selo{display:block;width:100%;height:100%}
+svg.selo.off{color:var(--line2)}
+svg.selo.on{filter:drop-shadow(0 6px 12px rgba(var(--p3r),.35))}
 /* página de medalhas */
 .med-hero{display:flex;gap:18px;align-items:center;margin:4px 0 6px;padding:18px;border-radius:24px;color:#fff;background:radial-gradient(120% 90% at 100% 0%,rgba(var(--p1r),.32),transparent 55%),linear-gradient(150deg,var(--h1),var(--h2) 60%,var(--h3));box-shadow:0 14px 34px -18px rgba(8,30,80,.7)}
 .med-hero h1{font-family:var(--f-h);font-size:1.4rem;font-weight:600;margin-top:4px}
@@ -2430,7 +2430,7 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .ad-h span:nth-child(4){color:var(--p3)}
 .card.mom-card,.card.mom-card.retro-cta,.card.prova-modo{background:radial-gradient(120% 90% at 100% 0%,rgba(var(--p1r),.28),transparent 55%),linear-gradient(150deg,var(--h1) 0%,var(--h2) 60%,var(--h3) 100%)!important;color:#fff!important}
 .med.on{background:radial-gradient(120% 80% at 100% 0%,rgba(var(--p1r),.25),transparent 60%),linear-gradient(160deg,var(--h1),var(--h2))!important}
-.selo{box-shadow:none!important;border-radius:0!important;background:none!important}
+svg.selo{box-shadow:none!important;border-radius:0!important;background:none!important}
 .mom-card .h3,.prova-modo .h3,.prova-modo b{color:#fff}
 .vcv-g>div.hj{background:linear-gradient(150deg,var(--h1),var(--h2))!important}
 .selo-n{font-family:var(--f-h);font-weight:700;letter-spacing:-.02em}

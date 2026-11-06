@@ -3515,11 +3515,19 @@ const FASES_F = {
   potencia: { n: 'Potência', c: 'P', reps: '4 a 6 repetições', desc: 'Carga moderada movida o mais rápido possível, com controle.', desc2: 'descanso de 2 a 3 min', cor: '#e5484d' },
   ondulatorio: { n: 'Ondulatório diário', c: 'O', reps: 'muda a cada treino', desc: 'Treino A em força (4 a 6 repetições), B em hipertrofia (8 a 12) e C em resistência (15 a 20).', desc2: 'descanso conforme o treino do dia', cor: '#b794ff' },
   deload: { n: 'Semana leve', c: 'L', reps: 'as mesmas repetições', desc: 'Metade das séries e carga uns 10% menor: recupera e consolida os ganhos.', desc2: 'descanso normal', cor: '#8a97b2' },
+  flexivel: { n: 'Ondulatório flexível', c: 'X', reps: 'escolhida pela recuperação do dia', desc: 'Bem recuperado: 4 a 6 repetições pesadas. Normal: 8 a 12. Cansado ou dormiu mal: 15 a 20 com carga leve.', desc2: 'descanso conforme a faixa escolhida', cor: '#14b8a6' },
+  autorregulada: { n: 'Autorregulada (RIR)', c: 'A', reps: 'as do treino, carga pelo esforço', desc: 'Ajuste a carga para terminar cada série com 2 repetições sobrando (RIR 2). Sobrou mais? Aumente na próxima série. Sobrou menos? Diminua.', desc2: 'descanso normal', cor: '#d946ef' },
+  conjugada: { n: 'Conjugada (Westside)', c: 'C', reps: 'muda a cada treino', desc: 'Treino A de esforço máximo (1 a 3 repetições bem pesadas), B de esforço dinâmico (carga média movida o mais rápido possível) e C de repetições (8 a 12).', desc2: 'descanso de 2 a 3 min nos pesados e explosivos', cor: '#f97316' },
 };
 // as 4 fases de carga (as outras duas são formas de organizar a semana)
 const FASES_BASE = ['resistencia', 'hipertrofia', 'forca', 'potencia'];
 // no ondulatório diário, a fase de cada treino sai da letra (A força, B hipertrofia, C resistência)
-const faseDoTreino = (fase, t) => { if (fase !== 'ondulatorio') return fase; const l = (String(t && t.titulo || '').match(/\b([A-Z])\b/) || [])[1] || 'B'; return l === 'A' ? 'forca' : l === 'C' ? 'resistencia' : 'hipertrofia'; };
+const faseDoTreino = (fase, t) => {
+  if (fase !== 'ondulatorio' && fase !== 'conjugada') return fase;
+  const l = (String(t && t.titulo || '').match(/\b([A-Z])\b/) || [])[1] || 'B';
+  if (fase === 'conjugada') return l === 'A' ? 'forca' : l === 'B' ? 'potencia' : 'hipertrofia'; // esforço máximo, dinâmico e repetições
+  return l === 'A' ? 'forca' : l === 'C' ? 'resistencia' : 'hipertrofia';
+};
 const faseDaSemana = (alunoId, semana) => sb.from('nx_forca_fases').select('fase').eq('aluno_id', alunoId).eq('semana', semana).maybeSingle().then((r) => (r.data && r.data.fase) || null, () => null);
 const faseCardHTML = (f, extra = '') => { const x = FASES_F[f]; if (!x) return ''; return `<div class="fase-card" style="--fc:${x.cor}"><div class="fase-l"><span class="fase-c">${x.c}</span></div><div class="grow" style="min-width:0"><span class="tiny dim">Semana de</span><b>${x.n}</b><div class="fase-meta"><span>${x.reps}</span><span>${x.desc2}</span></div><p class="small muted">${x.desc}</p>${extra}</div></div>`; };
 // PSR: percepção subjetiva de recuperação (Laurent et al., 2011), 0 a 10, antes do treino
@@ -11793,7 +11801,7 @@ async function cicAplicar(c, S2) {
    O aluno continua com os treinos dele (A, B, C…); a fase muda a faixa de repetições e o descanso daquela semana.
    Base: Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015 e Rhea et al. 2002/2003 (J Strength Cond Res);
    Issurin 2010 (Sports Med, blocos); Bell et al. 2023 (Sports Med Open, semana leve); Blagrove et al. 2018 (Sports Med, força para corredores). */
-const CF_COD = { R: 'resistencia', H: 'hipertrofia', F: 'forca', P: 'potencia', O: 'ondulatorio', L: 'deload' };
+const CF_COD = { R: 'resistencia', H: 'hipertrofia', F: 'forca', P: 'potencia', O: 'ondulatorio', L: 'deload', X: 'flexivel', A: 'autorregulada', C: 'conjugada' };
 const CF_OBJ = [['res', 'Resistência e adaptação'], ['hip', 'Hipertrofia'], ['for', 'Força e potência'], ['corr', 'Para corredores'], ['macro', 'Macrociclos e transição']];
 const CICLOS_FORCA = [
   { id: 'cf-adapt', obj: 'res', niv: 'ini', nome: 'Adaptação anatômica', seq: 'RRRL', modelo: 'Linear', desc: 'Primeiro mês de quem começa ou volta: muitas repetições com carga leve para aprender os movimentos e preparar tendões e articulações.' },
@@ -11803,6 +11811,9 @@ const CICLOS_FORCA = [
   { id: 'cf-hip-int', obj: 'hip', niv: 'int', nome: 'Hipertrofia em blocos · intermediário', seq: 'HHHLHHHLFFHL', modelo: 'Blocos', desc: '12 semanas: dois blocos de hipertrofia e um bloco curto de força, que ajuda a mover mais carga quando volta para a hipertrofia.' },
   { id: 'cf-hip-wup', obj: 'hip', niv: 'int', nome: 'Hipertrofia ondulatória semanal', seq: 'HFHRLHFH', modelo: 'Ondulatório semanal', desc: 'A faixa de repetições muda a cada semana (hipertrofia, força, resistência). Variedade de estímulo com o mesmo volume.' },
   { id: 'cf-dup', obj: 'hip', niv: 'ava', nome: 'Ondulatório diário (DUP)', seq: 'OOOLOOOL', modelo: 'Ondulatório diário', desc: 'Na mesma semana, o treino A é de força (4 a 6 repetições), o B de hipertrofia (8 a 12) e o C de resistência (15 a 20). Semana leve a cada 4.' },
+  { id: 'cf-flex', obj: 'hip', niv: 'int', nome: 'Ondulatório flexível', seq: 'XXXLXXXL', modelo: 'Ondulatório flexível', desc: 'O aluno escolhe a faixa do dia pela recuperação: pesado quando está bem, moderado quando está normal e leve quando está cansado. Bom para quem tem rotina pesada, sono irregular ou treina corrida junto.' },
+  { id: 'cf-rir', obj: 'for', niv: 'int', nome: 'Autorregulada por repetições sobrando (RIR)', seq: 'AAALAAAL', modelo: 'Autorregulada', desc: 'As repetições seguem o treino, mas a carga sai do esforço do dia: cada série termina com 2 repetições sobrando. Ajusta sozinho aos dias bons e ruins.' },
+  { id: 'cf-conj', obj: 'for', niv: 'ava', nome: 'Conjugada (Westside)', seq: 'CCCLCCCL', modelo: 'Conjugada', desc: 'Na mesma semana: treino A de esforço máximo, B de esforço dinâmico (velocidade) e C de repetições. Para quem já tem boa técnica nos levantamentos.' },
   { id: 'cf-lin', obj: 'for', niv: 'int', nome: 'Força linear clássica', seq: 'RRHHHLFFFLPP', modelo: 'Linear', desc: '12 semanas do volume para a intensidade: resistência, hipertrofia, força e, no fim, potência. O modelo mais usado e mais simples de acompanhar.' },
   { id: 'cf-blocos', obj: 'for', niv: 'ava', nome: 'Força em blocos (acumulação, transmutação e realização)', seq: 'HHHFFFLPPL', modelo: 'Blocos', desc: 'Modelo de Issurin: 3 semanas de acumulação (hipertrofia), 3 de transmutação (força) e realização (potência), com semanas leves.' },
   { id: 'cf-pot', obj: 'for', niv: 'ava', nome: 'Força e potência', seq: 'HFFLFPPL', modelo: 'Linear', desc: 'Para quem já tem base: sobe a carga e termina com potência (carga moderada movida o mais rápido possível).' },
@@ -11812,7 +11823,7 @@ const CICLOS_FORCA = [
   { id: 'cf-anual', obj: 'macro', niv: 'ava', nome: 'Macrociclo de 6 meses', seq: 'RRRLHHHLHHHLFFFLFFFLPPPL', modelo: 'Linear em blocos', desc: '24 semanas: resistência, dois blocos de hipertrofia, dois de força e um de potência, cada um com a sua semana leve.' },
   { id: 'cf-deload', obj: 'macro', niv: 'int', nome: 'Semana leve e transição', seq: 'LL', modelo: 'Recuperação', desc: 'Duas semanas leves entre ciclos ou depois de uma prova: metade das séries e carga um pouco menor.' },
 ];
-const CF_REFS = 'Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015 e Rhea et al. 2002 e 2003 (J Strength Cond Res); Issurin 2010 (Sports Med); Bell et al. 2023 (Sports Med Open); Blagrove et al. 2018 (Sports Med).';
+const CF_REFS = 'Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015, Rhea et al. 2002 e 2003 e McNamara & Stearne 2010 (J Strength Cond Res); Issurin 2010 e Greig et al. 2020 (Sports Med); Helms et al. 2016 (Strength Cond J); Bell et al. 2023 (Sports Med Open); Blagrove et al. 2018 (Sports Med).';
 const cfFases = (c) => [...c.seq].map((x) => CF_COD[x]);
 const cfBarra = (fs) => `<div class="cic-barra">${fs.map((f) => `<i style="background:${FASES_F[f].cor}" title="${esc(FASES_F[f].n)}"></i>`).join('')}</div><div class="cic-leg">${[...new Set(fs)].map((f) => `<span><i style="background:${FASES_F[f].cor}"></i>${FASES_F[f].n}</span>`).join('')}</div>`;
 async function viewCiclosForca(id) {
@@ -11840,6 +11851,9 @@ function viewCicloForca(id) {
     'Linear em blocos': 'Macrociclo em blocos lineares, cada um com a sua semana leve. A semana leve (metade das séries, carga ~10% menor) ajuda a recuperar e a consolidar os ganhos (Bell et al. 2023).',
     Manutenção: 'Manutenção: com pouco volume e carga alta é possível manter a força por semanas, desde que a intensidade continue alta.',
     Recuperação: 'Semanas leves: metade das séries e carga um pouco menor, mantendo os movimentos.',
+    'Ondulatório flexível': 'Ondulatório flexível: a faixa do dia é escolhida pela recuperação. Em estudo com universitários iniciantes, rendeu ganhos de força iguais ou maiores que o ondulatório fixo (McNamara & Stearne 2010, J Strength Cond Res). O app já pergunta a recuperação (PSR) antes de cada treino.',
+    Autorregulada: 'Autorregulação: a carga é ajustada pelo esforço do dia, usando as repetições sobrando (RIR) ou a velocidade da barra (Helms et al. 2016, Strength Cond J). As revisões indicam que é pelo menos tão eficaz quanto a carga fixa em porcentagem e lida melhor com o cansaço do dia a dia (Greig et al. 2020, Sports Med).',
+    Conjugada: 'Conjugada (Westside, Louie Simmons): esforço máximo, esforço dinâmico e repetições na mesma semana. Muito usada no powerlifting; a pesquisa controlada é pouca, então a base é principalmente prática.',
   };
   $app.innerHTML = `<a class="back" href="#/treinos/ciclos-forca">${I.back} Ciclos de força</a><p class="eyebrow">${esc((CF_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
     <p class="muted" style="margin-top:6px">${esc(c.desc)}</p>
