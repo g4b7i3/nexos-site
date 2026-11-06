@@ -1033,11 +1033,12 @@ async function dadosSugestoes(alunoIds, diasPront = 2) {
   const ids = [...new Set(comDor.map((p) => p.aluno_id))];
   if (!ids.length) return [];
   const ini28 = isoDia(Date.now() - 28 * 864e5);
-  const [membs, corrs, trs, sess] = await Promise.all([
+  const [membs, corrs, trs, sess, ajs] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,sexo,modalidades,foto_url').eq('org_id', S.org.id).in('user_id', ids).then((r) => r.data || [], () => []),
     sb.from('nx_corridas').select('aluno_id,data,distancia_m,rpe,tipo,titulo').in('aluno_id', ids).gte('data', ini28).then((r) => r.data || [], () => []),
     sb.from('nx_treinos').select('aluno_id,titulo,nx_treino_itens(nx_exercicios(nome))').in('aluno_id', ids).eq('ativo', true).then((r) => r.data || [], () => []),
     sb.from('nx_sessoes').select('aluno_id,iniciado_em,psr,fase,treino_titulo').in('aluno_id', ids).gte('iniciado_em', isoDia(Date.now() - 7 * 864e5)).then((r) => r.data || [], () => []),
+    sb.from('nx_ajustes_dor').select('id,chave,criado_em,desfeito_em').eq('org_id', S.org.id).in('aluno_id', ids).is('desfeito_em', null).then((r) => r.data || [], () => []),
   ]);
   const out = [], vistos = new Set();
   for (const p of comDor) { // pronts vêm do mais novo ao mais antigo: vale a queixa mais recente de cada região
@@ -1047,7 +1048,9 @@ async function dadosSugestoes(alunoIds, diasPront = 2) {
     for (const k of regs) {
       if (vistos.has(p.aluno_id + k)) continue; vistos.add(p.aluno_id + k);
       const chave = `${p.id}:${k}`; if (ocultas.has(chave)) continue;
-      out.push(montarSugestao(p, k, m, corrs.filter((c) => c.aluno_id === p.aluno_id), trs.filter((t) => t.aluno_id === p.aluno_id), sess.filter((x) => x.aluno_id === p.aluno_id), rep(k), chave));
+      const sg = montarSugestao(p, k, m, corrs.filter((c) => c.aluno_id === p.aluno_id), trs.filter((t) => t.aluno_id === p.aluno_id), sess.filter((x) => x.aluno_id === p.aluno_id), rep(k), chave);
+      if (sg) sg.ajuste = ajs.find((a) => a.chave === chave) || null;
+      out.push(sg);
     }
   }
   return out.filter(Boolean);
@@ -1091,8 +1094,157 @@ function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave) {
     if (pesado && forteC) dados.push('Força e corrida intensa nos últimos 2 dias: a soma das cargas pode ter contribuído.');
   }
   if (!blocos.length && !alertas.length) return null;
-  return { chave, p, k, m, blocos, dados, alertas };
+  return { chave, p, k, m, blocos, dados, alertas, rep: repeticoes };
 }
+
+/* ---------- ajuste pronto a partir da sugestão: treinos e textos escritos como o treinador ---------- */
+const REG_PERNA = ['joelho', 'canela', 'panturrilha', 'aquiles', 'calcanhar', 'pe', 'tornozelo', 'coxa_t', 'coxa_f', 'quadril', 'gluteo', 'lombar'];
+const DICA_DOR = {
+  joelho: 'Evite descidas e mantenha passadas curtas, com a cadência um pouco mais alta.',
+  canela: 'Prefira terra batida ou grama. Se a dor aumentar durante a corrida, pare e caminhe.',
+  panturrilha: 'Sem subidas e sem acelerações por enquanto.',
+  aquiles: 'Sem subidas e sem tiros. Só corra se não sentir dor ao caminhar.',
+  calcanhar: 'Evite piso duro e andar descalço. Alongue a sola do pé e a panturrilha depois do treino.',
+  pe: 'Corra em piso regular e firme. Se a dor for num ponto do osso, me avise antes de correr.',
+  tornozelo: 'Piso regular, nada de trilha por enquanto.',
+  coxa_t: 'Nada de tiros ou acelerações. Rodagem leve e sem dor.',
+  coxa_f: 'Evite descidas nesta semana.',
+  quadril: 'Ritmo confortável e sem subidas. Se a dor for profunda na virilha, me avise.',
+  gluteo: 'Ritmo confortável e sem subidas. Se a dor descer para a perna, me avise.',
+  lombar: 'Ritmo confortável, postura alta e core ativo. Se a dor descer para a perna, me avise.',
+};
+const ehForte = (p) => /tiros|intervalado|ritmo|fartlek|longao|teste/.test(p.tipo || '') || estruturaDe(p).some((e) => ['limiar', 'intervalado', 'tiros'].includes(e.z) || (e.passos || []).some((x) => ['limiar', 'intervalado', 'tiros'].includes(x.z)));
+const nivelDor = (x) => ((x.p.dor_int != null && x.p.dor_int >= 7) || x.rep >= 3 || x.p.dor === 1 ? 'alto' : x.p.dor_int != null && x.p.dor_int <= 3 ? 'leve' : 'medio');
+const min5 = (v) => Math.max(15, Math.round(v / 5) * 5);
+async function dadosAjuste(x) {
+  const hoje = hojeISO(), fimSem = somaDias(isoDia(inicioSemana()), 6);
+  const ate = fimSem > somaDias(hoje, 2) ? fimSem : somaDias(hoje, 6);
+  const [pl, trs, mb] = await Promise.all([
+    sb.from('nx_plano_corrida').select('*').eq('aluno_id', x.m.user_id).gte('data', hoje).lte('data', ate).order('data').then((r) => r.data || [], () => []),
+    sb.from('nx_treinos').select('id,titulo,nx_treino_itens(id,observacao,nx_exercicios(nome))').eq('aluno_id', x.m.user_id).eq('ativo', true).then((r) => r.data || [], () => []),
+    sb.from('nx_membros').select('corrida,nascimento,nome').eq('org_id', S.org.id).eq('user_id', x.m.user_id).maybeSingle().then((r) => r.data || {}, () => ({})),
+  ]);
+  const ids = pl.map((q) => q.id);
+  const feitos = ids.length ? await sb.from('nx_corridas').select('plano_id').in('plano_id', ids).then((r) => new Set((r.data || []).map((c) => c.plano_id)), () => new Set()) : new Set();
+  return { plano: pl.filter((q) => !feitos.has(q.id) && q.tipo !== 'prova'), provas: pl.filter((q) => q.tipo === 'prova'), trs, perfil: perfilCorrida({ ...x.m, ...mb }), ate };
+}
+function proporAjuste(x, d, nivel) {
+  const b = baseReg(x.k), reg = nomeRegDor(x.k).toLowerCase(), hoje = hojeISO();
+  const motivo = `Ajustado por causa da dor ${x.p.dor_int != null ? `(${x.p.dor_int}/10) ` : ''}que você marcou no check-in: ${reg}.`;
+  const dica = DICA_DOR[b] || '';
+  const fim = 'Se a dor passar de 5 de 10 durante o treino, pare e me avise.';
+  const corr = [];
+  if (faz('corrida', x.m) && REG_PERNA.includes(b)) {
+    d.plano.filter((q) => !semCorrida(q)).forEach((q) => {
+      const tt = estimaTotalSeg(estruturaDe(q), d.perfil), durMin = tt && tt[1] ? (tt[0] + tt[1]) / 2 / 60 : (+q.duracao_min || 40);
+      const forte = ehForte(q); let novo = null;
+      if (nivel === 'alto') novo = q.data === hoje ? { tipo: 'folga', titulo: 'Folga (recuperação)', min: null, z: null } : forte ? { tipo: 'regenerativo', titulo: 'Regenerativo', min: Math.min(30, min5(durMin * 0.5)), z: 'rec' } : { tipo: 'regenerativo', titulo: 'Regenerativo', min: Math.min(35, min5(durMin * 0.6)), z: 'rec' };
+      else if (nivel === 'medio') novo = forte ? { tipo: 'rodagem', titulo: 'Rodagem leve', min: min5(durMin * 0.8), z: 'leve' } : durMin > 25 ? { tipo: q.tipo === 'regenerativo' ? 'regenerativo' : 'rodagem', titulo: q.tipo === 'regenerativo' ? 'Regenerativo' : 'Rodagem leve', min: min5(durMin * 0.8), z: q.tipo === 'regenerativo' ? 'rec' : 'leve' } : null;
+      else novo = forte ? { tipo: 'rodagem', titulo: 'Rodagem leve', min: min5(durMin), z: 'leve' } : null;
+      if (!novo) return;
+      const desc = novo.tipo === 'folga'
+        ? `${motivo} Hoje é dia de descanso para a região recuperar. ${nivel === 'alto' ? 'Quero que você procure uma avaliação antes de voltar a correr.' : ''}`.trim()
+        : `${motivo} Troquei ${q.titulo ? `"${q.titulo}"` : 'o treino'} por ${novo.titulo.toLowerCase()} de ${novo.min} min em ritmo confortável. ${dica} ${fim}`.replace(/\s+/g, ' ').trim();
+      corr.push({ q, novo, desc, de: `${q.titulo || nomeTipo(q.tipo)}${durMin ? ` (~${Math.round(durMin)} min)` : ''}`, para: novo.tipo === 'folga' ? 'Folga' : `${novo.titulo} ${novo.min} min` });
+    });
+  }
+  const forca = [];
+  if (faz('musculacao', x.m) && SUG_DOR[b] && SUG_DOR[b].f) {
+    const re = SUG_DOR[b].f[0];
+    d.trs.forEach((t) => (t.nx_treino_itens || []).forEach((it) => {
+      const n = it.nx_exercicios && it.nx_exercicios.nome; if (!n || !(re.test(semAcento(n)) || re.test(n.toLowerCase()))) return;
+      const impacto = /salto|pliom|corda|box|pular/.test(semAcento(n));
+      const tipo = nivel === 'alto' || impacto ? 'pausar' : 'reduzir';
+      const nota = tipo === 'pausar' ? `Pausado até ${fmtCurto(d.ate)} por causa da dor: ${reg}. Pule este exercício.` : `Até ${fmtCurto(d.ate)}: use cerca de 30% menos carga e amplitude confortável, sem dor. Motivo: dor (${reg}).`;
+      forca.push({ it, t, n, tipo, nota });
+    }));
+  }
+  return { corr, forca, msg: msgAjuste(x, corr, forca, nivel) };
+}
+function msgAjuste(x, corr, forca, nivel) {
+  const b = baseReg(x.k), reg = nomeRegDor(x.k).toLowerCase(), dica = DICA_DOR[b] || '', fim = 'Se a dor passar de 5 de 10 durante o treino, pare e me avise.';
+  const diaC = (q) => `${DSEM[dsemIdx(q.data)].slice(0, 3)} ${fmtCurto(q.data)}`;
+  const linhas = [...corr.map((c) => `- ${diaC(c.q)}: ${c.para}`), ...forca.map((f) => `- ${f.n}: ${f.tipo === 'pausar' ? 'pausado' : 'carga reduzida'}`)];
+  return [`Oi, ${firstName(x.m.nome)}! Vi no seu check-in a dor ${x.p.dor_int != null ? `(${x.p.dor_int}/10) ` : ''}que você marcou: ${reg}.`,
+    linhas.length ? `Ajustei seus treinos para a região recuperar:\n${linhas.join('\n')}` : 'Vamos acompanhar de perto nos próximos dias.',
+    dica, nivel === 'alto' ? 'Como a dor está forte, quero que você procure uma avaliação com fisioterapeuta ou médico antes de voltar a treinar a região.' : fim,
+    'Qualquer coisa, me chama por aqui.'].filter(Boolean).join('\n\n');
+}
+async function revisarAjuste(x, depois) {
+  const d = await dadosAjuste(x);
+  let nivel = nivelDor(x), prop = proporAjuste(x, d, nivel);
+  const reg = nomeRegDor(x.k).toLowerCase();
+  const corpo = () => `<p class="eyebrow">Ajuste pronto · revise antes de aplicar</p><div class="h2" style="margin-top:4px">${esc(firstName(x.m.nome))} · dor: ${esc(reg)}</div>
+    <p class="small muted" style="margin-top:4px">O app montou os treinos e os textos como se fosse você. Desmarque o que não quiser e edite o que precisar.</p>
+    <div class="seg aj-niv" style="margin-top:12px">${[['leve', 'Dor leve'], ['medio', 'Moderada'], ['alto', 'Forte']].map(([k, l]) => `<button type="button" data-niv="${k}" class="${nivel === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    ${d.provas.length ? `<p class="sug-alerta">Prova na semana (${esc(d.provas[0].titulo || 'prova')}, ${fmtCurto(d.provas[0].data)}): ela não foi alterada. Avalie se ele deve correr.</p>` : ''}
+    ${prop.corr.length ? `<p class="sec-lbl" style="margin-top:16px">Corrida</p><div class="stack">${prop.corr.map((c, i) => `<div class="aj-item"><label class="aj-chk"><input type="checkbox" data-c="${i}" checked><span><b>${esc(DSEM[dsemIdx(c.q.data)].slice(0, 3))} ${fmtCurto(c.q.data)}</b> · ${esc(c.de)} <i>→</i> <b>${esc(c.para)}</b></span></label><textarea class="textarea" rows="4" data-cd="${i}">${esc(c.desc)}</textarea></div>`).join('')}</div>` : (faz('corrida', x.m) && REG_PERNA.includes(baseReg(x.k)) ? '<p class="small muted" style="margin-top:12px">Nenhum treino de corrida a mudar nesta semana.</p>' : '')}
+    ${prop.forca.length ? `<p class="sec-lbl" style="margin-top:16px">Força</p><div class="stack">${prop.forca.map((f, i) => `<div class="aj-item"><label class="aj-chk"><input type="checkbox" data-f="${i}" checked><span><b>${esc(f.n)}</b> <small class="muted">(${esc(f.t.titulo)})</small></span></label><div class="seg aj-tipo" data-ft="${i}"><button type="button" data-v="reduzir" class="${f.tipo === 'reduzir' ? 'on' : ''}">Reduzir carga</button><button type="button" data-v="pausar" class="${f.tipo === 'pausar' ? 'on' : ''}">Pausar</button></div><textarea class="textarea" rows="2" data-fd="${i}">${esc(f.nota)}</textarea></div>`).join('')}</div>` : ''}
+    <p class="sec-lbl" style="margin-top:16px">Mensagem para o aluno</p>
+    <label class="aj-chk"><input type="checkbox" id="aj-msg-on" checked><span>Enviar esta mensagem (ele recebe notificação)</span></label>
+    <textarea class="textarea" rows="9" id="aj-msg">${esc(prop.msg)}</textarea>
+    <button class="btn block" id="aj-aplicar" style="margin-top:14px">${I.check} Aplicar ajustes</button>
+    <p class="tiny dim center" style="margin-top:8px">Dá para desfazer depois, pelo card da sugestão.</p>`;
+  openSheet(corpo(), (r) => {
+    const bind = () => {
+      r.querySelectorAll('[data-niv]').forEach((b) => b.onclick = () => { nivel = b.dataset.niv; prop = proporAjuste(x, d, nivel); const sh = r.querySelector('.sheet-c') || r; sh.innerHTML = corpo(); bindOuter(); });
+      r.querySelectorAll('[data-ft]').forEach((sg) => sg.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; const f = prop.forca[+sg.dataset.ft]; f.tipo = b.dataset.v; sg.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y === b)); const ta = r.querySelector(`[data-fd="${sg.dataset.ft}"]`); ta.value = f.tipo === 'pausar' ? `Pausado até ${fmtCurto(d.ate)} por causa da dor: ${reg}. Pule este exercício.` : `Até ${fmtCurto(d.ate)}: use cerca de 30% menos carga e amplitude confortável, sem dor. Motivo: dor (${reg}).`; });
+      let msgAuto = r.querySelector('#aj-msg').value;
+      const refazMsg = () => { const ta = r.querySelector('#aj-msg'); if (ta.value !== msgAuto) return; const selC = prop.corr.filter((_, i) => r.querySelector(`[data-c="${i}"]`).checked), selF = prop.forca.filter((_, i) => r.querySelector(`[data-f="${i}"]`).checked); msgAuto = ta.value = msgAjuste(x, selC, selF, nivel); };
+      r.querySelectorAll('[data-c],[data-f]').forEach((cb) => cb.onchange = refazMsg);
+      r.querySelectorAll('[data-ft]').forEach((sg) => sg.addEventListener('click', () => setTimeout(refazMsg, 0)));
+      r.querySelector('#aj-aplicar').onclick = async (e) => {
+        const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Aplicando…';
+        try {
+          const selC = prop.corr.filter((_, i) => r.querySelector(`[data-c="${i}"]`).checked).map((c) => ({ ...c, desc: r.querySelector(`[data-cd="${prop.corr.indexOf(c)}"]`).value.trim() }));
+          const selF = prop.forca.filter((_, i) => r.querySelector(`[data-f="${i}"]`).checked).map((f) => ({ ...f, nota: r.querySelector(`[data-fd="${prop.forca.indexOf(f)}"]`).value.trim() }));
+          const msgOn = r.querySelector('#aj-msg-on').checked, texto = r.querySelector('#aj-msg').value.trim();
+          await aplicarAjuste(x, d, selC, selF, msgOn ? texto : '');
+          closeSheet(); toast('Ajuste aplicado. O aluno já vê os treinos novos.'); depois && depois();
+        } catch (er) { console.error(er); btn.disabled = false; btn.textContent = 'Aplicar ajustes'; toast(er.message || 'Não foi possível aplicar.', true); }
+      };
+    };
+    const bindOuter = () => bind();
+    bind();
+  });
+}
+const CAMPOS_PLANO = ['tipo', 'titulo', 'distancia_km', 'duracao_min', 'zona', 'descricao', 'estrutura'];
+async function aplicarAjuste(x, d, selC, selF, texto) {
+  const antes = [], mudados = [], comGarmin = selC.filter((c) => c.q.garmin_workout_id).map((c) => ({ plano_id: c.q.id }));
+  if (comGarmin.length) await chamarGarmin({ acao: 'remover_treinos', aluno_id: x.m.user_id, itens: comGarmin }).catch(() => {});
+  for (const c of selC) {
+    antes.push(Object.fromEntries(['id', ...CAMPOS_PLANO].map((k) => [k, c.q[k] ?? null])));
+    const upd = c.novo.tipo === 'folga'
+      ? { tipo: 'folga', titulo: c.novo.titulo, distancia_km: null, duracao_min: null, zona: null, estrutura: null, descricao: c.desc }
+      : { tipo: c.novo.tipo, titulo: c.novo.titulo, distancia_km: null, duracao_min: c.novo.min, zona: c.novo.z, estrutura: [passo('co', c.novo.min, 'min', c.novo.z)], descricao: c.desc };
+    const { error } = await sb.from('nx_plano_corrida').update({ ...upd, garmin_workout_id: null, garmin_schedule_id: null, garmin_enviado_em: null, garmin_erro: null }).eq('id', c.q.id);
+    if (error) throw new Error('Não foi possível mudar a planilha.');
+    mudados.push({ ...c.q, ...upd, garmin_workout_id: null });
+  }
+  let mensagem_id = null;
+  if (texto) { const { data: nm } = await sb.from('nx_mensagens').insert({ org_id: S.org.id, aluno_id: x.m.user_id, autor_id: S.user.id, texto }).select('id').single(); if (nm) { mensagem_id = nm.id; notificar('mensagem', nm.id); } }
+  const { data: aj, error: e2 } = await sb.from('nx_ajustes_dor').insert({ org_id: S.org.id, aluno_id: x.m.user_id, chave: x.chave, regiao: x.k, plano_antes: antes, mensagem_id }).select('id').single();
+  if (e2) throw new Error('O ajuste foi feito, mas não foi possível registrar o histórico.');
+  if (selF.length) await sb.from('nx_ajustes_forca').insert(selF.map((f) => ({ org_id: S.org.id, aluno_id: x.m.user_id, item_id: f.it.id, tipo: f.tipo, nota: f.nota || null, ate: d.ate, ajuste_id: aj.id })));
+  if (comGarmin.length || S.cache.garmOn) sincronizarGarmin(x.m.user_id, mudados.filter((q) => !semCorrida(q)), d.perfil, true).catch(() => {});
+  x.ajuste = { id: aj.id, chave: x.chave, criado_em: new Date().toISOString() };
+}
+async function desfazerAjuste(x, depois) {
+  const { data: aj } = await sb.from('nx_ajustes_dor').select('*').eq('id', x.ajuste.id).maybeSingle(); if (!aj) return;
+  const ids = (aj.plano_antes || []).map((q) => q.id);
+  const atuais = ids.length ? await sb.from('nx_plano_corrida').select('id,garmin_workout_id').in('id', ids).then((r) => r.data || [], () => []) : [];
+  const noG = atuais.filter((q) => q.garmin_workout_id).map((q) => ({ plano_id: q.id }));
+  if (noG.length) await chamarGarmin({ acao: 'remover_treinos', aluno_id: x.m.user_id, itens: noG }).catch(() => {});
+  for (const q of aj.plano_antes || []) { const { id, ...resto } = q; await sb.from('nx_plano_corrida').update({ ...resto, garmin_workout_id: null, garmin_schedule_id: null, garmin_enviado_em: null, garmin_erro: null }).eq('id', id); }
+  await sb.from('nx_ajustes_forca').delete().eq('ajuste_id', aj.id);
+  await sb.from('nx_ajustes_dor').update({ desfeito_em: new Date().toISOString() }).eq('id', aj.id);
+  x.ajuste = null; toast('Ajuste desfeito: os treinos voltaram ao que eram.'); depois && depois();
+}
+function recarregarSug(root, sugs, x, depois) {
+  const c = root.querySelector(`[data-sug="${CSS.escape(x.chave)}"]`);
+  if (c) { c.outerHTML = sugCardHTML(x, !!root.closest('#sug-hoje')); bindSugestoes(root, sugs, depois); }
+}
+
 function sugCardHTML(x, comNome = true) {
   const nm = firstName(x.m.nome), reg = nomeRegDor(x.k).toLowerCase();
   return `<div class="card sug-card" data-sug="${esc(x.chave)}"><div class="sug-top"><span class="sug-ic">${PRONT_IC}</span><div class="grow"><span class="eyebrow">Sugestão do app${x.p.dia === hojeISO() ? ' · hoje' : ' · ' + fmtCurto(x.p.dia)}</span><b>${comNome ? esc(nm) + ' · ' : ''}dor: ${esc(reg)}${x.p.dor_int != null ? ` (${x.p.dor_int}/10)` : ''}</b></div><button type="button" class="sug-x" data-ocultar="${esc(x.chave)}" aria-label="Ocultar sugestão">${I.x || '×'}</button></div>
@@ -1100,7 +1252,8 @@ function sugCardHTML(x, comNome = true) {
     ${x.dados.length ? `<ul class="sug-dados">${x.dados.map((d) => `<li>${d}</li>`).join('')}</ul>` : ''}
     ${x.blocos.map((bk) => `<div class="sug-bloco"><span class="sug-t">${bk.t}</span><p class="small muted">${bk.padrao}</p><ul>${bk.sug.map((sg) => `<li>${esc(sg)}</li>`).join('')}</ul></div>`).join('')}
     ${x.p.obs ? `<p class="small muted" style="margin-top:6px">Recado: "${esc(x.p.obs)}"</p>` : ''}
-    <div class="row sug-acoes"><a class="btn sm" href="#/aluno/${x.m.user_id}/${faz('corrida', x.m) ? 'corrida' : 'forca'}">Ajustar treinos</a><button type="button" class="btn ghost sm" data-msg="${x.m.user_id}" data-reg="${esc(reg)}" data-nome="${esc(nm)}">Mandar mensagem</button><button type="button" class="link-btn small" data-ocultar="${esc(x.chave)}">Ocultar</button></div>
+    ${x.ajuste ? `<div class="sug-ok">${I.check}<span class="grow">Ajuste aplicado ${fmtData ? fmtData(x.ajuste.criado_em) : ''}. O aluno já vê os treinos novos e a sua mensagem.</span><button type="button" class="link-btn small" data-desfazer="${x.ajuste.id}">Desfazer</button></div>`
+      : `<div class="row sug-acoes"><button type="button" class="btn sm" data-revisar="${esc(x.chave)}">Revisar ajuste pronto</button><a class="btn ghost sm" href="#/aluno/${x.m.user_id}/${faz('corrida', x.m) ? 'corrida' : 'forca'}">Abrir planilha</a><button type="button" class="link-btn small" data-msg="${x.m.user_id}" data-reg="${esc(reg)}" data-nome="${esc(nm)}">Só mandar mensagem</button><button type="button" class="link-btn small" data-ocultar="${esc(x.chave)}">Ocultar</button></div>`}
     <p class="tiny dim">Sugestão baseada em padrões da literatura, não é diagnóstico. A decisão é do treinador. O aluno não vê este card.</p></div>`;
 }
 function bindSugestoes(root, sugs, depois) {
@@ -1110,6 +1263,8 @@ function bindSugestoes(root, sugs, depois) {
     if (error && !/duplicate/i.test(error.message || '')) return toast('Não foi possível ocultar.', true);
     const c = root.querySelector(`[data-sug="${CSS.escape(ch)}"]`); if (c) c.remove(); toast('Sugestão ocultada.'); if (depois) depois();
   });
+  root.querySelectorAll('[data-revisar]').forEach((b) => b.onclick = () => { const x = sugs.find((y) => y.chave === b.dataset.revisar); if (x) revisarAjuste(x, () => recarregarSug(root, sugs, x, depois)); });
+  root.querySelectorAll('[data-desfazer]').forEach((b) => b.onclick = () => { const x = sugs.find((y) => y.ajuste && y.ajuste.id === b.dataset.desfazer); if (x) desfazerAjuste(x, () => recarregarSug(root, sugs, x, depois)); });
   root.querySelectorAll('[data-msg]').forEach((b) => b.onclick = () => {
     try { sessionStorage.setItem('nx-rasc-' + b.dataset.msg, `Oi, ${b.dataset.nome}! Vi no seu check-in a dor que você marcou (${b.dataset.reg}). Como está agora? Vou ajustar seus próximos treinos.`); } catch {}
     location.hash = `#/aluno/${b.dataset.msg}/conversa`;
@@ -1583,7 +1738,12 @@ async function viewExecucao(treinoId, preview) {
   const { data: t, error } = await sb.from('nx_treinos').select('*, nx_treino_itens(*, nx_exercicios(nome,grupo,equipamento,descricao,video_url,video_credito,com_audio,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa))').eq('id', treinoId).maybeSingle();
   if (error) throw error;
   if (!t) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Treino não encontrado</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
-  const itens = (t.nx_treino_itens || []).sort((a, b) => a.ordem - b.ordem);
+  let itens = (t.nx_treino_itens || []).sort((a, b) => a.ordem - b.ordem);
+  // ajustes temporários do treinador (dor): exercício pausado some; carga reduzida vira aviso no exercício
+  const ajF = await sb.from('nx_ajustes_forca').select('item_id,tipo,nota,ate').eq('aluno_id', t.aluno_id).gte('ate', hojeISO()).then((r) => r.data || [], () => []);
+  const pausados = itens.filter((i) => ajF.some((a) => a.item_id === i.id && a.tipo === 'pausar'));
+  if (ajF.length) itens = itens.filter((i) => !pausados.includes(i)).map((i) => { const a = ajF.find((y) => y.item_id === i.id && y.tipo === 'reduzir'); return a ? { ...i, observacao: `Ajuste do treinador: ${a.nota || 'carga reduzida nesta semana.'}${i.observacao ? ' · ' + i.observacao : ''}` } : i; });
+  t._pausados = pausados.map((i) => (i.nx_exercicios && i.nx_exercicios.nome) || 'Exercício');
   const exIdsT = [...new Set(itens.map((i) => i.exercicio_id))];
   const fase = await faseDaSemana(t.aluno_id, isoDia(inicioSemana()));
   const [prevs, prevsFase] = await Promise.all([ultimasCargas(t.aluno_id, exIdsT), ultimasCargasFase(t.aluno_id, exIdsT, fase)]);
@@ -1618,6 +1778,7 @@ async function viewExecucao(treinoId, preview) {
         </div>
         <div class="progress"><i style="width:${pct}%"></i></div>
       </div>
+      ${t._pausados && t._pausados.length ? `<div class="aj-pausa">${I.alerta || ''}<span><b>Pausado pelo treinador nesta semana:</b> ${esc(t._pausados.join(', '))}. Pule ${t._pausados.length > 1 ? 'esses exercícios' : 'esse exercício'}.</span></div>` : ''}
       ${fase ? faseCardHTML(fase, st.psr != null ? `<span class="tiny" style="display:block;margin-top:6px">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></span>` : '') : st.psr != null ? `<p class="small muted">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></p>` : ''}
       ${t.observacoes ? `<div class="card" style="border-color:rgba(70,214,255,.3)"><span class="eyebrow">Recado do treinador</span><p style="margin-top:6px">${esc(t.observacoes)}</p></div>` : ''}
       <div class="stack" style="margin-top:12px">
