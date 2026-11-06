@@ -2933,3 +2933,4 @@ html[data-tema="claro"] .ck-d.pior{color:#c53030}
 @media(max-width:420px){.ck-fases{grid-template-columns:1fr}.ck-row{grid-template-columns:minmax(0,1.3fr) 1fr 1fr 64px;font-size:.8rem}}
 .ck-sub{padding:10px 0 0;font-size:.8rem;font-weight:800}
 .ck-sub+.ck-row>span:first-child,.ck-sub+.ck-row+.ck-row>span:first-child{padding-left:10px;color:var(--mute)}
+.ck-conf{border:1.5px solid var(--acc)}
