@@ -2486,3 +2486,70 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .esf-marcas button.on{color:var(--esf);transform:scale(1.3)}
 .esf-pontas{display:flex;justify-content:space-between;font-size:.72rem;color:var(--dim);margin-bottom:10px}
 #ck-1 .h2.center{max-width:300px;margin-left:auto;margin-right:auto}
+
+/* ---------- ciclo menstrual (área da aluna) ---------- */
+.cic-hero{--cf:#e85d75;margin-top:14px;padding:20px;border-radius:22px;color:#fff;background:radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--cf) 35%,transparent),transparent 60%),linear-gradient(160deg,#0f2a5c,#0a1838);box-shadow:0 16px 36px rgba(8,20,50,.28)}
+.cic-hero .eyebrow{color:#cfe6ff;display:flex;align-items:center;gap:8px}
+.cic-pt{width:9px;height:9px;border-radius:50%;background:var(--cf);display:inline-block}
+.cic-grande{font-family:var(--f-h);font-size:2.1rem;font-weight:700;line-height:1.1;margin-top:10px}
+.cic-barra{position:relative;display:flex;gap:3px;height:12px;margin-top:22px}
+.cic-barra span{border-radius:999px;opacity:.9}
+.cic-hoje{position:absolute;top:-6px;width:4px;height:24px;margin-left:-2px;border-radius:3px;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+.cic-hoje em{position:absolute;top:28px;left:50%;transform:translateX(-50%);font-style:normal;font-size:.7rem;font-weight:800;background:#fff;color:#0a1838;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.cic-leg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:40px;font-size:.75rem;opacity:.85}
+.cic-leg span{display:inline-flex;align-items:center;gap:6px}
+.cic-leg i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.cic-leg.cal{margin-top:10px;color:var(--mute);opacity:1}
+.cic-leg.cal i.m{background:#e85d75}.cic-leg.cal i.p{border:2px dashed #e85d75;width:7px;height:7px}.cic-leg.cal i.r{background:var(--acc,#1a7fe6);width:6px;height:6px}
+.cic-cal{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:10px}
+.cic-sem,.cic-grade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cic-sem span{font-size:.72rem;font-weight:700;color:var(--dim);padding:4px 0}
+.cic-d{position:relative;aspect-ratio:1;border-radius:12px;border:0;background:none;color:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.cic-d b{font-weight:700;font-size:.92rem}
+.cic-d.fut{color:var(--dim)}
+.cic-d.mens{background:#e85d75;color:#fff}
+.cic-d.prev{border:2px dashed #e85d75;color:#e85d75}
+.cic-d.hoje{box-shadow:inset 0 0 0 2px var(--ink)}
+.cic-d.mens.hoje{box-shadow:inset 0 0 0 2px #fff,0 0 0 2px #e85d75}
+.cic-d i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%;background:var(--acc,#1a7fe6)}
+.cic-d.mens i{background:#fff}
+.cic-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cic-stats>div{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.cic-stats b{font-size:1.35rem;font-variant-numeric:tabular-nums}.cic-stats b small{font-size:.75rem;color:var(--mute)}
+.cic-stats span{font-size:.75rem;color:var(--mute)}
+.cic-hist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.cic-hist>div{display:grid;grid-template-columns:110px 1fr 56px;align-items:center;gap:8px}
+.cic-hist i{height:8px;border-radius:999px;background:linear-gradient(90deg,#35c3f0,#1a7fe6)}
+.cic-hist b{text-align:right}
+.cic-rots{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.cic-rot{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:16px;border-radius:18px;border:0;color:#fff;background:linear-gradient(150deg,#1a7fe6,#0f2a5c);min-height:130px}
+.cic-rot:nth-child(2){background:linear-gradient(150deg,#2550cf,#0a1838)}
+.cic-rot:nth-child(3){background:linear-gradient(150deg,#35c3f0,#1a5fb8)}
+.cic-rot b{font-size:1rem;margin-top:auto}.cic-rot small{opacity:.8;font-size:.78rem}
+.cic-rot-ic{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center}
+.cic-rot-ic svg{width:16px;height:16px}
+.cic-faixa{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:14px 0 6px}
+.cic-faixa button{border:0;background:var(--s1);border-radius:14px;padding:8px 0 10px;display:flex;flex-direction:column;align-items:center;gap:2px;color:inherit;position:relative}
+.cic-faixa button small{font-size:.66rem;color:var(--dim);font-weight:700;text-transform:uppercase}
+.cic-faixa button b{font-size:1rem}
+.cic-faixa button.on{background:var(--ink);color:var(--bg)}
+.cic-faixa button.on small{color:inherit;opacity:.7}
+.cic-faixa i{width:5px;height:5px;border-radius:50%}
+.cic-faixa i.m{background:#e85d75}.cic-faixa i.r{background:#1a7fe6}
+.cic-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cic-chips button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--s1);color:inherit;border-radius:999px;padding:8px 14px;font-weight:600;font-size:.88rem}
+.cic-chips button.on{background:#e85d75;border-color:#e85d75;color:#fff}
+.gotas{display:inline-flex;gap:1px;color:#e85d75}
+.cic-chips button.on .gotas{color:#fff}
+.pront-cic{margin-top:6px;padding:14px;border-radius:16px;background:color-mix(in srgb,#e85d75 8%,transparent);border:1px solid color-mix(in srgb,#e85d75 25%,transparent)}
+.pront-cic-ini{display:block;margin:2px 0 8px}
+.pe-cic{background:color-mix(in srgb,#e85d75 14%,transparent);color:#c83c57}
+.rot{text-align:center;padding:10px 0}
+.rot-anel{position:relative;width:150px;height:150px;margin:10px auto 12px}
+.rot-anel svg{width:100%;height:100%;transform:rotate(-90deg)}
+.rot-anel circle{fill:none;stroke-width:9}
+.rot-anel .fundo{stroke:var(--line)}.rot-anel .prog{stroke:#1a7fe6;stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.rot-anel b{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-h);font-size:1.8rem;font-variant-numeric:tabular-nums}
+.resp{text-align:center;padding:18px 0 4px}
+.resp-bola{width:120px;height:120px;margin:30px auto;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;background:radial-gradient(circle at 35% 30%,#8fe6ff,#1a7fe6 60%,#0f2a5c);transform:scale(.8);transition:transform 6s ease-in-out;box-shadow:0 14px 40px rgba(26,127,230,.35)}
+.resp-bola.ins{transform:scale(1.35);transition:transform 4s ease-in-out}

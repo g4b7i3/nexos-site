@@ -418,6 +418,7 @@ async function router() {
     if (a === 'antes-depois') return await viewAntesDepois();
     if (a === 'recordes') return await viewRecordes();
     if (a === 'agua') return await viewAguaAluno();
+    if (a === 'ciclo') return await viewCicloAluna(b);
     if (a === 'prontidao') return await viewProntAluno();
     return await alunoHoje();
   } catch (e) {
@@ -968,9 +969,27 @@ function abrirProntidao(aoSalvar) {
     <form id="f-pront" style="margin-top:14px">${PRONT_Q.map(([k, t, op]) => `<div class="pq"><b>${t}</b><div class="pq-op">${op.map((o) => (S.me.sexo === 'F' ? o.replace(/^(Exaust|Cansad|Dispost)o$/, '$1a').replace(/^Muito disposto$/, 'Muito disposta') : o)).map((o, i) => `<button type="button" data-q="${k}" data-v="${i + 1}" style="--pc:${PRONT_COR[i]}">${o}</button>`).join('')}</div></div>`).join('')}
     <div id="pront-dor" hidden><div class="pq"><b>Onde dói?</b>${mapaCorpoHTML(S.me.sexo)}</div>
       <div class="pq"><b>Intensidade da dor</b><div class="pq-int">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-int="${i}">${i}</button>`).join('')}</div><div class="row between tiny dim" style="margin-top:4px"><span>sem dor</span><span>pior dor possível</span></div></div></div>
+    <div id="pront-ciclo"></div>
     <label class="field" style="margin-top:6px"><span>Algo mais para o treinador? (opcional)</span><textarea class="input" name="obs" rows="2" maxlength="500" placeholder="Ex.: dormi pouco por causa do trabalho"></textarea></label>
     <button class="btn block" id="pront-env" disabled>Enviar check-in</button></form>`, (root) => {
     const f = root.querySelector('#f-pront'), btn = root.querySelector('#pront-env'), boxDor = root.querySelector('#pront-dor');
+    // ciclo: só para alunas com o acompanhamento ativo; perguntas completas nos dias de menstruação (prevista ou já registrada)
+    let cic = null, cicR = null, cicAntes = null;
+    if (S.me.sexo === 'F') {
+      const hj = hojeISO();
+      Promise.all([buscarCiclo(S.user.id).catch(() => null), sb.from('nx_ciclo_dias').select('*').eq('aluno_id', S.user.id).gte('dia', somaDias(hj, -1)).then((x) => x.data || [], () => [])]).then(([c, ds]) => {
+        const box = root.querySelector('#pront-ciclo'); if (!box || !c || !c.ativo || c.situacao === 'contraceptivo' || c.situacao === 'nao_menstrua') return;
+        cic = c; cicAntes = ds.find((x) => x.dia === hj) || null;
+        const ontem = ds.find((x) => x.dia === somaDias(hj, -1)), inf = cicloInfo(c) || {};
+        const naMenstruacao = (ontem && ontem.menstruada) || inf.fase === 'menstrual' || inf.atraso > 0 || (cicAntes && cicAntes.menstruada);
+        const montar = (r0) => { cicR = r0; box.innerHTML = `<div class="pront-cic"><p class="eyebrow" style="color:${CIC_ROSA}">Ciclo menstrual</p>${camposCicloHTML(cicR, true)}</div>`; bindCamposCiclo(box.querySelector('.cic-campos'), cicR); };
+        if (naMenstruacao) montar({ ...(cicAntes || {}), menstruada: cicAntes ? cicAntes.menstruada : null, sintomas: (cicAntes && cicAntes.sintomas) || [] });
+        else {
+          box.innerHTML = `<button type="button" class="link-btn small pront-cic-ini" style="color:${CIC_ROSA}">Minha menstruação começou hoje</button>`;
+          box.querySelector('button').onclick = () => montar({ ...(cicAntes || {}), menstruada: true, sintomas: (cicAntes && cicAntes.sintomas) || [] });
+        }
+      });
+    }
     bindMapaCorpo(boxDor, sel);
     const pronto = () => { btn.disabled = !(r.sono && r.energia && r.dor && r.estresse); };
     f.onclick = (e) => {
@@ -990,7 +1009,12 @@ function abrirProntidao(aoSalvar) {
       const { data, error } = await sb.from('nx_prontidao').upsert(row, { onConflict: 'aluno_id,dia' }).select('id').single();
       if (error) { btn.disabled = false; console.error(error); return toast('Não foi possível enviar. Tente de novo.', true); }
       if (row.alerta) notificar('prontidao', data.id);
-      closeSheet(); toast('Check-in enviado ao seu treinador.');
+      let novoIni = false;
+      if (cic && cicR && (cicR.menstruada != null || (cicR.sintomas || []).length)) {
+        const rc = await salvarDiaCiclo({ ...(cicAntes || {}), ...cicR, dia: row.dia, humor: (cicAntes && cicAntes.humor) || [], nota: (cicAntes && cicAntes.nota) || null }, cic.inicios);
+        novoIni = !!rc.novoInicio;
+      }
+      closeSheet(); toast(novoIni ? 'Check-in enviado. O início da menstruação foi registrado.' : 'Check-in enviado ao seu treinador.');
       if (aoSalvar) aoSalvar(row);
     };
   });
@@ -1044,12 +1068,14 @@ const PRONT_CURTO = { sono: 'Sono', energia: 'Energia', dor: 'Dor', estresse: 'E
 async function staffProntidao(diaSel) {
   loading();
   const hj = hojeISO(); const dS = /^\d{4}-\d{2}-\d{2}$/.test(diaSel || '') && diaSel <= hj ? diaSel : hj, ehHoje = dS === hj;
-  const [membT, pronts, cargas] = await Promise.all([
+  const [membT, pronts, cargas, cicDias] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,sexo').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome').then((r) => r.data || [], () => []),
     sb.from('nx_prontidao').select('*').eq('org_id', S.org.id).eq('dia', dS).then((r) => r.data || [], () => []),
     ehHoje ? buscarCargas(null).catch(() => ({})) : Promise.resolve({}),
+    sb.from('nx_ciclo_dias').select('aluno_id,menstruada,fluxo,sintomas,colica_int').eq('org_id', S.org.id).eq('dia', dS).then((r) => r.data || [], () => []),
   ]);
   dockStaff();
+  const cicD = Object.fromEntries(cicDias.map((x) => [x.aluno_id, x]));
   const al = membT.filter((m) => ehMeuAluno(m) && m.ativo && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
   const pr = Object.fromEntries(pronts.map((p) => [p.aluno_id, p]));
   const resp = al.filter((m) => pr[m.user_id]), sem = al.filter((m) => !pr[m.user_id]);
@@ -1064,6 +1090,7 @@ async function staffProntidao(diaSel) {
       <div class="pe-itens">${['sono', 'energia', 'dor', 'estresse'].map((k) => `<span><i style="background:${PRONT_COR[p[k] - 1]}"></i>${PRONT_CURTO[k]} <b>${p[k]}</b></span>`).join('')}</div>
       ${p.dor_locais && p.dor_locais.length ? `<div class="pe-dor">${p.dor_locais.map((k) => `<span class="tag err">${esc(nomeRegDor(k))}</span>`).join('')}${p.dor_int != null ? `<span class="small muted">intensidade ${p.dor_int}/10</span>` : ''}</div>` : ''}
       ${p.obs ? `<p class="small muted pe-obs">"${esc(p.obs)}"</p>` : ''}
+      ${cicD[m.user_id] && resumoDiaCiclo(cicD[m.user_id]) ? `<div class="pe-dor"><span class="tag pe-cic">${esc(resumoDiaCiclo(cicD[m.user_id]))}</span></div>` : ''}
       ${c && c.nivel ? `<div class="pe-dor">${cargaTag(c)}<span class="small muted">${esc(c.txt)}</span></div>` : ''}
       <span class="tiny dim">Prontidão ${n.toLowerCase()}</span></div></div></a>`; };
   const grupo = (id, t, sub, l) => (l.length ? `<div class="section" id="${id}"><div class="section-h"><h2 class="h2">${t}</h2><span class="tag">${l.length}</span></div>${sub ? `<p class="small muted" style="margin:-4px 0 10px">${sub}</p>` : ''}<div class="stack">${l.map(linha).join('')}</div></div>` : '');
@@ -1104,7 +1131,7 @@ function alunoMais() {
     <p class="sec-lbl">Saúde</p><div class="stack" id="mais-saude">
       ${it('#/agua', AGUA_IC, 'Hidratação', 'Sua semana, meta e lembretes')}
       ${it('#/prontidao', PRONT_IC, 'Check-in e dores', 'Sono, energia, dor e estresse dos últimos dias')}
-      ${S.me.sexo === 'F' ? `<button class="list-item" id="mais-ciclo" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Fase atual e ajuste do treino</div></div>${I.chev}</button>` : ''}
+      ${S.me.sexo === 'F' ? `<a class="list-item" id="mais-ciclo" href="#/ciclo" style="color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Fase, calendário, sintomas e autocuidado</div></div>${I.chev}</a>` : ''}
       ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
     </div>
     <p class="sec-lbl">Conta</p><div class="stack" id="mais-conta">
@@ -1118,8 +1145,7 @@ function alunoMais() {
     </div>`;
   document.getElementById('mais-tour').onclick = () => iniciarTour();
   secaoNotificacoes(document.getElementById('mais-notif')).catch(() => {});
-  const bc = document.getElementById('mais-ciclo');
-  if (bc) bc.onclick = async () => { const c = await buscarCiclo(S.user.id).catch(() => null); c ? abrirCiclo(c, () => alunoMais()) : ativarCiclo(() => alunoMais()); };
+
 }
 async function viewRecordes() {
   loading();
@@ -2384,7 +2410,7 @@ async function alunoHoje() {
   }, 500);
   if (S.me.sexo === 'F') buscarCiclo(S.user.id).then((c) => { const bx = document.getElementById('ciclo-box'); if (!bx) return;
     if (!c) { if (store.get('nx_ciclo_conv', false)) return; bx.innerHTML = `<div class="ciclo-l ciclo-conv" style="--cf:#e85d75"><i></i><span class="grow"><b>Ciclo menstrual</b> · ajuste o treino a cada fase</span><button type="button" class="link-btn small" id="cic-at">Ativar</button><button type="button" class="link-btn small" id="cic-nao" style="color:var(--dim)">Agora não</button></div>`;
-      bx.querySelector('#cic-at').onclick = () => ativarCiclo(() => alunoHoje()); bx.querySelector('#cic-nao').onclick = () => { store.set('nx_ciclo_conv', true); bx.innerHTML = ''; }; return; } bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => abrirCiclo(c, () => alunoHoje()); }).catch(() => {});
+      bx.querySelector('#cic-at').onclick = () => ativarCiclo(() => alunoHoje()); bx.querySelector('#cic-nao').onclick = () => { store.set('nx_ciclo_conv', true); bx.innerHTML = ''; }; return; } bx.innerHTML = cicloLinhaHTML(c, false); const b = bx.querySelector('.btn-ciclo'); if (b) b.onclick = () => { location.hash = '#/ciclo'; }; }).catch(() => {});
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
   // oferta de cobrança automática feita pelo treinador
@@ -3519,7 +3545,7 @@ async function viewAnamnese(opts = {}) {
   }
   const salvarCiclo = async () => {
     if (!cc || cc.hidden) return true;
-    if (!f.cic_on.checked) { if (cic) { await sb.from('nx_ciclo_inicios').delete().eq('aluno_id', S.user.id); await sb.from('nx_ciclo').delete().eq('aluno_id', S.user.id); } return true; }
+    if (!f.cic_on.checked) { if (cic) { await sb.from('nx_ciclo_inicios').delete().eq('aluno_id', S.user.id); await sb.from('nx_ciclo_dias').delete().eq('aluno_id', S.user.id); await sb.from('nx_ciclo').delete().eq('aluno_id', S.user.id); } return true; }
     const sit = f.cic_sit.value || 'regular', semData = sit === 'contraceptivo' || sit === 'nao_menstrua';
     const cl = Math.min(45, Math.max(20, parseInt(f.cic_cl.value, 10) || 28)), dm = Math.min(10, Math.max(2, parseInt(f.cic_dm.value, 10) || 5));
     const ini = dataISO(f.cic_ini.value);
@@ -6348,8 +6374,8 @@ function intervalsCardHTML(integ, staff) {
 /* ---------- ciclo menstrual (opcional, só a aluna e os treinadores veem) ---------- */
 const FASES_CICLO = {
   menstrual: ['Fase menstrual', '#e85d75', 'A energia pode estar menor. Treine pela sensação e ajuste a intensidade se precisar.'],
-  folicular: ['Fase folicular', '#2fb6e0', 'Costuma ser uma boa fase para treinos fortes e de qualidade.'],
-  ovulatoria: ['Fase ovulatória', '#e0a400', 'Energia geralmente alta. Capriche no aquecimento.'],
+  folicular: ['Fase folicular', '#2fb6e0', 'Muitas mulheres sentem mais energia nesta fase. Siga o plano normalmente.'],
+  ovulatoria: ['Fase ovulatória', '#e0a400', 'Siga o plano normalmente e capriche no aquecimento.'],
   lutea: ['Fase lútea', '#8b6be8', 'Calor e cansaço maiores são comuns. Hidratação extra e intensidade pelo esforço percebido.'],
 };
 const SIT_CICLO = [['regular', 'Regular, todo mês'], ['irregular', 'Irregular'], ['contraceptivo', 'Anticoncepcional sem menstruação'], ['nao_menstrua', 'Não menstruo (menopausa, gestação…)']];
@@ -6452,6 +6478,261 @@ function abrirCiclo(c, depois) {
     r.querySelector('#ci-salvar').onclick = () => { const v = r.querySelector('#ci-data').value; if (!v || v > hojeISO()) return toast('Escolha uma data válida.', true); salvar(v); };
   });
 }
+
+/* ---------- Ciclo menstrual: área completa (Mais > Ciclo menstrual) ---------- */
+const CIC_SINT = [['colica', 'Cólica'], ['lombar', 'Dor lombar'], ['cabeca', 'Dor de cabeça'], ['inchaco', 'Inchaço'], ['seios', 'Seios sensíveis'], ['cansaco', 'Cansaço'], ['espinhas', 'Espinhas'], ['calor', 'Ondas de calor'], ['nausea', 'Náusea'], ['manchas', 'Manchas fora da menstruação']];
+const CIC_HUMOR = [['bem', 'Bem'], ['sensivel', 'Sensível'], ['irritada', 'Irritada'], ['ansiosa', 'Ansiosa'], ['triste', 'Triste'], ['desanimada', 'Desanimada']];
+const CIC_FLUXO = [['leve', 'Leve', 1], ['medio', 'Médio', 2], ['intenso', 'Intenso', 3]];
+const CIC_ROSA = '#e85d75';
+const nomeSint = (k) => (CIC_SINT.find((x) => x[0] === k) || [, k])[1];
+const nomeHumor = (k) => (CIC_HUMOR.find((x) => x[0] === k) || [, k])[1];
+const nomeFluxo = (k) => (CIC_FLUXO.find((x) => x[0] === k) || [, k])[1];
+const gotasSVG = (n, cor = 'currentColor') => `<span class="gotas">${Array.from({ length: 3 }, (_, i) => `<svg viewBox="0 0 24 24" width="13" height="13" style="opacity:${i < n ? 1 : 0.25}"><path fill="${cor}" d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>`).join('')}</span>`;
+/** resumo curto de um dia registrado (para o treinador e o histórico) */
+function resumoDiaCiclo(r) {
+  if (!r) return '';
+  const p = [];
+  if (r.menstruada) p.push(`Menstruada${r.fluxo ? ' · fluxo ' + nomeFluxo(r.fluxo).toLowerCase() : ''}`);
+  (r.sintomas || []).forEach((k) => p.push(k === 'colica' && r.colica_int != null ? `Cólica ${r.colica_int}/10` : nomeSint(k)));
+  return p.join(' · ');
+}
+// marca o início da menstruação quando ela não foi registrada nos 10 dias anteriores
+async function marcarInicioSePreciso(diaK, inicios) {
+  const perto = (inicios || []).some((d) => d <= diaK && d >= somaDias(diaK, -10));
+  if (perto) return false;
+  await sb.from('nx_ciclo_inicios').upsert({ org_id: S.org.id, aluno_id: S.user.id, data: diaK }, { onConflict: 'aluno_id,data' }).then(() => {}, () => {});
+  return true;
+}
+async function salvarDiaCiclo(row, inicios) {
+  const dados = { org_id: S.org.id, aluno_id: S.user.id, dia: row.dia, menstruada: !!row.menstruada, fluxo: row.menstruada ? row.fluxo || null : null,
+    sintomas: row.sintomas || [], colica_int: (row.sintomas || []).includes('colica') ? row.colica_int ?? null : null, humor: row.humor || [], nota: row.nota || null, atualizado_em: new Date().toISOString() };
+  const { error } = await sb.from('nx_ciclo_dias').upsert(dados, { onConflict: 'aluno_id,dia' });
+  if (error) return { error };
+  const novoInicio = dados.menstruada ? await marcarInicioSePreciso(dados.dia, inicios) : false;
+  return { novoInicio };
+}
+/** campos do registro do dia (usado na folha da área do ciclo e no check-in da manhã) */
+function camposCicloHTML(r, curto) {
+  const sint = curto ? CIC_SINT.filter((x) => ['colica', 'lombar', 'cabeca', 'inchaco', 'cansaco', 'seios'].includes(x[0])) : CIC_SINT;
+  return `<div class="cic-campos">
+    <div class="pq"><b>Está menstruada${curto ? ' hoje' : ''}?</b><div class="seg sm cic-mens"><button type="button" data-m="1" class="${r.menstruada ? 'on' : ''}">Sim</button><button type="button" data-m="0" class="${r.menstruada === false ? 'on' : ''}">Não</button></div></div>
+    <div class="pq cic-fluxo" ${r.menstruada ? '' : 'hidden'}><b>Fluxo</b><div class="cic-chips">${CIC_FLUXO.map(([k, t, n]) => `<button type="button" data-fl="${k}" class="${r.fluxo === k ? 'on' : ''}">${gotasSVG(n)}${t}</button>`).join('')}</div></div>
+    <div class="pq"><b>Sintomas</b><div class="cic-chips">${sint.map(([k, t]) => `<button type="button" data-s="${k}" class="${(r.sintomas || []).includes(k) ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    <div class="pq cic-colint" ${(r.sintomas || []).includes('colica') ? '' : 'hidden'}><b>Intensidade da cólica</b><div class="pq-int">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-ci="${i}" class="${r.colica_int === i ? 'on' : ''}">${i}</button>`).join('')}</div><div class="row between tiny dim" style="margin-top:4px"><span>leve</span><span>pior dor possível</span></div></div>
+    ${curto ? '' : `<div class="pq"><b>Humor</b><div class="cic-chips">${CIC_HUMOR.map(([k, t]) => `<button type="button" data-h="${k}" class="${(r.humor || []).includes(k) ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    <label class="field"><span>Anotação do dia (opcional)</span><textarea class="input" id="cic-nota" rows="2" maxlength="1000" placeholder="Ex.: cólica forte de manhã, melhorou depois da caminhada">${esc(r.nota || '')}</textarea></label>`}
+  </div>`;
+}
+function bindCamposCiclo(box, r) {
+  box.addEventListener('click', (e) => {
+    const m = e.target.closest('[data-m]'), fl = e.target.closest('[data-fl]'), s = e.target.closest('[data-s]'), h = e.target.closest('[data-h]'), ci = e.target.closest('[data-ci]');
+    if (m) { r.menstruada = m.dataset.m === '1'; box.querySelectorAll('[data-m]').forEach((x) => x.classList.toggle('on', x === m)); box.querySelector('.cic-fluxo').hidden = !r.menstruada; }
+    if (fl) { r.fluxo = r.fluxo === fl.dataset.fl ? null : fl.dataset.fl; box.querySelectorAll('[data-fl]').forEach((x) => x.classList.toggle('on', x.dataset.fl === r.fluxo)); }
+    if (s) { const k = s.dataset.s; r.sintomas = (r.sintomas || []).includes(k) ? r.sintomas.filter((x) => x !== k) : [...(r.sintomas || []), k]; s.classList.toggle('on'); box.querySelector('.cic-colint').hidden = !r.sintomas.includes('colica'); }
+    if (h) { const k = h.dataset.h; r.humor = (r.humor || []).includes(k) ? r.humor.filter((x) => x !== k) : [...(r.humor || []), k]; h.classList.toggle('on'); }
+    if (ci) { r.colica_int = +ci.dataset.ci; box.querySelectorAll('[data-ci]').forEach((x) => x.classList.toggle('on', x === ci)); }
+  });
+}
+/** folha para registrar um dia (faixa de dias no topo para escolher o dia) */
+async function registrarDiaCiclo(c, diaIni, depois) {
+  const hj = hojeISO(); let diaK = diaIni && diaIni <= hj ? diaIni : hj;
+  const ini = somaDias(diaK, -6) < somaDias(hj, -13) ? somaDias(diaK, -6) : somaDias(hj, -13);
+  const rows = await sb.from('nx_ciclo_dias').select('*').eq('aluno_id', S.user.id).gte('dia', ini).then((x) => x.data || [], () => []);
+  const porDia = Object.fromEntries(rows.map((x) => [x.dia, x]));
+  const faixa = () => { const fim = somaDias(diaK, 3) > hj ? hj : somaDias(diaK, 3); return Array.from({ length: 7 }, (_, i) => somaDias(fim, i - 6)); };
+  const desenhar = () => {
+    const r = { ...(porDia[diaK] || { dia: diaK, sintomas: [], humor: [] }) };
+    if (r.menstruada == null && !porDia[diaK]) { const f = cicloFaseDia(c, diaK); r.menstruada = f && f.fase === 'menstrual' && !f.previsto ? true : null; }
+    openSheet(`<p class="eyebrow">Ciclo menstrual</p><div class="h2" style="margin-top:4px">${diaK === hj ? 'Como você está hoje?' : `Registro de ${fmtCurto(diaK + 'T12:00:00')}`}</div>
+      <div class="cic-faixa">${faixa().map((k) => { const d = new Date(k + 'T12:00:00'); const x = porDia[k]; return `<button type="button" data-dia="${k}" class="${k === diaK ? 'on' : ''}"><small>${k === hj ? 'Hoje' : ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][d.getDay()]}</small><b>${d.getDate()}</b><i class="${x ? (x.menstruada ? 'm' : 'r') : ''}"></i></button>`; }).join('')}</div>
+      ${camposCicloHTML(r, false)}
+      <button class="btn block" id="cic-salvar" style="margin-top:6px">Salvar ${I.check}</button>
+      ${porDia[diaK] ? '<button class="btn ghost block" id="cic-apagar" style="margin-top:8px">Apagar o registro deste dia</button>' : ''}`, (root) => {
+      bindCamposCiclo(root.querySelector('.cic-campos'), r);
+      root.querySelectorAll('[data-dia]').forEach((b) => b.onclick = () => { diaK = b.dataset.dia; desenhar(); });
+      root.querySelector('#cic-salvar').onclick = async (e) => {
+        if (r.menstruada == null && !(r.sintomas || []).length && !(r.humor || []).length && !root.querySelector('#cic-nota').value.trim()) return toast('Marque pelo menos uma informação.', true);
+        e.currentTarget.disabled = true;
+        r.nota = root.querySelector('#cic-nota').value.trim() || null;
+        const res = await salvarDiaCiclo(r, c && c.inicios);
+        if (res.error) { e.currentTarget.disabled = false; return toast('Não foi possível salvar. Tente de novo.', true); }
+        closeSheet(); toast(res.novoInicio ? 'Registrado. O início da menstruação foi marcado e a previsão foi atualizada.' : 'Registrado.'); depois && depois();
+      };
+      const ap = root.querySelector('#cic-apagar');
+      if (ap) ap.onclick = async () => { await sb.from('nx_ciclo_dias').delete().eq('aluno_id', S.user.id).eq('dia', diaK).then(() => {}, () => {}); closeSheet(); toast('Registro apagado.'); depois && depois(); };
+    });
+  };
+  desenhar();
+}
+
+// rotinas guiadas de autocuidado (exercício leve e respiração têm evidência de aliviar a dor da cólica)
+const ROTINAS_CICLO = {
+  colica: { t: 'Alívio da cólica', d: 'Mobilidade suave e respiração, 8 minutos', passos: [
+    ['Respiração abdominal', 'Deitada de barriga para cima, joelhos dobrados. Mão na barriga: inspire pelo nariz enchendo a barriga e solte devagar pela boca.', 60],
+    ['Postura da criança', 'Ajoelhada, sente nos calcanhares e leve o tronco à frente, braços estendidos. Solte o peso e respire fundo.', 60],
+    ['Gato e vaca', 'Em quatro apoios: ao inspirar, afunde as costas e olhe à frente; ao soltar o ar, arredonde as costas. Movimento lento.', 60],
+    ['Báscula da pelve', 'Deitada, joelhos dobrados. Encoste a lombar no chão contraindo de leve o abdome e solte. Devagar, sem dor.', 60],
+    ['Joelhos ao peito', 'Deitada, abrace os joelhos e traga ao peito. Pode balançar de leve de um lado para o outro.', 60],
+    ['Torção deitada', 'Deitada, joelhos dobrados juntos: deixe cair para um lado e olhe para o outro. Troque de lado na metade do tempo.', 90],
+    ['Borboleta deitada', 'Deitada, junte as solas dos pés e deixe os joelhos abrirem. Mãos na barriga, respire devagar.', 60],
+    ['Respiração 4 e 6', 'Inspire contando até 4 e solte contando até 6. Expirar mais devagar ajuda a relaxar.', 60],
+  ] },
+  lombar: { t: 'Lombar mais leve', d: 'Para a dor nas costas do período, 5 minutos', passos: [
+    ['Gato e vaca', 'Em quatro apoios, alterne arredondar e afundar as costas, no ritmo da respiração.', 60],
+    ['Postura da criança', 'Sente nos calcanhares e leve o tronco à frente. Respire levando o ar para as costas.', 60],
+    ['Joelhos ao peito', 'Deitada, abrace os dois joelhos e solte a lombar no chão.', 60],
+    ['Ponte suave', 'Deitada, joelhos dobrados: suba o quadril devagar e desça vértebra por vértebra.', 60],
+    ['Torção deitada', 'Joelhos dobrados caem para um lado, depois para o outro. Sem forçar.', 60],
+  ] },
+  resp: { t: 'Respirar e relaxar', d: 'Respiração guiada para dor, ansiedade e sono, 3 minutos', resp: 180 },
+};
+function abrirRotina(k) {
+  const R = ROTINAS_CICLO[k]; if (!R) return;
+  if (R.resp) return abrirRespiracao(R);
+  let i = 0, resta = R.passos[0][2], pausa = false, tm = null;
+  const total = R.passos.reduce((a, p) => a + p[2], 0);
+  openSheet(`<p class="eyebrow">Autocuidado</p><div class="h2" style="margin-top:4px">${esc(R.t)}</div>
+    <div class="rot"><div class="rot-anel"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="fundo"/><circle cx="60" cy="60" r="52" class="prog" id="rot-prog"/></svg><b id="rot-seg"></b></div>
+      <p class="tiny dim" id="rot-n"></p><div class="h3" id="rot-t" style="margin-top:4px"></div><p class="small muted" id="rot-d" style="margin-top:6px;min-height:3.6em"></p>
+      <div class="row" style="gap:8px;justify-content:center;margin-top:12px"><button class="btn ghost sm" id="rot-ant">Anterior</button><button class="btn sm" id="rot-pausa">Pausar</button><button class="btn ghost sm" id="rot-prox">Próximo</button></div>
+      <p class="tiny dim" style="margin-top:14px">Sem dor: se algum movimento incomodar, pule para o próximo.</p></div>`, (root) => {
+    const C = 2 * Math.PI * 52, prog = root.querySelector('#rot-prog'); prog.style.strokeDasharray = C;
+    const mostra = () => {
+      const p = R.passos[i]; root.querySelector('#rot-n').textContent = `${i + 1} de ${R.passos.length} · ${Math.round(total / 60)} min no total`;
+      root.querySelector('#rot-t').textContent = p[0]; root.querySelector('#rot-d').textContent = p[1];
+      root.querySelector('#rot-seg').textContent = `${Math.floor(resta / 60)}:${String(resta % 60).padStart(2, '0')}`;
+      prog.style.strokeDashoffset = C * (resta / p[2]);
+    };
+    const vai = (n) => { if (n >= R.passos.length) { clearInterval(tm); closeSheet(); confete(); toast('Rotina concluída. Bom descanso.'); return; } i = Math.max(0, n); resta = R.passos[i][2]; if (navigator.vibrate) { try { navigator.vibrate(30); } catch {} } mostra(); };
+    tm = setInterval(() => { if (!document.body.contains(prog)) return clearInterval(tm); if (pausa) return; resta--; if (resta <= 0) vai(i + 1); else mostra(); }, 1000);
+    root.querySelector('#rot-ant').onclick = () => vai(i - 1);
+    root.querySelector('#rot-prox').onclick = () => vai(i + 1);
+    root.querySelector('#rot-pausa').onclick = (e) => { pausa = !pausa; e.currentTarget.textContent = pausa ? 'Continuar' : 'Pausar'; };
+    mostra();
+  });
+}
+function abrirRespiracao(R) {
+  let resta = R.resp, t0 = Date.now(), tm = null;
+  openSheet(`<p class="eyebrow">Autocuidado</p><div class="h2" style="margin-top:4px">${esc(R.t)}</div>
+    <div class="resp"><div class="resp-bola" id="resp-bola"><span id="resp-txt">Inspire</span></div>
+      <p class="small muted" style="margin-top:14px">Inspire pelo nariz em 4 segundos e solte o ar devagar em 6. Acompanhe o círculo.</p>
+      <p class="tiny dim" id="resp-resta" style="margin-top:6px"></p>
+      <button class="btn ghost block" data-close style="margin-top:14px">Encerrar</button></div>`, (root) => {
+    const bola = root.querySelector('#resp-bola'), txt = root.querySelector('#resp-txt');
+    const passo = () => {
+      if (!document.body.contains(bola)) return clearInterval(tm);
+      const s = Math.floor((Date.now() - t0) / 1000) % 10; const ins = s < 4;
+      txt.textContent = ins ? 'Inspire' : 'Solte o ar'; bola.classList.toggle('ins', ins);
+      resta = R.resp - Math.floor((Date.now() - t0) / 1000);
+      root.querySelector('#resp-resta').textContent = `${Math.max(0, Math.floor(resta / 60))}:${String(Math.max(0, resta % 60)).padStart(2, '0')} restantes`;
+      if (resta <= 0) { clearInterval(tm); closeSheet(); toast('Respiração concluída.'); }
+    };
+    tm = setInterval(passo, 250); passo();
+  });
+}
+const DICAS_CICLO = [
+  ['Calor local', 'Bolsa de água morna ou compressa quente no abdome por 15 a 20 minutos alivia a dor da cólica. Os estudos mostram efeito real na dor.'],
+  ['Mexer o corpo ajuda', 'Atividade física regular e exercício leve, como caminhada e alongamento, reduzem a intensidade da cólica. Não precisa parar de treinar: ajuste a intensidade pela sensação.'],
+  ['Hidratação', 'Na segunda metade do ciclo a temperatura do corpo sobe um pouco e o calor incomoda mais. Capriche na água nos treinos.'],
+  ['Fluxo intenso e ferro', 'Menstruação muito volumosa aumenta a chance de falta de ferro, que causa cansaço e queda de rendimento. Inclua carnes, feijão e folhas escuras e converse com o seu médico se o cansaço for grande.'],
+  ['Quando procurar um médico', 'Dor muito forte que não melhora com remédio comum; precisar trocar o absorvente a cada 1 ou 2 horas; ciclos menores que 21 ou maiores que 35 dias; ou ficar 3 meses sem menstruar. Em quem treina, ficar sem menstruar pode indicar que a alimentação não está cobrindo o gasto do treino.'],
+];
+const FASE_TXT = {
+  menstrual: 'Energia e disposição podem cair, principalmente com cólica. Treinar é seguro e exercício leve pode até aliviar a dor. Ajuste a intensidade pela sensação.',
+  folicular: 'Muitas mulheres se sentem com mais energia nesta fase. A diferença no desempenho entre as fases é pequena e muda de pessoa para pessoa: siga o seu plano normalmente.',
+  ovulatoria: 'Fase curta, perto da ovulação. Siga o plano normalmente e mantenha um bom aquecimento.',
+  lutea: 'A temperatura do corpo sobe um pouco e o calor pode incomodar mais: hidrate-se bem. Nos dias antes da menstruação podem aparecer sintomas de TPM, como inchaço e irritação.',
+};
+
+async function viewCicloAluna(mesSel) {
+  loading(); dockAluno();
+  const hj = hojeISO();
+  const [c0, inis, dias] = await Promise.all([
+    sb.from('nx_ciclo').select('*').eq('aluno_id', S.user.id).maybeSingle().then((r) => r.data, () => null),
+    sb.from('nx_ciclo_inicios').select('data').eq('aluno_id', S.user.id).order('data', { ascending: false }).limit(13).then((r) => (r.data || []).map((x) => x.data), () => []),
+    sb.from('nx_ciclo_dias').select('*').eq('aluno_id', S.user.id).gte('dia', somaDias(hj, -400)).order('dia', { ascending: false }).then((r) => r.data || [], () => []),
+  ]);
+  const c = c0 ? { ...c0, inicios: inis } : null;
+  const topo = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Saúde</p><h1 class="h1">Ciclo menstrual</h1>`;
+  if (!c || !c.ativo) {
+    $app.innerHTML = `${topo}<div class="card cic-intro" style="margin-top:14px"><div class="h3">Acompanhe o seu ciclo junto com o treino</div>
+      <p class="small muted" style="margin-top:8px">Veja a fase do ciclo, a previsão da próxima menstruação e registre sintomas como cólica, fluxo e humor. O seu treinador usa essas informações para ajustar a intensidade dos treinos quando você precisar.</p>
+      <p class="tiny dim" style="margin-top:8px">Só você e os treinadores da Nexos veem. Você pode desativar e apagar tudo quando quiser.</p>
+      <button class="btn block" id="cic-ativar" style="margin-top:14px">Ativar acompanhamento</button></div>
+      ${autocuidadoHTML()}`;
+    document.getElementById('cic-ativar').onclick = () => ativarCiclo(() => viewCicloAluna());
+    bindAutocuidado();
+    return;
+  }
+  const inf = cicloInfo(c) || {};
+  const porDia = Object.fromEntries(dias.map((x) => [x.dia, x]));
+  const hojeR = porDia[hj];
+  // dias de menstruação já vividos: registrados no dia a dia ou, sem registro, os dias após cada início
+  const mensDias = new Set(dias.filter((x) => x.menstruada).map((x) => x.dia));
+  const dm = c.duracao_menstr || 5;
+  inis.forEach((ini) => { const temReg = dias.some((x) => x.dia >= ini && x.dia <= somaDias(ini, 9)); if (!temReg) for (let i = 0; i < dm; i++) { const k = somaDias(ini, i); if (k <= hj) mensDias.add(k); } });
+  // histórico
+  const ciclos = []; for (let i = 0; i < inis.length - 1; i++) { const n = Math.round((dia(inis[i]) - dia(inis[i + 1])) / 864e5); if (n >= 15 && n <= 60) ciclos.push({ ini: inis[i + 1], n }); }
+  const durMens = inis.map((ini) => { let n = 0; while (n < 12 && dias.some((x) => x.dia === somaDias(ini, n) && x.menstruada)) n++; return n; }).filter((n) => n >= 2);
+  const medCiclo = ciclos.length ? Math.round(ciclos.reduce((a, x) => a + x.n, 0) / ciclos.length) : null;
+  const medMens = durMens.length ? Math.round(durMens.reduce((a, n) => a + n, 0) / durMens.length) : null;
+  const ult90 = dias.filter((x) => x.dia >= somaDias(hj, -90));
+  const contS = {}; ult90.forEach((x) => (x.sintomas || []).forEach((k) => (contS[k] = (contS[k] || 0) + 1)));
+  const topS = Object.entries(contS).sort((a, b) => b[1] - a[1]).slice(0, 5); const maxS = topS.length ? topS[0][1] : 1;
+  // cabeçalho
+  let hero = '';
+  if (inf.semFase) hero = `<div class="cic-hero"><p class="eyebrow">Seu ciclo</p><div class="cic-grande" style="font-size:1.6rem">${esc((SIT_CICLO.find((x) => x[0] === c.situacao) || [, ''])[1])}</div><p class="small" style="opacity:.8;margin-top:8px">Sem previsão de fases. Você ainda pode registrar sintomas e usar o autocuidado.</p></div>`;
+  else if (inf.semData) hero = `<div class="cic-hero"><p class="eyebrow">Seu ciclo</p><div class="cic-grande" style="font-size:1.6rem">Falta registrar a menstruação</div><button class="btn sm" id="cic-ini" style="margin-top:14px">Registrar o início</button></div>`;
+  else {
+    const fa = FASES_CICLO[inf.fase], cl = inf.ciclo, ov = cl - 14;
+    const faltam = Math.round((dia(inf.prox) - dia(hj)) / 864e5);
+    const seg = [['menstrual', dm], ['folicular', Math.max(1, ov - 2 - dm)], ['ovulatoria', 3], ['lutea', Math.max(1, cl - ov - 1)]];
+    const grande = inf.atraso ? `Atrasada ${inf.atraso} dia${inf.atraso > 1 ? 's' : ''}` : inf.fase === 'menstrual' ? `Menstruação · dia ${inf.dia}` : `Faltam ${faltam} dia${faltam !== 1 ? 's' : ''}`;
+    const sub = inf.atraso ? 'A menstruação prevista ainda não foi registrada. Já começou?' : inf.fase === 'menstrual' ? `Próxima prevista para ~${fmtCurto(inf.prox + 'T12:00:00')}` : `para a próxima menstruação · ~${fmtCurto(inf.prox + 'T12:00:00')}`;
+    hero = `<div class="cic-hero" style="--cf:${fa[1]}"><p class="eyebrow"><i class="cic-pt"></i>${fa[0]} · dia ${inf.dia} do ciclo</p>
+      <div class="cic-grande">${grande}</div><p class="small" style="opacity:.82;margin-top:4px">${sub}</p>
+      <div class="cic-barra">${seg.map(([k, n]) => `<span style="flex:${n};background:${FASES_CICLO[k][1]}"></span>`).join('')}<b class="cic-hoje" style="left:${Math.min(100, ((inf.dia - 0.5) / cl) * 100)}%"><em>Hoje</em></b></div>
+      <div class="cic-leg">${seg.map(([k]) => `<span><i style="background:${FASES_CICLO[k][1]}"></i>${FASES_CICLO[k][0].replace('Fase ', '')}</span>`).join('')}</div>
+      <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn sm" id="cic-reg">${hojeR ? 'Editar o registro de hoje' : 'Registrar como estou hoje'}</button><button class="btn ghost sm" id="cic-ini">Menstruação começou</button></div></div>
+      <div class="card" style="margin-top:12px"><b style="color:${fa[1]}">${fa[0]}</b><p class="small muted" style="margin-top:6px">${FASE_TXT[inf.fase]}</p></div>`;
+  }
+  // calendário do mês
+  const mesK = /^\d{4}-\d{2}$/.test(mesSel || '') ? mesSel : hj.slice(0, 7);
+  const prim = mesK + '-01', d0 = new Date(prim + 'T12:00:00'), offset = (d0.getDay() + 6) % 7;
+  const nDias = new Date(d0.getFullYear(), d0.getMonth() + 1, 0).getDate();
+  const mesAnt = isoDia(new Date(d0.getFullYear(), d0.getMonth() - 1, 15)).slice(0, 7), mesProx = isoDia(new Date(d0.getFullYear(), d0.getMonth() + 1, 15)).slice(0, 7);
+  const cel = [];
+  for (let i = 0; i < offset; i++) cel.push('<span></span>');
+  for (let n = 1; n <= nDias; n++) {
+    const k = `${mesK}-${String(n).padStart(2, '0')}`, futuro = k > hj;
+    const f = !inf.semFase ? cicloFaseDia(c, k) : null;
+    const mens = mensDias.has(k), prev = !mens && f && f.fase === 'menstrual' && (futuro || f.previsto) && k >= hj;
+    const reg = porDia[k];
+    cel.push(`<button type="button" class="cic-d${mens ? ' mens' : ''}${prev ? ' prev' : ''}${k === hj ? ' hoje' : ''}${futuro ? ' fut' : ''}" data-dia="${k}" ${futuro ? 'disabled' : ''}><b>${n}</b>${reg && ((reg.sintomas || []).length || (reg.humor || []).length || reg.nota) ? '<i></i>' : ''}</button>`);
+  }
+  const nomeMes = `${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][d0.getMonth()]} de ${d0.getFullYear()}`;
+  $app.innerHTML = `${topo}${hero}
+    <div class="section"><div class="section-h"><h2 class="h2">${nomeMes}</h2><div class="row" style="gap:6px"><a class="icon-btn sm" href="#/ciclo/${mesAnt}" aria-label="Mês anterior">${I.back}</a><a class="icon-btn sm" href="#/ciclo/${mesProx}" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</a></div></div>
+      <div class="cic-cal"><div class="cic-sem">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cic-grade">${cel.join('')}</div></div>
+      <div class="cic-leg cal"><span><i class="m"></i>Menstruação</span><span><i class="p"></i>Previsão</span><span><i class="r"></i>Registro do dia</span></div>
+      <p class="tiny dim" style="margin-top:6px">Toque em um dia para registrar ou ver como você estava.</p></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Seu histórico</h2></div>
+      <div class="cic-stats"><div><b>${medCiclo || inf.ciclo || c.duracao_ciclo || '–'}<small> dias</small></b><span>ciclo ${medCiclo ? 'médio' : 'informado'}</span></div><div><b>${medMens || dm}<small> dias</small></b><span>menstruação ${medMens ? 'média' : 'informada'}</span></div><div><b>${inis.length}</b><span>${inis.length === 1 ? 'início registrado' : 'inícios registrados'}</span></div></div>
+      ${ciclos.length ? `<div class="card" style="margin-top:10px"><b class="small">Últimos ciclos</b><div class="cic-hist">${ciclos.slice(0, 6).map((x) => `<div><span class="tiny dim">${fmtCurto(x.ini + 'T12:00:00')}</span><i style="width:${Math.min(100, (x.n / 45) * 100)}%"></i><b class="tiny">${x.n} dias</b></div>`).join('')}</div>${ciclos.some((x) => x.n < 21 || x.n > 35) ? '<p class="tiny" style="color:var(--warn);margin-top:8px">Algum ciclo ficou fora da faixa comum (21 a 35 dias). Se isso se repetir, vale conversar com o seu médico.</p>' : ''}</div>` : '<p class="small muted" style="margin-top:10px">Com dois ou mais inícios registrados aparece a duração de cada ciclo.</p>'}
+      ${topS.length ? `<div class="card" style="margin-top:10px"><b class="small">Sintomas mais frequentes (90 dias)</b><div class="cic-hist">${topS.map(([k, n]) => `<div><span class="tiny dim">${esc(nomeSint(k))}</span><i style="width:${(n / maxS) * 100}%;background:${CIC_ROSA}"></i><b class="tiny">${n}x</b></div>`).join('')}</div></div>` : ''}</div>
+    ${autocuidadoHTML()}
+    <div class="section"><a class="link-btn small" href="#/saude">Editar ou desativar o acompanhamento do ciclo</a></div>`;
+  const rg = document.getElementById('cic-reg'); if (rg) rg.onclick = () => registrarDiaCiclo(c, hj, () => viewCicloAluna(mesK));
+  const bi = document.getElementById('cic-ini'); if (bi) bi.onclick = () => abrirCiclo(c, () => viewCicloAluna(mesK));
+  $app.querySelectorAll('.cic-d[data-dia]').forEach((b) => b.onclick = () => registrarDiaCiclo(c, b.dataset.dia, () => viewCicloAluna(mesK)));
+  bindAutocuidado();
+}
+function autocuidadoHTML() {
+  return `<div class="section" id="cic-auto"><div class="section-h"><h2 class="h2">Autocuidado</h2></div>
+    <div class="cic-rots">${Object.entries(ROTINAS_CICLO).map(([k, r]) => `<button type="button" class="cic-rot" data-rot="${k}"><span class="cic-rot-ic">${I.play}</span><b>${esc(r.t)}</b><small>${esc(r.d)}</small></button>`).join('')}</div>
+    <div class="stack" style="margin-top:12px">${DICAS_CICLO.map(([t, d]) => `<details class="ajuda cic-dica"><summary>${esc(t)}</summary><p>${esc(d)}</p></details>`).join('')}</div></div>`;
+}
+function bindAutocuidado() { $app.querySelectorAll('[data-rot]').forEach((b) => b.onclick = () => abrirRotina(b.dataset.rot)); }
 
 /* ---------- aba Conexões (aluno): relógios e apps ---------- */
 async function viewConexoes(ret) {
@@ -7452,6 +7733,7 @@ async function staffHoje() {
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const segAtual = isoDia(inicioSemana()), segPass = somaDias(segAtual, -7), segProx = somaDias(segAtual, 7);
   const prontP = sb.from('nx_prontidao').select('aluno_id,dia,total,dor,dor_locais,alerta').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
+  const cicP = sb.from('nx_ciclo_dias').select('aluno_id,colica_int,fluxo').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
   const cargasP = buscarCargas(null).catch(() => ({}));
   const [{ data: membrosT }, sessT, corrT, anamsT, avsT, cobsT, provasEqT, planoResT, treinosResT, libsResT] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
@@ -7478,9 +7760,10 @@ async function staffHoje() {
   sess.forEach((s) => { if (!ultimoTreino[s.aluno_id] || s.iniciado_em > ultimoTreino[s.aluno_id]) ultimoTreino[s.aluno_id] = s.iniciado_em; });
   corr.forEach((c) => { if (!ultimoTreino[c.aluno_id] || c.data > ultimoTreino[c.aluno_id]) ultimoTreino[c.aluno_id] = c.data; });
   const ultAval = {}; avs.forEach((a) => { if (!ultAval[a.aluno_id]) ultAval[a.aluno_id] = a; });
-  const [pronts, cargas] = await Promise.all([prontP, cargasP]);
+  const [pronts, cargas, cicH] = await Promise.all([prontP, cargasP, cicP]);
   const alertas = ativos.map((m) => {
     const id = m.user_id, l = [];
+    const ch = cicH.find((x) => x.aluno_id === id); if (ch && ((ch.colica_int != null && ch.colica_int >= 7) || ch.fluxo === 'intenso')) l.push({ p: 2, t: ch.colica_int != null && ch.colica_int >= 7 ? `Cólica forte hoje (${ch.colica_int}/10)` : 'Fluxo menstrual intenso hoje', cls: 'warn', ir: '#/prontidao-equipe' });
     const cg = cargas[id]; if (cg && cg.nivel) l.push({ p: cg.nivel === 'alto' ? 1 : 2, t: cg.curto, cls: cg.nivel === 'alto' ? 'err' : 'warn', ir: `#/aluno/${id}/${faz('corrida', m) ? 'corrida' : 'forca'}` });
     const pr = pronts.find((x) => x.aluno_id === id && x.alerta);
     if (pr) l.push({ p: 1, t: `Prontidão baixa hoje (${pr.total}/20)${pr.dor_locais && pr.dor_locais.length ? ' · dor: ' + pr.dor_locais.map(nomeRegDor).join(', ') : ''}`, cls: 'err', ir: `#/aluno/${id}/saude` });
