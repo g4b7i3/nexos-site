@@ -11708,7 +11708,7 @@ const cicKm = (sem, perfil) => sem.sess.reduce((a, x) => a + kmDe(x[1], perfil),
 // biblioteca de ciclos (treinador)
 const trlCard = (t, forca) => { const cs = t.seq.map((x) => (forca ? CICLOS_FORCA : CICLOS_CORR).find((c) => c.id === x)).filter(Boolean), tot = cs.reduce((a, c) => a + cicSem(c), 0); return `<a class="card tap cic-card" href="${forca ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/'}${t.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(t.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[t.niv]}</span><span class="tag">${cs.length} ciclos</span><span class="tag">${tot} semanas</span></div></div>${I.chev}</div><div class="cic-barra trl-barra">${cs.map((c, i) => `<i style="flex:${cicSem(c)};background:hsl(${(i * 47 + 190) % 360} 70% 55%)"></i>`).join('')}</div><p class="small muted" style="margin-top:8px">${esc(t.desc)}</p><p class="tiny dim" style="margin-top:6px">${cs.map((c) => esc(c.nome)).join(' → ')}</p></a>`; };
 async function viewCiclos(id) {
-  if (id) return /^t-/.test(id) ? viewTrilha(id, false) : viewCiclo(id);
+  if (id) return id === 'anual' ? viewMacro() : /^t-/.test(id) ? viewTrilha(id, false) : viewCiclo(id);
   const st = S.cache.cicObj || (S.cache.cicObj = { o: store.get('nx-cic-obj', 'ini') });
   const desenha = () => {
     st.m = st.m || store.get('nx-cic-mod', 'trad');
@@ -11716,6 +11716,7 @@ async function viewCiclos(id) {
     const mi = MOD_INFO[st.m];
     $app.innerHTML = `<a class="back" href="#/treinos/corrida">${I.back} Treinos de corrida</a><p class="eyebrow">Biblioteca de corrida</p><h1 class="h1">Ciclos prontos</h1>
       <p class="muted" style="margin-top:6px">Ciclos completos, semana a semana. Ao aplicar, todas as semanas vão para a planilha do aluno <b>sem liberar</b>: você ajusta o que quiser e libera semana a semana. Os ritmos de cada zona saem do perfil de corrida de cada aluno.</p>
+      <a class="card tap mac-cta" href="#/treinos/ciclos/anual" style="color:inherit;margin-top:14px"><span class="mac-cta-ic">${I.cal}</span><div class="grow" style="min-width:0"><b>Macrociclo anual</b><p class="small muted" style="margin-top:2px">Monte o ano do aluno a partir das provas principais, com todos os ciclos na ordem certa.</p></div>${I.chev}</a>
       <div class="chips" id="cic-o" style="margin-top:14px">${CIC_OBJ.map(([k, l]) => `<button type="button" class="chip ${k === st.o ? 'on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>
       ${st.o === 'modelos' ? `<p class="small muted" style="margin-top:12px"><b>Periodização</b> é como as fases se encadeiam ao longo do ciclo. <b>Distribuição de intensidade</b> é como cada semana se divide entre leve e forte. Escolha o modelo e o nível do aluno.</p>
         <div class="chips wrap" id="cic-m" style="margin-top:10px">${MOD_CORR.map(([k, l]) => `<button type="button" class="chip ${k === st.m ? 'on' : ''}" data-m="${k}">${l}</button>`).join('')}</div>
@@ -12044,6 +12045,210 @@ document.addEventListener('click', (e) => {
   S.cache.cicPre = { aluno: b.dataset.cical, ini: b.dataset.cicini };
   location.hash = b.dataset.cicnx ? (b.dataset.cictipo === 'forca' ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/') + b.dataset.cicnx : (b.dataset.cictipo === 'forca' ? '#/treinos/ciclos-forca' : '#/treinos/ciclos');
 });
+
+/* ---------- Macrociclo anual: o ano montado de trás para frente a partir das provas A ----------
+   Base: Matveyev (periodização simples e dupla); Issurin 2010 (Sports Med, blocos e múltiplos picos); Bosquet et al. 2007
+   (Med Sci Sports Exerc, polimento); Mujika & Padilla 2003 (Med Sci Sports Exerc, polimento); Haugen et al. 2022 (Sports Med Open);
+   Rønnestad & Mujika 2014 (Scand J Med Sci Sports, força em manutenção na temporada); Blagrove et al. 2018 (Sports Med). */
+const MAC_DIST = [['5', '5 km', 5], ['10', '10 km', 10], ['21', 'Meia maratona', 21.1], ['42', 'Maratona', 42.2], ['u50', 'Ultra até 50 km', 50], ['u80', 'Ultra de 80 a 100 km', 80]];
+const MAC_KM = Object.fromEntries(MAC_DIST.map((x) => [x[0], x[2]]));
+const MAC_NOMED = Object.fromEntries(MAC_DIST.map((x) => [x[0], x[1]]));
+const MAC_CIC = { 5: { ini: '5k-ini', int: '5k-int', ava: '5k-ava', pro: '5k-pro' }, 10: { ini: '10k-ini', int: '10k-int', ava: '10k-ava', pro: '10k-pro' }, 21: { ini: '21k-ini', int: '21k-int', ava: '21k-ava', pro: '21k-pro' }, 42: { ini: '42k-int16', int: '42k-int16', ava: '42k-ava', pro: '42k-pro' }, u50: { ini: 'ul-int', int: 'ul-int', ava: 'ul-int', pro: 'ul-int' }, u80: { ini: 'ul-ava', int: 'ul-ava', ava: 'ul-ava', pro: 'ul-ava' } };
+const MAC_BASE = { ini: 'ini-base', int: 'bl-base-int', ava: 'bl-base-ava', pro: 'bl-base-ava' };
+const MAC_LIM = { ini: null, int: 'bl-lim-int', ava: 'bl-lim-ava', pro: 'bl-lim-pro' };
+// intervalo mínimo recomendado (semanas) antes de uma nova prova A, conforme a distância da prova anterior
+const MAC_MIN = { 5: 4, 10: 6, 21: 10, 42: 16, u50: 16, u80: 20 };
+// semanas mínimas de preparação específica para chegar bem numa prova A
+const MAC_PREP = { 5: 4, 10: 6, 21: 8, 42: 12, u50: 12, u80: 16 };
+const MAC_LONGA = (d) => ['21', '42', 'u50', 'u80'].includes(String(d));
+const MAC_COR = { pre: '#3ddc97', base: '#3ddc97', lim: '#46d6ff', prova: '#ffcf5c', pos: '#b794ff', trans: '#9aa8c0' };
+const MAC_TIPO = { pre: 'Pré-temporada', base: 'Base', lim: 'Limiar', prova: 'Ciclo da prova', pos: 'Recuperação', trans: 'Transição' };
+const macDistDe = (txt) => { const k = parseFloat(String(txt || '').replace(',', '.')); if (!k) return '10'; return k <= 7 ? '5' : k <= 15 ? '10' : k <= 30 ? '21' : k <= 45 ? '42' : k <= 60 ? 'u50' : 'u80'; };
+const cicPor = (id) => CICLOS_CORR.find((x) => x.id === id);
+function planoMacro(ini, niv, provas) {
+  const segs = [], avisos = [], semIdx = (iso) => Math.round((inicioSemana(dia(iso)) - ini) / 6048e5);
+  const todas = provas.filter((p) => p.data && p.dist).map((p) => ({ ...p, w: semIdx(p.data) }));
+  const fora = todas.filter((p) => p.w < 0 || p.w > 60); fora.forEach((p) => avisos.push(`${p.nome || 'Prova'} (${fmtDia(p.data)}) está fora do período do plano (até cerca de 14 meses a partir do início).`));
+  let A = todas.filter((p) => p.pri === 'A' && p.w >= 0 && p.w <= 60).sort((a, b) => a.w - b.w);
+  const outras = todas.filter((p) => p.pri !== 'A' && p.w >= 0 && p.w <= 60);
+  if (!A.length) return { segs, avisos: ['Marque pelo menos uma prova como A (principal). O plano é montado de trás para frente a partir delas.'], total: 0, outras: [] };
+  if (A.length > 3) avisos.push('Mais de 3 provas A no ano: cada pico exige polimento e recuperação. Considere deixar algumas como B.');
+  if (niv === 'ini' && A.some((p) => ['42', 'u50', 'u80'].includes(p.dist))) avisos.push('Maratona ou ultra para iniciante: o ideal é ter completado uma meia maratona antes. O plano usa o ciclo de primeira maratona, que pede base prévia.');
+  const add = (id, w0, from, n, tipo, extra) => { const c = cicPor(id); if (!c || n <= 0) return; segs.push({ c, w0, from, n, tipo, ...extra }); };
+  const preencher = (a, b, primeiro) => { // base e limiar entre a e b
+    let rest = b - a; if (rest <= 0) return;
+    const lim = MAC_LIM[niv]; let fimLim = null;
+    if (lim && rest >= 4) { fimLim = b - 4; rest -= 4; }
+    let w = a;
+    if (primeiro && niv === 'int' && rest >= 8) { add('bl-pre', w, 0, 8, 'pre'); w += 8; rest -= 8; }
+    const base = MAC_BASE[niv], Lb = cicPor(base).sem;
+    while (rest > 0) { const n = Math.min(Lb, rest); add(base, w, 0, n, 'base'); w += n; rest -= n; }
+    if (fimLim != null) add(lim, fimLim, 0, 4, 'lim');
+  };
+  let cur = 0, ant = null;
+  A.forEach((p, i) => {
+    if (ant && p.w - ant.w < (MAC_MIN[ant.dist] || 6)) avisos.push(`Só ${p.w - ant.w} semanas entre ${ant.nome || 'a prova anterior'} e ${p.nome || 'esta prova'}. Depois de ${MAC_NOMED[ant.dist].toLowerCase()}, o recomendado é pelo menos ${MAC_MIN[ant.dist]} semanas até outra prova principal.`);
+    if (p.w < cur) { avisos.push(`${p.nome || 'Prova'} (${fmtDia(p.data)}) cai dentro do ciclo ou da recuperação da prova anterior. Ela entrou como prova B.`); outras.push({ ...p, pri: 'B' }); return; }
+    let id = MAC_CIC[p.dist][niv]; let c = cicPor(id);
+    const disp = p.w - cur + 1;
+    if (id === '42k-int16' && disp < 16 && disp >= 12) { id = '42k-int12'; c = cicPor(id); }
+    let L = c.sem, from = 0, w0 = p.w - L + 1;
+    if (w0 < cur) { from = cur - w0; w0 = cur; }
+    if (disp < (MAC_PREP[p.dist] || 6)) avisos.push(`Só ${disp} semana${disp > 1 ? 's' : ''} até ${p.nome || 'a prova'} (${fmtDia(p.data)}). O mínimo recomendado para ${MAC_NOMED[p.dist].toLowerCase()} é ${MAC_PREP[p.dist]} semanas de preparação; o ciclo foi encurtado pelo começo.`);
+    else if (from > 0) avisos.push(`O ciclo de ${p.nome || 'a prova'} foi encurtado: começa na semana ${from + 1} de ${L} (pula parte da base).`);
+    preencher(cur, w0, i === 0);
+    add(id, w0, from, L - from, 'prova', { prova: p });
+    cur = p.w + 1;
+    const prox = A[i + 1];
+    if (MAC_LONGA(p.dist)) { add('bl-pos', cur, 0, 2, 'pos'); cur += 2; }
+    if (['42', 'u50', 'u80'].includes(p.dist) && (!prox || prox.w - cur >= 10)) { add('bl-trans', cur, 0, 2, 'trans'); cur += 2; }
+    else if (!prox && !MAC_LONGA(p.dist)) { add('bl-trans', cur, 0, 2, 'trans'); cur += 2; }
+    ant = p;
+  });
+  // provas B e C: entram nas semanas em que caem
+  const vistas = [];
+  outras.forEach((p) => {
+    if (p.w >= cur) { avisos.push(`${p.nome || 'Prova'} (${fmtDia(p.data)}) é depois do fim do plano e não entrou.`); return; }
+    const s = segs.find((x) => p.w >= x.w0 && p.w < x.w0 + x.n);
+    if (!s) return;
+    if (s.tipo === 'pos') avisos.push(`${p.nome || 'Prova'} (${fmtDia(p.data)}) cai na recuperação da prova principal. Se possível, só participe leve.`);
+    if (s.tipo === 'prova' && p.w === s.w0 + s.n - 1) { avisos.push(`${p.nome || 'Prova'} cai na semana da prova principal e não entrou.`); return; }
+    vistas.push(p);
+  });
+  return { segs: segs.sort((a, b) => a.w0 - b.w0), avisos, total: cur, outras: vistas.sort((a, b) => a.w - b.w) };
+}
+// semanas com os treinos, já com as provas A, B e C nos dias certos
+function semanasMacro(pl) {
+  const W = [];
+  pl.segs.forEach((s) => cicSemanas(s.c).slice(s.from, s.from + s.n).forEach((w, k) => W.push({ ...w, sess: w.sess.map((x) => [...x]), seg: s, k })));
+  const diaSem = (iso) => (dia(iso).getDay() + 6) % 7;
+  const titulo = (p, km) => `Prova ${String(km).replace('.', ',')} km${p.nome ? ' · ' + p.nome : ''}`;
+  pl.segs.filter((s) => s.prova).forEach((s) => {
+    const w = W[s.prova.w]; if (!w) return; const rd = diaSem(s.prova.data);
+    const pv = w.sess.find(([, t]) => t.tipo === 'prova');
+    const km = s.c.prova || MAC_KM[s.prova.dist];
+    const t = pv ? { ...pv[1], titulo: titulo(s.prova, km) } : sProva(km, 'limiar');
+    w.sess = w.sess.filter(([d, x]) => x.tipo !== 'prova' && d < rd); w.sess.push([rd, { ...t, titulo: titulo(s.prova, km) }]);
+  });
+  pl.outras.forEach((p) => {
+    const w = W[p.w]; if (!w) return; const rd = diaSem(p.data), km = MAC_KM[p.dist];
+    const z = { 5: 'intervalado', 10: 'limiar', 21: 'limiar', 42: 'maratona' }[p.dist] || 'leve';
+    // a prova toma o lugar do longão; na B, os 2 dias antes ficam leves
+    w.sess = w.sess.filter(([d, x]) => d !== rd && x.tipo !== 'longao');
+    if (p.pri === 'B') w.sess = w.sess.map(([d, x]) => (d < rd && d >= rd - 2 && !['regenerativo', 'rodagem'].includes(x.tipo) ? [d, sRod(5, true)] : [d, x]));
+    const t = sProva(km, z);
+    w.sess.push([rd, { ...t, titulo: `Prova ${p.pri} · ${String(km).replace('.', ',')} km${p.nome ? ' · ' + p.nome : ''}`, obs: p.pri === 'B' ? 'Prova de preparação: alivie 2 a 3 dias antes e use para testar ritmo, alimentação e equipamento. Não é o pico da temporada.' : 'Prova C: faça como um treino forte, sem aliviar antes. Serve de estímulo e experiência de prova.' }]);
+    w.sess.sort((a, b) => a[0] - b[0]);
+  });
+  return W;
+}
+// força acompanhando a corrida semana a semana
+function forcaMacro(W) {
+  let pp = 0;
+  return W.map((w, i) => {
+    if (w.rec || ['Polimento', 'Prova', 'Recuperação'].includes(w.fase)) return 'deload';
+    if (w.fase === 'Transição' || w.fase === 'Adaptação' || w.fase === 'Teste') return 'resistencia';
+    if (w.fase === 'Base') return i < 2 ? 'resistencia' : (w.k % 4 === 2 ? 'forca' : 'hipertrofia');
+    if (w.fase === 'Construção') return 'forca';
+    return (pp++ % 2) ? 'potencia' : 'forca';
+  });
+}
+const MAC_GUIA = [
+  ['Para quem é', 'Para o corredor que já treina com regularidade (pelo menos uns 3 meses correndo 30 min sem parar) e tem um calendário de provas no ano, com pelo menos uma prova principal. Quem está começando do zero deve antes fazer os ciclos de iniciante ou a trilha "Do zero à primeira meia"; quem não tem prova marcada se dá melhor com as trilhas e os modelos de treino.'],
+  ['Para que serve', 'Organizar o ano inteiro para o aluno chegar no pico nas provas que mais importam, em vez de tentar estar no auge o ano todo, o que não é possível. Cada fase prepara a seguinte: base aeróbica, depois limiar, depois a parte específica da prova e o polimento. Depois de cada prova principal entram recuperação e transição. Essa organização em fases é a periodização (Matveyev; Issurin 2010).'],
+  ['Provas A, B e C', '<b>A:</b> as principais do ano, no máximo 2 ou 3. O ciclo inteiro é montado para elas, com polimento. <b>B:</b> provas de preparação; alivia 2 a 3 dias antes e serve para testar ritmo, alimentação e equipamento. <b>C:</b> entram como treino forte, sem aliviar. A classificação em A, B e C é a prática consagrada no treinamento de endurance para proteger os picos do ano.'],
+  ['Quantos picos no ano', '<b>Uma prova A:</b> periodização simples, com a preparação mais longa e completa. <b>Duas:</b> periodização dupla, a mais usada, por exemplo uma no primeiro e outra no segundo semestre. <b>Três ou mais:</b> funciona melhor com blocos curtos e concentrados, que permitem vários picos no ano (Issurin 2010). Maratona: na prática, atletas de alto nível fazem no máximo duas por ano.'],
+  ['Intervalo entre provas principais', 'O app avisa quando o calendário não fecha. Depois de uma maratona, a força muscular e os marcadores de dano levam de 1 a 2 semanas (ou mais) para voltar ao normal; somando a nova preparação, o recomendado é pelo menos uns 4 meses até outra maratona. Depois de uma meia, 8 a 10 semanas. Em 5 e 10 km a recuperação é rápida e cabem vários picos.'],
+  ['O polimento', 'Nas 1 a 3 últimas semanas antes de cada prova A, o volume cai de 40% a 60%, mantendo a intensidade e o número de treinos. É o que mais melhora o desempenho no dia da prova, em média uns 2 a 3% (Bosquet et al. 2007; Mujika & Padilla 2003). Prova B só tem alívio curto; prova C, nenhum.'],
+  ['E a musculação', 'Se marcar a força, ela acompanha a corrida: força pesada e hipertrofia na base, força e potência na construção e na fase específica, e semana leve nas semanas de recuperação, no polimento e na prova. Força pesada melhora a economia de corrida (Blagrove et al. 2018), e uma sessão por semana com carga alta já mantém a força durante a temporada de provas (Rønnestad & Mujika 2014).'],
+  ['Como o app monta', 'De trás para frente: para cada prova A, o ciclo da distância e do nível termina na semana da prova. Antes dele, um bloco de limiar e, antes do limiar, blocos de base (no começo da temporada, a Pré-temporada Nexos). Depois de meia, maratona e ultra entra a recuperação; depois de maratona e ultra, a transição. Se não houver tempo para o ciclo inteiro, ele é encurtado pelo começo e o app avisa. Tudo vai para a planilha sem liberar.'],
+];
+const MAC_REFS = 'Matveyev 1964/1977 (periodização clássica); Issurin 2010 (Sports Med); Bosquet et al. 2007 (Med Sci Sports Exerc); Mujika & Padilla 2003 (Med Sci Sports Exerc); Haugen et al. 2022 (Sports Med Open); Blagrove et al. 2018 (Sports Med); Rønnestad & Mujika 2014 (Scand J Med Sci Sports).';
+async function viewMacro() {
+  const ms = await sb.from('nx_membros').select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
+  const alunos = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m));
+  const prox = (() => { const d = inicioSemana(); d.setDate(d.getDate() + 7); return isoDia(d); })();
+  const st = S.cache.macro || (S.cache.macro = { aluno: '', niv: 'int', ini: prox, provas: [], forca: false });
+  const salvar = () => { if (st.aluno) store.set('nx-macro-' + st.aluno, { niv: st.niv, provas: st.provas, forca: st.forca }); };
+  const carregar = async () => {
+    const sv = store.get('nx-macro-' + st.aluno, null);
+    if (sv && sv.provas && sv.provas.length) { Object.assign(st, sv); return; }
+    const ps = await sb.from('nx_participacoes').select('titulo,data,distancia').eq('aluno_id', st.aluno).gte('data', st.ini).lte('data', somaDias(st.ini, 420)).order('data').then((r) => r.data || [], () => []);
+    st.provas = ps.map((p) => ({ nome: p.titulo || '', data: p.data, dist: macDistDe(p.distancia), pri: 'B' }));
+    const m = alunos.find((x) => x.user_id === st.aluno); st.forca = !!(m && faz('musculacao', m));
+  };
+  const corpo = () => {
+    const pl = planoMacro(inicioSemana(dia(st.ini)), st.niv, st.provas);
+    const W = pl.segs.length ? semanasMacro(pl) : [];
+    const fimISO = pl.total ? somaDias(isoDia(inicioSemana(dia(st.ini))), 7 * pl.total - 1) : null;
+    const dataSem = (w) => isoDia(new Date(inicioSemana(dia(st.ini)).getTime() + w * 6048e5));
+    return `${pl.avisos.length ? `<div class="stack" style="margin-top:12px">${pl.avisos.map((a) => `<p class="aviso-dup" style="margin:0">${esc(a)}</p>`).join('')}</div>` : ''}
+      ${pl.segs.length ? `<div class="card" style="margin-top:12px"><div class="ck-res cic-res"><div><b>${pl.total}</b><span>semanas</span></div><div><b>${pl.segs.length}</b><span>ciclos</span></div><div><b>${W.reduce((a, w) => a + w.sess.length, 0)}</b><span>treinos</span></div></div>
+        <div class="mac-barra">${pl.segs.map((s) => `<i style="flex:${s.n};background:${MAC_COR[s.tipo]}">${s.prova ? '<b>A</b>' : ''}</i>`).join('')}</div>
+        <div class="cic-leg">${[...new Set(pl.segs.map((s) => s.tipo))].map((t) => `<span><i style="background:${MAC_COR[t]}"></i>${MAC_TIPO[t]}</span>`).join('')}</div>
+        <p class="small" style="margin-top:10px;color:var(--acc)">De ${fmtDia(st.ini)} a ${fmtDia(fimISO)}</p></div>
+      <p class="sec-lbl">O ano, ciclo a ciclo</p>
+      <div class="stack">${pl.segs.map((s) => { const bs = pl.outras.filter((p) => p.w >= s.w0 && p.w < s.w0 + s.n); return `<a class="card tap mac-seg" href="#/treinos/ciclos/${s.c.id}" style="color:inherit;--fc:${MAC_COR[s.tipo]}"><div class="grow" style="min-width:0"><span class="eyebrow">${MAC_TIPO[s.tipo]} · semana${s.n > 1 ? 's' : ''} ${s.w0 + 1}${s.n > 1 ? '–' + (s.w0 + s.n) : ''}</span><b style="display:block;margin-top:2px">${esc(s.c.nome)}</b><span class="small muted">${fmtCurto(dataSem(s.w0))} a ${fmtCurto(somaDias(dataSem(s.w0 + s.n - 1), 6))} · ${s.n} semana${s.n > 1 ? 's' : ''}${s.from ? ` (a partir da ${s.from + 1}ª)` : ''}</span>${s.prova ? `<div class="mac-prova A">Prova A · ${esc(s.prova.nome || MAC_NOMED[s.prova.dist])} · ${fmtCurto(s.prova.data)}</div>` : ''}${bs.map((p) => `<div class="mac-prova">Prova ${p.pri} · ${esc(p.nome || MAC_NOMED[p.dist])} · ${fmtCurto(p.data)}</div>`).join('')}</div>${I.chev}</a>`; }).join('')}</div>
+      <label class="ck-check" style="margin-top:14px"><input type="checkbox" id="mac-limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>
+      <button class="btn block" id="mac-apl" style="margin-top:12px" ${st.aluno ? '' : 'disabled'}>${I.users} ${st.aluno ? `Aplicar as ${pl.total} semanas` : 'Escolha o aluno para aplicar'}</button>
+      <p class="tiny dim" style="margin-top:8px">Nada é liberado para o aluno. Os treinos já liberados nunca são apagados. Os ritmos saem do perfil de corrida do aluno.</p>` : ''}`;
+  };
+  const provaHTML = (p, i) => `<div class="card mac-pv" data-i="${i}"><div class="row" style="gap:8px"><input class="input" data-k="nome" placeholder="Nome da prova" value="${esc(p.nome || '')}"><button type="button" class="icon-btn" data-del="${i}" aria-label="Remover">${I.x}</button></div>
+    <div class="mac-pv-l"><input class="input" type="date" data-k="data" value="${p.data || ''}"><select class="input" data-k="dist">${MAC_DIST.map(([k, l]) => `<option value="${k}" ${p.dist === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <div class="mac-pri">${['A', 'B', 'C'].map((x) => `<button type="button" class="${p.pri === x ? 'on' : ''}" data-pri="${x}">${x}<small>${{ A: 'Principal', B: 'Preparação', C: 'Treino' }[x]}</small></button>`).join('')}</div></div>`;
+  const tela = () => {
+    $app.innerHTML = `<a class="back" href="#/treinos/ciclos">${I.back} Ciclos prontos</a><p class="eyebrow">Planejamento da temporada</p><h1 class="h1">Macrociclo anual</h1>
+      <p class="muted" style="margin-top:6px">O ano do aluno montado de trás para frente a partir das provas principais: base, limiar, ciclo da prova, polimento, recuperação e transição, na ordem certa.</p>
+      <div class="stack" style="margin-top:14px">${MAC_GUIA.map(([t, x], i) => `<details class="card cic-sem mac-guia" ${i === 0 ? 'open' : ''}><summary><b class="grow">${t}</b>${I.chev}</summary><p class="small" style="margin-top:8px">${x}</p></details>`).join('')}</div>
+      <p class="tiny dim" style="margin-top:8px">${MAC_REFS}</p>
+      <p class="sec-lbl">Montar o macrociclo</p>
+      <div class="card"><label class="field"><span>Aluno</span><select class="input" id="mac-al"><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${st.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
+        <label class="field"><span>Nível</span><select class="input" id="mac-niv">${Object.entries(CIC_NIV).map(([k, l]) => `<option value="${k}" ${st.niv === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" id="mac-ini" value="${st.ini}"></label>
+        <label class="ck-check"><input type="checkbox" id="mac-forca" ${st.forca ? 'checked' : ''}><span>Montar também a musculação acompanhando a corrida</span></label></div>
+      <p class="sec-lbl">Provas do ano</p>
+      ${st.aluno && !st.provas.length ? '<p class="small muted">Nenhuma prova cadastrada para este aluno no próximo ano. Adicione abaixo.</p>' : ''}
+      <div class="stack" id="mac-pvs">${st.provas.map(provaHTML).join('')}</div>
+      <button type="button" class="btn ghost block" id="mac-add" style="margin-top:10px">${I.plus} Adicionar prova</button>
+      <div id="mac-res">${corpo()}</div>`;
+    const res = () => { document.getElementById('mac-res').innerHTML = corpo(); bindApl(); salvar(); };
+    document.getElementById('mac-al').onchange = async (e) => { st.aluno = e.target.value; if (st.aluno) await carregar(); tela(); };
+    document.getElementById('mac-niv').onchange = (e) => { st.niv = e.target.value; res(); };
+    document.getElementById('mac-ini').onchange = (e) => { if (e.target.value) st.ini = isoDia(inicioSemana(dia(e.target.value))); e.target.value = st.ini; res(); };
+    document.getElementById('mac-forca').onchange = (e) => { st.forca = e.target.checked; salvar(); };
+    document.getElementById('mac-add').onclick = () => { st.provas.push({ nome: '', data: '', dist: '21', pri: st.provas.some((p) => p.pri === 'A') ? 'B' : 'A' }); tela(); const l = $app.querySelectorAll('.mac-pv'); if (l.length) l[l.length - 1].querySelector('input').focus(); };
+    const pvs = document.getElementById('mac-pvs');
+    pvs.onchange = (e) => { const x = e.target.closest('[data-k]'), c = e.target.closest('.mac-pv'); if (!x || !c) return; st.provas[+c.dataset.i][x.dataset.k] = x.value; res(); };
+    pvs.onclick = (e) => {
+      const d = e.target.closest('[data-del]'); if (d) { st.provas.splice(+d.dataset.del, 1); salvar(); return tela(); }
+      const b = e.target.closest('[data-pri]'), c = e.target.closest('.mac-pv'); if (!b || !c) return;
+      st.provas[+c.dataset.i].pri = b.dataset.pri; c.querySelectorAll('[data-pri]').forEach((x) => x.classList.toggle('on', x === b)); res();
+    };
+    bindApl();
+  };
+  const bindApl = () => { const b = document.getElementById('mac-apl'); if (b) b.onclick = () => aplicarMacro(b); };
+  async function aplicarMacro(b) {
+    const ini0 = inicioSemana(dia(st.ini)), pl = planoMacro(ini0, st.niv, st.provas); if (!pl.segs.length || !st.aluno) return;
+    const W = semanasMacro(pl), m = alunos.find((x) => x.user_id === st.aluno), perfil = perfilCorrida(m || {});
+    b.disabled = true; b.textContent = 'Montando…';
+    const rows = [];
+    W.forEach((w, i) => w.sess.forEach(([d, t]) => { const data = new Date(ini0); data.setDate(data.getDate() + i * 7 + d); const rs = resumoEstrutura(t.estrutura, perfil); rows.push({ org_id: S.org.id, aluno_id: st.aluno, data: isoDia(data), tipo: t.tipo, titulo: t.titulo, estrutura: t.estrutura, distancia_km: Math.round(rs.km * 10) / 10, duracao_min: Math.round(rs.seg / 60), zona: null, descricao: t.obs || null, liberado: false, criado_por: S.user.id }); }));
+    const fim = new Date(ini0); fim.setDate(fim.getDate() + 7 * pl.total - 1);
+    try {
+      if (document.getElementById('mac-limpar').checked) { const { error: e1 } = await sb.from('nx_plano_corrida').delete().eq('aluno_id', st.aluno).eq('liberado', false).gte('data', isoDia(ini0)).lte('data', isoDia(fim)); if (e1) throw e1; }
+      for (let k = 0; k < rows.length; k += 150) { const { error: e2 } = await sb.from('nx_plano_corrida').insert(rows.slice(k, k + 150)); if (e2) throw e2; }
+      pl.segs.forEach((s) => { const d = new Date(ini0); d.setDate(d.getDate() + 7 * s.w0); registrarCiclo(st.aluno, 'corrida', { id: s.c.id, nome: s.c.nome }, d, s.n, 'anual'); });
+      if (st.forca) {
+        const fs = forcaMacro(W).map((fase, i) => { const d = new Date(ini0); d.setDate(d.getDate() + 7 * i); return { org_id: S.org.id, aluno_id: st.aluno, semana: isoDia(d), fase, criado_por: S.user.id }; });
+        const { error: e3 } = await sb.from('nx_forca_fases').upsert(fs, { onConflict: 'aluno_id,semana' }); if (e3) throw e3;
+        registrarCiclo(st.aluno, 'forca', { id: 'macro-anual', nome: 'Macrociclo anual (força)' }, ini0, pl.total, 'anual');
+      }
+    } catch (er) { console.error(er); b.disabled = false; b.textContent = 'Tentar de novo'; return toast('Não foi possível montar o macrociclo. Tente de novo.', true); }
+    toast(`${rows.length} treinos montados para ${firstName(m && m.nome)} em ${pl.total} semanas. Libere semana a semana.`);
+    location.hash = `#/aluno/${st.aluno}/corrida`;
+  }
+  tela();
+}
 
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
 async function staffTreinos(aba) {
