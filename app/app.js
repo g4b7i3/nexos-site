@@ -768,6 +768,130 @@ function letraTreino(t, i) {
   const m = String(t.titulo || '').match(/\b([A-Z])\b/); return m ? m[1] : String.fromCharCode(65 + (i % 26));
 }
 
+/* ---------- mapa do corpo (onde dói) ---------- */
+const REG_DOR = { pescoco: 'Pescoço e trapézio', ombro: 'Ombro', braco: 'Braço', antebraco: 'Antebraço e punho', peito: 'Peito', abdomen: 'Abdômen', quadril: 'Quadril e virilha', coxa_f: 'Coxa (frente)', joelho: 'Joelho', canela: 'Canela', pe: 'Tornozelo e pé', costas: 'Costas', lombar: 'Lombar', gluteo: 'Glúteo', coxa_t: 'Coxa (posterior)', panturrilha: 'Panturrilha', aquiles: 'Tendão de Aquiles e calcanhar' };
+const nomeRegDor = (k) => { const [b, l] = k.split('_').length > 1 && /_(d|e)$/.test(k) ? [k.replace(/_(d|e)$/, ''), k.slice(-1)] : [k, '']; return (REG_DOR[b] || b) + (l === 'd' ? ' direito' : l === 'e' ? ' esquerdo' : ''); };
+function corpoSVG(sexo, vista) {
+  const F = sexo === 'F';
+  const sh = F ? 37 : 45, ch = F ? 30 : 37, wa = F ? 22 : 29, hp = F ? 37 : 33, lg = F ? 19 : 17;
+  const c = 100, L = lg + 1; // centro da perna em relação ao meio
+  const meio = (d, r) => `<path d="${d}" data-r="${r}"/><path d="${d}" data-r="${r}" transform="translate(200 0) scale(-1 1)"/>`;
+  const lado = (d, r, tipo = 'path') => { const lv = vista === 'frente' ? 'e' : 'd', lo = lv === 'e' ? 'd' : 'e'; const el = (x, rr, t) => tipo === 'ellipse' ? `<ellipse ${x} data-r="${rr}"${t || ''}/>` : `<path d="${x}" data-r="${rr}"${t || ''}/>`; return el(d, r + '_' + lv) + el(d, r + '_' + lo, ' transform="translate(200 0) scale(-1 1)"'); };
+  const cx = c + L;
+  const coxa = (y0) => `M${cx - lg + 1},${y0} Q${cx - lg + 2},${(y0 + 282) / 2} ${cx - 11},282 L${cx + 11},282 Q${cx + lg + 2},${(y0 + 282) / 2 - 8} ${cx + lg},${y0} Z`;
+  const pernas = vista === 'frente'
+    ? lado(coxa(202), 'coxa_f') + lado(`cx="${cx}" cy="293" rx="11.5" ry="10.5"`, 'joelho', 'ellipse') + lado(`M${cx - 11},304 Q${cx - 12},330 ${cx - 6},376 L${cx + 6},376 Q${cx + 13},328 ${cx + 11},304 Z`, 'canela') + lado(`M${cx - 6},378 L${cx + 6},378 Q${cx + 9},398 ${cx + 4},404 L${cx - 5},404 Q${cx - 9},398 ${cx - 6},378 Z`, 'pe')
+    : lado(coxa(220), 'coxa_t') + lado(`cx="${cx}" cy="293" rx="11" ry="9.5"`, 'joelho', 'ellipse') + lado(`M${cx - 11},304 Q${cx - 16},322 ${cx - 7},368 L${cx + 7},368 Q${cx + 16},322 ${cx + 11},304 Z`, 'panturrilha') + lado(`M${cx - 6},370 L${cx + 6},370 Q${cx + 8},396 ${cx + 6},404 L${cx - 6},404 Q${cx - 8},396 ${cx - 6},370 Z`, 'aquiles');
+  const bracos = lado(`M${c + sh - 7},86 Q${c + sh + 7},86 ${c + sh + 8},104 L${c + sh + 9},146 L${c + sh - 4},146 L${c + sh - 7},104 Z`, 'braco')
+    + lado(`M${c + sh - 4},149 L${c + sh + 9},149 L${c + sh + 12},204 L${c + sh + 2},204 Z`, 'antebraco')
+    + lado(`cx="${c + sh}" cy="78" rx="${F ? 9 : 11}" ry="${F ? 10 : 12}"`, 'ombro', 'ellipse');
+  const maos = `<g class="cp-deco"><ellipse cx="${c + sh + 7}" cy="216" rx="5.5" ry="10"/><ellipse cx="${200 - c - sh - 7}" cy="216" rx="5.5" ry="10"/></g>`;
+  const tronco = vista === 'frente'
+    ? meio(`M100,50 L107,50 L108,64 Q112,68 ${c + sh - 8},70 L${c + ch},76 L100,72 Z`, 'pescoco')
+      + meio(`M100,74 L${c + ch},77 L${c + ch - 1},${F ? 122 : 118} Q${c + ch / 2},${F ? 130 : 126} 100,${F ? 124 : 122} Z`, 'peito')
+      + meio(`M100,${F ? 126 : 124} Q${c + ch / 2},${F ? 132 : 128} ${c + ch - 1},${F ? 124 : 120} L${c + wa},154 C${c + wa + 1},166 ${c + hp},170 ${c + hp},184 L100,184 Z`, 'abdomen')
+      + meio(`M100,186 L${c + hp},186 Q${c + hp + 1},196 ${c + hp - 1},200 L101,208 L100,208 Z`, 'quadril')
+    : meio(`M100,50 L107,50 L108,62 Q113,66 ${c + sh - 8},70 L${c + sh - 14},84 L100,92 Z`, 'pescoco')
+      + meio(`M100,94 L${c + sh - 14},86 L${c + ch},94 L${c + wa + 2},140 L100,140 Z`, 'costas')
+      + meio(`M100,142 L${c + wa + 2},142 C${c + wa + 3},160 ${c + hp},166 ${c + hp},182 L100,182 Z`, 'lombar')
+      + lado(`M101,184 L${c + hp},184 Q${c + hp + 3},204 ${c + hp - 2},216 Q${c + 18},228 101,216 Z`, 'gluteo');
+  const det = vista === 'frente'
+    ? (F ? `<path d="M${c - 22},104 Q${c - 12},118 ${c - 3},106 M${c + 3},106 Q${c + 12},118 ${c + 22},104"/>` : `<path d="M${c - 30},104 Q${c - 15},114 ${c - 2},106 M${c + 2},106 Q${c + 15},114 ${c + 30},104 M100,128 L100,176 M${c - 14},142 L${c + 14},142 M${c - 13},158 L${c + 13},158"/>`)
+    : `<path d="M100,96 L100,178 M${c - 24},104 Q${c - 16},116 ${c - 8},104 M${c + 8},104 Q${c + 16},116 ${c + 24},104"/>`;
+  const cabelo = F
+    ? (vista === 'frente' ? `<path class="cp-cab" d="M84,30 Q82,8 100,7 Q118,8 116,30 Q114,22 108,18 Q100,24 90,20 Q86,24 84,30 Z M84,30 Q82,46 86,54 L90,48 Z M116,30 Q118,46 114,54 L110,48 Z"/>` : `<path class="cp-cab" d="M84,32 Q82,6 100,6 Q118,6 116,32 Q118,50 112,58 Q100,62 88,58 Q82,50 84,32 Z"/>`)
+    : (vista === 'frente' ? `<path class="cp-cab" d="M85,26 Q86,8 100,8 Q114,8 115,26 Q110,15 100,16 Q90,15 85,26 Z"/>` : `<path class="cp-cab" d="M85,30 Q84,7 100,7 Q116,7 115,30 Q112,40 100,40 Q88,40 85,30 Z"/>`);
+  return `<svg viewBox="40 0 120 412" class="corpo-svg" role="img" aria-label="Corpo ${vista}">
+    <g class="cp-deco"><ellipse cx="100" cy="30" rx="15" ry="19"/></g>${cabelo}
+    <g class="cp-reg">${tronco}${bracos}${pernas}</g>${maos}<g class="cp-lin">${det}</g></svg>`;
+}
+function mapaCorpoHTML(sexo) {
+  return `<div class="corpo-map"><div class="corpo-v"><span>Frente</span>${corpoSVG(sexo, 'frente')}</div><div class="corpo-v"><span>Costas</span>${corpoSVG(sexo, 'costas')}</div></div><div class="corpo-sel small muted" id="corpo-sel">Toque nas partes do corpo onde sente dor.</div>`;
+}
+function bindMapaCorpo(root, sel) {
+  const atual = () => { root.querySelectorAll('[data-r]').forEach((e) => e.classList.toggle('on', sel.has(e.dataset.r))); const t = root.querySelector('#corpo-sel'); if (t) t.innerHTML = sel.size ? [...sel].map((k) => `<span class="tag err">${esc(nomeRegDor(k))}</span>`).join(' ') : 'Toque nas partes do corpo onde sente dor.'; };
+  root.querySelectorAll('.cp-reg [data-r]').forEach((e) => { e.onclick = () => { const r = e.dataset.r; sel.has(r) ? sel.delete(r) : sel.add(r); try { navigator.vibrate && navigator.vibrate(8); } catch {} atual(); }; });
+  atual();
+}
+
+/* ---------- check-in de prontidão (manhã) ---------- */
+// questionário de bem-estar no modelo de Hooper e McLean: 4 itens, 1 = pior, 5 = melhor (total 4 a 20)
+const PRONT_Q = [
+  ['sono', 'Como você dormiu?', ['Muito mal', 'Mal', 'Regular', 'Bem', 'Muito bem']],
+  ['energia', 'Como está sua energia?', ['Exausto', 'Cansado', 'Normal', 'Disposto', 'Muito disposto']],
+  ['dor', 'Dor muscular', ['Muita dor', 'Dor', 'Incômodo leve', 'Quase nada', 'Nenhuma']],
+  ['estresse', 'Estresse', ['Muito alto', 'Alto', 'Normal', 'Baixo', 'Muito baixo']],
+];
+const PRONT_COR = ['#e5484d', '#f08a32', '#e3b341', '#5fbf73', '#2fa565'];
+const prontAlerta = (r) => ['sono', 'energia', 'dor', 'estresse'].some((k) => r[k] === 1) || r.dor <= 2 || r.sono + r.energia + r.dor + r.estresse <= 10;
+const prontNivel = (t) => (t >= 16 ? ['Boa', 'ok'] : t >= 12 ? ['Moderada', 'warn'] : ['Baixa', 'err']);
+function prontCardHTML() {
+  return `<button class="list-item msg-row pront-row" id="pront-abrir" style="width:100%;text-align:left"><span class="ativ-ic">${PRONT_IC}</span><div class="grow"><b>Check-in da manhã</b><div class="small muted">Sono, energia, dor e estresse · 20 segundos</div></div>${I.chev}</button>`;
+}
+function abrirProntidao(aoSalvar) {
+  const r = {}, sel = new Set(); let dInt = null;
+  openSheet(`<p class="eyebrow">Check-in da manhã</p><div class="h2" style="margin-top:4px">Como você está hoje?</div><p class="small muted" style="margin-top:4px">Seu treinador usa essas respostas para ajustar o treino.</p>
+    <form id="f-pront" style="margin-top:14px">${PRONT_Q.map(([k, t, op]) => `<div class="pq"><b>${t}</b><div class="pq-op">${op.map((o) => (S.me.sexo === 'F' ? o.replace(/^(Exaust|Cansad|Dispost)o$/, '$1a').replace(/^Muito disposto$/, 'Muito disposta') : o)).map((o, i) => `<button type="button" data-q="${k}" data-v="${i + 1}" style="--pc:${PRONT_COR[i]}">${o}</button>`).join('')}</div></div>`).join('')}
+    <div id="pront-dor" hidden><div class="pq"><b>Onde dói?</b>${mapaCorpoHTML(S.me.sexo)}</div>
+      <div class="pq"><b>Intensidade da dor</b><div class="pq-int">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-int="${i}">${i}</button>`).join('')}</div><div class="row between tiny dim" style="margin-top:4px"><span>sem dor</span><span>pior dor possível</span></div></div></div>
+    <label class="field" style="margin-top:6px"><span>Algo mais para o treinador? (opcional)</span><textarea class="input" name="obs" rows="2" maxlength="500" placeholder="Ex.: dormi pouco por causa do trabalho"></textarea></label>
+    <button class="btn block" id="pront-env" disabled>Enviar check-in</button></form>`, (root) => {
+    const f = root.querySelector('#f-pront'), btn = root.querySelector('#pront-env'), boxDor = root.querySelector('#pront-dor');
+    bindMapaCorpo(boxDor, sel);
+    const pronto = () => { btn.disabled = !(r.sono && r.energia && r.dor && r.estresse); };
+    f.onclick = (e) => {
+      const b = e.target.closest('[data-q]');
+      if (b) { r[b.dataset.q] = +b.dataset.v; b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); if (b.dataset.q === 'dor') boxDor.hidden = r.dor > 2; pronto(); }
+      const ib = e.target.closest('[data-int]');
+      if (ib) { dInt = +ib.dataset.int; ib.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === ib)); }
+    };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const comDor = r.dor <= 2;
+      if (comDor && !sel.size) return toast('Toque no boneco para mostrar onde dói.', true);
+      const row = { org_id: S.org.id, aluno_id: S.user.id, dia: isoDia(new Date()), sono: r.sono, energia: r.energia, dor: r.dor, estresse: r.estresse,
+        dor_locais: comDor ? [...sel] : null, dor_int: comDor ? dInt : null, obs: f.obs.value.trim() || null };
+      row.alerta = prontAlerta(row);
+      btn.disabled = true;
+      const { data, error } = await sb.from('nx_prontidao').upsert(row, { onConflict: 'aluno_id,dia' }).select('id').single();
+      if (error) { btn.disabled = false; console.error(error); return toast('Não foi possível enviar. Tente de novo.', true); }
+      if (row.alerta) notificar('prontidao', data.id);
+      closeSheet(); toast('Check-in enviado ao seu treinador.');
+      if (aoSalvar) aoSalvar(row);
+    };
+  });
+}
+async function prontStaffHTML(m) {
+  const ini = isoDia(Date.now() - 13 * 864e5);
+  const rows = await sb.from('nx_prontidao').select('*').eq('aluno_id', m.user_id).gte('dia', ini).order('dia', { ascending: false }).then((r) => r.data || [], () => []);
+  if (!rows.length) return `<div class="card pront-staff"><div class="row between"><b>${PRONT_IC} Prontidão</b><span class="tiny dim">check-in da manhã</span></div><p class="small muted" style="margin-top:8px">O aluno ainda não respondeu o check-in nos últimos 14 dias.</p></div>`;
+  const media = rows.reduce((a, x) => a + x.total, 0) / rows.length;
+  return `<div class="card pront-staff"><div class="row between"><b>${PRONT_IC} Prontidão</b><span class="tiny dim">últimos 14 dias</span></div>
+    <p class="small muted" style="margin-top:6px">Média <b>${f1(media)}/20</b> em ${rows.length} ${rows.length === 1 ? 'resposta' : 'respostas'}. Escala de 4 (pior) a 20 (melhor) com sono, energia, dor muscular e estresse.</p>
+    <div class="ps-cab tiny dim"><span></span><span>Sono</span><span>Energia</span><span>Dor</span><span>Estresse</span><span>Total</span></div>
+    ${rows.map((x) => { const [n, cls] = prontNivel(x.total); return `<div class="ps-lin${x.alerta ? ' alerta' : ''}"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`; }).join('')}</div>`;
+}
+
+/* ---------- recordes pessoais de corrida ---------- */
+const DIST_REC = [[1, '1 km'], [5, '5 km'], [10, '10 km'], [21.0975, 'Meia maratona']];
+function melhoresDaCorrida(c) {
+  const out = {};
+  if (!c || c.tipo === 'esteira' || !c.distancia_m || !c.duracao_s) return out;
+  const sp = (c.parciais || []).filter((p) => !p.parcial && p.seg > 0).map((p) => p.seg);
+  DIST_REC.forEach(([d]) => {
+    let best = null; const n = Math.round(d) === 21 ? 21 : d;
+    if (sp.length >= n) { let s = sp.slice(0, n).reduce((a, b) => a + b, 0); best = s; for (let i = n; i < sp.length; i++) { s += sp[i] - sp[i - n]; if (s < best) best = s; } if (n === 21) best = best * d / 21; }
+    const dm = d * 1000; if (best == null && c.distancia_m >= dm * 0.995 && c.distancia_m <= dm * 1.03) best = c.duracao_s * dm / c.distancia_m;
+    if (best && best / d >= 150) out[d] = Math.round(best); // descarta erro de GPS (mais rápido que 2:30/km)
+  });
+  return out;
+}
+function recordesDoDia(corridas, dia_) {
+  const antes = {}, hoje = {};
+  corridas.forEach((c) => { const m = melhoresDaCorrida(c), alvo = isoDia(c.data) === dia_ ? hoje : isoDia(c.data) < dia_ ? antes : null; if (!alvo) return; Object.entries(m).forEach(([d, t]) => { if (alvo[d] == null || t < alvo[d]) alvo[d] = t; }); });
+  return DIST_REC.filter(([d]) => hoje[d] != null && antes[d] != null && hoje[d] < antes[d]).map(([d, n]) => ({ n, t: hoje[d], antes: antes[d] }));
+}
+
 /* ---------- hidratação: copo que enche a cada registro ---------- */
 async function aguaStaffHTML(m) {
   const ini = isoDia(Date.now() - 6 * 864e5);
@@ -797,6 +921,8 @@ function bindAguaStaff(m) {
     if (error) return toast('Não foi possível salvar.', true); m.meta_agua_ml = ml; toast(ml ? `Meta de ${fmtL(ml)} salva.` : 'Meta automática.');
   };
 }
+const PRONT_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>';
+const TROFEU_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/></svg>';
 const AGUA_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8s6.5 7.2 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 10 12 2.8 12 2.8z"/></svg>';
 const FOGO_IC = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c.6 3.2 3.6 5 4.9 7.9 1.6 3.6.2 8.4-3.4 9.8 1.3-1.6 1.4-3.9.1-5.6-.5 1.4-1.6 2.3-2.9 2.6.8-2.5-.4-5-2.6-6.3.2 2.2-1.4 3.4-2.1 5.1-1 2.4.1 4.8 2 5.9C4.6 19.7 3.6 15 5.7 11.3 7.5 8.2 11.1 6.5 12 2z"/></svg>';
 const COPO_SVG = (pct) => `<svg viewBox="0 0 120 150" class="copo" aria-hidden="true"><defs><linearGradient id="agG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc8ff"/><stop offset="1" stop-color="#1f6fe0"/></linearGradient><clipPath id="agC"><path d="M15 9H105L95.5 140.5Q95 145 90 145H30Q25 145 24.5 140.5Z"/></clipPath></defs>
@@ -962,7 +1088,7 @@ async function alunoHoje() {
       </div>
     </section>
     <div class="hoje-grid"><div class="hoje-main">
-    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend">${pend}<div id="auto-hoje"></div><div id="rel-pend"></div></div></div>
+    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="pront-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div></div></div>
     <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
     <div class="stack">
       ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
@@ -970,6 +1096,7 @@ async function alunoHoje() {
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
+    <div id="rec-box"></div>
     <div id="agua-slot-m" class="agua-slot-m"></div>
     ${corrNova ? `<button class="card-cta" id="card-nova" style="margin-top:12px"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Corrida de ${fmtKm(corrNova.distancia_m, 1)} registrada!</b><span class="small">Gere o card e poste no seu story</span></div>${I.chev}</button>` : ''}
     <div id="ciclo-box"></div>
@@ -986,8 +1113,16 @@ async function alunoHoje() {
     </div></div>
     <button class="fab-reg" id="fab-reg">${I.plus}<span>Registrar</span></button>`;
   const pendSec = document.getElementById('pend-sec');
-  const mostrarPend = () => { if (pendSec) pendSec.hidden = !document.getElementById('pend').textContent.trim() && !document.querySelector('#pend .card,#pend .list-item'); };
+  const mostrarPend = () => { if (pendSec) pendSec.hidden = !document.querySelector('#pend .card,#pend .list-item,#pend .auto-aluno'); };
   { const ab = document.getElementById('agua-box'), sm = document.getElementById('agua-slot-m'); if (ab && sm && !matchMedia('(min-width:900px)').matches) sm.appendChild(ab); }
+  { const hr = new Date().getHours(); if (hr >= 4 && hr < 12) sb.from('nx_prontidao').select('id').eq('aluno_id', S.user.id).eq('dia', hoje).maybeSingle().then(({ data }) => {
+    const b = document.getElementById('pront-pend'); if (!b || data) return; b.innerHTML = prontCardHTML(); const ps = document.getElementById('pend-sec'); if (ps) ps.hidden = false;
+    b.querySelector('#pront-abrir').onclick = () => abrirProntidao(() => { b.innerHTML = ''; mostrarPend(); });
+  }).catch(() => {}); }
+  if (fC) sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,parciais').eq('aluno_id', S.user.id).lte('data', new Date(Date.now() + 864e5).toISOString()).order('data', { ascending: false }).limit(600).then(({ data }) => {
+    const recs = recordesDoDia(data || [], hoje), b = document.getElementById('rec-box'); if (!b || !recs.length) return;
+    b.innerHTML = `<div class="rec-card"><span class="rec-ic">${TROFEU_IC}</span><div class="grow"><span class="eyebrow">${recs.length > 1 ? 'Novos recordes pessoais' : 'Novo recorde pessoal'}</span>${recs.map((r) => `<div class="rec-l"><b>${r.n} em ${fmtDurLongo(r.t)}</b><small>antes ${fmtDurLongo(r.antes)} · ${fmtDurLongo(r.antes - r.t)} mais rápido</small></div>`).join('')}</div></div>`;
+  }).catch(() => {});
   montarAgua(document.getElementById('agua-box'), minTreinoHoje).catch((e) => console.error(e));
   if (fM) faseDaSemana(S.user.id, isoDia(inicioSemana())).then((f) => { const t = document.getElementById('fase-tile'); if (!t || !FASES_F[f]) return; const x = FASES_F[f]; t.hidden = false; t.style.setProperty('--fc', x.cor); t.classList.add('tile-fase'); t.innerHTML = `<span class="tile-l">${FORCA_IC}Força</span><b>${x.n}</b><small>${x.reps}</small>`; }).catch(() => {});
   if (fC) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).limit(1).then(({ data }) => { if (data && data.length) return; const b = document.getElementById('rel-pend'); if (!b || store.get('nx-rel-pend-off', false)) return; b.innerHTML = `<a class="list-item msg-row" href="#/conexoes"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Conecte o seu relógio</b><div class="small muted">Garmin e outras marcas: as corridas chegam sozinhas</div></div>${I.chev}</a>`; mostrarPend(); }).catch(() => {});
@@ -5918,6 +6053,7 @@ async function staffHoje() {
   loading();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   const segAtual = isoDia(inicioSemana()), segPass = somaDias(segAtual, -7), segProx = somaDias(segAtual, 7);
+  const prontP = sb.from('nx_prontidao').select('aluno_id,dia,total,dor,dor_locais,alerta').eq('org_id', S.org.id).eq('dia', hojeISO()).then((r) => r.data || [], () => []);
   const [{ data: membrosT }, sessT, corrT, anamsT, avsT, cobsT, provasEqT, planoResT, treinosResT, libsResT] = await Promise.all([
     sb.from('nx_membros').select('user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade').eq('org_id', S.org.id).eq('papel', 'aluno').order('nome'),
     buscarSessoes(null, 300),
@@ -5943,8 +6079,11 @@ async function staffHoje() {
   sess.forEach((s) => { if (!ultimoTreino[s.aluno_id] || s.iniciado_em > ultimoTreino[s.aluno_id]) ultimoTreino[s.aluno_id] = s.iniciado_em; });
   corr.forEach((c) => { if (!ultimoTreino[c.aluno_id] || c.data > ultimoTreino[c.aluno_id]) ultimoTreino[c.aluno_id] = c.data; });
   const ultAval = {}; avs.forEach((a) => { if (!ultAval[a.aluno_id]) ultAval[a.aluno_id] = a; });
+  const pronts = await prontP;
   const alertas = ativos.map((m) => {
     const id = m.user_id, l = [];
+    const pr = pronts.find((x) => x.aluno_id === id && x.alerta);
+    if (pr) l.push({ p: 1, t: `Prontidão baixa hoje (${pr.total}/20)${pr.dor_locais && pr.dor_locais.length ? ' · dor: ' + pr.dor_locais.map(nomeRegDor).join(', ') : ''}`, cls: 'err', ir: `#/aluno/${id}/saude` });
     const dorS = sess.find((s) => s.aluno_id === id && s.dor && !s.visto_treinador && s.iniciado_em > seteDias);
     const dorC = corr.find((c) => c.aluno_id === id && c.dor && !c.visto_treinador && c.data > seteDias);
     if (dorS || dorC) l.push({ p: 1, t: dorS && dorS.dor_local ? `Dor: ${dorS.dor_local}` : 'Relatou dor', cls: 'err', ir: dorS ? `#/aluno/${id}/historico` : `#/corrida/${dorC.id}` });
@@ -6578,7 +6717,7 @@ async function staffAluno(alunoId, aba, extra) {
     bindAtestado(document.getElementById('saude'), anamnese, alunoId);
     if (ed) ed.onclick = abrirEd;
     else { const sd = document.getElementById('saude'); sd.insertAdjacentHTML('beforeend', '<button class="btn ghost block" id="preencher-ana" style="margin-top:12px">Preencher a ficha com o aluno</button>'); sd.querySelector('#preencher-ana').onclick = abrirEd; }
-    aguaStaffHTML(m).then((h) => { const sd = document.getElementById('saude'); if (!sd) return; sd.insertAdjacentHTML('afterbegin', h); bindAguaStaff(m); }).catch((e) => console.error(e));
+    Promise.all([prontStaffHTML(m), aguaStaffHTML(m)]).then(([hp, ha]) => { const sd = document.getElementById('saude'); if (!sd) return; sd.insertAdjacentHTML('afterbegin', hp + ha); bindAguaStaff(m); }).catch((e) => console.error(e));
   }
   if (aba === 'historico' && sess.some((s) => !s.visto_treinador)) {
     sb.from('nx_sessoes').update({ visto_treinador: true }).eq('aluno_id', alunoId).eq('org_id', S.org.id).eq('visto_treinador', false).then(() => contarNaoVistos().then(dockStaff));
