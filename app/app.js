@@ -919,6 +919,14 @@ async function alunoHoje() {
     ? `<div class="card wcard feito" style="display:flex"><div class="wletter">✓</div><div class="grow"><span class="eyebrow">Musculação</span><div class="h3" style="margin-top:2px">${esc(muscHoje.treino_titulo || 'Treino')} feito</div><div class="small muted">${fixoHoje ? 'Bom trabalho! Treino do dia concluído.' : 'Próximo da sequência: ' + esc(prox.titulo)}</div></div></div>`
     : `<a class="card tap wcard" href="#/treino/${prox.id}" style="display:flex"><div class="wletter">${esc(letraTreino(prox, ativos.indexOf(prox)))}</div><div class="grow"><span class="eyebrow">Musculação · ${fixoHoje ? 'treino de hoje' : 'próximo da sequência'}</span><div class="h3" style="margin-top:2px">${esc(prox.titulo)}</div>${prox.foco ? `<div class="small muted">${esc(prox.foco)}</div>` : ''}<div class="meta"><span class="tag">${prox.nx_treino_itens.length} exercícios</span></div></div><span class="go">${I.play}</span></a>`) : '';
   const descanso = !corrDoDia.length && !cardMusc && !forcaHoje;
+  const resumoDia = (() => {
+    if (descanso) return 'Dia de descanso.';
+    const itens = [...corrDoDia.map((p) => ({ n: p.titulo || nomeTipo(p.tipo), ok: !!corrHoje.find((c) => c.plano_id === p.id) })), ...(prox && fixoHoje ? [{ n: prox.titulo + ' (força)', ok: !!muscHoje }] : []), ...(forcaHoje ? [{ n: 'força', ok: false }] : [])];
+    if (!itens.length) return 'Sem treino marcado para hoje.';
+    if (itens.every((x) => x.ok)) return itens.length > 1 ? 'Treinos do dia concluídos.' : 'Treino do dia concluído.';
+    const falta = itens.filter((x) => !x.ok).map((x) => x.n);
+    return (itens.some((x) => x.ok) ? 'Falta hoje: ' : 'Hoje: ') + falta.join(' + ') + '.';
+  })();
   const seq = semanasSeguidas([...sessoes.map((x) => x.iniciado_em), ...histDatas]);
   const kmSem = corrSem.reduce((a, c) => a + (+c.distancia_m || 0), 0) / 1000;
   const nTreinosSem = ativSem.filter((x) => isoDia(x.iniciado_em) >= isoDia(inicioSemana())).length;
@@ -935,7 +943,7 @@ async function alunoHoje() {
     <section class="hoje-hero">
       <div class="hh-top"><span class="hh-data">${fmtDiaSem(hoje)}</span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
       <h1>${saud}, ${esc(firstName(S.me.nome) || "atleta")}</h1>
-      <p>${descanso ? 'Hoje é dia de descanso. Recuperar também é treino.' : 'Treino, evolução e hidratação acompanhados pela sua equipe técnica.'}</p>
+      <p>${resumoDia}</p>
       <div class="hh-stats">
         <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>em sequência</small></span></div>
         ${fC ? `<div><span class="hh-ic">${icCorr(S.me)}</span><span><b>${kmSem ? f1(kmSem) : '0'}</b> km<small>nesta semana</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosSem}</b> ${nTreinosSem === 1 ? 'treino' : 'treinos'}<small>nesta semana</small></span></div>`}
