@@ -2741,3 +2741,19 @@ html[data-tema="escuro"] .ad-card .ad-l b.up{color:#3ddc97}
 .alerta-wa{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:#25d366;color:#fff;display:grid;place-items:center;cursor:pointer;margin-right:6px}
 .alerta-wa svg{width:19px;height:19px}
 .ativ-ic.wa{color:#25d366}
+/* sininho e central de notificações */
+.top-acoes{display:flex;align-items:center;gap:8px}
+.sino{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--bg2);color:var(--ink);box-shadow:0 4px 14px rgba(10,30,70,.06)}
+.sino svg{width:19px;height:19px}
+.sino i{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e5383b;color:#fff;font-style:normal;font-size:.66rem;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg)}
+.sino i[hidden]{display:none}
+.notif.nova{border-color:rgba(var(--p2r),.45);background:rgba(var(--p2r),.06)}
+.notif.nova{position:relative;padding-right:30px}
+.notif.nova::after{content:'';position:absolute;top:16px;right:14px;width:8px;height:8px;border-radius:50%;background:var(--p2)}
+.notif .ativ-ic{color:var(--p2)}
+/* intervalo do lembrete de água */
+.agua-int{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.agua-int button{padding:12px 6px;border-radius:12px;border:1px solid var(--line);background:var(--s1);color:var(--ink);font-weight:700;cursor:pointer}
+.agua-int button.on{background:var(--p2);border-color:var(--p2);color:#fff}
+.agua-int button.off{grid-column:1/-1}
+.agua-int button.off.on{background:#6b7280;border-color:#6b7280}

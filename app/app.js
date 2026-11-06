@@ -399,6 +399,7 @@ async function router() {
       if (a === 'mais') return staffMais();
       if (a === 'desafio') return await staffDesafio();
       if (a === 'dicas') return await viewDicas(b);
+      if (a === 'notificacoes') return await viewNotificacoes();
       if (a === 'erros') return await staffErros();
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
@@ -437,6 +438,7 @@ async function router() {
     if (a === 'ciclo') return await viewCicloAluna(b);
     if (a === 'prontidao') return await viewProntAluno();
     if (a === 'meta') return await viewMeta();
+    if (a === 'notificacoes') return await viewNotificacoes();
     if (a === 'dicas') return await viewDicas(b);
     return await alunoHoje();
   } catch (e) {
@@ -1286,6 +1288,47 @@ function abrirResgate(m, dias, depois) {
     el.querySelector('#rs-ja').onclick = async () => { await registrar(); closeSheet(); toast('Registrado. O aviso some por 7 dias.'); depois && depois(); };
     el.querySelector('#rs-cp').onclick = async () => { try { await navigator.clipboard.writeText(txt()); toast('Texto copiado.'); } catch { toast('Não consegui copiar. Selecione o texto e copie.', true); } };
   });
+}
+
+/* ---------- lembrete de água: o aluno escolhe de quanto em quanto tempo (ou desliga) ---------- */
+const AGUA_INT = [30, 40, 60, 90, 120, 180];
+const AGUA_INT_TXT = (m) => (m < 60 ? `a cada ${m} min` : m === 60 ? 'a cada 1 hora' : m % 60 ? `a cada ${Math.floor(m / 60)}h${m % 60}` : `a cada ${m / 60} horas`);
+function lembretesAguaSheet(depois) {
+  const atual = S.me.lembrete_agua === false ? 0 : (S.me.agua_intervalo_min || 60);
+  openSheet(`<p class="eyebrow">Hidratação</p><div class="h2">Lembretes de água</div>
+    <p class="small muted" style="margin-top:6px">Os avisos vão das 8h40 às 19h40 e mostram quanto falta para a sua meta. Quando você bate a meta do dia, eles param.</p>
+    <div class="agua-int" id="agua-int">${AGUA_INT.map((m) => `<button type="button" data-min="${m}" class="${atual === m ? 'on' : ''}">${m < 60 ? `${m} min` : m === 60 ? '1 hora' : m % 60 ? `${Math.floor(m / 60)}h${m % 60}` : `${m / 60} horas`}</button>`).join('')}<button type="button" data-min="0" class="off ${atual === 0 ? 'on' : ''}">Não quero receber</button></div>`, (el) => {
+    el.querySelector('#agua-int').onclick = async (e) => {
+      const b = e.target.closest('[data-min]'); if (!b) return; const m = +b.dataset.min;
+      const { error } = m ? await sb.rpc('nx_agua_intervalo', { p_min: m }) : await sb.rpc('nx_lembrete_agua', { p_on: false });
+      if (error) return toast('Não foi possível salvar.', true);
+      S.me.lembrete_agua = !!m; if (m) S.me.agua_intervalo_min = m;
+      closeSheet(); toast(m ? `Lembretes ${AGUA_INT_TXT(m)}.` : 'Lembretes de água desligados.'); depois && depois();
+    };
+  });
+}
+
+/* ---------- central de notificações (sininho) ---------- */
+const sinoHTML = () => `<a class="sino" href="#/notificacoes" aria-label="Notificações">${I.bell}<i id="sino-n" hidden></i></a>`;
+function atualizarSino() {
+  sb.from('nx_notificacoes').select('id', { count: 'exact', head: true }).eq('user_id', S.user.id).is('lida_em', null).then((r) => {
+    const n = r.count || 0, el = document.getElementById('sino-n'); if (!el) return;
+    el.hidden = !n; el.textContent = n > 9 ? '9+' : String(n);
+  }, () => {});
+}
+async function viewNotificacoes() {
+  loading(); S.staff ? dockStaff() : dockAluno();
+  const lista = await sb.from('nx_notificacoes').select('*').eq('user_id', S.user.id).order('criado_em', { ascending: false }).limit(80).then((r) => r.data || [], () => []);
+  const hoje = hojeISO(), ontem = somaDias(hoje, -1);
+  const grupo = (x) => { const k = isoDia(x.criado_em); return k === hoje ? 'Hoje' : k === ontem ? 'Ontem' : dia(k).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' }); };
+  const hora = (x) => new Date(x.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  let ult = '';
+  const itens = lista.map((x) => { const g = grupo(x); const cab = g !== ult ? `<p class="sec-lbl">${g}</p>` : ''; ult = g;
+    return `${cab}<a class="list-item notif ${x.lida_em ? '' : 'nova'}" href="${esc(x.url && x.url.startsWith('#/') ? x.url : '#/')}" style="color:inherit"><span class="ativ-ic">${I.bell}</span><div class="grow" style="min-width:0"><b>${esc(x.titulo)}</b>${x.corpo ? `<div class="small muted">${esc(x.corpo)}</div>` : ''}<div class="tiny dim" style="margin-top:3px">${hora(x)}</div></div></a>`; }).join('');
+  $app.innerHTML = `<a class="back" href="${S.staff ? '#/' : '#/'}">${I.back} Voltar</a><p class="eyebrow">Avisos</p><h1 class="h1">Notificações</h1>
+    <p class="muted" style="margin-top:6px">Tudo o que a Nexos te avisou nos últimos 90 dias${S.staff ? '' : '. Os lembretes de água não entram aqui, para não encher a lista'}.</p>
+    <div class="stack notif-lista" style="margin-top:8px">${itens || `<div class="empty"><div class="h3">Nada por aqui ainda</div><p class="small muted">Quando chegar um aviso da Nexos, ele aparece aqui.</p></div>`}</div>`;
+  if (lista.some((x) => !x.lida_em)) sb.from('nx_notificacoes').update({ lida_em: new Date().toISOString() }).eq('user_id', S.user.id).is('lida_em', null).then(() => {}, () => {});
 }
 
 /* ---------- desafio do mês da equipe ---------- */
@@ -2509,7 +2552,7 @@ const TOUR_PASSOS = [
   { rota: '#/', sel: '#pront-abrir', t: 'Check-in da manhã', d: 'De manhã, 20 segundos: sono, energia, dor e estresse. Se marcar dor, um boneco mostra onde dói. Seu treinador recebe e ajusta o treino.' },
   { rota: '#/', sel: '.hoje-main > .stack', t: 'Treino de hoje', d: () => faz('corrida') && faz('musculacao') ? 'O treino do dia: na corrida, o passo a passo com os ritmos de cada trecho; na força, os exercícios. E o recado do treinador.' : faz('corrida') ? 'O treino do dia com o passo a passo, os ritmos de cada trecho e o recado do treinador.' : 'O treino de força do dia, com os exercícios e o recado do treinador.' },
   { so: 'corrida', rota: '#/', sel: '.corr-home a[href^="#/gps"]', t: 'Treinar pelo celular', d: 'Sem relógio? O app marca distância, pace e voz a cada trecho, na rua (GPS) ou na esteira.' },
-  { rota: '#/', sel: '#agua-box', t: 'Copo de água', d: 'Toque a cada água que beber. A meta é calculada pelo seu peso e pelo treino do dia. Você recebe um lembrete de hora em hora até bater a meta, e dá para desligar ali embaixo.' },
+  { rota: '#/', sel: '#agua-box', t: 'Copo de água', d: 'Toque a cada água que beber. A meta é calculada pelo seu peso e pelo treino do dia. Você recebe lembretes até bater a meta, no intervalo que escolher ali embaixo (ou nenhum).' },
   { rota: '#/', sel: '.hoje-tiles', t: 'Seus números', d: () => { const c = faz('corrida'), m = faz('musculacao'); const it = [c && 'contagem para a próxima prova', c && 'previsão do seu tempo nos 5 km', c && 'quantas corridas e km você fez na semana', m && 'a fase do seu treino de força'].filter(Boolean); return it.join(', ').replace(/, ([^,]*)$/, ' e $1').replace(/^./, (x) => x.toUpperCase()) + '.'; } },
   { rota: '#/', sel: '.semana-comp', t: 'Sua semana', d: 'Os dias em que você treinou nesta semana.' },
   { rota: '#/', sel: '#fab-reg', t: 'Botão +', d: () => faz('corrida') ? 'Treinar pelo celular, registrar uma corrida feita sem relógio ou falar com o treinador.' : 'Atalho para falar com o seu treinador: dor, dúvida ou recado.' },
@@ -2694,7 +2737,7 @@ async function montarAgua(box, minTreino) {
       <div class="agua-corpo"><div class="copo-wrap">${COPO_SVG(anim ? Math.max(0, pct - 0.0001) : pct)}</div>
         <div class="agua-info"><b>${fmtL(st.ml)}</b><span>de ${fmtL(meta.ml)}</span><small>${ok ? 'Meta batida hoje!' : `Faltam ${fmtL(meta.ml - st.ml)}`}</small><small class="dim">Meta: ${esc(meta.fonte)}</small></div></div>
       <div class="agua-bts"><button type="button" data-ml="200">${AGUA_IC}<b>+200 ml</b><small>copo</small></button><button type="button" data-ml="500">${AGUA_IC}<b>+500 ml</b><small>garrafa</small></button><button type="button" data-ml="outro"><b>Outro</b><small>valor</small></button></div>
-      <div class="agua-pe">${st.reg.length ? `<button type="button" class="link-btn tiny agua-desf" id="agua-desf">Desfazer o último (${st.reg[st.reg.length - 1].ml} ml)</button>` : '<span></span>'}<button type="button" class="link-btn tiny agua-lemb" id="agua-lemb">${S.me.lembrete_agua === false ? 'Lembretes desligados' : 'Lembretes: 5 por dia'}</button></div></div>`;
+      <div class="agua-pe">${st.reg.length ? `<button type="button" class="link-btn tiny agua-desf" id="agua-desf">Desfazer o último (${st.reg[st.reg.length - 1].ml} ml)</button>` : '<span></span>'}<button type="button" class="link-btn tiny agua-lemb" id="agua-lemb">${S.me.lembrete_agua === false ? 'Lembretes desligados' : `Lembretes: ${AGUA_INT_TXT(S.me.agua_intervalo_min || 60)}`}</button></div></div>`;
     const hh = document.getElementById('hh-agua');
     if (hh) { hh.hidden = false; hh.innerHTML = `${AGUA_IC}<span>Hidratação: ${ok ? `meta do dia atingida (${fmtL(st.ml)})` : `${fmtL(st.ml)} de ${fmtL(meta.ml)} · ${Math.round(pct * 100)}% da meta`}</span>`; }
     if (anim) requestAnimationFrame(() => { const n = box.querySelector('.agua-nivel'); if (n) n.style.transform = `translateY(${(146 - Math.min(1, pct) * 137).toFixed(1)}px)`; });
@@ -2720,16 +2763,7 @@ async function montarAgua(box, minTreino) {
         f.onsubmit = (ev) => { ev.preventDefault(); const v = Math.round(num(f.ml.value) || 0); if (v < 20 || v > 3000) return toast('Use de 20 a 3.000 ml.', true); closeSheet(); somar(v); };
       });
     }
-    if (e.target.closest('#agua-lemb')) {
-      const lig = S.me.lembrete_agua !== false;
-      return openSheet(`<div class="h2">Lembretes de água</div><p class="small muted" style="margin-top:6px">Um aviso de hora em hora, das 8h40 às 19h40, com quanto falta para a sua meta. Quando você bate a meta do dia, os avisos param.</p><button class="btn block" id="lemb-t" style="margin-top:14px">${lig ? 'Desligar lembretes' : 'Ligar lembretes'}</button>`, (r) => {
-        r.querySelector('#lemb-t').onclick = async () => {
-          const { error } = await sb.rpc('nx_lembrete_agua', { p_on: !lig });
-          if (error) return toast('Não foi possível salvar.', true);
-          S.me.lembrete_agua = !lig; closeSheet(); toast(lig ? 'Lembretes desligados.' : 'Lembretes ligados.'); desenha(false);
-        };
-      });
-    }
+    if (e.target.closest('#agua-lemb')) return lembretesAguaSheet(() => desenha(false));
     if (e.target.closest('#agua-desf')) { const u = st.reg.pop(); if (u) { st.ml = Math.max(0, st.ml - u.ml); desenha(false); salvar(); } }
   };
   desenha(false);
@@ -2815,7 +2849,7 @@ async function alunoHoje() {
     !S.me.foto_url && !(Date.now() < (+store.get('nx-foto-adiada') || 0)) ? `<div class="list-item" id="foto-pend" style="align-items:flex-start"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Coloque sua foto</b><div class="small muted">Assim seu treinador e a equipe reconhecem você.</div><div class="row" style="gap:12px;margin-top:10px"><button class="btn sm" id="foto-env">Enviar foto</button><button class="link-btn small" id="foto-x">Agora não</button></div></div></div>` : '',
   ].filter(Boolean).join('');
   $app.innerHTML = `
-    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
+    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><div class="top-acoes">${sinoHTML()}<a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div></div>
     <section class="hoje-hero">
       <div class="hh-top"><span class="hh-data">${fmtDiaSem(hoje)}</span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
       <h1>${saud}, ${esc(firstName(S.me.nome) || "atleta")}</h1>
@@ -2883,6 +2917,7 @@ async function alunoHoje() {
   bindCartaoPush();
   const fEnv = document.getElementById('foto-env');
   desafioCard(document.getElementById('desafio-box'));
+  atualizarSino();
   metaAtual(S.user.id, S.me).then((dm) => { const bx = document.getElementById('meta-hoje'); if (bx && dm.meta) bx.innerHTML = metaCardHTML(dm, { compacto: true }); }, () => {});
   pesquisaSatisfacao(document.getElementById('sat-pend'));
   // reavaliação física: avisa o aluno quando a data marcada já passou e ainda não houve avaliação nova
@@ -8470,7 +8505,7 @@ async function staffHoje() {
   const h = new Date().getHours(); const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const st = S.cache.hoje || (S.cache.hoje = { tudo: false });
   $app.innerHTML = `
-    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div>
+    <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><div class="top-acoes">${sinoHTML()}<a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
     ${pendentes.length ? `<div class="section"><div class="section-h"><h2 class="h2">Novos alunos para aprovar</h2><span class="tag acc">${pendentes.length}</span></div><div class="stack">${pendentes.map((m) => `<div class="card aprovar" data-pend="${m.user_id}">
@@ -8498,6 +8533,7 @@ async function staffHoje() {
   bindCartaoPush();
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
+  atualizarSino();
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
   $app.querySelectorAll('[data-resgate]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); const m = ativos.find((x) => x.user_id === b.dataset.resgate); if (m) abrirResgate(m, +b.dataset.dias, () => staffHoje()); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
@@ -11229,7 +11265,7 @@ function saudeStatus(d) {
     acao: sp.length || pf.length ? 'Sem notificação, o aluno não recebe lembretes de água, o treino do dia nem as suas mensagens no celular.' : '',
     bts: sp.length > 1 ? [['todos-push', '', `Mandar o passo a passo no app para os ${sp.length}`]] : [] });
   const ag = d.agendador || [], falhou = ag.filter((x) => x.status === 'failed');
-  const NOME_JOB = (n) => (n === 'nx-avisos-manha' ? 'Bom dia com o treino' : /nx-agua-(\d)/.test(n) ? `Lembretes de água (${['8h40, o primeiro do dia', '9h40 a 18h40, de hora em hora', '19h40, o último do dia'][+n.slice(-1) - 1] || ''})` : n);
+  const NOME_JOB = (n) => (n === 'nx-avisos-manha' ? 'Bom dia com o treino' : /^nx-agua/.test(n) ? 'Lembretes de água (das 8h40 às 19h40, no intervalo de cada aluno)' : n);
   // cada envio registra início e fim: o que não terminou (ou terminou com erro) acende aqui
   const ex = d.avisos || [], exFalhos = ex.filter((x) => x.ok === false || (!x.terminado && Date.now() - Date.parse(x.iniciado) > 10 * 60000));
   const NOME_AC = { agua: 'Lembrete de água', manha: 'Avisos da manhã', saude: 'Checagem do sistema', carga: 'Alerta de carga', ciclo: 'Lembrete do ciclo', marcos: 'Datas especiais', faltas: 'Faltas de ontem', resumo: 'Resumo da semana' };
