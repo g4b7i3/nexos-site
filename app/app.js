@@ -4126,6 +4126,19 @@ const PARQ = [
   'Você toma atualmente algum remédio para pressão arterial ou para o coração?',
   'Você sabe de alguma outra razão pela qual não deveria praticar atividade física?',
 ];
+// PAR-Q+ (versão 2025, Warburton et al.): usado por quem preenche a ficha a partir de agora. Quem já respondeu o PAR-Q clássico
+// continua com ele (as respostas antigas não têm o campo v: 'plus').
+const PARQ_PLUS = [
+  'Algum médico já disse que você tem algum problema de coração OU pressão alta?',
+  'Você sente dor no peito em repouso, nas atividades do dia a dia OU quando faz atividade física?',
+  'Você perde o equilíbrio por causa de tontura OU perdeu a consciência nos últimos 12 meses? <small class="dim">Responda NÃO se a tontura foi por respirar rápido demais, inclusive em exercício intenso.</small>',
+  'Algum médico já disse que você tem outra doença crônica (além de doença do coração ou pressão alta)?',
+  'Você toma atualmente algum remédio receitado para uma doença crônica?',
+  'Você tem hoje (ou teve nos últimos 12 meses) algum problema de osso, articulação, músculo, ligamento ou tendão que pode piorar se você ficar mais ativo? <small class="dim">Responda NÃO se foi um problema no passado que hoje não limita a sua atividade.</small>',
+  'Algum médico já disse que você só deveria fazer atividade física com supervisão médica?',
+];
+const parqLista = (pq) => (pq && pq.q1 && pq.v !== 'plus' ? PARQ : PARQ_PLUS);
+const parqNome = (pq) => (parqLista(pq) === PARQ ? 'PAR-Q' : 'PAR-Q+');
 const DOENCAS = ['Hipertensão', 'Diabetes', 'Doença cardíaca', 'Asma ou bronquite', 'Colesterol alto', 'Problema de tireoide', 'Hérnia de disco', 'Artrose', 'Ansiedade ou depressão', 'Outra'];
 const OBJETIVOS = [['emagrecimento', 'Emagrecimento'], ['hipertrofia', 'Ganho de massa muscular'], ['corrida', 'Performance na corrida'], ['saude', 'Saúde e qualidade de vida'], ['condicionamento', 'Condicionamento físico'], ['retorno', 'Voltar depois de lesão ou pausa']];
 function termoTexto() {
@@ -4257,7 +4270,7 @@ async function viewAnamnese(opts = {}) {
   const staff = !!opts.alunoId; const alunoId = opts.alunoId || S.user.id;
   let a = opts.anamnese;
   if (a === undefined) { const { data } = await sb.from('nx_anamneses').select('*').eq('org_id', S.org.id).eq('aluno_id', alunoId).maybeSingle(); a = data; }
-  const r = (a && a.respostas) || {}; const pq = (a && a.parq) || {};
+  const r = (a && a.respostas) || {}; const pq = (a && a.parq) || {}; const LPQ = parqLista(pq);
   const box = opts.box || $app;
   const cic = !staff && S.me.sexo === 'F' ? await buscarCiclo(S.user.id) : null;
   if (opts.gate) { $dock.hidden = true; layout('bare'); }
@@ -4267,9 +4280,9 @@ async function viewAnamnese(opts = {}) {
     ${opts.gate ? `<div class="row" style="gap:12px;margin-bottom:14px"><img src="${LOGO.s()}" alt="" style="width:44px">${slashes}</div><p class="eyebrow">Passo 2 de 2</p><h1 class="h1" style="margin-top:4px">Sua ficha de saúde</h1><p class="muted small" style="margin:8px 0 4px">Leva uns 3 minutos. Com isso o seu treinador monta um treino seguro pra você.</p>`
       : staff ? '' : `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Minha saúde</p><h1 class="h1">Anamnese e PAR-Q</h1><p class="muted small" style="margin-top:6px">Mudou alguma coisa? Atualize aqui e o seu treinador é avisado.</p><div style="margin-top:14px">${atestadoHTML(a, false)}</div>`}
     <form id="f-ana" class="stack" style="margin-top:16px">
-      <div class="card wz-step" data-k="parq" data-titulo="PAR-Q"><span class="eyebrow">PAR-Q · prontidão para atividade física</span>
+      <div class="card wz-step" data-k="parq" data-titulo="PAR-Q"><span class="eyebrow">${LPQ === PARQ ? 'PAR-Q' : 'PAR-Q+'} · prontidão para atividade física</span>
         <p class="tiny dim" style="margin:6px 0 4px">Responda com sinceridade. Uma resposta "sim" não impede o treino, mas pede uma conversa com o médico antes.</p>
-        ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1), pq['q' + (i + 1)])}</div>`).join('')}
+        ${LPQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1), pq['q' + (i + 1)])}</div>`).join('')}
       </div>
       <div class="stack wz-step" data-k="objetivo" data-titulo="Sobre você e objetivo">
       <div class="card"><span class="eyebrow">Sobre você</span>
@@ -4329,7 +4342,7 @@ async function viewAnamnese(opts = {}) {
     const vz = (n) => !f.querySelector(`[name="${n}"]`) || String(new FormData(f).get(n) || '').trim();
     etapas(f, (el) => {
       const fd = new FormData(f), k = el.dataset.k;
-      if (k === 'parq') { const q = PARQ.findIndex((_, i) => !fd.get('q' + (i + 1))); return q >= 0 ? { msg: `Responda a pergunta ${q + 1} do PAR-Q.`, sel: `[name=q${q + 1}]` } : null; }
+      if (k === 'parq') { const q = LPQ.findIndex((_, i) => !fd.get('q' + (i + 1))); return q >= 0 ? { msg: `Responda a pergunta ${q + 1} do PAR-Q.`, sel: `[name=q${q + 1}]` } : null; }
       if (k === 'objetivo') {
         if (f.querySelector('[name=sexo_al]') && !fd.get('sexo_al')) return { msg: 'Marque o seu sexo.', sel: '[name=sexo_al]' };
         const al = String(fd.get('altura') || ''); if (al && !/^[12],\d{2}$/.test(al)) return { msg: 'Confira a altura (ex.: 1,75).', sel: '[name=altura]' };
@@ -4358,7 +4371,8 @@ async function viewAnamnese(opts = {}) {
   f.onsubmit = async (e) => {
     e.preventDefault(); const fd = new FormData(f);
     const parq = {}; let falta = 0;
-    PARQ.forEach((_, i) => { const v = fd.get('q' + (i + 1)); if (!v) falta++; parq['q' + (i + 1)] = v || null; });
+    LPQ.forEach((_, i) => { const v = fd.get('q' + (i + 1)); if (!v) falta++; parq['q' + (i + 1)] = v || null; });
+    if (LPQ === PARQ_PLUS) parq.v = 'plus';
     if (falta) return toast('Responda todas as perguntas do PAR-Q.', true);
     const resp = {};
     ['altura', 'peso', 'objetivo', 'objetivo_txt', 'experiencia', 'atividades', 'dias', 'tempo', 'km_semana', 'prova', 'doencas_txt', 'lesoes', 'dores', 'cirurgias', 'medicamentos', 'alergias', 'gestante', 'fuma', 'alcool', 'sono_h', 'sono_q', 'estresse', 'emerg_nome', 'emerg_tel']
@@ -4430,7 +4444,7 @@ function anamneseResumoHTML(a, termo) {
   if (!a) return `<div class="row" style="gap:6px;flex-wrap:wrap">${termoH}</div><div class="empty" style="margin-top:12px"><div class="h3">Ficha ainda não preenchida</div><p class="small">O aluno preenche a anamnese no primeiro acesso ao app. Você também pode preencher junto com ele.</p></div>`;
   const r = a.respostas || {}; const nomeOp = (lista, v) => (lista.find((x) => x[0] === v) || [, v])[1];
   const linha = (l, v) => v ? `<div><span>${l}</span><b>${esc(v)}</b></div>` : '';
-  const sim = PARQ.map((q, i) => [i + 1, q, (a.parq || {})['q' + (i + 1)]]).filter((x) => x[2] === 'sim');
+  const sim = parqLista(a.parq).map((q, i) => [i + 1, q, (a.parq || {})['q' + (i + 1)]]).filter((x) => x[2] === 'sim');
   return `<div class="row" style="gap:6px;flex-wrap:wrap">${termoH}<span class="tag">Atualizada ${quando(a.atualizado_em)}</span></div>
     <div class="card" style="margin-top:12px;${a.parq_positivo ? 'border-color:rgba(255,207,92,.45)' : ''}"><span class="eyebrow" style="${a.parq_positivo ? 'color:var(--warn)' : ''}">PAR-Q ${a.parq_positivo ? '· atenção' : '· sem alterações'}</span>
       ${a.parq_positivo ? `<p class="small" style="margin:6px 0 8px">Respondeu <b>sim</b> em:</p>${sim.map(([n, q]) => `<p class="small" style="margin-top:6px">${icT(I.alerta, 'warn')}${n}. ${q}</p>`).join('')}<p class="tiny dim" style="margin-top:12px">Recomendado pedir liberação médica antes de intensificar o treino.</p>` : '<p class="small muted" style="margin-top:6px">Respondeu "não" a todas as perguntas.</p>'}
@@ -13488,8 +13502,8 @@ async function viewFicha(token) {
       ${sec(4, 'Histórico médico', 'Responda todas. Se tiver dúvida, marque “Não sei”.', `
         ${FICHA_HIST.map((q, i) => `<div class="parq"><p>${q}</p>${sn3('h' + (i + 1))}</div>`).join('')}
         <label class="field" style="margin-top:8px"><span>Observações sobre o seu histórico médico</span><textarea class="textarea" name="obs_medica" placeholder="Conte o que marcou como “sim”: qual doença, cirurgia, remédio, lesão…"></textarea></label>`)}
-      ${sec(5, 'PAR-Q · prontidão para atividade física', 'Responda com sinceridade. Um "sim" não impede o treino, só pede uma conversa com o médico antes.', `
-        ${PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1))}</div>`).join('')}`)}
+      ${sec(5, 'PAR-Q+ · prontidão para atividade física', 'Responda com sinceridade. Um "sim" não impede o treino, só pede uma conversa com o médico antes.', `
+        ${PARQ_PLUS.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1))}</div>`).join('')}`)}
       ${sec(6, 'Disponibilidade para treinar', 'Marque os dias em que você consegue treinar cada modalidade.', `
         ${diasL('corrida', selo('corrida', 'sm'), 'Dias de corrida')}${diasL('forca', selo('forca', 'sm'), 'Dias de força (musculação)')}
         <div class="field"><span>Melhor horário</span>${chips('horario', FICHA_HOR)}</div>
@@ -13551,7 +13565,7 @@ async function viewFicha(token) {
     if (k === '2') { if (!mods.length) return { msg: 'Marque corrida, musculação ou as duas.', sel: '[name=modalidades]' }; if (!v('meta')) return { msg: 'Conte quais são os seus objetivos.', sel: '[name=meta]' }; return null; }
     if (k === '3') { if (!fd.getAll('esportes').length) return { msg: 'Marque os esportes que já praticou (ou “Nunca pratiquei”).', sel: '[name=esportes]' }; if (!v('nivel')) return { msg: 'Escolha o seu nível de condicionamento.', sel: '[name=nivel]' }; return null; }
     if (k === '4') { const ih = FICHA_HIST.findIndex((_, i) => !fd.get('h' + (i + 1))); return ih >= 0 ? { msg: 'Responda todas as perguntas do histórico médico.', sel: `[name=h${ih + 1}]` } : null; }
-    if (k === '5') { const iq = PARQ.findIndex((_, i) => !fd.get('q' + (i + 1))); return iq >= 0 ? { msg: `Responda a pergunta ${iq + 1} do PAR-Q.`, sel: `[name=q${iq + 1}]` } : null; }
+    if (k === '5') { const iq = PARQ_PLUS.findIndex((_, i) => !fd.get('q' + (i + 1))); return iq >= 0 ? { msg: `Responda a pergunta ${iq + 1} do PAR-Q.`, sel: `[name=q${iq + 1}]` } : null; }
     if (k === '6') { const c = mods.includes('corrida') ? fd.getAll('d_corrida') : [], fo = mods.includes('musculacao') ? fd.getAll('d_forca') : []; return c.length || fo.length ? null : { msg: 'Marque os dias em que pode treinar.', sel: '.disp-l:not([hidden]) input' }; }
     if (k === '7') return fd.get('aceite') ? null : { msg: 'Aceite o termo de responsabilidade.', sel: '[name=aceite]' };
     if (k === '8') return erroAcesso(fd);
@@ -13565,7 +13579,7 @@ async function viewFicha(token) {
     const mods = d.modalidades || [];
     d.disponibilidade = { corrida: mods.includes('corrida') ? fd.getAll('d_corrida').map(Number) : [], forca: mods.includes('musculacao') ? fd.getAll('d_forca').map(Number) : [] };
     d.hist = {}; FICHA_HIST.forEach((_, i) => { d.hist['h' + (i + 1)] = fd.get('h' + (i + 1)) || null; });
-    d.parq = {}; PARQ.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; });
+    d.parq = { v: 'plus' }; PARQ_PLUS.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; });
     const falta = (sel, msg) => { const el = f.querySelector(sel); toast(msg, true); if (el) el.closest('.field, .parq, .ficha-aceite, label')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     if (!d.nome || d.nome.length < 3) return falta('[name=nome]', 'Escreva seu nome completo.');
     if (String(d.telefone || '').replace(/\D/g, '').length < 10) return falta('[name=telefone]', 'Confira o seu WhatsApp com DDD.');
@@ -13575,7 +13589,7 @@ async function viewFicha(token) {
     if (!d.esportes) return falta('[name=esportes]', 'Marque os esportes que já praticou (ou “Nunca pratiquei”).');
     if (!d.nivel) return falta('[name=nivel]', 'Escolha o seu nível de condicionamento.');
     const ih = FICHA_HIST.findIndex((_, i) => !d.hist['h' + (i + 1)]); if (ih >= 0) return falta(`[name=h${ih + 1}]`, 'Responda todas as perguntas do histórico médico.');
-    const iq = PARQ.findIndex((_, i) => !d.parq['q' + (i + 1)]); if (iq >= 0) return falta(`[name=q${iq + 1}]`, `Responda a pergunta ${iq + 1} do PAR-Q.`);
+    const iq = PARQ_PLUS.findIndex((_, i) => !d.parq['q' + (i + 1)]); if (iq >= 0) return falta(`[name=q${iq + 1}]`, `Responda a pergunta ${iq + 1} do PAR-Q.`);
     if (!d.disponibilidade.corrida.length && !d.disponibilidade.forca.length) return falta('.disp-l:not([hidden]) input', 'Marque os dias em que pode treinar.');
     if (!fd.get('aceite')) return falta('[name=aceite]', 'Aceite o termo de responsabilidade no final.');
     if (!d.nascimento) return falta('[name=nascimento]', 'Confira a data de nascimento.');
@@ -13610,7 +13624,7 @@ async function viewFicha(token) {
 }
 
 function fichaResumo(d) {
-  const sim = PARQ.map((q, i) => [i + 1, q]).filter(([n]) => (d.parq || {})['q' + n] === 'sim');
+  const sim = parqLista(d.parq).map((q, i) => [i + 1, q]).filter(([n]) => (d.parq || {})['q' + n] === 'sim');
   const histSim = FICHA_HIST.map((q, i) => [q, (d.hist || {})['h' + (i + 1)]]).filter(([, v]) => v === 'sim' || v === 'naosei');
   return { sim, histSim, mods: (d.modalidades || []).map((k) => (MODS.find((m) => m[0] === k) || [k, k])[1]).join(' + '), obj: (OBJETIVOS.find((o) => o[0] === d.objetivo) || [])[1] || '' };
 }
@@ -13717,7 +13731,7 @@ function editarFicha(r, aoSalvar) {
         <label class="field"><span>Relógio</span><select class="input" name="relogio"><option value="">Selecione</option>${FICHA_RELOGIOS.map((x) => `<option ${d.relogio === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>`)}
       ${sec('Histórico médico', `${FICHA_HIST.map((q, i) => `<div class="parq"><p>${q}</p>${sn('h' + (i + 1), h['h' + (i + 1)], true)}</div>`).join('')}
         <label class="field" style="margin-top:8px"><span>Observações médicas</span><textarea class="textarea" name="obs_medica">${v('obs_medica')}</textarea></label>`)}
-      ${sec('PAR-Q', PARQ.map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1), pq['q' + (i + 1)])}</div>`).join(''))}
+      ${sec(parqNome(pq), parqLista(pq).map((q, i) => `<div class="parq"><p>${i + 1}. ${q}</p>${sn('q' + (i + 1), pq['q' + (i + 1)])}</div>`).join(''))}
       ${sec('Disponibilidade', `<div class="field"><span>${selo('corrida', 'sm')} Dias de corrida</span>${chk('d_corrida', diasOps, (dp.corrida || []).map(String))}</div>
         <div class="field"><span>${selo('forca', 'sm')} Dias de força</span>${chk('d_forca', diasOps, (dp.forca || []).map(String))}</div>
         <div class="field"><span>Melhor horário</span>${chk('horario', FICHA_HOR, d.horario || [])}</div>
@@ -13735,7 +13749,7 @@ function editarFicha(r, aoSalvar) {
       if (!(d.modalidades || []).length) return toast('Marque corrida, musculação ou as duas.', true);
       d.disponibilidade = { corrida: fd.getAll('d_corrida').map(Number), forca: fd.getAll('d_forca').map(Number) };
       d.hist = {}; FICHA_HIST.forEach((_, i) => { d.hist['h' + (i + 1)] = fd.get('h' + (i + 1)) || null; });
-      d.parq = {}; PARQ.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; });
+      { const L = parqLista(pq); d.parq = L === PARQ_PLUS ? { v: 'plus' } : {}; L.forEach((_, i) => { d.parq['q' + (i + 1)] = fd.get('q' + (i + 1)) || null; }); }
       btn.disabled = true;
       const { error } = await sb.from('nx_form_respostas').update({ dados: d }).eq('id', r.id);
       if (error) { btn.disabled = false; return toast('Não foi possível salvar a ficha.', true); }
@@ -13747,7 +13761,7 @@ function editarFicha(r, aoSalvar) {
         Object.keys(upd).forEach((k) => upd[k] === undefined && delete upd[k]);
         const { error: e2 } = await sb.from('nx_membros').update(upd).eq('org_id', S.org.id).eq('user_id', r.aluno_id);
         if (e2) console.error(e2);
-        const parq = {}; PARQ.forEach((_, i) => { parq['q' + (i + 1)] = d.parq['q' + (i + 1)] || 'nao'; });
+        const parq = d.parq && d.parq.v === 'plus' ? { v: 'plus' } : {}; parqLista(d.parq).forEach((_, i) => { parq['q' + (i + 1)] = d.parq['q' + (i + 1)] || 'nao'; });
         await sb.from('nx_anamneses').update({ parq, parq_positivo: Object.values(parq).includes('sim') }).eq('org_id', S.org.id).eq('aluno_id', r.aluno_id).then(() => {}, () => {});
         S.cache.nomes = null;
       }
@@ -13774,7 +13788,7 @@ async function staffFichaResposta(id) {
     <div class="card plan-head"><div class="ph-id"><div class="av lg">${esc(initials(d.nome || '?'))}</div><div class="grow" style="min-width:0"><h1 class="h2">${esc(d.nome || 'Sem nome')}</h1><div class="small muted">Ficha enviada ${fmtData(r.criado_em)}${rs.mods ? ' · ' + esc(rs.mods) : ''}</div></div></div>
       ${pend ? `<div class="aviso-acesso"><b>Esta pessoa ainda não tem acesso ao app.</b><span class="small muted">${r.aluno_id ? 'O pedido está esperando a sua aprovação.' : 'Ela mandou a ficha, mas não chegou a pedir o acesso.'}</span><button class="btn block" id="ap-acesso" style="margin-top:12px">${I.check} Aprovar acesso</button></div>` : ''}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" id="ed-ficha">✎ Editar ficha</button>${r.aluno_id ? `<a class="btn ghost sm" href="#/aluno/${r.aluno_id}">Ver aluno ${I.chev}</a>` : ''}</div></div>
-    ${rs.sim.length ? `<div class="card ficha-alerta"><b>${icT(I.alerta, 'warn')}PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q)}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
+    ${rs.sim.length ? `<div class="card ficha-alerta"><b>${icT(I.alerta, 'warn')}PAR-Q com ${rs.sim.length} resposta${rs.sim.length > 1 ? 's' : ''} SIM</b>${rs.sim.map(([n, q]) => `<p class="small">${n}. ${esc(q.replace(/\s*<small[^>]*>[\s\S]*?<\/small>/, ''))}</p>`).join('')}<p class="tiny dim">Peça liberação médica antes de começar.</p></div>` : ''}
     <div class="grid2" style="margin-top:12px">${tel ? `<a class="btn wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(d.nome || '')}! Aqui é da Nexos Recebemos sua ficha.`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>` : ''}${r.aluno_id || pend ? '' : `<button class="btn ${tel ? 'ghost' : ''}" id="cadastrar">${I.plus} Cadastrar como aluno</button>`}</div>
     <div class="stack" style="margin-top:16px">
       <div class="card"><span class="eyebrow">Contato</span>${lin('WhatsApp', esc(d.telefone || ''))}${lin('E-mail', esc(d.email || ''))}${lin('Nascimento', d.nascimento ? fmtData(d.nascimento + 'T12:00:00') + (idade != null ? ` · ${idade} anos` : '') : '')}${lin('Sexo', esc(nome([['feminino', 'Feminino'], ['masculino', 'Masculino'], ['nao_informar', 'Prefere não dizer']], d.sexo)))}${lin('Altura e peso', esc([d.altura && d.altura + ' m', d.peso && d.peso + ' kg'].filter(Boolean).join(' · ')))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
@@ -13796,7 +13810,7 @@ async function staffFichaResposta(id) {
       // a ficha já vale como anamnese: o aluno não responde o PAR-Q de novo no primeiro acesso
       try {
         const h = d.hist || {}; const simH = (k) => h[k] === 'sim';
-        const parq = {}; PARQ.forEach((_, i) => { parq['q' + (i + 1)] = (d.parq || {})['q' + (i + 1)] || 'nao'; });
+        const parq = d.parq && d.parq.v === 'plus' ? { v: 'plus' } : {}; parqLista(d.parq).forEach((_, i) => { parq['q' + (i + 1)] = (d.parq || {})['q' + (i + 1)] || 'nao'; });
         const resp = { origem: 'ficha_entrada', objetivo: d.objetivo, objetivo_txt: d.meta, experiencia: { sedentario: 'parado', iniciante: 'iniciante', intermediario: 'intermediario', avancado: 'avancado', profissional: 'avancado' }[d.nivel],
           atividades: [lista(d.esportes, FICHA_ESPORTES), d.atividade].filter(Boolean).join(' · ') || undefined, dias: String(new Set([...(dp.corrida || []), ...(dp.forca || [])]).size || '') || undefined, prova: d.prova,
           doencas: [], doencas_txt: [rs.histSim.map(([q, v]) => q.replace(/\?$/, '') + (v === 'naosei' ? ' (não sabe)' : '')).join('; '), d.obs_medica].filter(Boolean).join('. ') || undefined,
