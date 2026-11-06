@@ -774,42 +774,76 @@ function letraTreino(t, i) {
   const m = String(t.titulo || '').match(/\b([A-Z])\b/); return m ? m[1] : String.fromCharCode(65 + (i % 26));
 }
 
-/* ---------- mapa do corpo (onde dói) ---------- */
-const REG_DOR = { pescoco: 'Pescoço e trapézio', ombro: 'Ombro', braco: 'Braço', antebraco: 'Antebraço e punho', peito: 'Peito', abdomen: 'Abdômen', quadril: 'Quadril e virilha', coxa_f: 'Coxa (frente)', joelho: 'Joelho', canela: 'Canela', pe: 'Tornozelo e pé', costas: 'Costas', lombar: 'Lombar', gluteo: 'Glúteo', coxa_t: 'Coxa (posterior)', panturrilha: 'Panturrilha', aquiles: 'Tendão de Aquiles e calcanhar' };
-const nomeRegDor = (k) => { const [b, l] = k.split('_').length > 1 && /_(d|e)$/.test(k) ? [k.replace(/_(d|e)$/, ''), k.slice(-1)] : [k, '']; return (REG_DOR[b] || b) + (l === 'd' ? ' direito' : l === 'e' ? ' esquerdo' : ''); };
+/* ---------- mapa do corpo (onde dói): modelo anatômico frente e costas ---------- */
+const REG_DOR = { pescoco: 'Pescoço e trapézio', ombro: 'Ombro', braco: 'Braço (bíceps)', triceps: 'Braço (tríceps)', antebraco: 'Antebraço', mao: 'Punho e mão', peito: 'Peito', abdomen: 'Abdômen', quadril: 'Quadril e virilha', coxa_f: 'Coxa (frente)', joelho: 'Joelho', canela: 'Canela', tornozelo: 'Tornozelo', pe: 'Pé', costas: 'Costas', lombar: 'Lombar', gluteo: 'Glúteo', coxa_t: 'Coxa (posterior)', panturrilha: 'Panturrilha', aquiles: 'Tendão de Aquiles', calcanhar: 'Calcanhar e sola' };
+const nomeRegDor = (k) => { const m = /^(.*)_(d|e)$/.exec(k); const b = m && REG_DOR[m[1]] ? m[1] : k, l = m && REG_DOR[m[1]] ? m[2] : ''; return (REG_DOR[b] || b) + (l === 'd' ? ' direito' : l === 'e' ? ' esquerdo' : ''); };
+// metade direita do desenho (x >= 100); a outra metade é espelhada. B = braço (deslocado junto com o ombro)
+const CORPO_F = {
+  frente: [
+    ['pescoco', 'M100,54 L108,52 C108,60 109,66 112,72 L100,77 Z', 0, 1],
+    ['pescoco', 'M108,62 C114,70 126,73 138,76 C128,79 118,78 112,74 Z', 0, 1],
+    ['peito', 'M100,79 L112,76 C122,78 132,82 135,92 C137,102 135,112 129,118 C118,122 108,122 100,119 Z', 0, 1],
+    ['abdomen', 'M100,121 C110,124 120,123 129,120 C131,135 128,148 128,160 C129,170 132,178 134,186 C122,194 110,200 100,202 Z', 0, 1],
+    ['quadril', 'M100,204 C112,202 124,197 134,189 C138,197 140,205 141,213 C130,219 116,226 104,234 L100,234 Z', 0, 1],
+    ['coxa_f', 'M104,236 C116,229 130,221 142,215 C145,237 144,262 139,288 C137,300 133,308 131,313 L108,313 C106,298 104,278 103,258 Z', 0],
+    ['joelho', 'M108,315 L131,315 C133,322 132,330 129,335 L110,335 C107,330 106,322 108,315 Z', 0],
+    ['canela', 'M110,337 L129,337 C133,352 134,368 131,384 C129,394 127,402 126,408 L114,408 C113,396 111,380 109,366 C108,354 108,345 110,337 Z', 0],
+    ['tornozelo', 'M114,410 L126,410 C127,414 127,418 126,421 L114,421 C113,418 113,414 114,410 Z', 0],
+    ['pe', 'M113,423 L126,423 C130,429 135,435 136,440 C137,445 133,447 125,447 L113,447 C109,447 107,444 108,439 C109,433 111,428 113,423 Z', 0],
+    ['ombro', 'M138,75 C148,75 155,83 155,95 C155,105 152,112 149,118 C145,109 139,101 133,95 C131,86 132,78 138,75 Z', 1],
+    ['braco', 'M135,100 C141,106 147,112 150,119 C155,129 156,145 154,160 C150,164 142,164 138,162 C136,148 134,130 135,112 Z', 1],
+    ['antebraco', 'M138,165 C144,167 150,167 154,163 C158,176 159,192 157,210 C155,218 152,224 150,228 L142,228 C141,216 140,200 139,186 C138,178 137,171 138,165 Z', 1],
+    ['mao', 'M142,230 L151,230 C155,236 157,246 155,255 C153,262 148,264 145,261 C142,256 141,246 141,238 Z', 1],
+  ],
+  costas: [
+    ['pescoco', 'M100,56 L108,54 C109,62 112,68 118,72 C128,76 136,78 140,80 C131,86 120,95 112,104 L100,109 Z', 0, 1],
+    ['costas', 'M100,111 L113,106 C121,96 132,88 141,82 C135,93 134,104 135,114 C133,130 131,146 127,157 C118,161 108,161 100,161 Z', 0, 1],
+    ['lombar', 'M100,163 C110,163 119,162 127,159 C128,169 131,179 135,188 C124,192 112,194 100,194 Z', 0, 1],
+    ['gluteo', 'M101,196 C113,196 125,194 135,190 C141,200 143,212 141,224 C137,234 127,240 115,240 C107,240 102,236 101,230 Z', 0],
+    ['coxa_t', 'M102,243 C113,245 129,241 141,229 C144,251 143,273 139,296 C137,304 134,310 131,313 L108,313 C106,296 103,272 102,252 Z', 0],
+    ['joelho', 'M108,315 L131,315 C132,322 131,328 129,333 L110,333 C108,328 107,322 108,315 Z', 0],
+    ['panturrilha', 'M110,335 L129,335 C135,347 137,361 134,377 C132,387 129,395 127,401 L115,401 C113,393 109,383 107,371 C105,357 106,345 110,335 Z', 0],
+    ['aquiles', 'M115,403 L127,403 C127,411 127,418 128,424 L114,424 C114,418 115,411 115,403 Z', 0],
+    ['calcanhar', 'M113,426 L129,426 C131,432 131,440 127,447 L115,447 C111,440 111,432 113,426 Z', 0],
+    ['ombro', 'M139,79 C149,77 156,85 156,96 C156,106 153,113 150,118 C146,110 140,103 135,98 C133,89 134,82 139,79 Z', 1],
+    ['triceps', 'M136,102 C142,108 148,113 151,120 C156,130 156,146 154,160 C150,164 142,164 138,162 C136,148 134,130 136,112 Z', 1],
+    ['antebraco', 'M138,165 C144,167 150,167 154,163 C158,176 159,192 157,210 C155,218 152,224 150,228 L142,228 C141,216 140,200 139,186 C138,178 137,171 138,165 Z', 1],
+    ['mao', 'M142,230 L151,230 C155,236 157,246 155,255 C153,262 148,264 145,261 C142,256 141,246 141,238 Z', 1],
+  ],
+};
+// linhas de detalhe: contornos dos músculos e direção das fibras (só desenho, não recebem toque)
+const LIN_COMUM = {
+  frente: 'M104,54 C106,62 108,70 106,78 M103,78 C114,76 126,78 138,77 M128,112 L131,116 M127,118 L131,122 M127,124 L130,128 M104,226 C116,214 128,204 136,192 M136,206 C128,240 118,280 111,312 M126,228 C126,256 124,286 120,308 M140,232 C140,262 136,290 129,310 M108,284 C106,296 110,306 117,308 M104,240 C110,256 112,268 110,280 M114,318 C118,314 124,314 126,320 C126,328 122,332 119,332 C115,332 113,326 114,318 M117,340 C122,360 122,380 119,404 M110,342 C109,356 110,368 112,380 M118,426 L120,440 M122,426 L127,440 M125,425 L132,438',
+  costas: 'M104,62 C114,72 128,78 138,80 M102,80 C112,86 124,88 134,86 M112,92 C122,90 130,94 132,104 C128,112 118,116 110,112 M102,94 L114,104 M108,120 C116,130 126,140 128,156 M102,140 C112,146 120,150 126,154 M104,164 C106,176 106,186 104,194 M110,164 C114,176 114,186 112,194 M118,198 C126,202 132,208 136,216 M101,232 C110,238 124,238 134,232 M120,250 C121,270 121,292 120,310 M108,260 C110,280 112,296 114,310 M134,250 C134,270 132,290 128,306 M120,338 C118,356 118,372 120,390 M112,384 C116,392 124,392 128,384 M118,404 L118,422 M123,404 L123,422',
+};
+const LIN_BRACO = { frente: 'M146,82 C144,94 144,104 147,116 M140,120 C142,136 144,150 146,160 M142,168 C146,184 148,200 150,224 M152,170 C153,190 152,210 150,226 M144,250 L144,259 M147,252 L147,262 M150,251 L151,261 M153,248 L154,256', costas: 'M146,84 C145,96 146,106 148,114 M140,120 C142,134 146,140 150,138 M142,168 C146,184 148,200 150,224 M152,170 C153,190 152,210 150,226 M144,250 L144,259 M147,252 L147,262 M150,251 L151,261 M153,248 L154,256' };
+const CORPO_LIN = {
+  frente: { M: LIN_COMUM.frente + ' M100,104 C110,118 124,118 133,104 M104,86 C114,93 124,97 132,97 M104,95 C114,101 124,104 131,103 M100,121 L100,198 M100,138 C106,137 112,137 117,139 M100,155 C106,154 112,154 117,156 M100,172 C106,171 112,171 116,173 M117,124 C121,150 121,172 117,194 M124,124 C126,142 128,162 132,184',
+    F: LIN_COMUM.frente + ' M104,100 C106,114 118,120 128,114 C133,108 133,100 130,94 M100,124 L100,140 M100,150 L100,176 M100,180 C101,182 101,184 100,186 M117,126 C121,150 122,172 118,194 M124,126 C126,142 128,162 132,184' },
+  costas: { M: 'M100,58 L100,194 ' + LIN_COMUM.costas, F: 'M100,58 L100,194 ' + LIN_COMUM.costas },
+};
+// corpo feminino: mesma anatomia com ombros e cintura mais estreitos e quadril mais largo
+function deformaF(d, braco) {
+  const fx = (y) => { const P = [[0, 0.93], [80, 0.88], [120, 0.88], [160, 0.83], [200, 1.03], [235, 1.06], [300, 1.01], [340, 0.96], [460, 0.94]]; for (let i = 1; i < P.length; i++) if (y <= P[i][0]) { const [y0, a] = P[i - 1], [y1, b] = P[i]; return a + (b - a) * (y - y0) / (y1 - y0); } return 0.94; };
+  return d.replace(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g, (_, x, y) => { x = +x; y = +y; let nx; if (braco) { const ax = 141.4; nx = 100 + (x - 100) * 0.9; nx = ax + (nx - ax) * 0.84; } else nx = 100 + (x - 100) * fx(y); return `${nx.toFixed(1)},${y}`; });
+}
 function corpoSVG(sexo, vista) {
   const F = sexo === 'F';
-  const sh = F ? 37 : 45, ch = F ? 30 : 37, wa = F ? 22 : 29, hp = F ? 37 : 33, lg = F ? 19 : 17;
-  const c = 100, L = lg + 1; // centro da perna em relação ao meio
-  const meio = (d, r) => `<path d="${d}" data-r="${r}"/><path d="${d}" data-r="${r}" transform="translate(200 0) scale(-1 1)"/>`;
-  const lado = (d, r, tipo = 'path') => { const lv = vista === 'frente' ? 'e' : 'd', lo = lv === 'e' ? 'd' : 'e'; const el = (x, rr, t) => tipo === 'ellipse' ? `<ellipse ${x} data-r="${rr}"${t || ''}/>` : `<path d="${x}" data-r="${rr}"${t || ''}/>`; return el(d, r + '_' + lv) + el(d, r + '_' + lo, ' transform="translate(200 0) scale(-1 1)"'); };
-  const cx = c + L;
-  const coxa = (y0) => `M${cx - lg + 1},${y0} Q${cx - lg + 2},${(y0 + 282) / 2} ${cx - 11},282 L${cx + 11},282 Q${cx + lg + 2},${(y0 + 282) / 2 - 8} ${cx + lg},${y0} Z`;
-  const pernas = vista === 'frente'
-    ? lado(coxa(202), 'coxa_f') + lado(`cx="${cx}" cy="293" rx="11.5" ry="10.5"`, 'joelho', 'ellipse') + lado(`M${cx - 11},304 Q${cx - 12},330 ${cx - 6},376 L${cx + 6},376 Q${cx + 13},328 ${cx + 11},304 Z`, 'canela') + lado(`M${cx - 6},378 L${cx + 6},378 Q${cx + 9},398 ${cx + 4},404 L${cx - 5},404 Q${cx - 9},398 ${cx - 6},378 Z`, 'pe')
-    : lado(coxa(220), 'coxa_t') + lado(`cx="${cx}" cy="293" rx="11" ry="9.5"`, 'joelho', 'ellipse') + lado(`M${cx - 11},304 Q${cx - 16},322 ${cx - 7},368 L${cx + 7},368 Q${cx + 16},322 ${cx + 11},304 Z`, 'panturrilha') + lado(`M${cx - 6},370 L${cx + 6},370 Q${cx + 8},396 ${cx + 6},404 L${cx - 6},404 Q${cx - 8},396 ${cx - 6},370 Z`, 'aquiles');
-  const bracos = lado(`M${c + sh - 7},86 Q${c + sh + 7},86 ${c + sh + 8},104 L${c + sh + 9},146 L${c + sh - 4},146 L${c + sh - 7},104 Z`, 'braco')
-    + lado(`M${c + sh - 4},149 L${c + sh + 9},149 L${c + sh + 12},204 L${c + sh + 2},204 Z`, 'antebraco')
-    + lado(`cx="${c + sh}" cy="78" rx="${F ? 9 : 11}" ry="${F ? 10 : 12}"`, 'ombro', 'ellipse');
-  const maos = `<g class="cp-deco"><ellipse cx="${c + sh + 7}" cy="216" rx="5.5" ry="10"/><ellipse cx="${200 - c - sh - 7}" cy="216" rx="5.5" ry="10"/></g>`;
-  const tronco = vista === 'frente'
-    ? meio(`M100,50 L107,50 L108,64 Q112,68 ${c + sh - 8},70 L${c + ch},76 L100,72 Z`, 'pescoco')
-      + meio(`M100,74 L${c + ch},77 L${c + ch - 1},${F ? 122 : 118} Q${c + ch / 2},${F ? 130 : 126} 100,${F ? 124 : 122} Z`, 'peito')
-      + meio(`M100,${F ? 126 : 124} Q${c + ch / 2},${F ? 132 : 128} ${c + ch - 1},${F ? 124 : 120} L${c + wa},154 C${c + wa + 1},166 ${c + hp},170 ${c + hp},184 L100,184 Z`, 'abdomen')
-      + meio(`M100,186 L${c + hp},186 Q${c + hp + 1},196 ${c + hp - 1},200 L101,208 L100,208 Z`, 'quadril')
-    : meio(`M100,50 L107,50 L108,62 Q113,66 ${c + sh - 8},70 L${c + sh - 14},84 L100,92 Z`, 'pescoco')
-      + meio(`M100,94 L${c + sh - 14},86 L${c + ch},94 L${c + wa + 2},140 L100,140 Z`, 'costas')
-      + meio(`M100,142 L${c + wa + 2},142 C${c + wa + 3},160 ${c + hp},166 ${c + hp},182 L100,182 Z`, 'lombar')
-      + lado(`M101,184 L${c + hp},184 Q${c + hp + 3},204 ${c + hp - 2},216 Q${c + 18},228 101,216 Z`, 'gluteo');
-  const det = vista === 'frente'
-    ? (F ? `<path d="M${c - 22},104 Q${c - 12},118 ${c - 3},106 M${c + 3},106 Q${c + 12},118 ${c + 22},104"/>` : `<path d="M${c - 30},104 Q${c - 15},114 ${c - 2},106 M${c + 2},106 Q${c + 15},114 ${c + 30},104 M100,128 L100,176 M${c - 14},142 L${c + 14},142 M${c - 13},158 L${c + 13},158"/>`)
-    : `<path d="M100,96 L100,178 M${c - 24},104 Q${c - 16},116 ${c - 8},104 M${c + 8},104 Q${c + 16},116 ${c + 24},104"/>`;
-  const cabelo = F
-    ? (vista === 'frente' ? `<path class="cp-cab" d="M84,30 Q82,8 100,7 Q118,8 116,30 Q114,22 108,18 Q100,24 90,20 Q86,24 84,30 Z M84,30 Q82,46 86,54 L90,48 Z M116,30 Q118,46 114,54 L110,48 Z"/>` : `<path class="cp-cab" d="M84,32 Q82,6 100,6 Q118,6 116,32 Q118,50 112,58 Q100,62 88,58 Q82,50 84,32 Z"/>`)
-    : (vista === 'frente' ? `<path class="cp-cab" d="M85,26 Q86,8 100,8 Q114,8 115,26 Q110,15 100,16 Q90,15 85,26 Z"/>` : `<path class="cp-cab" d="M85,30 Q84,7 100,7 Q116,7 115,30 Q112,40 100,40 Q88,40 85,30 Z"/>`);
-  return `<svg viewBox="40 0 120 412" class="corpo-svg" role="img" aria-label="Corpo ${vista}">
-    <g class="cp-deco"><ellipse cx="100" cy="30" rx="15" ry="19"/></g>${cabelo}
-    <g class="cp-reg">${tronco}${bracos}${pernas}</g>${maos}<g class="cp-lin">${det}</g></svg>`;
+  const lv = vista === 'frente' ? 'e' : 'd', lo = lv === 'e' ? 'd' : 'e'; // lado da pessoa na metade direita do desenho
+  const esp = ' transform="translate(200 0) scale(-1 1)"';
+  const regs = CORPO_F[vista].map(([r, d, b, meio]) => { const dd = F ? deformaF(d, b) : d; return meio ? `<path d="${dd}" data-r="${r}"/><path d="${dd}" data-r="${r}"${esp}/>` : `<path d="${dd}" data-r="${r}_${lv}"/><path d="${dd}" data-r="${r}_${lo}"${esp}/>`; }).join('');
+  const lin = (F ? deformaF(CORPO_LIN[vista].F, 0) : CORPO_LIN[vista].M) + ' ' + (F ? deformaF(LIN_BRACO[vista], 1) : LIN_BRACO[vista]);
+  const cab = vista === 'frente'
+    ? (F ? '<path class="cp-cab" d="M82,36 C80,14 90,6 100,6 C110,6 120,14 118,36 C118,48 120,58 122,66 C118,66 116,62 115,56 C116,44 114,30 108,22 C100,26 92,26 86,24 C84,34 84,46 85,56 C84,62 82,66 78,66 C80,58 82,48 82,36 Z"/>' : '<path class="cp-cab" d="M83,30 C82,14 90,8 100,8 C110,8 118,14 117,30 C114,20 108,17 100,17 C92,17 86,20 83,30 Z"/>')
+    : (F ? '<path class="cp-cab" d="M82,34 C80,12 90,5 100,5 C110,5 120,12 118,34 C119,48 121,58 123,68 C114,72 106,73 100,73 C94,73 86,72 77,68 C79,58 81,48 82,34 Z"/>' : '<path class="cp-cab" d="M83,32 C82,12 90,7 100,7 C110,7 118,12 117,32 C116,42 112,48 100,48 C88,48 84,42 83,32 Z"/>');
+  const g = 'cpg-' + vista + (F ? 'f' : 'm');
+  const base = CORPO_F[vista].map(([, d, b]) => { const dd = F ? deformaF(d, b) : d; return `<path d="${dd}"/><path d="${dd}"${esp}/>`; }).join('');
+  return `<svg viewBox="30 0 140 452" class="corpo-svg" role="img" aria-label="Corpo ${vista === 'frente' ? 'de frente' : 'de costas'}">
+    <defs><radialGradient id="${g}" cx="38%" cy="30%" r="80%"><stop offset="0" class="cp-g1"/><stop offset="1" class="cp-g2"/></radialGradient>
+      <radialGradient id="${g}-on" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#ff8a80"/><stop offset="1" stop-color="#d93a3a"/></radialGradient></defs>
+    <g class="cp-deco"><ellipse cx="100" cy="32" rx="${F ? 16 : 17}" ry="22"/><ellipse cx="${F ? 83.5 : 82.5}" cy="35" rx="3" ry="5.5"/><ellipse cx="${F ? 116.5 : 117.5}" cy="35" rx="3" ry="5.5"/></g>${cab}
+    <g class="cp-base">${base}</g>
+    <g class="cp-reg" style="--g:url(#${g});--gon:url(#${g}-on)">${regs}</g><path class="cp-lin" d="${lin}"/><path class="cp-lin" d="${lin}"${esp}/></svg>`;
 }
 function mapaCorpoHTML(sexo) {
   return `<div class="corpo-map"><div class="corpo-v"><span>Frente</span>${corpoSVG(sexo, 'frente')}</div><div class="corpo-v"><span>Costas</span>${corpoSVG(sexo, 'costas')}</div></div><div class="corpo-sel small muted" id="corpo-sel">Toque nas partes do corpo onde sente dor.</div>`;

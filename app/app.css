@@ -2154,17 +2154,21 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .corpo-v{text-align:center}
 .corpo-v>span{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
 .corpo-svg{width:100%;max-width:170px;height:auto;display:block;margin:4px auto 0}
-.cp-reg [data-r]{fill:#dbe3f0;stroke:var(--s1);stroke-width:1.4;cursor:pointer;transition:fill .15s}
-.cp-reg [data-r]:hover{fill:#c6d3ea}
-.cp-reg [data-r].on{fill:#ff5d5d}
-.cp-deco{fill:#cad4e6;stroke:var(--s1);stroke-width:1.4}
-.cp-cab{fill:#8b97ad}
-.cp-lin{fill:none;stroke:rgba(110,130,170,.35);stroke-width:1;pointer-events:none}
-html[data-tema="escuro"] .cp-reg [data-r]{fill:#2a3d63}
-html[data-tema="escuro"] .cp-reg [data-r]:hover{fill:#35507f}
-html[data-tema="escuro"] .cp-reg [data-r].on{fill:#ff5d5d}
-html[data-tema="escuro"] .cp-deco{fill:#22345a}
-html[data-tema="escuro"] .cp-cab{fill:#4d5f82}
+.cp-g1{stop-color:#f3f6fb}.cp-g2{stop-color:#c4cfe0}
+.cp-base path{fill:#d3dcea;stroke:#d3dcea;stroke-width:3.2;stroke-linejoin:round}
+.cp-reg [data-r]{fill:var(--g);stroke:#8d9db8;stroke-width:.7;stroke-linejoin:round;cursor:pointer;transition:filter .15s}
+.cp-reg [data-r]:hover{filter:brightness(.96)}
+.cp-reg [data-r].on{fill:var(--gon);stroke:#a42626}
+.cp-deco{fill:#d9e1ee;stroke:#8d9db8;stroke-width:.7}
+.cp-cab{fill:#7d8aa3}
+.cp-lin{fill:none;stroke:rgba(80,100,140,.42);stroke-width:.55;stroke-linecap:round;pointer-events:none}
+html[data-tema="escuro"] .cp-g1{stop-color:#3a5584}html[data-tema="escuro"] .cp-g2{stop-color:#22365c}
+html[data-tema="escuro"] .cp-base path{fill:#2a3f66;stroke:#2a3f66}
+html[data-tema="escuro"] .cp-reg [data-r]{stroke:#6f86b3}
+html[data-tema="escuro"] .cp-reg [data-r].on{stroke:#ffb3b3}
+html[data-tema="escuro"] .cp-deco{fill:#30476f;stroke:#6f86b3}
+html[data-tema="escuro"] .cp-cab{fill:#5b6d91}
+html[data-tema="escuro"] .cp-lin{stroke:rgba(190,210,245,.35)}
 .corpo-sel{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:22px}
 .pront-staff{margin-bottom:14px}
 .pront-staff b svg{width:15px;height:15px;vertical-align:-2px;color:var(--acc2)}
