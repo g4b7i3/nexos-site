@@ -11702,13 +11702,14 @@ function gerarModelo(c) {
   });
 }
 const cicCache = {};
-const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = c.modo === 'modelo' ? gerarModelo(c) : gerarCiclo(c));
+const cicSemanas = (c) => cicCache[c.id] || (cicCache[c.id] = c.gen ? c.gen(c) : c.modo === 'modelo' ? gerarModelo(c) : gerarCiclo(c));
 const cicKm = (sem, perfil) => sem.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
 
 // biblioteca de ciclos (treinador)
+const cicCardHTML = (c) => { const S2 = cicSemanas(c), p = perfilNiv(c.niv), kms = S2.map((s) => cicKm(s, p)); const tr = Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length); const np = S2.reduce((a, s) => a + s.sess.filter(([, t]) => t.tipo === 'prova').length, 0); return `<a class="card tap cic-card" href="#/treinos/ciclos/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[c.niv]}</span><span class="tag">${c.sem} semana${c.sem > 1 ? 's' : ''}</span><span class="tag">~${tr} treinos/semana</span><span class="tag">${Math.round(Math.min(...kms))} a ${Math.round(Math.max(...kms))} km/sem</span>${c.obj === 'slz' ? `<span class="tag">${np} provas</span>` : ''}</div></div>${I.chev}</div>${cicBarra(S2)}${c.desc ? `<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p>` : ''}</a>`; };
 const trlCard = (t, forca) => { const cs = t.seq.map((x) => (forca ? CICLOS_FORCA : CICLOS_CORR).find((c) => c.id === x)).filter(Boolean), tot = cs.reduce((a, c) => a + cicSem(c), 0); return `<a class="card tap cic-card" href="${forca ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/'}${t.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(t.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[t.niv]}</span><span class="tag">${cs.length} ciclos</span><span class="tag">${tot} semanas</span></div></div>${I.chev}</div><div class="cic-barra trl-barra">${cs.map((c, i) => `<i style="flex:${cicSem(c)};background:hsl(${(i * 47 + 190) % 360} 70% 55%)"></i>`).join('')}</div><p class="small muted" style="margin-top:8px">${esc(t.desc)}</p><p class="tiny dim" style="margin-top:6px">${cs.map((c) => esc(c.nome)).join(' → ')}</p></a>`; };
 async function viewCiclos(id) {
-  if (id) return id === 'anual' ? viewMacro() : /^t-/.test(id) ? viewTrilha(id, false) : viewCiclo(id);
+  if (id) return id === 'slz' ? viewSLZ() : id === 'anual' ? viewMacro() : /^t-/.test(id) ? viewTrilha(id, false) : viewCiclo(id);
   const st = S.cache.cicObj || (S.cache.cicObj = { o: store.get('nx-cic-obj', 'ini') });
   const desenha = () => {
     st.m = st.m || store.get('nx-cic-mod', 'trad');
@@ -11717,13 +11718,14 @@ async function viewCiclos(id) {
     $app.innerHTML = `<a class="back" href="#/treinos/corrida">${I.back} Treinos de corrida</a><p class="eyebrow">Biblioteca de corrida</p><h1 class="h1">Ciclos prontos</h1>
       <p class="muted" style="margin-top:6px">Ciclos completos, semana a semana. Ao aplicar, todas as semanas vão para a planilha do aluno <b>sem liberar</b>: você ajusta o que quiser e libera semana a semana. Os ritmos de cada zona saem do perfil de corrida de cada aluno.</p>
       <a class="card tap mac-cta" href="#/treinos/ciclos/anual" style="color:inherit;margin-top:14px"><span class="mac-cta-ic">${I.cal}</span><div class="grow" style="min-width:0"><b>Macrociclo anual</b><p class="small muted" style="margin-top:2px">Monte o ano do aluno a partir das provas principais, com todos os ciclos na ordem certa.</p></div>${I.chev}</a>
+      <a class="card tap mac-cta" href="#/treinos/ciclos/slz" style="color:inherit;margin-top:10px"><span class="mac-cta-ic">${I.flag}</span><div class="grow" style="min-width:0"><b>Macrociclo São Luís</b><p class="small muted" style="margin-top:2px">Para quem corre muitas provas: de 2 a 6 no mês e de 10 a 50 no ano, em todos os níveis.</p></div>${I.chev}</a>
       <div class="chips" id="cic-o" style="margin-top:14px">${CIC_OBJ.map(([k, l]) => `<button type="button" class="chip ${k === st.o ? 'on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>
       ${st.o === 'modelos' ? `<p class="small muted" style="margin-top:12px"><b>Periodização</b> é como as fases se encadeiam ao longo do ciclo. <b>Distribuição de intensidade</b> é como cada semana se divide entre leve e forte. Escolha o modelo e o nível do aluno.</p>
         <div class="chips wrap" id="cic-m" style="margin-top:10px">${MOD_CORR.map(([k, l]) => `<button type="button" class="chip ${k === st.m ? 'on' : ''}" data-m="${k}">${l}</button>`).join('')}</div>
         <div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${mi.tipo}</span><div class="h3" style="margin-top:2px">${esc((MOD_CORR.find((x) => x[0] === st.m) || [])[1])}</div><p class="small" style="margin-top:6px">${mi.oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${mi.quando}</p><p class="tiny dim" style="margin-top:6px">${mi.ci}</p></div>` : ''}
       ${st.o === 'bloco' ? `<div class="card cic-macro" style="margin-top:12px"><span class="eyebrow">Macrociclo sugerido da temporada</span><ol>${CIC_MACRO.map((x) => `<li>${x}</li>`).join('')}</ol><p class="tiny dim">Aplique um ciclo depois do outro, cada um começando na segunda-feira seguinte ao fim do anterior.</p></div>` : ''}
       ${st.o === 'trilhas' ? `<p class="small muted" style="margin-top:12px"><b>Trilhas</b> são ciclos encadeados na ordem certa: cada um começa na segunda-feira seguinte ao fim do anterior. Aplique a trilha inteira de uma vez ou abra cada ciclo para ver o que vem depois.</p><div class="stack" style="margin-top:12px">${TRILHAS_CORR.map((t) => trlCard(t, false)).join('')}</div>` : ''}
-      <div class="stack" style="margin-top:12px">${L.map((c) => { const S2 = cicSemanas(c), p = perfilNiv(c.niv), kms = S2.map((s) => cicKm(s, p)); const tr = Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length); return `<a class="card tap cic-card" href="#/treinos/ciclos/${c.id}" style="color:inherit"><div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="h3">${esc(c.nome)}</b><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag acc">${CIC_NIV[c.niv]}</span><span class="tag">${c.sem} semana${c.sem > 1 ? 's' : ''}</span><span class="tag">~${tr} treinos/semana</span><span class="tag">${Math.round(Math.min(...kms))} a ${Math.round(Math.max(...kms))} km/sem</span></div></div>${I.chev}</div>${cicBarra(S2)}${c.desc ? `<p class="small muted" style="margin-top:8px">${esc(c.desc)}</p>` : ''}</a>`; }).join('')}</div>`;
+      <div class="stack" style="margin-top:12px">${L.map(cicCardHTML).join('')}</div>`;
     document.getElementById('cic-o').onclick = (e) => { const x = e.target.closest('[data-o]'); if (!x) return; st.o = x.dataset.o; store.set('nx-cic-obj', st.o); desenha(); };
     const cm = document.getElementById('cic-m'); if (cm) cm.onclick = (e) => { const x = e.target.closest('[data-m]'); if (!x) return; st.m = x.dataset.m; store.set('nx-cic-mod', st.m); desenha(); };
   };
@@ -11745,15 +11747,17 @@ function viewCiclo(id) {
     polimento: 'Polimento: volume 40–60% menor nas duas últimas semanas, mantendo a intensidade e o número de treinos. Chega na prova descansado e afiado.',
     pos: 'Recuperação depois da prova: só corridas leves e curtas. Dores musculares e marcadores de dano costumam levar de 1 a 2 semanas para normalizar depois de maratonas.',
     trans: 'Descanso ativo: mantém o hábito e a base sem cansar, recuperando a cabeça e o corpo antes da próxima temporada.',
+    slz: 'Cada prova tem um papel: forte (no máximo, com véspera e dias seguintes leves), treino (ritmo de limiar, no lugar do treino de qualidade) ou leve (participação). Os treinos intensos da semana, contando a prova, ficam no limite do nível, e a maior parte do volume continua leve. As provas estão nos sábados e domingos do modelo: depois de aplicar, mova cada uma para a data real.',
   };
   const semHTML = (s, i) => `<details class="card cic-sem" ${i === 0 ? 'open' : ''}><summary><div class="grow"><b>Semana ${i + 1}</b> <span class="cic-fase" style="--fc:${CIC_FASE_COR[s.fase] || '#9aa8c0'}">${s.rec ? 'Recuperação' : s.fase}</span></div><span class="small muted">${f1(cicKm(s, perfil))} km · ${s.sess.length} treinos</span>${I.chev}</summary>
     <div class="stack" style="margin-top:10px;gap:8px">${s.sess.map(([d, t]) => `<div class="cic-tr"><span class="cic-dia">${DIAS_SEM[d]}</span><div class="grow" style="min-width:0"><b>${esc(t.titulo)}</b>${t.estrutura.length ? `<div style="margin:6px 0 2px">${perfilHTML(t.estrutura, perfil)}</div><p class="tiny dim">${f1(kmDe(t, perfil))} km · ${esc(descreverEstrutura(t.estrutura))}</p>` : ''}</div></div>`).join('')}</div></details>`;
-  $app.innerHTML = `<a class="back" href="#/treinos/ciclos">${I.back} Ciclos prontos</a><p class="eyebrow">${ehMod ? 'Modelo de treino' : esc((CIC_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
+  const slz = c.obj === 'slz';
+  $app.innerHTML = `<a class="back" href="${slz ? '#/treinos/ciclos/slz' : '#/treinos/ciclos'}">${I.back} ${slz ? 'Macrociclo São Luís' : 'Ciclos prontos'}</a><p class="eyebrow">${ehMod ? 'Modelo de treino' : slz ? 'Macrociclo São Luís' : esc((CIC_OBJ.find((x) => x[0] === c.obj) || [])[1] || '')} · ${CIC_NIV[c.niv]}</p><h1 class="h1">${esc(c.nome)}</h1>
     ${c.desc ? `<p class="muted" style="margin-top:6px">${esc(c.desc)}</p>` : ''}
     <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b>${c.sem}</b><span>semanas</span></div><div><b>${Math.round(S2.reduce((a, s) => a + s.sess.length, 0) / S2.length)}</b><span>treinos por semana</span></div><div><b>${Math.round(Math.max(...S2.map((s) => cicKm(s, perfil))))}</b><span>km na semana mais forte</span></div></div>${cicBarra(S2)}</div>
     <button class="btn block" id="cic-apl" style="margin-top:12px">${I.users} Aplicar a um aluno</button>
     ${c.mod ? `<div class="card mod-info" style="margin-top:12px"><span class="eyebrow">${MOD_INFO[c.mod].tipo}</span><p class="small" style="margin-top:6px">${MOD_INFO[c.mod].oque}</p><p class="small" style="margin-top:6px"><b>Quando usar:</b> ${MOD_INFO[c.mod].quando}</p><p class="small" style="margin-top:6px"><b>Base científica:</b> ${MOD_INFO[c.mod].ci}</p><p class="tiny dim" style="margin-top:6px">A última semana termina com um teste para medir a evolução. Se o aluno tiver prova, troque o teste pela prova.</p></div>` : ''}
-    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
+    <div class="card cic-ci" style="margin-top:12px"><span class="eyebrow">Base científica</span><p class="small" style="margin-top:6px">${c.mod ? 'Em todos os modelos: volume crescendo aos poucos, semana de recuperação a cada 4 e a maior parte do treino leve.' : CIENCIA[c.modo] || CIENCIA.prova}</p><p class="tiny dim" style="margin-top:8px">${slz ? SLZ_REFS : CIC_REFS}</p><p class="tiny dim" style="margin-top:6px">Os km são uma estimativa para um aluno típico deste nível. Os ritmos saem do perfil de corrida de cada aluno.</p></div>
     ${seqHTML(proximosCorr(c), '#/treinos/ciclos/')}
     <p class="sec-lbl">Semana a semana</p><div class="stack">${S2.map(semHTML).join('')}</div>`;
   document.getElementById('cic-apl').onclick = () => cicAplicar(c, S2);
@@ -11914,6 +11918,7 @@ const SEQ_POR = {
   pot: 'Transformar a força em potência: carga moderada movida rápido.',
   varia: 'Variar o estímulo com o mesmo volume: ondulatório, blocos e linear rendem parecido, e trocar o modelo ajuda quando o aluno estagna.',
   leve: 'Semana leve antes do próximo bloco: recupera e consolida os ganhos.',
+  menos: 'Mês com menos provas: quando o aluno acumulou cansaço, reduz o número de provas e volta a ter semanas de treino completas.',
   corr: 'Ajustar a força à fase da corrida: pesado na base, manutenção na temporada de provas.',
 };
 const SEQ_CORR = {
@@ -12257,6 +12262,160 @@ async function viewMacro() {
     location.hash = `#/aluno/${st.aluno}/corrida`;
   }
   tela();
+}
+
+/* ---------- Macrociclo São Luís: para quem corre muitas provas no mês e no ano ----------
+   Princípios: nem toda prova é para correr no máximo (forte, treino ou leve); a prova toma o lugar de um treino de qualidade,
+   mantendo a maior parte do volume leve (Seiler 2010; Stöggl & Sperlich 2014); progressão de volume sem saltos (Nielsen et al. 2014);
+   periodização dupla com dois picos no ano (Matveyev; Issurin 2010); calor e umidade (Racinais et al. 2015, Br J Sports Med). */
+const SLZ_NIV = ['ini', 'int', 'ava', 'pro'];
+const SLZ_FORTE_MES = { ini: 1, int: 2, ava: 2, pro: 3 };
+const SLZ_FORTE_ANO = { ini: 6, int: 10, ava: 14, pro: 18 };
+const SLZ_CAP = { ini: 1, int: 2, ava: 3, pro: 3 }; // treinos intensos por semana, contando a prova
+const SLZ_OBS = {
+  forte: 'Prova forte: corra no máximo do dia. Na véspera só trote leve; nos 2 a 3 dias seguintes, só leve. Em São Luís, chegue hidratado e reduza o ritmo se estiver muito quente.',
+  treino: 'Prova como treino: aquecimento, a prova em ritmo de limiar (forte, mas controlado, sem ir ao máximo) e desaquecimento. Substitui o treino de qualidade da semana.',
+  leve: 'Prova de participação: ritmo de conversa (Z2), sem forçar. Conta como rodagem ou longão leve da semana.',
+};
+const sPr = (km, papel, rot, extra) => {
+  const k = String(km).replace('.', ',');
+  if (extra >= 2 && papel === 'treino') return cT('prova', `${rot || 'Prova'} ${k} km · treino + longão`, [_A(3), _C(km, 'km', 'limiar'), _D(r05(extra))], SLZ_OBS.treino + ` Depois da chegada, continue ${String(r05(extra)).replace('.', ',')} km leve para completar o longão da semana.`);
+  if (extra >= 2 && papel === 'leve') return cT('prova', `${rot || 'Prova'} ${k} km · leve + longão`, [_A(r05(extra / 2)), _C(km, 'km', 'leve'), _D(r05(extra / 2))], SLZ_OBS.leve + ' Corra leve antes e depois da prova para completar o longão da semana.');
+  if (papel === 'forte') return cT('prova', `${rot || 'Prova'} ${k} km · forte`, [_A(2), _C(km, 'km', km <= 5 ? 'intervalado' : km <= 10 ? 'limiar' : km <= 21.1 ? 'limiar' : 'maratona'), _D(1)], SLZ_OBS.forte);
+  if (papel === 'treino') return cT('prova', `${rot || 'Prova'} ${k} km · treino`, [_A(2), _C(km, 'km', 'limiar'), _D(2)], SLZ_OBS.treino);
+  return cT('prova', `${rot || 'Prova'} ${k} km · leve`, [_C(km, 'km', 'leve')], SLZ_OBS.leve);
+};
+// semana de treino por nível e fase; as provas tomam o lugar do longão e dos treinos de qualidade, respeitando o limite de intensos
+function slzSemana(niv, fase, f, provas, posForte) {
+  const rec = fase === 'Recuperação', pol = fase === 'Polimento' || fase === 'Prova', tra = fase === 'Transição';
+  const fv = rec ? 0.7 : pol ? 0.6 : tra ? 0.6 : f;
+  const E = { ini: 4, int: 6, ava: 8, pro: 12 }[niv] * fv, L = { ini: 7, int: 13, ava: 18, pro: 24 }[niv] * (rec || pol ? 0.65 : f);
+  const Q = (k) => { // treinos de qualidade por fase
+    if (niv === 'ini') return fase === 'Base' ? (k ? sSub(6, 60) : sFar(6, true)) : fase === 'Específica' ? sMil(3) : sFar(8, true);
+    const n = { int: 1, ava: 1.4, pro: 2 }[niv];
+    if (fase === 'Base') return k === 0 ? sSub(Math.round(8 * Math.min(n, 1.25)), 80) : k === 1 ? sBlo(Math.round(4 * n), 5) : sX(Math.round(8 * n));
+    if (fase === 'Específica' || fase === 'Competitiva') return k === 0 ? sVo(Math.round(5 * Math.min(n, 1.6)), 1000) : k === 1 ? sKm(Math.round(3 * n), 2, 'limiar') : sX(Math.round(8 * n));
+    if (pol) return k === 0 ? sMil(4) : sRod(E, true);
+    return k === 0 ? sMil(Math.round(6 * n)) : k === 1 ? sKm(Math.round(3 * n), 2, 'maratona') : sX(Math.round(8 * n));
+  };
+  let S;
+  if (tra) S = niv === 'ini' ? [[1, sCont(25)], [3, sCont(30)], [6, sCont(35)]] : [[1, sCont(35)], [3, sRod(E, true)], [6, sCont(45)]];
+  else if (rec) S = niv === 'ini' ? [[1, sReg(20)], [3, sReg(25)], [6, sRod(4)]] : [[1, sReg(25)], [2, sRod(E)], [3, sRod(E, true)], ...(niv !== 'int' ? [[4, sRod(E)]] : []), [6, sRod(E * 1.3)]];
+  else if (niv === 'ini') S = [[1, Q(0)], [3, sRod(E, true)], [6, sLon(L)]];
+  else if (niv === 'int') S = [[1, Q(0)], [2, sRod(E)], [3, Q(1)], [6, sLon(L)]];
+  else if (niv === 'ava') S = [[1, Q(0)], [2, sRod(E)], [3, Q(1)], [4, sRod(E)], [5, Q(2)], [6, sLon(L, fase === 'Específica' ? 4 : 0)]];
+  else S = [[0, sRod(E)], [1, Q(0)], [2, sRod(E)], [3, Q(1)], [4, sRod(E)], [5, Q(2)], [6, sLon(L, fase === 'Específica' ? 6 : 0)]];
+  // depois de prova forte longa no fim de semana anterior, o primeiro treino forte vira leve
+  if (posForte && !['ava', 'pro'].includes(niv)) S = S.map(([d, t]) => (d === 1 && t.tipo !== 'regenerativo' ? [d, sRod(E * 0.8)] : [d, t]));
+  if (!provas.length) return S;
+  const intensos = provas.filter((p) => p.papel !== 'leve').length;
+  const qual = (t) => ['ritmo', 'intervalado', 'fartlek', 'tiros'].includes(t.tipo);
+  provas.forEach((p) => { S = S.filter(([d, t]) => d !== p.d && !(p.d >= 5 && t.tipo === 'longao')); });
+  provas.filter((p) => p.papel === 'forte').forEach((p) => { S = S.filter(([d]) => d !== p.d - 1); });
+  // corta treinos de qualidade além do limite semanal (do fim da semana para o começo)
+  let qs = S.filter(([, t]) => qual(t)).length, sobra = qs + intensos - SLZ_CAP[niv];
+  if (provas.some((p) => p.papel === 'forte')) sobra = Math.max(sobra, 1);
+  for (let i = S.length - 1; i >= 0 && sobra > 0; i--) if (qual(S[i][1])) { S[i] = [S[i][0], sRod(E, S[i][0] < 5)]; sobra--; }
+  // véspera de prova forte: trote leve
+  provas.filter((p) => p.papel === 'forte').forEach((p) => { if (niv !== 'ini') S.push([p.d - 1, sRod(Math.max(3, E * 0.5), true)]); });
+  const comLongao = niv !== 'ini' && !rec && !pol && f >= 0.9 && !provas.some((p) => p.papel === 'forte') && !S.some(([, t]) => t.tipo === 'longao');
+  provas.forEach((p) => S.push([p.d, sPr(p.km, p.papel, p.rot, comLongao && p.d === 6 ? L * 0.85 - p.km - (p.papel === 'treino' ? 3 : 0) : 0)]));
+  // se a prova é curta e leve, o longão continua na semana (no sábado) para quem treina 4+ dias
+  return S.sort((a, b) => a[0] - b[0]);
+}
+// mês: 4 semanas com 2 a 6 provas
+const SLZ_POS = { 2: [[1, 6], [3, 6]], 3: [[0, 6], [1, 6], [3, 6]], 4: [[0, 6], [1, 6], [2, 6], [3, 6]], 5: [[0, 6], [1, 5], [1, 6], [2, 6], [3, 6]], 6: [[0, 5], [0, 6], [1, 6], [2, 5], [2, 6], [3, 6]] };
+function slzPapeis(lst, niv, nForte, gapMin) {
+  // escolhe as provas fortes (só domingos), espalhadas, do fim para o começo
+  const dupla = new Set(lst.filter((p) => p.d === 5).map((p) => p.w));
+  const dom = lst.filter((p) => p.d === 6 && !dupla.has(p.w) && !p.bloq).map((p) => p.w), fortes = [];
+  for (let i = dom.length - 1; i >= 0 && fortes.length < nForte; i--) if (fortes.every((w) => Math.abs(w - dom[i]) >= gapMin)) fortes.push(dom[i]);
+  return lst.map((p, i) => {
+    const forte = p.d === 6 && fortes.includes(p.w) && !p.bloq;
+    const papel = forte ? 'forte' : niv === 'ini' ? 'leve' : p.d === 5 && niv !== 'pro' ? 'leve' : niv === 'int' ? (i % 2 ? 'leve' : 'treino') : 'treino';
+    const km = forte ? (niv === 'ini' ? 5 : (fortes.indexOf(p.w) % 2 ? 5 : 10)) : papel === 'treino' ? (niv === 'int' ? 5 : (i % 2 ? 5 : 10)) : 5;
+    return { ...p, papel, km };
+  });
+}
+function slzMes(c) {
+  const lst = slzPapeis(SLZ_POS[c.np].map(([w, d]) => ({ w, d })), c.niv, Math.min(SLZ_FORTE_MES[c.niv], c.np), c.niv === 'ini' || c.niv === 'int' ? 2 : 1);
+  const F = [1, 1.05, 1.1, 0.85];
+  return F.map((f, w) => {
+    const pv = lst.filter((p) => p.w === w), ant = lst.filter((p) => p.w === w - 1 && p.papel === 'forte' && p.km >= 10).length > 0;
+    const fo = pv.some((p) => p.papel === 'forte');
+    return { fase: fo ? 'Prova' : w === 3 ? 'Recuperação' : 'Construção', rec: w === 3 && !fo, sess: slzSemana(c.niv, 'Construção', f, pv, ant) };
+  });
+}
+// ano: periodização dupla (dois picos) e período competitivo no fim do ano
+const SLZ_ANO = (() => {
+  const F = []; const p = (n, fase, rec = []) => { for (let i = 0; i < n; i++) F.push({ fase, rec: rec.includes(i) }); };
+  p(2, 'Transição'); p(8, 'Base', [3, 7]); p(6, 'Construção', [3]); p(2, 'Específica'); p(1, 'Polimento'); p(1, 'Prova');
+  p(2, 'Recuperação'); p(6, 'Base', [3]); p(6, 'Construção', [3]); p(2, 'Específica'); p(1, 'Polimento'); p(1, 'Prova');
+  p(2, 'Recuperação'); p(10, 'Competitiva', [3, 7]); p(2, 'Transição');
+  return F;
+})();
+const SLZ_A = { ini: [5, 10], int: [10, 21.1], ava: [10, 21.1], pro: [10, 21.1] };
+function slzAno(c) {
+  const W = SLZ_ANO.map((x) => ({ ...x })), n = W.length, aW = W.map((x, i) => (x.fase === 'Prova' ? i : -1)).filter((i) => i >= 0);
+  const livres = W.map((x, i) => (['Base', 'Construção', 'Específica', 'Competitiva'].includes(x.fase) ? i : -1)).filter((i) => i >= 0);
+  const k = Math.max(0, c.np - aW.length), lst = [];
+  // uma prova por semana, espalhadas; o que passar vira fim de semana com duas provas (sábado e domingo), nunca em semana leve
+  const um = Math.min(k, livres.length);
+  for (let i = 0; i < um; i++) lst.push({ w: livres[Math.floor((i + 0.5) * livres.length / um)], d: 6 });
+  const duplas = livres.filter((i) => !W[i].rec && ['Competitiva', 'Construção', 'Base'].includes(W[i].fase)).sort((a, b) => (W[b].fase === 'Competitiva') - (W[a].fase === 'Competitiva'));
+  for (let i = 0; i < k - um && i < duplas.length; i++) lst.push({ w: duplas[Math.floor((i + 0.5) * duplas.length / (k - um))], d: 5 });
+  // na semana leve, só prova leve; nas 2 semanas antes do polimento, nada de prova forte
+  // prova forte nunca na semana leve, nas 2 semanas antes do polimento, nas 2 primeiras depois de recuperação ou transição, nem na base do iniciante e do intermediário
+  const fz = (i) => (W[Math.max(0, Math.min(n - 1, i))] || {}).fase;
+  lst.forEach((p) => { p.bloq = W[p.w].rec || fz(p.w + 1) === 'Polimento' || fz(p.w + 2) === 'Polimento' || ['Recuperação', 'Transição'].includes(fz(p.w - 1)) || ['Recuperação', 'Transição'].includes(fz(p.w - 2)) || (W[p.w].fase === 'Base' && ['ini', 'int'].includes(c.niv)); });
+  lst.sort((a, b) => a.w - b.w || a.d - b.d);
+  const pap = slzPapeis(lst, c.niv, SLZ_FORTE_ANO[c.niv] - 2, { ini: 4, int: 3, ava: 2, pro: 2 }[c.niv]).map((p) => (W[p.w].rec && p.papel !== 'leve' ? { ...p, papel: 'leve', km: 5 } : p));
+  aW.forEach((w, j) => pap.push({ w, d: 6, papel: 'forte', km: SLZ_A[c.niv][j], rot: 'Prova A ·' }));
+  let fase0 = 0;
+  return W.map((x, i) => {
+    if (x.fase !== (W[i - 1] || {}).fase) fase0 = i;
+    const prog = i / n, f = (x.rec ? 0.75 : 1) * lerp(0.85, 1.12, x.fase === 'Competitiva' ? 0.8 : prog * 1.4) * (x.fase === 'Base' && i - fase0 < 2 ? 0.92 : 1);
+    const pv = pap.filter((p) => p.w === i), ant = pap.some((p) => p.w === i - 1 && p.papel === 'forte' && p.km >= 10);
+    return { fase: x.fase === 'Competitiva' ? (pv.some((p) => p.papel === 'forte') ? 'Prova' : 'Específica') : x.fase, rec: x.rec, sess: slzSemana(c.niv, x.fase, f, pv, ant) };
+  });
+}
+const SLZ_NOMEN = { ini: 'iniciante', int: 'intermediário', ava: 'avançado', pro: 'profissional' };
+SLZ_NIV.forEach((niv) => {
+  [2, 3, 4, 5, 6].forEach((np) => SEQ_CORR[`slz-m${np}-${niv}`] = [[`slz-m${np}-${niv}`, 'repete'], ...(niv !== 'pro' ? [[`slz-m${np}-${SLZ_NIV[SLZ_NIV.indexOf(niv) + 1]}`, 'sobe']] : []), ...(np > 2 ? [[`slz-m${np - 1}-${niv}`, 'menos']] : [])]);
+  [10, 20, 30, 40, 50].forEach((np) => SEQ_CORR[`slz-a${np}-${niv}`] = [['bl-trans', 'trans'], [`slz-a${np}-${niv}`, 'repete'], ...(niv !== 'pro' ? [[`slz-a${np}-${SLZ_NIV[SLZ_NIV.indexOf(niv) + 1]}`, 'sobe']] : [])]);
+  [2, 3, 4, 5, 6].forEach((np) => CICLOS_CORR.push({ id: `slz-m${np}-${niv}`, obj: 'slz', slz: 'mes', np, niv, sem: 4, modo: 'slz', gen: slzMes, nome: `${np} provas no mês · ${SLZ_NOMEN[niv]}`,
+    desc: `Mesociclo de 4 semanas com ${np} provas: ${SLZ_FORTE_MES[niv] >= np ? 'as duas fortes, espaçadas' : `${SLZ_FORTE_MES[niv]} forte${SLZ_FORTE_MES[niv] > 1 ? 's' : ''}, as outras como ${niv === 'ini' ? 'participação leve' : 'treino ou leve'}`}. A prova toma o lugar do treino de qualidade. Repita mês a mês.${np >= 5 && niv === 'ini' ? ' Para iniciante é muita prova: quase todas devem ser leves.' : ''}` }));
+  [10, 20, 30, 40, 50].forEach((np) => CICLOS_CORR.push({ id: `slz-a${np}-${niv}`, obj: 'slz', slz: 'ano', np, niv, sem: 52, modo: 'slz', gen: slzAno, nome: `${np} provas no ano · ${SLZ_NOMEN[niv]}`,
+    desc: `Macrociclo de 52 semanas com dois picos (${SLZ_A[niv].map((k) => String(k).replace('.', ',') + ' km').join(' e ')}) e ${np - 2} provas encaixadas no ano: até ${SLZ_FORTE_ANO[niv]} fortes no total, as outras como ${niv === 'ini' ? 'participação leve' : 'treino ou leve'}.${np >= 40 && niv === 'ini' ? ' Para iniciante é muita prova: o foco é participar leve e chegar bem nos dois picos.' : ''}` }));
+});
+const SLZ_GUIA = [
+  ['Para quem é', 'Para o corredor de São Luís e região que quer correr muitas provas: no mês ou no ano. A região tem prova quase todo fim de semana, e quem participa de muitas precisa de um plano em que a prova faça parte do treino, e não que atrapalhe.'],
+  ['Nem toda prova é para correr no máximo', 'Cada prova recebe um papel. <b>Forte:</b> no máximo do dia, com véspera leve e 2 a 3 dias leves depois. <b>Treino:</b> em ritmo de limiar, forte mas controlado; substitui o treino de qualidade. <b>Leve:</b> participação em ritmo de conversa, conta como rodagem. Correr tudo no máximo acumula cansaço e aumenta o risco de lesão.'],
+  ['A prova toma o lugar de um treino', 'O número de treinos intensos por semana, contando a prova, fica no limite de cada nível: 1 no iniciante, 2 no intermediário e 3 no avançado e no profissional. Assim a maior parte do volume continua leve, como nos corredores de melhor desempenho (Seiler 2010; Stöggl & Sperlich 2014; Haugen et al. 2022).'],
+  ['Quantas provas fortes', 'Não existe estudo que defina o número ideal de provas fortes por ano. Os limites do app são orientação prática: por mês, 1 forte no iniciante, 2 no intermediário e no avançado e 3 no profissional; por ano, cerca de 6, 10, 14 e 18. Provas de 5 e 10 km se recuperam em dias; meia e maratona, em semanas.'],
+  ['O ano em dois picos', 'O ciclo anual usa periodização dupla: transição, base, construção e fase específica até a primeira prova A (por volta de 5 meses), recuperação, um segundo bloco até a segunda prova A e um período competitivo no fim do ano, com mais provas. As provas fortes ficam fora da semana leve e das 2 semanas antes do polimento (Matveyev; Issurin 2010).'],
+  ['Calor e umidade', 'Em São Luís quase toda prova é com calor e umidade altos. A tolerância ao calor melhora com 10 a 14 dias treinando no calor (Racinais et al. 2015, Br J Sports Med). Na prova: chegar hidratado, beber durante em provas acima de 10 km e baixar o ritmo nos dias mais quentes. O ritmo forte de um dia quente não é comparável ao de um dia fresco.'],
+  ['Como usar', 'Escolha quantas provas o aluno vai fazer no mês ou no ano e o nível. As provas ficam nos sábados e domingos do modelo; depois de aplicar, mova cada uma para a data real e troque a distância se precisar. Nada é liberado para o aluno sem você.'],
+];
+const SLZ_REFS = 'Seiler 2010 (Int J Sports Physiol Perform); Stöggl & Sperlich 2014 (Front Physiol); Haugen et al. 2022 (Sports Med Open); Nielsen et al. 2014 (J Orthop Sports Phys Ther); Issurin 2010 (Sports Med); Racinais et al. 2015 (Br J Sports Med).';
+function viewSLZ() {
+  const st = S.cache.slz || (S.cache.slz = { t: store.get('nx-slz-t', 'mes'), n: store.get('nx-slz-n', 'int') });
+  const desenha = () => {
+    const L = CICLOS_CORR.filter((c) => c.obj === 'slz' && c.slz === st.t && c.niv === st.n);
+    $app.innerHTML = `<a class="back" href="#/treinos/ciclos">${I.back} Ciclos prontos</a><p class="eyebrow">Biblioteca de corrida</p><h1 class="h1">Macrociclo São Luís</h1>
+      <p class="muted" style="margin-top:6px">Para quem corre muitas provas: ciclos do mês (de 2 a 6 provas) e do ano (de 10 a 50 provas), com cada prova no seu papel: forte, treino ou leve.</p>
+      <a class="small" href="#slz-entenda" id="slz-ir" style="display:inline-block;margin-top:8px;color:var(--acc);font-weight:600">Entenda o método e a base científica</a>
+      <div class="subtabs" id="slz-t" style="margin-top:14px">${[['mes', 'Provas no mês'], ['ano', 'Provas no ano']].map(([k, l]) => `<a href="#" class="${st.t === k ? 'on' : ''}" data-t="${k}">${l}</a>`).join('')}</div>
+      <div class="chips" id="slz-n" style="margin-top:12px">${SLZ_NIV.map((k) => `<button type="button" class="chip ${k === st.n ? 'on' : ''}" data-n="${k}">${CIC_NIV[k]}</button>`).join('')}</div>
+      <div class="stack" style="margin-top:12px">${L.map(cicCardHTML).join('')}</div>
+      <p class="sec-lbl" id="slz-entenda">Entenda o método</p>
+      <div class="stack">${SLZ_GUIA.map(([t, x]) => `<details class="card cic-sem mac-guia"><summary><b class="grow">${t}</b>${I.chev}</summary><p class="small" style="margin-top:8px">${x}</p></details>`).join('')}</div>
+      <p class="tiny dim" style="margin-top:8px">${SLZ_REFS}</p>`;
+    document.getElementById('slz-t').onclick = (e) => { const x = e.target.closest('[data-t]'); if (!x) return; e.preventDefault(); st.t = x.dataset.t; store.set('nx-slz-t', st.t); desenha(); };
+    document.getElementById('slz-n').onclick = (e) => { const x = e.target.closest('[data-n]'); if (!x) return; st.n = x.dataset.n; store.set('nx-slz-n', st.n); desenha(); };
+    document.getElementById('slz-ir').onclick = (e) => { e.preventDefault(); document.getElementById('slz-entenda').scrollIntoView({ behavior: 'smooth' }); };
+  };
+  desenha();
 }
 
 const treinosAbas = (k) => `<div class="subtabs" style="margin-top:16px">${[['musculacao', 'Musculação', '#/treinos'], ['corrida', 'Corrida', '#/treinos/corrida'], ['exercicios', 'Exercícios', '#/biblioteca']].map(([x, l, h]) => `<a class="${k === x ? 'on' : ''}" href="${h}">${l}</a>`).join('')}</div>`;
