@@ -17,7 +17,14 @@ const $dock = document.getElementById('dock');
 const LOGO = { s: () => document.documentElement.dataset.tema === 'escuro' ? 'icons/simbolo.svg' : 'icons/simbolo-escuro.svg', w: () => document.documentElement.dataset.tema === 'escuro' ? 'icons/wordmark.svg' : 'icons/wordmark-escuro.svg' };
 function aplicarTema(t) {
   document.documentElement.dataset.tema = t; store.set('nx-tema', t);
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'escuro' ? '#050c1c' : '#f3f6fb';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'escuro' ? getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#050c1c' : '#f3f6fb';
+}
+// paletas de cor: mudam os destaques e os cards escuros; o fundo (claro ou escuro) continua sendo escolhido à parte
+const PALETAS = [['nexos', 'Nexos', '#46d6ff', '#0a1a42'], ['rosa', 'Rosa', '#ff7ab6', '#3d0b24'], ['vermelho', 'Vermelho', '#ff7a7a', '#3f080c'], ['laranja', 'Laranja', '#ffb057', '#3b1805'], ['dourado', 'Dourado', '#ffd166', '#302304'], ['verde', 'Verde', '#5ef2a0', '#082b18'], ['turquesa', 'Turquesa', '#5eead4', '#072a28'], ['roxo', 'Roxo', '#b794ff', '#1e0b45'], ['lilas', 'Lilás', '#e0a8ff', '#280a3e'], ['grafite', 'Grafite', '#cbd5e1', '#151c26']];
+function aplicarPaleta(k) {
+  if (!PALETAS.some((x) => x[0] === k)) k = 'nexos';
+  document.documentElement.dataset.paleta = k; store.set('nx-paleta', k);
+  aplicarTema(document.documentElement.dataset.tema === 'escuro' ? 'escuro' : 'claro');
 }
 /* ---------- utilidades ---------- */
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1193,7 +1200,7 @@ function alunoMais() {
       ${it('#/conexoes', I.watch, 'Conexões', 'Relógio Garmin e outras marcas')}
       ${it('#/pagamentos', I.money, 'Pagamentos e plano', 'Mensalidades e formas de pagamento')}
       <div id="mais-notif"></div>
-      ${it('#/perfil', I.user, 'Meu perfil', 'Foto, dados, tema claro ou escuro e sair')}
+      ${it('#/perfil', I.user, 'Meu perfil', 'Foto, dados, cores do app e sair')}
     </div>
     <p class="sec-lbl">Ajuda</p><div class="stack">
       <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo app</b><div class="small muted">Um passeio rápido por tudo o que o app faz</div></div>${I.chev}</button>
@@ -8252,8 +8259,12 @@ function viewPerfil() {
     </div><div>
     <div class="section"><div class="section-h"><h2 class="h2">Configurações</h2></div>
       <div id="notif"></div>
-      <div class="card" style="margin-top:12px"><b>Cor de fundo</b><p class="small muted">O claro é melhor para ler no sol e na academia.</p>
-        <div class="tema-seg seg" id="tema">${[['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button type="button" data-tema="${k}" class="${(document.documentElement.dataset.tema || 'claro') === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+      <div class="card aparencia" style="margin-top:12px"><b>Aparência</b>
+        <p class="small muted" style="margin-top:2px">Fundo</p>
+        <div class="ap-fundos" id="tema">${[['claro', 'Nexos padrão', 'Claro, melhor para ler no sol e na academia'], ['escuro', 'Escura', 'Fundo escuro, mais confortável à noite']].map(([k, l, d]) => `<button type="button" data-tema="${k}" class="ap-fundo ${k} ${(document.documentElement.dataset.tema || 'claro') === k ? 'on' : ''}"><i></i><b>${l}</b><small>${d}</small></button>`).join('')}</div>
+        <p class="small muted" style="margin-top:14px">Paletas de cor</p>
+        <div class="ap-paletas" id="paleta">${PALETAS.map(([k, l, c1, c2]) => `<button type="button" data-paleta="${k}" class="${(document.documentElement.dataset.paleta || 'nexos') === k ? 'on' : ''}" aria-label="Paleta ${l}"><i style="background:linear-gradient(135deg,${c1} 0 45%,${c2} 55% 100%)"></i><span>${l}</span></button>`).join('')}</div>
+        <p class="tiny dim" style="margin-top:8px">A paleta muda os botões, os destaques e os cartões. Fica salva neste celular.</p></div>
       <details class="list-item acc-item" style="margin-top:12px"><summary><span class="ativ-ic">${I.home}</span><div class="grow"><b>Instalar no celular</b><div class="small muted">Ter o app na tela de início</div></div>${I.chev}</summary><p class="small muted" style="margin-top:12px">No navegador, toque em “Compartilhar” ou no menu ⋮ e escolha “Adicionar à tela de início”.</p></details></div>
     <button class="btn danger block" id="sair" style="margin-top:16px">Sair da conta</button>
     <p class="tiny dim center" style="margin-top:16px">Nexos Performance e Saúde · app v1.9 · <a href="../privacidade.html" target="_blank" rel="noopener" class="dim">Política de Privacidade</a></p>
@@ -8268,6 +8279,7 @@ function viewPerfil() {
     box.hidden = false;
   }, () => {});
   document.getElementById('tema').onclick = (e) => { const b = e.target.closest('[data-tema]'); if (!b) return; aplicarTema(b.dataset.tema); document.querySelectorAll('#tema button').forEach((x) => x.classList.toggle('on', x === b)); };
+  document.getElementById('paleta').onclick = (e) => { const b = e.target.closest('[data-paleta]'); if (!b) return; aplicarPaleta(b.dataset.paleta); document.querySelectorAll('#paleta button').forEach((x) => x.classList.toggle('on', x === b)); };
   const pc = document.getElementById('perf-ciclo');
   if (pc) pc.onclick = async () => { pc.disabled = true; const c = await buscarCiclo(S.user.id).catch(() => null); pc.disabled = false; c ? abrirCiclo(c, () => viewPerfil()) : ativarCiclo(() => viewPerfil()); };
   document.getElementById('f-senha').onsubmit = async (e) => {
@@ -10949,7 +10961,7 @@ function staffMais() {
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
-      ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, treinadores e notificações' : 'Sua conta e notificações')}
+      ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}
     </div>
     <p class="sec-lbl">Ajuda</p><div class="stack">
       <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo painel</b><div class="small muted">Um passeio rápido por tudo o que o painel do treinador faz</div></div>${I.chev}</button>
