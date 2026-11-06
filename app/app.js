@@ -397,6 +397,7 @@ async function router() {
       if (a === 'relatorios') return await staffRelatorios();
       if (a === 'laboratorio') { if (b === 'dossie' && c) return await staffDossie(c, d); if (b === 'assessoria') return await staffAssessoria(c); return await staffLaboratorio(); }
       if (a === 'mais') return staffMais();
+      if (a === 'desafio') return await staffDesafio();
       if (a === 'erros') return await staffErros();
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
@@ -1107,6 +1108,14 @@ async function desafioCard(box, ativos) {
     ${(d.ranking || []).length ? `<div class="des-rank">${d.ranking.map((x, i) => `<div class="${x.eu ? 'eu' : ''}"><span>${i + 1}</span><b class="ellip">${esc(x.nome)}${x.eu ? ' (você)' : ''}</b><em>${desFmt(d.tipo, x.val)}</em></div>`).join('')}</div>` : ''}
   </div>`;
   const ed = document.getElementById('des-ed'); if (ed) ed.onclick = () => desafioEditar(d, ativos, () => desafioCard(box, ativos));
+}
+async function staffDesafio() {
+  loading(); dockStaff();
+  const ativos = await sb.from('nx_membros').select('user_id').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).then((r) => r.data || [], () => []);
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe</p><h1 class="h1">Desafio do mês</h1>
+    <p class="muted" style="margin-top:6px">Uma meta coletiva para a equipe somar junto. Quando houver um desafio ativo, os alunos veem a barra de progresso na tela Hoje. Lançar é opcional.</p>
+    <div id="desafio-box"></div>`;
+  desafioCard(document.getElementById('desafio-box'), ativos);
 }
 async function desafioEditar(d, ativos, depois) {
   const hoje = hojeISO(), ini = d?.inicio || hoje.slice(0, 8) + '01';
@@ -8266,7 +8275,6 @@ async function staffHoje() {
     ${(() => { const resp = ativos.filter((m) => pronts.some((p) => p.aluno_id === m.user_id)); const at = pronts.filter((p) => p.alerta && vis.has(p.aluno_id)).length; const ok = pronts.filter((p) => !p.alerta && p.total >= 16 && vis.has(p.aluno_id)).length; const cgN = ativos.filter((m) => cargas[m.user_id] && cargas[m.user_id].nivel).length;
       return ativos.length ? `<a class="card pe-card" id="pront-eq" href="#/prontidao-equipe" style="color:inherit"><span class="ativ-ic">${PRONT_IC}</span><div class="grow" style="min-width:0"><b>Prontidão de hoje</b><div class="small muted">${resp.length} de ${ativos.length} responderam o check-in${at ? ` · <span style="color:var(--err)">${at} pede${at > 1 ? 'm' : ''} atenção</span>` : ''}${ok ? ` · ${ok} pronto${ok > 1 ? 's' : ''} para treinar` : ''}${cgN ? ` · <span style="color:var(--warn)">${cgN} com alerta de carga</span>` : ''}</div></div>${I.chev}</a>` : ''; })()}
     ${ehSeg ? resumoHTML : ''}
-    <div id="desafio-box"></div>
     <div id="datas-esp"></div>
     ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : ''); })()}
@@ -8281,7 +8289,6 @@ async function staffHoje() {
   bindCartaoPush();
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
-  desafioCard(document.getElementById('desafio-box'), ativos);
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
     const m = pendentes.find((x) => x.user_id === b.dataset.aprovar); if (!m) return;
@@ -11090,6 +11097,7 @@ function staffMais() {
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
+      ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}
