@@ -2043,3 +2043,8 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 @keyframes pagPulso{50%{opacity:.25;transform:scale(.7)}}
 .auto-card{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--s1);border:1px dashed var(--line2)}
 .auto-aluno{margin-top:12px;border-color:color-mix(in srgb,var(--acc) 35%,transparent)}
+.pag-passos{list-style:none;margin:14px 0 4px;padding:0;display:flex;flex-direction:column;gap:10px}
+.pag-passos li{display:flex;gap:12px;align-items:flex-start}
+.pag-passos li>span{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#fff;font-weight:800;font-size:.8rem}
+.pag-passos b{display:block;font-size:.92rem}
+.pag-passos small{display:block;color:var(--mute);font-size:.8rem;line-height:1.35}

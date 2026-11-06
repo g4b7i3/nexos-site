@@ -5438,7 +5438,8 @@ function ajustesFinanceiro(base) {
       ${!admin ? '<p class="small muted">Só o administrador configura o pagamento online.</p>' : pagCfg(S.org.config).conectado ? `
       <p class="small muted">Pix com QR Code, cartão, Pix Automático e cartão recorrente pelo Asaas. Os pagamentos se confirmam sozinhos.</p>
       <form id="f-pagcfg" style="margin-top:12px"><div class="grid2"><label class="field"><span>Acréscimo no cartão (%)</span><input class="input" name="acres" data-mask="dec" inputmode="decimal" value="${String(pagCfg(S.org.config).acrescimo_cartao || 0).replace('.', ',')}"></label><label class="field"><span>Parcelas no cartão (máx.)</span><select class="input" name="parc">${[1, 2, 3, 4, 6, 12].map((n) => `<option value="${n}" ${(+pagCfg(S.org.config).parcelas_max || 3) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></label></div>
-      <p class="tiny dim" style="margin:-4px 0 12px">O acréscimo cobre os juros da operadora. Parcelas só aparecem em valores a partir de R$ 300.</p>
+      <label class="field"><span>Parcelar a partir de (R$)</span><input class="input" name="pmin" data-mask="dec" inputmode="decimal" value="${String(pagCfg(S.org.config).parcelas_min != null ? pagCfg(S.org.config).parcelas_min : 300).replace('.', ',')}"></label>
+      <p class="tiny dim" style="margin:-4px 0 12px">O acréscimo cobre os juros da operadora. Abaixo do valor mínimo, o cartão é só à vista (o aluno vê o aviso).</p>
       <button class="btn ghost block">Salvar</button></form>
       <button class="link-btn small" id="pag-desc" style="margin-top:10px;color:var(--err)">Desconectar o Asaas</button>` : `
       <p class="small muted">Com a conta da Nexos no Asaas, o aluno paga pelo app com Pix (QR Code) ou cartão, e pode ativar o Pix Automático ou o cartão recorrente. Tudo se confirma sozinho.</p>
@@ -5462,7 +5463,8 @@ function ajustesFinanceiro(base) {
     const fc = r.querySelector('#f-pagcfg');
     if (fc) fc.onsubmit = async (e) => {
       e.preventDefault(); const ac = num(fc.acres.value) || 0; if (ac < 0 || ac > 30) return toast('Use um acréscimo de 0 a 30%.', true);
-      const cfg = { ...(S.org.config || {}), pagamentos: { ...pagCfg(S.org.config), acrescimo_cartao: ac, parcelas_max: +fc.parc.value } };
+      const pmin = num(fc.pmin.value); if (pmin == null || pmin < 0) return toast('Valor mínimo inválido.', true);
+      const cfg = { ...(S.org.config || {}), pagamentos: { ...pagCfg(S.org.config), acrescimo_cartao: ac, parcelas_max: +fc.parc.value, parcelas_min: pmin } };
       const { error } = await sb.from('nx_orgs').update({ config: cfg }).eq('id', S.org.id);
       if (error) return toast('Não foi possível salvar.', true); S.org.config = cfg; toast('Pagamento online salvo!');
     };
@@ -5560,8 +5562,9 @@ function pedirCPF() {
   });
 }
 async function comCPF(fn) { let r = await fn(); if (r && r.precisa_cpf) { const cpf = await pedirCPF(); if (!cpf) return null; r = await fn(cpf); } return r; }
-function telaPixOnline({ titulo, valor, sub, payload, qr, aguardar }) {
+function telaPixOnline({ titulo, valor, sub, payload, qr, aguardar, passos }) {
   openSheet(`<p class="eyebrow">${esc(titulo)}</p><div class="h2" style="margin-top:4px">${valor != null ? brl(valor) : ''}</div>${sub ? `<p class="small muted">${sub}</p>` : ''}
+    ${passos ? `<ol class="pag-passos">${passos.map(([t, d], i) => `<li><span>${i + 1}</span><div><b>${t}</b><small>${d}</small></div></li>`).join('')}</ol>` : ''}
     <div class="qr-box">${qr ? `<img src="data:image/png;base64,${qr}" alt="QR Code Pix" width="220" height="220">` : '<div class="boot-bar"><i></i></div>'}</div>
     ${payload ? `<label class="field"><span>Pix copia e cola</span><textarea class="textarea mono" id="pix-cod" readonly rows="3">${esc(payload)}</textarea></label><button class="btn block" id="copiar-pix">Copiar código Pix</button>` : '<p class="small muted center">O código Pix ainda não ficou pronto. Tente de novo em instantes.</p>'}
     <p class="pag-aguarda" id="pag-st"><span class="pulso"></span>Aguardando o pagamento. A confirmação chega sozinha.</p>`, async (r) => {
@@ -5576,19 +5579,20 @@ function telaPixOnline({ titulo, valor, sub, payload, qr, aguardar }) {
   });
 }
 async function pagarOnline(c, cfg) {
-  const pc = pagCfg(cfg), acres = +pc.acrescimo_cartao || 0, maxP = Math.max(1, +pc.parcelas_max || 3);
+  const pc = pagCfg(cfg), acres = +pc.acrescimo_cartao || 0, maxP = Math.max(1, +pc.parcelas_max || 3), minP = pc.parcelas_min != null ? +pc.parcelas_min : 300;
+  const podeParcelar = maxP > 1 && +c.valor >= minP;
   const comAcres = Math.round(+c.valor * (1 + acres / 100) * 100) / 100;
   openSheet(`<p class="eyebrow">Pagar mensalidade</p><div class="h2" style="margin-top:4px">${brl(c.valor)}</div><p class="small muted">${esc(c.descricao || nomeMes(c.competencia))}</p>
     <div class="stack" style="margin-top:16px">
       <button class="pag-op" data-op="pix"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Pix</b><small>QR Code ou copia e cola · confirmação na hora</small></div>${I.chev}</button>
-      <button class="pag-op" data-op="cartao"><span class="ativ-ic">${I.card || I.money}</span><div class="grow"><b>Cartão de crédito</b><small>${acres ? `${brl(comAcres)} (acréscimo de ${String(acres).replace('.', ',')}% da operadora)` : 'Página segura do Asaas'}${maxP > 1 && +c.valor >= 300 ? ` · até ${maxP}x` : ''}</small></div>${I.chev}</button>
+      <button class="pag-op" data-op="cartao"><span class="ativ-ic">${I.card || I.money}</span><div class="grow"><b>Cartão de crédito</b><small>${acres ? `${brl(comAcres)} (acréscimo de ${String(acres).replace('.', ',')}% da operadora)` : 'Página segura do Asaas'}${podeParcelar ? ` · até ${maxP}x` : maxP > 1 ? ` · parcelamento a partir de ${brl(minP)}` : ''}</small></div>${I.chev}</button>
     </div>
     <p class="tiny dim center" style="margin-top:12px">Pagamento processado pelo Asaas. A Nexos não vê os dados do seu cartão.</p>`, (r) => {
     r.onclick = async (e) => {
       const b = e.target.closest('[data-op]'); if (!b) return;
       const forma = b.dataset.op;
       let parcelas = 1;
-      if (forma === 'cartao' && maxP > 1 && +c.valor >= 300) {
+      if (forma === 'cartao' && podeParcelar) {
         parcelas = await new Promise((ok) => {
           let esc_ = true;
           openSheet(`<div class="h2">Em quantas vezes?</div><div class="stack" style="margin-top:12px">${Array.from({ length: maxP }, (_, i) => i + 1).map((n) => `<button class="pag-op" data-n="${n}"><div class="grow"><b>${n}x de ${brl(comAcres / n)}</b><small>${n === 1 ? 'à vista' : `total ${brl(comAcres)}`}</small></div>${I.chev}</button>`).join('')}</div>`, (r2) => { r2.onclick = (e2) => { const bn = e2.target.closest('[data-n]'); if (bn) { esc_ = false; ok(+bn.dataset.n); } }; });
@@ -5629,9 +5633,10 @@ function autoStaffHTML(a, m, valorPlano, mesesPlano) {
 function bindAutoStaff(m, a, valorPlano, mesesPlano, descricao, recarregar) {
   const card = document.getElementById('plano-card'); if (!card) return;
   card.querySelectorAll('[data-oferta]').forEach((b) => b.onclick = async () => {
-    const { error } = await sb.from('nx_assinaturas').insert({ org_id: S.org.id, aluno_id: m.user_id, forma: b.dataset.oferta, valor: valorPlano, ciclo_meses: [1, 3, 6, 12].includes(mesesPlano) ? mesesPlano : 1, descricao: descricao || 'Plano Nexos', status: 'oferecida' });
+    const { data: nova, error } = await sb.from('nx_assinaturas').insert({ org_id: S.org.id, aluno_id: m.user_id, forma: b.dataset.oferta, valor: valorPlano, ciclo_meses: [1, 3, 6, 12].includes(mesesPlano) ? mesesPlano : 1, descricao: descricao || 'Plano Nexos', status: 'oferecida' }).select('id').single();
     if (error) { console.error(error); return toast('Não foi possível oferecer agora.', true); }
-    toast(`${FORMA_AUTO[b.dataset.oferta]} oferecido. ${firstName(m.nome)} ativa pelo app.`); recarregar();
+    chamarPag({ acao: 'avisar_oferta', assinatura: nova.id }).catch(() => {}); // notificação no celular do aluno
+    toast(`${FORMA_AUTO[b.dataset.oferta]} oferecido. ${firstName(m.nome)} recebe o aviso e ativa pelo app.`); recarregar();
   });
   const cc = card.querySelector('#auto-canc');
   if (cc) cc.onclick = async () => {
@@ -5644,7 +5649,7 @@ function bindAutoStaff(m, a, valorPlano, mesesPlano, descricao, recarregar) {
 function autoAlunoHTML(a) {
   if (!a || !['oferecida', 'pendente', 'erro'].includes(a.status)) return '';
   const pix = a.forma === 'pix_automatico';
-  return `<div class="card auto-aluno"><div class="row" style="gap:12px"><span class="go">${I.money}</span><div class="grow"><b>${pix ? 'Ative o Pix Automático' : 'Ative a cobrança no cartão'}</b><div class="small muted">${brl(a.valor)} ${a.ciclo_meses > 1 ? `a cada ${a.ciclo_meses} meses` : 'por mês'}, ${pix ? 'debitado sozinho da sua conta' : 'cobrado sozinho no seu cartão'}. Sem precisar lembrar.</div></div></div>
+  return `<div class="card auto-aluno"><div class="row" style="gap:12px"><span class="go">${I.money}</span><div class="grow"><b>${pix ? 'Ative o Pix Automático' : 'Ative a cobrança no cartão'}</b><div class="small muted">${brl(a.valor)} ${a.ciclo_meses > 1 ? `a cada ${a.ciclo_meses} meses` : 'por mês'}, ${pix ? 'debitado sozinho da sua conta' : 'cobrado sozinho no seu cartão'}. Sem precisar lembrar.</div><div class="tiny dim" style="margin-top:4px">${pix ? '3 passos' : '2 passos'} · leva 1 minuto</div></div></div>
     <button class="btn block sm" id="auto-ativar" style="margin-top:12px">${a.status === 'pendente' ? 'Continuar a ativação' : 'Ativar agora'}</button></div>`;
 }
 function bindAutoAluno(a) {
@@ -5655,8 +5660,8 @@ function bindAutoAluno(a) {
       const res = await comCPF((cpf) => chamarPag({ acao: 'ativar_automatica', assinatura: a.id, ...(cpf ? { cpf } : {}) }));
       b.disabled = false; b.textContent = 'Continuar a ativação';
       if (!res) return;
-      if (res.forma === 'pix_automatico') telaPixOnline({ titulo: 'Autorizar Pix Automático', valor: a.valor, sub: 'Pague este primeiro Pix pelo app do banco e aceite a autorização. Os próximos saem sozinhos.', payload: res.payload, qr: res.qr, aguardar: async () => { const { data } = await sb.from('nx_assinaturas').select('status').eq('id', a.id).maybeSingle(); return data && data.status === 'ativa'; } });
-      else { if (res.link) window.open(res.link, '_blank', 'noopener'); openSheet(`<div class="h2">Cartão recorrente</div><p class="muted" style="margin:10px 0 16px">Abrimos a página segura do Asaas. Pague a primeira mensalidade com o cartão: as próximas são cobradas sozinhas no mesmo cartão.</p>${res.link ? `<a class="btn block" href="${esc(res.link)}" target="_blank" rel="noopener">Abrir a página de pagamento</a>` : ''}<button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`); }
+      if (res.forma === 'pix_automatico') telaPixOnline({ titulo: 'Ativar Pix Automático', valor: a.valor, passos: [['Pague este Pix', 'No app do seu banco: QR Code ou copia e cola.'], ['Aceite a autorização', 'Logo depois do pagamento, o banco mostra o Pix Automático da Nexos. Toque em aceitar.'], ['Pronto', `As próximas mensalidades saem sozinhas ${a.ciclo_meses > 1 ? `a cada ${a.ciclo_meses} meses` : 'todo mês'}. Você cancela quando quiser.`]], payload: res.payload, qr: res.qr, aguardar: async () => { const { data } = await sb.from('nx_assinaturas').select('status').eq('id', a.id).maybeSingle(); return data && data.status === 'ativa'; } });
+      else { if (res.link) window.open(res.link, '_blank', 'noopener'); openSheet(`<div class="h2">Cartão recorrente</div><ol class="pag-passos"><li><span>1</span><div><b>Pague a primeira mensalidade</b><small>Na página segura do Asaas, com o seu cartão.</small></div></li><li><span>2</span><div><b>Pronto</b><small>As próximas são cobradas sozinhas no mesmo cartão. Você cancela quando quiser.</small></div></li></ol><p class="muted" style="margin:10px 0 16px">Se a página não abriu, toque no botão abaixo.</p>${res.link ? `<a class="btn block" href="${esc(res.link)}" target="_blank" rel="noopener">Abrir a página de pagamento</a>` : ''}<button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`); }
     } catch (er) { b.disabled = false; b.textContent = 'Tentar de novo'; toast(er.message, true); }
   };
 }
