@@ -934,7 +934,7 @@ async function alunoHoje() {
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
     <section class="hoje-hero">
       <div class="hh-top"><span class="hh-data">${fmtDiaSem(hoje)}</span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
-      <h1>${saud}, ${esc(firstName(S.me.nome))}</h1>
+      <h1>${saud}, ${esc(firstName(S.me.nome) || "atleta")}</h1>
       <p>${descanso ? 'Hoje é dia de descanso. Recuperar também é treino.' : 'Seu treino, sua evolução e sua água em um só lugar.'}</p>
       <div class="hh-stats">
         <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>seguidas treinando</small></span></div>
