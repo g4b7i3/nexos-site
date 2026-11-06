@@ -2048,3 +2048,82 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .pag-passos li>span{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#fff;font-weight:800;font-size:.8rem}
 .pag-passos b{display:block;font-size:.92rem}
 .pag-passos small{display:block;color:var(--mute);font-size:.8rem;line-height:1.35}
+
+/* ---------- Hoje do aluno (nova) ---------- */
+.hoje-hero{position:relative;overflow:hidden;border-radius:24px;padding:18px 18px 16px;margin:4px 0 18px;color:#fff;background:radial-gradient(120% 90% at 100% 0%,rgba(70,214,255,.35),transparent 55%),linear-gradient(150deg,#0d2a66 0%,#0a1a42 55%,#071230 100%);box-shadow:0 14px 34px -18px rgba(8,30,80,.7)}
+.hoje-hero:after{content:"";position:absolute;right:-60px;bottom:-80px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 30px rgba(255,255,255,.025)}
+.hh-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hh-data{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:700}
+.hh-btn{position:relative;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff}
+.hh-btn svg{width:18px;height:18px}
+.hh-btn i{position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ff6b6b;font:700 .66rem/18px var(--f-b);font-style:normal;text-align:center}
+.hoje-hero .top-foto .foto{width:38px;height:38px;font-size:.8rem;border:2px solid rgba(255,255,255,.25)}
+.hoje-hero h1{font-family:var(--f-h);font-size:1.45rem;line-height:1.15;margin-top:14px;font-weight:600}
+.hoje-hero p{color:rgba(255,255,255,.72);font-size:.88rem;margin-top:4px}
+.hh-stats{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.hh-stats>div{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
+.hh-stats b{font-family:var(--f-h);font-size:1.25rem;font-weight:600}
+.hh-stats small{display:block;font-size:.7rem;color:rgba(255,255,255,.65);line-height:1.2}
+.hh-ic{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(70,214,255,.18);color:#7fe3ff}
+.hh-ic svg{width:18px;height:18px}
+.hh-ic.fogo{background:rgba(255,145,60,.18);color:#ffa45c}
+.sec-lbl{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:18px 0 10px}
+.sec-lbl i{width:7px;height:7px;border-radius:50%;background:#ff6b6b}
+.hoje-main>.sec-lbl:first-child,.hoje-main>#pend-sec:first-child .sec-lbl{margin-top:0}
+.hoje-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.hoje-tiles:empty{display:none}
+.tile{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:18px;background:var(--s1);border:1px solid var(--line);color:var(--ink);text-decoration:none;min-width:0}
+.tile.tap{transition:border-color .2s,transform .15s}.tile.tap:active{transform:scale(.98)}.tile.tap:hover{border-color:var(--acc)}
+.tile-l{display:flex;align-items:center;gap:6px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.tile-l svg{width:14px;height:14px;flex:none}
+.tile b{font-family:var(--f-h);font-size:1.25rem;font-weight:600;margin-top:4px}
+.tile b small{font-family:var(--f-b);font-size:.78rem;color:var(--mute);font-weight:600}
+.tile>small{font-size:.75rem;color:var(--mute);line-height:1.3}
+.tile-fase{border-color:color-mix(in srgb,var(--fc) 45%,transparent);background:color-mix(in srgb,var(--fc) 9%,var(--s1))}
+.tile-fase b{color:var(--fc);font-size:1.05rem}
+.fab-reg{position:fixed;right:18px;bottom:calc(84px + var(--safe-b));z-index:40;display:flex;align-items:center;gap:8px;height:52px;padding:0 20px 0 16px;border:0;border-radius:26px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font:800 .9rem var(--f-b);box-shadow:0 12px 26px -10px rgba(47,107,255,.7);cursor:pointer}
+.fab-reg svg{width:20px;height:20px}
+@media(min-width:900px){.fab-reg{bottom:28px;right:32px}.hide-desk{display:none}}
+
+/* hidratação */
+.agua-card{border-radius:22px;padding:14px 14px 12px;background:linear-gradient(180deg,rgba(70,180,255,.12),rgba(70,180,255,.03)),var(--s1);border:1px solid rgba(70,180,255,.28)}
+.agua-card.cheio{border-color:rgba(61,220,151,.5)}
+.agua-top{display:flex;align-items:center;justify-content:space-between}
+.agua-top .eyebrow{display:flex;align-items:center;gap:6px;color:#2f8fe0}
+.agua-top .eyebrow svg{width:14px;height:14px}
+.agua-corpo{display:flex;align-items:center;gap:16px;margin-top:6px}
+.copo-wrap{flex:none;width:92px}
+.copo{width:100%;display:block;overflow:visible}
+.copo-fundo{fill:rgba(70,160,255,.07)}
+.copo-borda{stroke:rgba(80,150,230,.55)}
+.copo-brilho{stroke:rgba(255,255,255,.35)}
+.agua-nivel{transition:transform .9s cubic-bezier(.3,1.3,.5,1)}
+.onda{animation:onda 3.2s linear infinite}
+.onda.o2{fill:rgba(92,200,255,.45);animation-duration:5s;animation-direction:reverse}
+@keyframes onda{from{transform:translateX(0)}to{transform:translateX(-120px)}}
+@media (prefers-reduced-motion:reduce){.onda{animation:none}}
+.agua-info{display:flex;flex-direction:column;min-width:0}
+.agua-info b{font-family:var(--f-h);font-size:1.6rem;font-weight:600;line-height:1.1}
+.agua-info span{color:var(--mute);font-size:.85rem;font-weight:600}
+.agua-info small{font-size:.78rem;margin-top:6px;line-height:1.3}
+.agua-info small+small{margin-top:2px}
+.agua-card.cheio .agua-info small:first-of-type{color:var(--ok);font-weight:700}
+.agua-bts{display:grid;grid-template-columns:1fr 1fr .8fr;gap:8px;margin-top:12px}
+.agua-bts button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:9px 4px;border-radius:14px;border:1px solid rgba(70,160,255,.3);background:rgba(70,160,255,.08);color:var(--ink);cursor:pointer;font-family:var(--f-b);transition:transform .12s,background .2s}
+.agua-bts button:active{transform:scale(.94);background:rgba(70,160,255,.2)}
+.agua-bts button svg{width:14px;height:14px;color:#2f8fe0}
+.agua-bts b{font-size:.85rem}.agua-bts small{font-size:.68rem;color:var(--mute)}
+.agua-desf{display:block;margin:8px auto 0;background:none;border:0;color:var(--mute);text-decoration:underline;cursor:pointer}
+.agua-box:empty{display:none}
+.agua-staff{margin-bottom:14px}
+.agua-staff b svg{width:15px;height:15px;color:#2f8fe0;vertical-align:-2px}
+.as-cols{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:12px}
+.as-col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.as-bar{width:100%;max-width:30px;height:74px;border-radius:9px;background:rgba(70,160,255,.1);display:flex;align-items:flex-end;overflow:hidden}
+.as-bar i{display:block;width:100%;border-radius:9px;background:linear-gradient(180deg,#5cc8ff,#1f6fe0)}
+.as-bar i.ok{background:linear-gradient(180deg,#5be3a8,#1fa86b)}
+.as-bar i.baixo{background:linear-gradient(180deg,#ffc27a,#f08a32)}
+.as-col small{font-size:.68rem;color:var(--mute);text-transform:capitalize}
+.as-col em{font-style:normal;color:var(--acc);height:10px;line-height:10px}
+@media(max-width:899px){.hoje-grid{padding-bottom:64px}}
+.hh-stats>div>span:last-child{min-width:0;line-height:1.15}

@@ -768,6 +768,107 @@ function letraTreino(t, i) {
   const m = String(t.titulo || '').match(/\b([A-Z])\b/); return m ? m[1] : String.fromCharCode(65 + (i % 26));
 }
 
+/* ---------- hidratação: copo que enche a cada registro ---------- */
+async function aguaStaffHTML(m) {
+  const ini = isoDia(Date.now() - 6 * 864e5);
+  const [rows, corr, ses, peso] = await Promise.all([
+    sb.from('nx_hidratacao').select('dia,ml,meta').eq('aluno_id', m.user_id).gte('dia', ini).then((r) => r.data || [], () => []),
+    sb.from('nx_corridas').select('data').eq('aluno_id', m.user_id).gte('data', ini).then((r) => r.data || [], () => []),
+    sb.from('nx_sessoes').select('iniciado_em').eq('aluno_id', m.user_id).gte('iniciado_em', ini).then((r) => r.data || [], () => []),
+    m.meta_agua_ml ? Promise.resolve(null) : pesoDoAluno(m.user_id),
+  ]);
+  const treinou = new Set([...corr.map((c) => isoDia(c.data)), ...ses.map((x) => isoDia(x.iniciado_em))]);
+  const dias = Array.from({ length: 7 }, (_, i) => isoDia(Date.now() - (6 - i) * 864e5));
+  const metaPadrao = metaAgua(peso, 0, m.meta_agua_ml).ml;
+  const D = dias.map((d) => { const r = rows.find((x) => x.dia === d); const meta = (r && r.meta) || metaPadrao; return { d, ml: r ? r.ml : 0, meta, pct: r ? r.ml / meta : 0, t: treinou.has(d) }; });
+  const comReg = D.filter((x) => x.ml > 0), media = comReg.length ? comReg.reduce((a, x) => a + Math.min(1.3, x.pct), 0) / comReg.length : null;
+  return `<div class="card agua-staff"><div class="row between" style="gap:8px"><b>${AGUA_IC} Hidratação</b><span class="tiny dim">últimos 7 dias</span></div>
+    <div class="as-cols">${D.map((x) => `<div class="as-col" title="${fmtCurto(x.d)}: ${fmtL(x.ml)} de ${fmtL(x.meta)}"><div class="as-bar"><i style="height:${Math.min(100, x.pct * 100)}%" class="${x.pct >= 1 ? 'ok' : x.pct >= 0.6 ? '' : 'baixo'}"></i></div><small>${DSEM[dsemIdx(x.d)].slice(0, 3)}</small>${x.t ? '<em title="treinou">•</em>' : '<em></em>'}</div>`).join('')}</div>
+    <p class="small muted" style="margin-top:8px">${media == null ? 'O aluno ainda não registrou água nesta semana.' : `Média de <b>${Math.round(media * 100)}%</b> da meta nos dias com registro · ${comReg.filter((x) => x.pct >= 1).length} de 7 dias com meta batida.`} O ponto marca os dias com treino.</p>
+    <form id="f-agua-meta" class="row" style="gap:8px;margin-top:10px;align-items:flex-end"><label class="field grow" style="margin:0"><span>Meta diária (litros)</span><input class="input" name="l" data-mask="dec" inputmode="decimal" value="${m.meta_agua_ml ? String(m.meta_agua_ml / 1000).replace('.', ',') : ''}" placeholder="automática: ${fmtL(metaPadrao)} + treino"></label><button class="btn ghost sm">Salvar</button></form>
+    <p class="tiny dim" style="margin-top:6px">Automática: ~35 ml por kg, mais ~600 ml por hora de treino do dia. Deixe vazio para usar a automática.</p></div>`;
+}
+function bindAguaStaff(m) {
+  const f = document.getElementById('f-agua-meta'); if (!f) return; aplicarMascaras(f);
+  f.onsubmit = async (e) => {
+    e.preventDefault(); const l = num(f.l.value); const ml = l ? Math.round(l * 1000) : null;
+    if (ml != null && (ml < 500 || ml > 10000)) return toast('Use uma meta entre 0,5 e 10 litros.', true);
+    const { error } = await sb.from('nx_membros').update({ meta_agua_ml: ml }).eq('org_id', S.org.id).eq('user_id', m.user_id);
+    if (error) return toast('Não foi possível salvar.', true); m.meta_agua_ml = ml; toast(ml ? `Meta de ${fmtL(ml)} salva.` : 'Meta automática.');
+  };
+}
+const AGUA_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8s6.5 7.2 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 10 12 2.8 12 2.8z"/></svg>';
+const FOGO_IC = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c.6 3.2 3.6 5 4.9 7.9 1.6 3.6.2 8.4-3.4 9.8 1.3-1.6 1.4-3.9.1-5.6-.5 1.4-1.6 2.3-2.9 2.6.8-2.5-.4-5-2.6-6.3.2 2.2-1.4 3.4-2.1 5.1-1 2.4.1 4.8 2 5.9C4.6 19.7 3.6 15 5.7 11.3 7.5 8.2 11.1 6.5 12 2z"/></svg>';
+const COPO_SVG = (pct) => `<svg viewBox="0 0 120 150" class="copo" aria-hidden="true"><defs><linearGradient id="agG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc8ff"/><stop offset="1" stop-color="#1f6fe0"/></linearGradient><clipPath id="agC"><path d="M15 9H105L95.5 140.5Q95 145 90 145H30Q25 145 24.5 140.5Z"/></clipPath></defs>
+  <g clip-path="url(#agC)"><rect width="120" height="150" class="copo-fundo"/><g class="agua-nivel" style="transform:translateY(${(146 - Math.min(1, pct) * 137).toFixed(1)}px)"><path class="onda o2" d="M0 7Q15 1 30 7T60 7T90 7T120 7T150 7T180 7T210 7T240 7V170H0Z"/><path class="onda" d="M0 6Q15 0 30 6T60 6T90 6T120 6T150 6T180 6T210 6T240 6V170H0Z" fill="url(#agG)"/></g></g>
+  <path d="M15 9H105L95.5 140.5Q95 145 90 145H30Q25 145 24.5 140.5Z" fill="none" class="copo-borda" stroke-width="3" stroke-linejoin="round"/><path d="M27 22 31 120" class="copo-brilho" stroke-width="4" stroke-linecap="round"/></svg>`;
+const fmtL = (ml) => (ml / 1000).toFixed(ml % 1000 === 0 ? 0 : ml % 100 === 0 ? 1 : 2).replace('.', ',') + ' L';
+async function pesoDoAluno(alunoId) {
+  const av = await sb.from('nx_avaliacoes').select('peso').eq('aluno_id', alunoId).not('peso', 'is', null).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0], () => null);
+  if (av && +av.peso) return +av.peso;
+  const an = await sb.from('nx_anamneses').select('respostas').eq('aluno_id', alunoId).order('criado_em', { ascending: false }).limit(1).then((r) => (r.data || [])[0], () => null);
+  const p = an && an.respostas && num(String(an.respostas.peso || '')); return p && p > 30 && p < 250 ? p : null;
+}
+// meta diária: ~35 ml por kg (dia comum) + ~600 ml por hora de treino planejado; o treinador pode fixar a meta
+function metaAgua(peso, minTreino, manual) {
+  if (manual) return { ml: manual, fonte: 'definida pelo treinador' };
+  const base = (peso || 70) * 35, extra = (minTreino || 0) / 60 * 600;
+  return { ml: Math.round((base + extra) / 50) * 50, fonte: `${peso ? Math.round(peso) + ' kg' : 'peso médio'}${minTreino ? ` + treino de ${Math.round(minTreino)} min` : ''}` };
+}
+async function montarAgua(box, minTreino) {
+  if (!box) return;
+  const dia_ = isoDia(new Date());
+  const [row, peso] = await Promise.all([
+    sb.from('nx_hidratacao').select('*').eq('aluno_id', S.user.id).eq('dia', dia_).maybeSingle().then((r) => r.data, () => null),
+    S.me.meta_agua_ml ? Promise.resolve(null) : pesoDoAluno(S.user.id),
+  ]);
+  const meta = metaAgua(peso, minTreino, S.me.meta_agua_ml);
+  const st = { ml: row ? row.ml : 0, reg: row ? row.registros || [] : [] };
+  let salvando = Promise.resolve();
+  const desenha = (anim) => {
+    const pct = st.ml / meta.ml, ok = pct >= 1;
+    box.innerHTML = `<div class="agua-card ${ok ? 'cheio' : ''}"><div class="agua-top"><span class="eyebrow">${AGUA_IC} Hidratação</span><span class="tiny dim">${Math.round(pct * 100)}%</span></div>
+      <div class="agua-corpo"><div class="copo-wrap">${COPO_SVG(anim ? Math.max(0, pct - 0.0001) : pct)}</div>
+        <div class="agua-info"><b>${fmtL(st.ml)}</b><span>de ${fmtL(meta.ml)}</span><small>${ok ? 'Meta batida hoje!' : `Faltam ${fmtL(meta.ml - st.ml)}`}</small><small class="dim">Meta: ${esc(meta.fonte)}</small></div></div>
+      <div class="agua-bts"><button type="button" data-ml="200">${AGUA_IC}<b>+200 ml</b><small>copo</small></button><button type="button" data-ml="500">${AGUA_IC}<b>+500 ml</b><small>garrafa</small></button><button type="button" data-ml="outro"><b>Outro</b><small>valor</small></button></div>
+      ${st.reg.length ? `<button type="button" class="link-btn tiny agua-desf" id="agua-desf">Desfazer o último (${st.reg[st.reg.length - 1].ml} ml)</button>` : ''}</div>`;
+    if (anim) requestAnimationFrame(() => { const n = box.querySelector('.agua-nivel'); if (n) n.style.transform = `translateY(${(146 - Math.min(1, pct) * 137).toFixed(1)}px)`; });
+  };
+  const salvar = () => { salvando = salvando.then(() => sb.from('nx_hidratacao').upsert({ org_id: S.org.id, aluno_id: S.user.id, dia: dia_, ml: st.ml, meta: meta.ml, registros: st.reg.slice(-60), atualizado_em: new Date().toISOString() }, { onConflict: 'aluno_id,dia' }).then(({ error }) => { if (error) { console.error(error); toast('Não foi possível salvar a água. Tente de novo.', true); } })); };
+  const somar = (ml) => {
+    const antes = st.ml / meta.ml;
+    st.ml = Math.min(20000, st.ml + ml); st.reg.push({ ml, t: new Date().toISOString() });
+    const nivel = box.querySelector('.agua-nivel'), antesT = nivel ? nivel.style.transform : null;
+    desenha(false);
+    const n2 = box.querySelector('.agua-nivel'); if (n2 && antesT) { n2.style.transform = antesT; requestAnimationFrame(() => requestAnimationFrame(() => { n2.style.transform = `translateY(${(146 - Math.min(1, st.ml / meta.ml) * 137).toFixed(1)}px)`; })); }
+    try { navigator.vibrate && navigator.vibrate(12); } catch {}
+    if (antes < 1 && st.ml / meta.ml >= 1) toast('Meta de água batida! Seu corpo agradece.');
+    salvar();
+  };
+  box.onclick = (e) => {
+    const b = e.target.closest('[data-ml]');
+    if (b) {
+      if (b.dataset.ml !== 'outro') return somar(+b.dataset.ml);
+      return openSheet(`<div class="h2">Quanto você bebeu?</div><form id="f-agua" style="margin-top:12px"><label class="field"><span>Quantidade (ml)</span><input class="input" name="ml" inputmode="numeric" data-mask="num" data-max="4" placeholder="Ex.: 350" autofocus required></label><div class="chips" style="margin-bottom:12px">${[150, 250, 300, 750, 1000].map((v) => `<button type="button" class="chip" data-v="${v}">${v} ml</button>`).join('')}</div><button class="btn block">Adicionar</button></form>`, (r) => {
+        const f = r.querySelector('#f-agua'); aplicarMascaras(f);
+        r.querySelectorAll('[data-v]').forEach((c) => c.onclick = () => { closeSheet(); somar(+c.dataset.v); });
+        f.onsubmit = (ev) => { ev.preventDefault(); const v = Math.round(num(f.ml.value) || 0); if (v < 20 || v > 3000) return toast('Use de 20 a 3.000 ml.', true); closeSheet(); somar(v); };
+      });
+    }
+    if (e.target.closest('#agua-desf')) { const u = st.reg.pop(); if (u) { st.ml = Math.max(0, st.ml - u.ml); desenha(false); salvar(); } }
+  };
+  desenha(false);
+  S.cache.aguaSomar = somar;
+}
+// sequência de semanas com pelo menos um treino (a semana atual só conta a favor)
+function semanasSeguidas(datas) {
+  const sem = new Set(datas.filter(Boolean).map((d) => isoDia(inicioSemana(new Date(d)))));
+  let k = isoDia(inicioSemana()), n = 0;
+  if (!sem.has(k)) k = somaDias(k, -7);
+  while (sem.has(k)) { n++; k = somaDias(k, -7); }
+  return n;
+}
+
 async function alunoHoje() {
   loading();
   const hoje = isoDia(new Date());
@@ -779,6 +880,7 @@ async function alunoHoje() {
     // corridas que chegaram do relógio sem o check-in (esforço/dor)
     sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fonte,titulo,comentario').eq('aluno_id', S.user.id).is('rpe', null).gte('data', isoDia(Date.now() - 3 * 864e5)).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null).catch(() => null),
   ]);
+  const histDatas = await sb.from('nx_corridas').select('data').eq('aluno_id', S.user.id).gte('data', isoDia(Date.now() - 120 * 864e5)).then((r) => (r.data || []).map((x) => x.data), () => []);
   const corrNova = corrSem.filter((c) => c.distancia_m && Date.now() - new Date(c.data) < 864e5 && !(() => { try { return localStorage.getItem('nx-card-' + c.id); } catch { return 1; } })()).sort((a, b) => (a.data < b.data ? 1 : -1))[0];
   corrSem.splice(0, corrSem.length, ...corrSem.filter((c) => isoDia(c.data) >= isoDia(inicioSemana())));
   const corrHoje = corrSem.filter((c) => isoDia(c.data) === hoje);
@@ -811,33 +913,74 @@ async function alunoHoje() {
       ${est.length ? (() => { const t = estimaTotal(est, perfC); return `<div class="kv-t"><div><span>Tipo</span><b>${esc(nomeTipo(p.tipo))}</b></div><div><span>Distância</span><b>${t.soDist ? '' : '≈ '}${t.km.replace('–', ' a ')}</b></div><div><span>Duração</span><b>${(() => { const tt = estimaTotalSeg(est, perfC); return tt[0] === tt[1] ? tempoAsp(tt[0]) : `${tempoAsp(tt[0])} a ${tempoAsp(tt[1])}`; })()}</b></div></div>
       <ul class="linhas-t">${linhasTreino(est, perfC)}</ul>`; })() : ''}
       ${p.descricao ? `<p class="obs-t"><b>Obs. do treinador:</b> ${esc(p.descricao)}</p>` : ''}
-      <div class="row" style="gap:8px;margin-top:12px">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<button class="btn sm" data-reg="${p.id}">${I.plus} Registrar corrida</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
+      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
   const cardMusc = prox ? (muscHoje
     ? `<div class="card wcard feito" style="display:flex"><div class="wletter">✓</div><div class="grow"><span class="eyebrow">Musculação</span><div class="h3" style="margin-top:2px">${esc(muscHoje.treino_titulo || 'Treino')} feito</div><div class="small muted">${fixoHoje ? 'Bom trabalho! Treino do dia concluído.' : 'Próximo da sequência: ' + esc(prox.titulo)}</div></div></div>`
     : `<a class="card tap wcard" href="#/treino/${prox.id}" style="display:flex"><div class="wletter">${esc(letraTreino(prox, ativos.indexOf(prox)))}</div><div class="grow"><span class="eyebrow">Musculação · ${fixoHoje ? 'treino de hoje' : 'próximo da sequência'}</span><div class="h3" style="margin-top:2px">${esc(prox.titulo)}</div>${prox.foco ? `<div class="small muted">${esc(prox.foco)}</div>` : ''}<div class="meta"><span class="tag">${prox.nx_treino_itens.length} exercícios</span></div></div><span class="go">${I.play}</span></a>`) : '';
   const descanso = !corrDoDia.length && !cardMusc && !forcaHoje;
+  const seq = semanasSeguidas([...sessoes.map((x) => x.iniciado_em), ...histDatas]);
+  const kmSem = corrSem.reduce((a, c) => a + (+c.distancia_m || 0), 0) / 1000;
+  const nTreinosSem = ativSem.filter((x) => isoDia(x.iniciado_em) >= isoDia(inicioSemana())).length;
+  const minTreinoHoje = (corrDoDia.length ? corrDoDia.reduce((a, p) => { const tt = estimaTotalSeg(estruturaDe(p), perfC); return a + (tt[0] + tt[1]) / 2 / 60; }, 0) : 0) + (prox ? 60 : 0);
+  const prev5 = fC && perfC.vdot ? tempoPorVdot(perfC.vdot, 5000) : null;
+  const pend = [
+    cartaoCobrancaHTML(cobP),
+    semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi ${comArtigo(semNota)} de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${resumoAtiv(semNota)} · leva 10 segundos responder</div></div>${I.chev}</button>` : '',
+    S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : '',
+    cartaoPushHTML(),
+  ].filter(Boolean).join('');
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div>
-    <div class="saud-row"><a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a><div style="min-width:0"><p class="eyebrow">${saud} · ${fmtDiaSem(hoje)}</p>
-    <h1 class="h1">${esc(firstName(S.me.nome))}, ${descanso ? 'hoje é day off' : 'seu treino de hoje'}</h1></div></div>
+    <section class="hoje-hero">
+      <div class="hh-top"><span class="hh-data">${fmtDiaSem(hoje)}</span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
+      <h1>${saud}, ${esc(firstName(S.me.nome))}</h1>
+      <p>${descanso ? 'Hoje é dia de descanso. Recuperar também é treino.' : 'Seu treino, sua evolução e sua água em um só lugar.'}</p>
+      <div class="hh-stats">
+        <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>seguidas treinando</small></span></div>
+        ${fC ? `<div><span class="hh-ic">${icCorr(S.me)}</span><span><b>${kmSem ? f1(kmSem) : '0'}</b> km<small>nesta semana</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosSem}</b> ${nTreinosSem === 1 ? 'treino' : 'treinos'}<small>nesta semana</small></span></div>`}
+      </div>
+    </section>
     <div class="hoje-grid"><div class="hoje-main">
-    ${cartaoCobrancaHTML(cobP)}<div id="auto-hoje"></div>
-    <div class="stack" style="margin-top:16px">
+    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend">${pend}<div id="auto-hoje"></div><div id="rel-pend"></div></div></div>
+    <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
+    <div class="stack">
       ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
       ${corrDoDia.map(cardCorr).join('')}
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
     ${corrNova ? `<button class="card-cta" id="card-nova" style="margin-top:12px"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Corrida de ${fmtKm(corrNova.distancia_m, 1)} registrada!</b><span class="small">Gere o card e poste no seu story</span></div>${I.chev}</button>` : ''}
-    ${semNota ? `<button class="list-item msg-row termo-row" id="termo-corr" style="width:100%;text-align:left"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Como foi ${comArtigo(semNota)} de ${isoDia(semNota.data) === hoje ? 'hoje' : isoDia(semNota.data) === isoDia(Date.now() - 864e5) ? 'ontem' : fmtDiaSem(isoDia(semNota.data)).split(',')[0].toLowerCase()}?</b><div class="small muted">${resumoAtiv(semNota)} · leva 10 segundos responder</div></div>${I.chev}</button>` : ''}
     <div id="ciclo-box"></div>
-    ${S.cache.msgNovas ? `<a class="list-item msg-row" href="#/conversa"><span class="ativ-ic">${I.feed}</span><div class="grow"><b>${S.cache.msgNovas === 1 ? 'Nova mensagem' : S.cache.msgNovas + ' novas mensagens'} do treinador</b><div class="small muted">Toque para ler e responder</div></div><i class="cv-n">${S.cache.msgNovas}</i></a>` : ''}
-    ${cartaoPushHTML()}
     </div><div class="hoje-side">
-    ${fC && provaProx ? `<a class="card tap prova-card" href="#/eventos/minhas" style="margin-top:12px;display:flex">${provaProx.data === hoje ? '<div class="pc-n"><b style="font-size:1rem">É</b><span>hoje</span></div>' : `<div class="pc-n"><b>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5)}</b><span>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5) === 1 ? 'dia' : 'dias'}</span></div>`}<div class="grow" style="min-width:0"><span class="eyebrow">${icT(I.flag)}Sua próxima prova</span><b class="ellip" style="display:block;margin-top:2px">${esc(provaProx.titulo)}</b><div class="small muted">${fmtData(provaProx.data + 'T12:00:00')}${provaProx.distancia ? ' · ' + esc(provaProx.distancia) : ''}</div></div>${I.chev}</a>` : ''}
+    <p class="sec-lbl hide-desk">Seus números</p>
+    <div id="agua-box" class="agua-box"></div>
+    <div class="hoje-tiles">
+      ${fC && provaProx ? `<a class="tile tap" href="#/eventos/minhas"><span class="tile-l">${icT(I.flag)}Próxima prova</span><b>${provaProx.data === hoje ? 'Hoje!' : `${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5)} <small>${Math.round((dia(provaProx.data) - dia(hoje)) / 864e5) === 1 ? 'dia' : 'dias'}</small>`}</b><small class="ellip">${esc(provaProx.titulo)}</small></a>` : ''}
+      ${prev5 ? `<a class="tile tap" href="#/historico/previsoes"><span class="tile-l">${I.hist}Previsão 5 km</span><b>${fmtDurLongo(Math.round(prev5))}</b><small>pelo seu último teste</small></a>` : ''}
+      ${fM ? '<div class="tile" id="fase-tile" hidden></div>' : ''}
+      ${fC ? `<a class="tile tap" href="#/planilha"><span class="tile-l">${icCorr(S.me)}Semana</span><b>${corrSem.length} <small>${corrSem.length === 1 ? 'corrida' : 'corridas'}</small></b><small>${kmSem ? f1(kmSem) + ' km' : 'nenhuma ainda'}</small></a>` : ''}
+    </div>
     <div class="semana-comp" style="margin-top:12px">${freqSemanaHTML(ativSem.map((x) => x.iniciado_em), 'Sua semana')}</div>
-    </div></div>`;
+    </div></div>
+    <button class="fab-reg" id="fab-reg">${I.plus}<span>Registrar</span></button>`;
+  const pendSec = document.getElementById('pend-sec');
+  const mostrarPend = () => { if (pendSec) pendSec.hidden = !document.getElementById('pend').textContent.trim() && !document.querySelector('#pend .card,#pend .list-item'); };
+  montarAgua(document.getElementById('agua-box'), minTreinoHoje).catch((e) => console.error(e));
+  if (fM) faseDaSemana(S.user.id, isoDia(inicioSemana())).then((f) => { const t = document.getElementById('fase-tile'); if (!t || !FASES_F[f]) return; const x = FASES_F[f]; t.hidden = false; t.style.setProperty('--fc', x.cor); t.classList.add('tile-fase'); t.innerHTML = `<span class="tile-l">${FORCA_IC}Força</span><b>${x.n}</b><small>${x.reps}</small>`; }).catch(() => {});
+  if (fC) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).limit(1).then(({ data }) => { if (data && data.length) return; const b = document.getElementById('rel-pend'); if (!b || store.get('nx-rel-pend-off', false)) return; b.innerHTML = `<a class="list-item msg-row" href="#/conexoes"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Conecte o seu relógio</b><div class="small muted">Garmin e outras marcas: as corridas chegam sozinhas</div></div>${I.chev}</a>`; mostrarPend(); }).catch(() => {});
+  document.getElementById('fab-reg').onclick = () => openSheet(`<p class="eyebrow">Registrar</p><div class="stack" style="margin-top:12px">
+      ${fC ? `<a class="pag-op" href="#/gps" data-close><span class="ativ-ic">${I.play}</span><div class="grow"><b>Treinar pelo celular</b><small>Na rua (GPS) ou na esteira</small></div>${I.chev}</a>
+      <button class="pag-op" data-r="corr"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Registrar uma corrida</b><small>Distância, tempo e como foi</small></div>${I.chev}</button>` : ''}
+      <button class="pag-op" data-r="agua"><span class="ativ-ic">${AGUA_IC}</span><div class="grow"><b>Beber água</b><small>+200 ml no seu copo de hoje</small></div>${I.chev}</button>
+      <a class="pag-op" href="#/conversa" data-close><span class="ativ-ic">${I.feed}</span><div class="grow"><b>Falar com o treinador</b><small>Dor, dúvida ou recado</small></div>${I.chev}</a></div>`, (r) => {
+      r.onclick = (e) => {
+        if (e.target.closest('a[data-close]')) return closeSheet(true);
+        const b = e.target.closest('[data-r]'); if (!b) return;
+        if (b.dataset.r === 'corr') { closeSheet(); registrarCorrida(S.user.id, () => alunoHoje()); }
+        if (b.dataset.r === 'agua') { closeSheet(); if (S.cache.aguaSomar) S.cache.aguaSomar(200); const ab = document.getElementById('agua-box'); if (ab) ab.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      };
+    });
   bindCartaoPush();
   $app.onclick = (e) => {
     const r = e.target.closest('[data-reg]'); if (r) return registrarCorrida(S.user.id, () => alunoHoje());
@@ -875,7 +1018,7 @@ async function alunoHoje() {
   if (fC && planoSem.length) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).eq('provedor', 'garmin').maybeSingle().then(({ data }) => { if (data) sincronizarGarmin(S.user.id, planoSem, perfC, false); }).catch(() => {});
   const pp = document.getElementById('pagar-pix'); if (pp) pp.onclick = () => pagarComPix(cobP);
   // oferta de cobrança automática feita pelo treinador
-  assinaturaDoAluno(S.user.id).then((a) => { const box = document.getElementById('auto-hoje'); if (box && a) { box.innerHTML = autoAlunoHTML(a); bindAutoAluno(a); } }).catch(() => {});
+  assinaturaDoAluno(S.user.id).then((a) => { const box = document.getElementById('auto-hoje'); if (box && a) { box.innerHTML = autoAlunoHTML(a); bindAutoAluno(a); const ps = document.getElementById('pend-sec'); if (ps && box.innerHTML.trim()) ps.hidden = false; } }).catch(() => {});
 }
 
 /* check-in rápido de uma corrida que veio do relógio */
@@ -6412,6 +6555,7 @@ async function staffAluno(alunoId, aba, extra) {
     bindAtestado(document.getElementById('saude'), anamnese, alunoId);
     if (ed) ed.onclick = abrirEd;
     else { const sd = document.getElementById('saude'); sd.insertAdjacentHTML('beforeend', '<button class="btn ghost block" id="preencher-ana" style="margin-top:12px">Preencher a ficha com o aluno</button>'); sd.querySelector('#preencher-ana').onclick = abrirEd; }
+    aguaStaffHTML(m).then((h) => { const sd = document.getElementById('saude'); if (!sd) return; sd.insertAdjacentHTML('afterbegin', h); bindAguaStaff(m); }).catch((e) => console.error(e));
   }
   if (aba === 'historico' && sess.some((s) => !s.visto_treinador)) {
     sb.from('nx_sessoes').update({ visto_treinador: true }).eq('aluno_id', alunoId).eq('org_id', S.org.id).eq('visto_treinador', false).then(() => contarNaoVistos().then(dockStaff));
