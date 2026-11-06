@@ -2133,3 +2133,8 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .fab-reg.mini{width:52px;padding:0;gap:0;justify-content:center}
 .fab-reg.mini span{opacity:0;max-width:0}
 .hh-stats small{white-space:nowrap}
+.hh-agua{display:flex;align-items:center;gap:6px;margin-top:2px!important;color:#9fe3ff!important;font-weight:600}
+.hh-agua svg{width:14px;height:14px;flex:none}
+.agua-pe{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.agua-pe .agua-desf{margin:0}
+.agua-lemb{background:none;border:0;color:var(--mute);cursor:pointer;text-decoration:underline}

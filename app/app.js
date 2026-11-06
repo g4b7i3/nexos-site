@@ -831,7 +831,9 @@ async function montarAgua(box, minTreino) {
       <div class="agua-corpo"><div class="copo-wrap">${COPO_SVG(anim ? Math.max(0, pct - 0.0001) : pct)}</div>
         <div class="agua-info"><b>${fmtL(st.ml)}</b><span>de ${fmtL(meta.ml)}</span><small>${ok ? 'Meta batida hoje!' : `Faltam ${fmtL(meta.ml - st.ml)}`}</small><small class="dim">Meta: ${esc(meta.fonte)}</small></div></div>
       <div class="agua-bts"><button type="button" data-ml="200">${AGUA_IC}<b>+200 ml</b><small>copo</small></button><button type="button" data-ml="500">${AGUA_IC}<b>+500 ml</b><small>garrafa</small></button><button type="button" data-ml="outro"><b>Outro</b><small>valor</small></button></div>
-      ${st.reg.length ? `<button type="button" class="link-btn tiny agua-desf" id="agua-desf">Desfazer o último (${st.reg[st.reg.length - 1].ml} ml)</button>` : ''}</div>`;
+      <div class="agua-pe">${st.reg.length ? `<button type="button" class="link-btn tiny agua-desf" id="agua-desf">Desfazer o último (${st.reg[st.reg.length - 1].ml} ml)</button>` : '<span></span>'}<button type="button" class="link-btn tiny agua-lemb" id="agua-lemb">${S.me.lembrete_agua === false ? 'Lembretes desligados' : 'Lembretes: 5 por dia'}</button></div></div>`;
+    const hh = document.getElementById('hh-agua');
+    if (hh) { hh.hidden = false; hh.innerHTML = `${AGUA_IC}<span>Hidratação: ${ok ? `meta do dia atingida (${fmtL(st.ml)})` : `${fmtL(st.ml)} de ${fmtL(meta.ml)} · ${Math.round(pct * 100)}% da meta`}</span>`; }
     if (anim) requestAnimationFrame(() => { const n = box.querySelector('.agua-nivel'); if (n) n.style.transform = `translateY(${(146 - Math.min(1, pct) * 137).toFixed(1)}px)`; });
   };
   const salvar = () => { salvando = salvando.then(() => sb.from('nx_hidratacao').upsert({ org_id: S.org.id, aluno_id: S.user.id, dia: dia_, ml: st.ml, meta: meta.ml, registros: st.reg.slice(-60), atualizado_em: new Date().toISOString() }, { onConflict: 'aluno_id,dia' }).then(({ error }) => { if (error) { console.error(error); toast('Não foi possível salvar a água. Tente de novo.', true); } })); };
@@ -853,6 +855,16 @@ async function montarAgua(box, minTreino) {
         const f = r.querySelector('#f-agua'); aplicarMascaras(f);
         r.querySelectorAll('[data-v]').forEach((c) => c.onclick = () => { closeSheet(); somar(+c.dataset.v); });
         f.onsubmit = (ev) => { ev.preventDefault(); const v = Math.round(num(f.ml.value) || 0); if (v < 20 || v > 3000) return toast('Use de 20 a 3.000 ml.', true); closeSheet(); somar(v); };
+      });
+    }
+    if (e.target.closest('#agua-lemb')) {
+      const lig = S.me.lembrete_agua !== false;
+      return openSheet(`<div class="h2">Lembretes de água</div><p class="small muted" style="margin-top:6px">São 5 avisos por dia (8h, 10h30, 13h, 15h30 e 18h) com quanto falta para a sua meta. Quem já bateu a meta não recebe.</p><button class="btn block" id="lemb-t" style="margin-top:14px">${lig ? 'Desligar lembretes' : 'Ligar lembretes'}</button>`, (r) => {
+        r.querySelector('#lemb-t').onclick = async () => {
+          const { error } = await sb.rpc('nx_lembrete_agua', { p_on: !lig });
+          if (error) return toast('Não foi possível salvar.', true);
+          S.me.lembrete_agua = !lig; closeSheet(); toast(lig ? 'Lembretes desligados.' : 'Lembretes ligados.'); desenha(false);
+        };
       });
     }
     if (e.target.closest('#agua-desf')) { const u = st.reg.pop(); if (u) { st.ml = Math.max(0, st.ml - u.ml); desenha(false); salvar(); } }
@@ -943,7 +955,7 @@ async function alunoHoje() {
     <section class="hoje-hero">
       <div class="hh-top"><span class="hh-data">${fmtDiaSem(hoje)}</span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
       <h1>${saud}, ${esc(firstName(S.me.nome) || "atleta")}</h1>
-      <p>${resumoDia}</p>
+      <p>${resumoDia}</p><p class="hh-agua" id="hh-agua" hidden></p>
       <div class="hh-stats">
         <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>em sequência</small></span></div>
         ${fC ? `<div><span class="hh-ic">${icCorr(S.me)}</span><span><b>${kmSem ? f1(kmSem) : '0'}</b> km<small>nesta semana</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosSem}</b> ${nTreinosSem === 1 ? 'treino' : 'treinos'}<small>nesta semana</small></span></div>`}
