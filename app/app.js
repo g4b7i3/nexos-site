@@ -394,6 +394,7 @@ async function router() {
       if (a === 'formularios') return await staffFormularios(b);
       if (a === 'mensagens') return await staffMensagens(b);
       if (a === 'eventos') return await viewEventos(b);
+      if (a === 'prova' && b) return await viewPlanoProva(b);
       if (a === 'perfil') return viewPerfil();
       return await staffHoje();
     }
@@ -403,6 +404,7 @@ async function router() {
     if (a === 'historico') return await alunoHistorico(b);
     if (a === 'planilha') return await viewPlanilhaAluno(b);
     if (a === 'eventos' && faz('corrida')) return await viewEventos(b);
+    if (a === 'prova' && b) return await viewPlanoProva(b);
     if (a === 'relatorio' && b) return await viewRelatorio(b);
     if (a === 'conversa') return await viewConversa(S.user.id, $app, false);
     if (a === 'conexoes') return await viewConexoes(b);
@@ -618,9 +620,9 @@ function detalheEvento(e, dados, aoMudar) {
     </div>
     ${e.obs ? `<p class="small" style="margin-top:12px;white-space:pre-line">${esc(e.obs)}</p>` : ''}
     ${e.link ? `<a class="btn ghost block" href="${esc(e.link)}" target="_blank" rel="noopener" style="margin-top:16px">${e.fonte === 'radar' ? 'Fazer a inscrição no site oficial' : 'Abrir link do evento'} ↗</a>` : ''}
-    ${S.staff ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2" style="font-size:1rem">Alunos que vão (${quem.length})</h2></div>${quem.length ? quem.map((p) => `<a class="list-item" href="#/aluno/${p.aluno_id}/corrida" style="color:inherit"><b class="grow">${esc((S.cache.nomes || {})[p.aluno_id] || 'Aluno')}</b>${p.distancia ? `<span class="pill">${esc(p.distancia)}</span>` : ''}${p.meta ? `<span class="tag">meta ${esc(p.meta)}</span>` : ''}</a>`).join('') : '<p class="small muted">Ninguém marcou ainda.</p>'}</div>
+    ${S.staff ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2" style="font-size:1rem">Alunos que vão (${quem.length})</h2></div>${quem.length ? quem.map((p) => `<a class="list-item" href="#/prova/${p.id}" data-close style="color:inherit"><b class="grow">${esc((S.cache.nomes || {})[p.aluno_id] || 'Aluno')}</b>${p.distancia ? `<span class="pill">${esc(p.distancia)}</span>` : ''}${p.meta ? `<span class="tag">meta ${esc(p.meta)}</span>` : ''}</a>`).join('') : '<p class="small muted">Ninguém marcou ainda.</p>'}</div>
       ${e.fonte === 'nexos' ? '<button class="btn ghost block sm" id="ev-editar" style="margin-top:12px">Editar evento</button>' : ''}`
-      : eu ? `<div class="card" style="margin-top:14px;border-color:rgba(14,154,95,.4)"><b>✓ Você vai${eu.distancia ? ' nos ' + esc(eu.distancia) : ''}</b>${eu.meta ? `<p class="small muted">Meta: ${esc(eu.meta)}</p>` : ''}<p class="small muted">A prova aparece na sua planilha e no calendário. ${faltam(e.data)}.</p></div><button class="link-btn small" id="ev-sair" style="margin-top:10px;color:var(--err)">Não vou mais</button>`
+      : eu ? `<div class="card" style="margin-top:14px;border-color:rgba(14,154,95,.4)"><b>✓ Você vai${eu.distancia ? ' nos ' + esc(eu.distancia) : ''}</b>${eu.meta ? `<p class="small muted">Meta: ${esc(eu.meta)}</p>` : ''}<p class="small muted">A prova aparece na sua planilha e no calendário. ${faltam(e.data)}.</p><a class="btn sm" href="#/prova/${eu.id}" data-close style="margin-top:10px">Plano de prova: ritmo, alimentação e checagem</a></div><button class="link-btn small" id="ev-sair" style="margin-top:10px;color:var(--err)">Não vou mais</button>`
       : `<form id="ev-vou" class="card" style="margin-top:16px"><b>Vai participar?</b><p class="small muted" style="margin:4px 0 10px">${e.fonte === 'radar' ? 'Faça a inscrição no site oficial e marque aqui para a prova entrar na sua planilha.' : 'Confirme para o treinador saber quem vai.'}</p>
         ${dists.length ? `<div class="chips wrap" style="margin-bottom:10px">${dists.map((x, i) => `<label class="chipc"><input type="radio" name="dist" value="${esc(String(x))}" ${i === dists.length - 1 ? 'checked' : ''}><span>${esc(String(x))}</span></label>`).join('')}</div>` : ''}
         ${e.fonte === 'radar' ? '<label class="field"><span>Meta de tempo (opcional)</span><input class="input" name="meta" placeholder="Ex.: 55:00"></label>' : ''}
@@ -1032,6 +1034,57 @@ async function prontStaffHTML(m) {
     ${rows.map((x) => { const [n, cls] = prontNivel(x.total); return `<div class="ps-lin${x.alerta ? ' alerta' : ''}"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`; }).join('')}</div>`;
 }
 
+
+/* ---------- datas especiais: aniversários e marcos dos alunos, com mensagem pronta ---------- */
+const MARCO_TXT = {
+  aniversario: (x) => ['Faz aniversário hoje', x.valor ? `${x.valor} anos` : ''],
+  tempo: (x) => [`Completa ${x.valor >= 12 ? (x.valor % 12 ? `${x.valor} meses` : `${x.valor / 12} ano${x.valor > 12 ? 's' : ''}`) : `${x.valor} meses`} de Nexos`, ''],
+  km: (x) => [`Passou de ${x.valor.toLocaleString('pt-BR')} km corridos na Nexos`, ''],
+  treinos: (x) => [`Chegou a ${x.valor} treinos registrados`, ''],
+};
+function msgMarco(x) {
+  const n = firstName(x.nome), eu = firstName(S.me.nome);
+  if (x.tipo === 'aniversario') return `Parabéns, ${n}! Hoje o dia é seu. Toda a equipe Nexos deseja um novo ano com muita saúde, treinos bons e conquistas. Conte sempre com a gente!\n\n${eu}, Nexos Performance e Saúde`;
+  if (x.tipo === 'tempo') { const t = MARCO_TXT.tempo(x)[0].replace('Completa ', '').replace(' de Nexos', ''); return `${n}, hoje você completa ${t} de Nexos! Obrigado pela confiança e pela dedicação. A sua evolução nesse tempo é real, e o melhor ainda está por vir. Bora para a próxima fase!\n\n${eu}`; }
+  if (x.tipo === 'km') return `${n}, você passou dos ${x.valor.toLocaleString('pt-BR')} km corridos com a Nexos! Isso é constância de verdade, um treino de cada vez. Parabéns, e bora para os próximos quilômetros!\n\n${eu}`;
+  return `${n}, você chegou a ${x.valor} treinos registrados na Nexos! Disciplina é o que faz o resultado aparecer, e você está mostrando isso. Parabéns!\n\n${eu}`;
+}
+const ICO_MARCO = { aniversario: I.bolo || I.flag, tempo: I.cal, km: I.run, treinos: I.check };
+async function datasEspeciais(box, ativos) {
+  if (!box) return;
+  const ids = new Set(ativos.map((m) => m.user_id));
+  const lista = await sb.rpc('nx_marcos', { p_org: S.org.id }).then((r) => (r.data || []).filter((x) => ids.has(x.aluno_id)), () => []);
+  const prox = ativos.filter((m) => m.nascimento && !ehAniversario(m.nascimento) && [1, 2, 3, 4, 5, 6].some((d) => ehAniversario(m.nascimento, d)));
+  if (!lista.length && !prox.length) { box.innerHTML = ''; return; }
+  const porId = Object.fromEntries(ativos.map((m) => [m.user_id, m]));
+  box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Datas especiais</h2>${slashes}</div><div class="stack">
+    ${lista.map((x, i) => { const [t, sub] = MARCO_TXT[x.tipo](x); const m = porId[x.aluno_id] || x; return `<div class="list-item marco-item">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(x.nome)}</b><span class="small marco-t"><i>${ICO_MARCO[x.tipo] || ''}</i>${esc(t)}${sub ? ' · ' + esc(sub) : ''}</span></div><button class="btn sm" data-marco="${i}">Mensagem pronta</button></div>`; }).join('')}
+    ${prox.length ? `<p class="small muted" style="margin-top:4px">Aniversários desta semana: ${prox.map((m) => `${esc(firstName(m.nome))} (${fmtCurto(hojeISO().slice(0, 4) + m.nascimento.slice(4, 10) + 'T12:00:00')})`).join(', ')}</p>` : ''}</div></div>`;
+  box.querySelectorAll('[data-marco]').forEach((b) => b.onclick = () => abrirComemoracao(lista[+b.dataset.marco], () => datasEspeciais(box, ativos)));
+}
+function abrirComemoracao(x, depois) {
+  const [t] = MARCO_TXT[x.tipo](x), tel = telWa(x.telefone);
+  const registrar = (canal) => sb.from('nx_comemoracoes').insert({ org_id: S.org.id, aluno_id: x.aluno_id, chave: x.chave, canal }).then(() => {}, () => {});
+  openSheet(`<p class="eyebrow">Data especial</p><div class="h2" style="margin-top:4px">${esc(firstName(x.nome))} · ${esc(t.toLowerCase())}</div>
+    <p class="small muted" style="margin-top:4px">Mensagem pronta no seu nome. Ajuste se quiser antes de enviar.</p>
+    <textarea class="textarea" id="cm-txt" rows="7" style="margin-top:12px">${esc(msgMarco(x))}</textarea>
+    <button class="btn block" id="cm-app" style="margin-top:12px">${I.feed} Enviar pelo app</button>
+    ${tel ? `<button class="btn ghost block" id="cm-wa" style="margin-top:8px">${I.wa} Abrir no WhatsApp</button>` : '<p class="tiny dim" style="margin-top:8px">Sem telefone no cadastro para enviar pelo WhatsApp.</p>'}
+    <button class="link-btn small" id="cm-feito" style="display:block;margin:12px auto 0">Já parabenizei por outro meio</button>`, (r) => {
+    const txt = () => r.querySelector('#cm-txt').value.trim();
+    r.querySelector('#cm-app').onclick = async (e) => {
+      if (!txt()) return toast('Escreva a mensagem.', true);
+      e.currentTarget.disabled = true;
+      const { data, error } = await sb.from('nx_mensagens').insert({ org_id: S.org.id, aluno_id: x.aluno_id, autor_id: S.user.id, texto: txt() }).select('id').single();
+      if (error) { e.currentTarget.disabled = false; return toast('Não foi possível enviar.', true); }
+      notificar('mensagem', data.id); await registrar('app');
+      closeSheet(); toast('Mensagem enviada. Ele recebe a notificação.'); depois && depois();
+    };
+    const wa = r.querySelector('#cm-wa');
+    if (wa) wa.onclick = async () => { window.open(`https://wa.me/${tel}?text=${encodeURIComponent(txt())}`, '_blank', 'noopener'); await registrar('whatsapp'); closeSheet(); depois && depois(); };
+    r.querySelector('#cm-feito').onclick = async () => { await registrar('outro'); closeSheet(); toast('Marcado como feito.'); depois && depois(); };
+  });
+}
 
 /* ---------- alerta de carga ---------- */
 // carga de cada treino = minutos x esforço percebido de 0 a 10 (Foster, 2001); sem esforço anotado, usa a média do próprio aluno (ou 5)
@@ -1928,7 +1981,7 @@ function modoProvaHTML(p, perfil) {
   const chk = store.get('nx-prova-chk-' + p.id, {}); const grupo = d <= 0 ? 'dia' : d === 1 ? 'vespera' : null;
   const linhas = pl && pl.splits ? (pl.km > 12 ? pl.splits.filter((s) => s.km % 5 === 0 || s.km === pl.km) : pl.splits) : [];
   return `<div class="card prova-modo"><div class="pm-top"><span class="eyebrow">Modo prova</span><b>${d === 0 ? 'É hoje!' : d === 1 ? 'Amanhã' : `Faltam ${d} dias`}</b></div>
-    <div class="h3" style="margin-top:4px">${esc(p.titulo)}</div><p class="small muted">${fmtDiaSem(p.data)}${p.cidade ? ' · ' + esc(p.cidade) : ''}${pl ? ` · ${String(f1(pl.km)).replace(',0', '')} km` : ''}</p>
+    <div class="h3" style="margin-top:4px">${esc(p.titulo)}</div><a class="btn sm pm-plano" href="#/prova/${p.id}">Plano de prova completo</a><p class="small muted">${fmtDiaSem(p.data)}${p.cidade ? ' · ' + esc(p.cidade) : ''}${pl ? ` · ${String(f1(pl.km)).replace(',0', '')} km` : ''}</p>
     ${pl && pl.T ? `<div class="pm-alvo"><div><span>Tempo alvo</span><b>${fmtDurLongo(pl.T)}</b></div><div><span>Pace médio</span><b>${fmtPace(pl.pa)}</b></div></div>
       <p class="tiny dim">Pela ${esc(pl.fonte)}. Estratégia: 1º km um pouco mais contido e fechamento levemente mais forte.</p>
       <details class="pm-split"><summary>Ritmo por km</summary><div class="pm-tab">${linhas.map((s) => `<div><span>km ${String(f1(s.km)).replace(',0', '')}</span><b>${fmtPace(s.pace).replace('/km', '')}</b><em>${fmtDurLongo(s.acc)}</em></div>`).join('')}</div></details>` : '<p class="small muted" style="margin-top:8px">Combine com o seu treinador o tempo alvo para ver o ritmo por km.</p>'}
@@ -1936,6 +1989,97 @@ function modoProvaHTML(p, perfil) {
 }
 function bindModoProva(root) {
   root.querySelectorAll('.pm-chk').forEach((b) => b.onchange = (e) => { const i = e.target.closest('[data-ck]'); if (!i) return; const k = 'nx-prova-chk-' + b.dataset.prova; const st = store.get(k, {}); st[i.dataset.ck] = i.checked; store.set(k, st); });
+}
+
+/* ---------- plano de prova completo: ritmo por km, nutrição e checagem ---------- */
+// referências: ACSM/ADA/DC (Thomas et al., 2016), ISSN (Kerksick et al., 2017), Jeukendrup (2014), Burke et al. (2011)
+const CHECK_PROVA_C = {
+  semana: ['Seguir a redução de volume da planilha, sem treino extra', 'Testar num treino a roupa, o tênis e o gel que vai usar na prova', 'Retirar o kit e conferir o número de peito', 'Dormir bem a semana toda: o sono das noites anteriores conta mais que o da véspera'],
+  vespera: CHECK_PROVA.vespera,
+  dia: CHECK_PROVA.dia,
+  largada: ['Ir ao banheiro com antecedência', 'Posicionar-se no pelotão do seu ritmo', 'Relógio com GPS pronto antes da largada', 'Lembrar do ritmo do 1º km do plano'],
+};
+const ROT_CHK = { semana: 'Semana da prova', vespera: 'Véspera', dia: 'Manhã da prova', largada: 'Na largada' };
+function nutricaoProva(T, km, peso) {
+  const h = T / 3600, p = peso || null, g = (a, b) => (p ? `${Math.round(a * p / 10) * 10} a ${Math.round(b * p / 10) * 10} g` : `${a} a ${b} g por kg`);
+  const out = [];
+  if (h >= 1.5) out.push(['Dias antes: carregar carboidrato', `Nas 36 a 48 horas antes, aumente o carboidrato para 10 a 12 g por kg por dia (${p ? `cerca de ${Math.round(10 * p)} a ${Math.round(12 * p)} g por dia` : 'calcule pelo seu peso'}): arroz, massa, pão, batata, frutas. Diminua fibras e gordura para não pesar.`]);
+  else out.push(['Véspera', `Jantar com carboidrato que você já conhece (arroz, massa, batata), pouca gordura e pouca fibra. Prova de ${String(f1(km)).replace(',0', '')} km não pede carregamento de vários dias.`]);
+  out.push(['Café da manhã da prova', `2 a 3 horas antes, ${g(1, 2)} de carboidrato${p ? '' : ''}: por exemplo pão com mel ou geleia, banana, tapioca. Evite novidade, fritura e muita fibra.`]);
+  out.push(['Água antes', `${p ? `${Math.round(5 * p / 50) * 50} a ${Math.round(7 * p / 50) * 50} ml` : '5 a 7 ml por kg'} cerca de 4 horas antes e mais um copo até 1 hora antes, se tiver sede.`]);
+  let durante;
+  if (h < 0.75) durante = 'Prova curta: não precisa de gel. Água só se tiver sede ou estiver muito quente.';
+  else if (h < 1.25) durante = 'Pode usar pequenas quantidades de carboidrato (meio gel ou bochecho com isotônico). Água pela sede, em goles nos postos.';
+  else { const gh = h < 2.5 ? [30, 60] : [60, 90], tot = Math.round(gh[0] * h), tot2 = Math.round(gh[1] * h), geis = [Math.max(1, Math.round(tot / 25)), Math.max(1, Math.round(tot2 / 25))];
+    const cada = Math.max(25, Math.round(60 / ((gh[0] + gh[1]) / 2 / 25)));
+    durante = `${gh[0]} a ${gh[1]} g de carboidrato por hora: cerca de ${geis[0]} a ${geis[1]} géis de 25 g na prova toda, um a cada ${cada} minutos, começando por volta dos 40 minutos. ${h >= 2.5 ? 'Acima de 60 g por hora, prefira géis com glicose e frutose. ' : ''}Água: 400 a 800 ml por hora, de acordo com a sede e o calor.`; }
+  out.push(['Durante a prova', durante]);
+  out.push(['Depois', `Nas primeiras horas, ${g(1, 1.2)} de carboidrato e 20 a 40 g de proteína, com água à vontade.`]);
+  return out;
+}
+function splitsProva(T, km, modo) {
+  const n = Math.ceil(km), pa = T / km;
+  const fator = (i) => (modo === 'negativo' ? (i === 0 ? 1.02 : i < n / 2 ? 1.012 : 0.988) : (i === 0 ? 1.01 : 1));
+  const bruto = Array.from({ length: n }, (_, i) => pa * fator(i) * (i === n - 1 ? km - (n - 1) : 1));
+  const aj = T / bruto.reduce((a, b) => a + b, 0); let acc = 0;
+  return bruto.map((s, i) => { acc += s * aj; return { km: i === n - 1 ? km : i + 1, pace: pa * fator(i) * aj, acc }; });
+}
+async function viewPlanoProva(pid) {
+  loading(); S.staff ? dockStaff() : dockAluno();
+  const p = await sb.from('nx_participacoes').select('*').eq('id', pid).maybeSingle().then((r) => r.data, () => null);
+  if (!p) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Prova não encontrada</div><a class="btn sm" href="#/" style="margin-top:12px">Voltar</a></div>'; return; }
+  const [m, corrs, aval] = await Promise.all([
+    sb.from('nx_membros').select('user_id,nome,corrida,nascimento,sexo').eq('org_id', S.org.id).eq('user_id', p.aluno_id).maybeSingle().then((r) => r.data || {}, () => ({})),
+    sb.from('nx_corridas').select('data,tipo,distancia_m,duracao_s,fc_media,rpe').eq('aluno_id', p.aluno_id).gte('data', new Date(Date.now() - 70 * 864e5).toISOString()).then((r) => r.data || [], () => []),
+    sb.from('nx_avaliacoes').select('peso,data').eq('aluno_id', p.aluno_id).order('data', { ascending: false }).limit(1).then((r) => (r.data || [])[0] || null, () => null),
+  ]);
+  const km = kmProvaAlvo(p), perfil = perfilCorrida(m);
+  const pv = previsaoEm(corrs, perfil, Date.now());
+  const iPv = km ? PROVAS_PREV.findIndex(([dd]) => Math.abs(dd / 1000 - km) < 0.3) : -1;
+  const prevT = km && pv ? (iPv >= 0 ? pv.tempos[iPv] : tempoPorVdot(pv.vdot, km * 1000)) : null;
+  const metaT = p.meta ? lerTempo(String(p.meta).trim()) : null;
+  let fonte = metaT ? 'meta' : prevT ? 'previsao' : null;
+  let modo = p.estrategia || (km && km >= 15 ? 'negativo' : 'constante');
+  let peso = num(aval && aval.peso) || num(((m.corrida || {}).peso)) || store.get('nx-peso-prova', null);
+  const d = Math.round((dia(p.data) - dia(hojeISO())) / 864e5);
+  const chk = store.get('nx-prova-chk-' + p.id, {});
+  const desenhar = () => {
+    const T = fonte === 'meta' ? metaT : fonte === 'previsao' ? prevT : null;
+    const sp = T && km ? splitsProva(T, km, modo) : [];
+    const mostrar = km > 12 ? sp.filter((s) => s.km % (km > 25 ? 5 : 1) === 0 || s.km === km || s.km === 1) : sp;
+    const metade = sp.length ? sp.find((s) => s.km >= km / 2) : null;
+    $app.innerHTML = `<a class="back" href="${S.staff ? `#/aluno/${p.aluno_id}/corrida` : '#/eventos'}">${I.back} ${S.staff ? esc(firstName(m.nome)) : 'Eventos'}</a>
+      <div class="pp-hero"><p class="eyebrow">Plano de prova${S.staff ? ' · ' + esc(m.nome || '') : ''}</p><h1 class="h1">${esc(p.titulo || 'Prova')}</h1>
+        <p class="small" style="opacity:.85;margin-top:4px">${fmtDiaSem(p.data)}${p.cidade ? ' · ' + esc(p.cidade) : ''}${km ? ` · ${String(f1(km)).replace(',0', '')} km` : ''}</p>
+        <div class="pp-cont"><b>${d > 1 ? `Faltam ${d} dias` : d === 1 ? 'É amanhã' : d === 0 ? 'É hoje!' : 'Prova realizada'}</b></div></div>
+      ${!km ? '<div class="card" style="margin-top:12px"><p class="small muted">Não foi possível identificar a distância desta prova. Edite a participação em Eventos informando a distância (ex.: 10 km).</p></div>' : `
+      <div class="section"><div class="section-h"><h2 class="h2">Tempo alvo</h2></div>
+        <div class="pp-fontes">${metaT ? `<button type="button" data-f="meta" class="${fonte === 'meta' ? 'on' : ''}"><span>Meta</span><b>${fmtDurLongo(metaT)}</b><small>${fmtPace(metaT / km)}</small></button>` : ''}
+          ${prevT ? `<button type="button" data-f="previsao" class="${fonte === 'previsao' ? 'on' : ''}"><span>Previsão do app</span><b>${fmtDurLongo(prevT)}</b><small>${fmtPace(prevT / km)}</small></button>` : ''}</div>
+        <form id="pp-meta" class="row" style="gap:8px;margin-top:10px"><input class="input" name="meta" placeholder="${metaT ? 'Mudar a meta' : 'Definir uma meta'} (ex.: 52:30 ou 1:55:00)" style="flex:1"><button class="btn ghost sm">Salvar</button></form>
+        ${prevT ? '<p class="tiny dim" style="margin-top:6px">A previsão usa as suas corridas das últimas semanas (fórmulas de Jack Daniels). Uma meta muito mais rápida que a previsão é arriscada.</p>' : ''}
+        ${metaT && prevT && metaT < prevT * 0.97 ? `<p class="small" style="color:var(--warn);margin-top:6px">A meta está ${difTxt(prevT - metaT)} mais rápida que a previsão. Converse com o seu treinador sobre a estratégia.</p>` : ''}</div>
+      ${T ? `<div class="section"><div class="section-h"><h2 class="h2">Ritmo por km</h2></div>
+        <div class="seg sm pp-modo"><button type="button" data-m="constante" class="${modo === 'constante' ? 'on' : ''}">Ritmo constante</button><button type="button" data-m="negativo" class="${modo === 'negativo' ? 'on' : ''}">Segunda metade mais rápida</button></div>
+        <p class="small muted" style="margin-top:8px">${modo === 'negativo' ? 'Começar levemente contido e acelerar um pouco na segunda metade. É a estratégia mais usada em recordes de provas longas e evita quebrar no fim.' : 'O mesmo ritmo do início ao fim, só com o 1º km um pouco mais contido por causa do aglomerado da largada.'}</p>
+        <div class="pp-res"><div><span>Pace médio</span><b>${fmtPace(T / km)}</b></div>${metade ? `<div><span>Na metade (km ${String(f1(metade.km)).replace(',0', '')})</span><b>${fmtDurLongo(metade.acc)}</b></div>` : ''}<div><span>Chegada</span><b>${fmtDurLongo(T)}</b></div></div>
+        <div class="pp-tab"><div class="pp-cab"><span>Km</span><span>Ritmo</span><span>Faixa</span><span>Tempo total</span></div>${mostrar.map((s) => `<div><span>${String(f1(s.km)).replace(',0', '')}</span><b>${fmtPace(s.pace).replace('/km', '')}</b><em>${fmtPace(s.pace - 4).replace('/km', '')} a ${fmtPace(s.pace + 4).replace('/km', '')}</em><span>${fmtDurLongo(s.acc)}</span></div>`).join('')}</div>
+        ${km > 12 ? `<p class="tiny dim" style="margin-top:6px">Mostrando ${km > 25 ? 'de 5 em 5 km' : 'km a km'}. A faixa é de 4 segundos para mais ou para menos.</p>` : '<p class="tiny dim" style="margin-top:6px">A faixa é de 4 segundos para mais ou para menos.</p>'}</div>` : ''}
+      <div class="section"><div class="section-h"><h2 class="h2">Alimentação e hidratação</h2></div>
+        ${!peso ? `<form id="pp-peso" class="card row" style="gap:8px;align-items:center"><span class="small grow">Informe o peso para calcular as quantidades.</span><input class="input" name="peso" inputmode="decimal" placeholder="kg" style="width:80px"><button class="btn ghost sm">Ok</button></form>` : `<p class="tiny dim">Calculado para ${f1(peso)} kg${T ? ` e cerca de ${fmtDurLongo(T)} de prova` : ''}.</p>`}
+        <div class="stack" style="margin-top:8px">${nutricaoProva(T || (km * 360), km, peso).map(([t, x]) => `<div class="card pp-nut"><b>${esc(t)}</b><p class="small" style="margin-top:4px">${esc(x)}</p></div>`).join('')}</div>
+        <p class="tiny dim" style="margin-top:8px">Baseado nas recomendações do ACSM e da Sociedade Internacional de Nutrição Esportiva. Teste tudo nos treinos longos: nada novo no dia da prova. Para um plano individual, procure um nutricionista.</p></div>`}
+      ${p.recado || S.staff ? `<div class="section"><div class="section-h"><h2 class="h2">Recado do treinador</h2></div>${S.staff ? `<textarea class="textarea" id="pp-recado" rows="3" placeholder="Estratégia, cuidados com o percurso, o que você quer que ele lembre na prova">${esc(p.recado || '')}</textarea><button class="btn ghost sm" id="pp-rec-salvar" style="margin-top:8px">Salvar recado</button>` : `<div class="card"><p style="white-space:pre-line">${esc(p.recado)}</p></div>`}</div>` : ''}
+      <div class="section"><div class="section-h"><h2 class="h2">Checagem</h2></div>
+        ${Object.entries(CHECK_PROVA_C).map(([k, l]) => { const feitos = l.filter((_, j) => chk[k + j]).length; return `<details class="card pp-chk" ${(k === 'semana' && d > 1 && d <= 7) || (k === 'vespera' && d === 1) || ((k === 'dia' || k === 'largada') && d === 0) ? 'open' : ''}><summary><b>${ROT_CHK[k]}</b><span class="tag ${feitos === l.length ? 'ok' : ''}">${feitos}/${l.length}</span></summary><div class="pm-chk" data-prova="${p.id}">${l.map((t, j) => `<label><input type="checkbox" data-ck="${k}${j}" ${chk[k + j] ? 'checked' : ''} ${S.staff ? 'disabled' : ''}><span>${esc(t)}</span></label>`).join('')}</div></details>`; }).join('')}</div>`;
+    $app.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { fonte = b.dataset.f; desenhar(); });
+    $app.querySelectorAll('[data-m]').forEach((b) => b.onclick = async () => { modo = b.dataset.m; desenhar(); await sb.from('nx_participacoes').update({ estrategia: modo }).eq('id', p.id).then(() => {}, () => {}); });
+    const fm = document.getElementById('pp-meta'); if (fm) fm.onsubmit = async (e) => { e.preventDefault(); const v = fm.meta.value.trim(), t = lerTempo(v); if (!t || t / km < 150 || t / km > 1200) return toast('Tempo inválido. Use o formato 52:30 ou 1:55:00.', true); const { error } = await sb.from('nx_participacoes').update({ meta: v }).eq('id', p.id); if (error) return toast('Não foi possível salvar.', true); p.meta = v; toast('Meta salva.'); viewPlanoProva(pid); };
+    const fp = document.getElementById('pp-peso'); if (fp) fp.onsubmit = (e) => { e.preventDefault(); const v = num(fp.peso.value); if (!v || v < 30 || v > 200) return toast('Peso inválido.', true); peso = v; store.set('nx-peso-prova', v); desenhar(); };
+    const rs = document.getElementById('pp-rec-salvar'); if (rs) rs.onclick = async () => { const v = document.getElementById('pp-recado').value.trim() || null; const { error } = await sb.from('nx_participacoes').update({ recado: v }).eq('id', p.id); if (error) return toast('Não foi possível salvar.', true); p.recado = v; toast('Recado salvo. O aluno vê no plano da prova.'); };
+    bindModoProva($app);
+  };
+  desenhar();
 }
 
 /* ---------- cards da tela Hoje (aparecem só no momento certo) ---------- */
@@ -7980,11 +8124,7 @@ async function staffHoje() {
     ${(() => { const resp = ativos.filter((m) => pronts.some((p) => p.aluno_id === m.user_id)); const at = pronts.filter((p) => p.alerta && vis.has(p.aluno_id)).length; const ok = pronts.filter((p) => !p.alerta && p.total >= 16 && vis.has(p.aluno_id)).length; const cgN = ativos.filter((m) => cargas[m.user_id] && cargas[m.user_id].nivel).length;
       return ativos.length ? `<a class="card pe-card" id="pront-eq" href="#/prontidao-equipe" style="color:inherit"><span class="ativ-ic">${PRONT_IC}</span><div class="grow" style="min-width:0"><b>Prontidão de hoje</b><div class="small muted">${resp.length} de ${ativos.length} responderam o check-in${at ? ` · <span style="color:var(--err)">${at} pede${at > 1 ? 'm' : ''} atenção</span>` : ''}${ok ? ` · ${ok} pronto${ok > 1 ? 's' : ''} para treinar` : ''}${cgN ? ` · <span style="color:var(--warn)">${cgN} com alerta de carga</span>` : ''}</div></div>${I.chev}</a>` : ''; })()}
     ${ehSeg ? resumoHTML : ''}
-    ${(() => { const aniv = ativos.filter((m) => ehAniversario(m.nascimento)); const prox = ativos.filter((m) => !ehAniversario(m.nascimento) && [1, 2, 3, 4, 5, 6].some((d) => ehAniversario(m.nascimento, d)));
-      if (!aniv.length && !prox.length) return '';
-      const msg = (m) => encodeURIComponent(`Parabéns, ${firstName(m.nome)}! Toda a equipe Nexos deseja um novo ano cheio de saúde, treinos e conquistas. Bora pra cima!`);
-      return `<div class="section"><div class="section-h"><h2 class="h2">Aniversários</h2>${slashes}</div><div class="stack">${aniv.map((m) => `<div class="list-item aniv">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small" style="color:var(--acc);font-weight:700">Faz aniversário hoje${m.nascimento ? ` · ${idadeEm(m.nascimento)} anos` : ''}</span></div>${m.telefone ? `<a class="btn sm" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}?text=${msg(m)}" target="_blank" rel="noopener">Parabéns</a>` : `<a class="btn sm" href="#/aluno/${m.user_id}/conversa">Parabéns</a>`}</div>`).join('')}
-        ${prox.length ? `<p class="small muted" style="margin-top:4px">Esta semana: ${prox.map((m) => `${esc(firstName(m.nome))} (${fmtCurto(isoDia(new Date()).slice(0, 4) + m.nascimento.slice(4, 10) + 'T12:00:00')})`).join(', ')}</p>` : ''}</div></div>`; })()}
+    <div id="datas-esp"></div>
     ${(() => { const card = ({ m, l }) => `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l.slice(0, 3).map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`).join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => { const p = l[0].p; const n = p === 1 ? ['Alta', 'n-alta'] : p <= 3 ? ['Média', 'n-media'] : ['Baixa', 'n-baixa']; return `<span class="nivel ${n[1]}">${n[0]}</span>`; })()}</a>`;
       return (alMeus.length ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>` : ''); })()}
     <div id="sug-hoje"></div>
@@ -7997,6 +8137,7 @@ async function staffHoje() {
   dadosSugestoes(ativos.map((m) => m.user_id), 1).then((sg) => { const bx = document.getElementById('sug-hoje'); if (!bx || !sg.length) return; bx.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Sugestões do app</h2><span class="tag acc">${sg.length}</span></div><div class="stack">${sg.map((x) => sugCardHTML(x)).join('')}</div></div>`; bindSugestoes(bx, sg, () => { if (!bx.querySelector('.sug-card')) bx.innerHTML = ''; }); }).catch((e) => console.error(e));
   bindCartaoPush();
   convidarTour();
+  datasEspeciais(document.getElementById('datas-esp'), ativos);
   $app.querySelectorAll('[data-visto]').forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); marcarVisto(b); });
   $app.querySelectorAll('[data-aprovar]').forEach((b) => b.onclick = async () => {
     const m = pendentes.find((x) => x.user_id === b.dataset.aprovar); if (!m) return;
