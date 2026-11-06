@@ -2023,7 +2023,7 @@ const TOUR_PASSOS = [
   { rota: '#/', sel: '#pront-abrir', t: 'Check-in da manhã', d: 'De manhã, 20 segundos: sono, energia, dor e estresse. Se marcar dor, um boneco mostra onde dói. Seu treinador recebe e ajusta o treino.' },
   { rota: '#/', sel: '.hoje-main > .stack', t: 'Treino de hoje', d: () => faz('corrida') && faz('musculacao') ? 'O treino do dia: na corrida, o passo a passo com os ritmos de cada trecho; na força, os exercícios. E o recado do treinador.' : faz('corrida') ? 'O treino do dia com o passo a passo, os ritmos de cada trecho e o recado do treinador.' : 'O treino de força do dia, com os exercícios e o recado do treinador.' },
   { so: 'corrida', rota: '#/', sel: '.corr-home a[href^="#/gps"]', t: 'Treinar pelo celular', d: 'Sem relógio? O app marca distância, pace e voz a cada trecho, na rua (GPS) ou na esteira.' },
-  { rota: '#/', sel: '#agua-box', t: 'Copo de água', d: 'Toque a cada água que beber. A meta é calculada pelo seu peso e pelo treino do dia. Você recebe um lembrete a cada 40 minutos até bater a meta, e dá para desligar ali embaixo.' },
+  { rota: '#/', sel: '#agua-box', t: 'Copo de água', d: 'Toque a cada água que beber. A meta é calculada pelo seu peso e pelo treino do dia. Você recebe um lembrete de hora em hora até bater a meta, e dá para desligar ali embaixo.' },
   { rota: '#/', sel: '.hoje-tiles', t: 'Seus números', d: () => { const c = faz('corrida'), m = faz('musculacao'); const it = [c && 'contagem para a próxima prova', c && 'previsão do seu tempo nos 5 km', c && 'quantas corridas e km você fez na semana', m && 'a fase do seu treino de força'].filter(Boolean); return it.join(', ').replace(/, ([^,]*)$/, ' e $1').replace(/^./, (x) => x.toUpperCase()) + '.'; } },
   { rota: '#/', sel: '.semana-comp', t: 'Sua semana', d: 'Os dias em que você treinou nesta semana.' },
   { rota: '#/', sel: '#fab-reg', t: 'Botão +', d: () => faz('corrida') ? 'Treinar pelo celular, registrar uma corrida feita sem relógio ou falar com o treinador.' : 'Atalho para falar com o seu treinador: dor, dúvida ou recado.' },
@@ -2236,7 +2236,7 @@ async function montarAgua(box, minTreino) {
     }
     if (e.target.closest('#agua-lemb')) {
       const lig = S.me.lembrete_agua !== false;
-      return openSheet(`<div class="h2">Lembretes de água</div><p class="small muted" style="margin-top:6px">Um aviso a cada 40 minutos, das 8h às 20h, com quanto falta para a sua meta. Quando você bate a meta do dia, os avisos param.</p><button class="btn block" id="lemb-t" style="margin-top:14px">${lig ? 'Desligar lembretes' : 'Ligar lembretes'}</button>`, (r) => {
+      return openSheet(`<div class="h2">Lembretes de água</div><p class="small muted" style="margin-top:6px">Um aviso de hora em hora, das 8h40 às 19h40, com quanto falta para a sua meta. Quando você bate a meta do dia, os avisos param.</p><button class="btn block" id="lemb-t" style="margin-top:14px">${lig ? 'Desligar lembretes' : 'Ligar lembretes'}</button>`, (r) => {
         r.querySelector('#lemb-t').onclick = async () => {
           const { error } = await sb.rpc('nx_lembrete_agua', { p_on: !lig });
           if (error) return toast('Não foi possível salvar.', true);
@@ -10702,7 +10702,7 @@ function saudeStatus(d) {
     acao: sp.length || pf.length ? 'Sem notificação, o aluno não recebe lembretes de água, o treino do dia nem as suas mensagens no celular.' : '',
     bts: sp.length > 1 ? [['todos-push', '', `Mandar o passo a passo no app para os ${sp.length}`]] : [] });
   const ag = d.agendador || [], falhou = ag.filter((x) => x.status === 'failed');
-  const NOME_JOB = (n) => (n === 'nx-avisos-manha' ? 'Bom dia com o treino' : /nx-agua-(\d)/.test(n) ? `Lembretes de água (${['8h, 10h, 12h…', '8h40, 10h40…', '9h20, 11h20…'][+n.slice(-1) - 1] || ''})` : n);
+  const NOME_JOB = (n) => (n === 'nx-avisos-manha' ? 'Bom dia com o treino' : /nx-agua-(\d)/.test(n) ? `Lembretes de água (${['8h40, o primeiro do dia', '9h40 a 18h40, de hora em hora', '19h40, o último do dia'][+n.slice(-1) - 1] || ''})` : n);
   out.push({ k: 'auto', t: 'Avisos automáticos', nivel: falhou.length ? 'err' : d.chamadas_falhas ? 'warn' : 'ok',
     res: falhou.length ? `${falhou.length} aviso${falhou.length > 1 ? 's' : ''} com falha na última execução` : d.chamadas_falhas ? `${d.chamadas_falhas} chamada${d.chamadas_falhas > 1 ? 's' : ''} com erro nas últimas 24 h` : 'Rodando nos horários certos',
     linhas: ag.map((x) => ({ html: `${NOME_JOB(x.nome)}: ${x.status === 'succeeded' ? `ok (${fmtDH(x.quando)})` : x.status === 'failed' ? `<span style="color:var(--err)">falhou (${fmtDH(x.quando)})</span>` : 'ainda não rodou (começa no próximo horário)'}`, bts: x.status === 'failed' ? [['rodar', x.nome, 'Rodar de novo agora']] : [] })),
