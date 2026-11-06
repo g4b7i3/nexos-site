@@ -1224,6 +1224,7 @@ async function alunoHoje() {
     const recs = recordesDoDia(data || [], hoje), b = document.getElementById('rec-box'); if (!b || !recs.length) return;
     b.innerHTML = `<div class="rec-card"><span class="rec-ic">${TROFEU_IC}</span><div class="grow"><span class="eyebrow">${recs.length > 1 ? 'Novos recordes pessoais' : 'Novo recorde pessoal'}</span>${recs.map((r) => `<div class="rec-l"><b>${r.n} em ${fmtDurLongo(r.t)}</b><small>antes ${fmtDurLongo(r.antes)} · ${fmtDurLongo(r.antes - r.t)} mais rápido</small></div>`).join('')}</div></div>`;
   }).catch(() => {});
+  if (fC) processarTestes(S.me).then((r) => { if (r && r.length) toast(`Suas zonas de treino foram atualizadas pelo ${TESTE_NOME[r[0].tipo]}.`); }).catch(() => {});
   montarAgua(document.getElementById('agua-box'), minTreinoHoje).catch((e) => console.error(e));
   if (fM) faseDaSemana(S.user.id, isoDia(inicioSemana())).then((f) => { const t = document.getElementById('fase-tile'); if (!t || !FASES_F[f]) return; const x = FASES_F[f]; t.hidden = false; t.style.setProperty('--fc', x.cor); t.classList.add('tile-fase'); t.innerHTML = `<span class="tile-l">${FORCA_IC}Força</span><b>${x.n}</b><small>${x.reps}</small>`; }).catch(() => {});
   if (fC) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).limit(1).then(({ data }) => { if (data && data.length) return; const b = document.getElementById('rel-pend'); if (!b || store.get('nx-rel-pend-off', false)) return; b.innerHTML = `<a class="list-item msg-row" href="#/conexoes"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Conecte o seu relógio</b><div class="small muted">Garmin e outras marcas: as corridas chegam sozinhas</div></div>${I.chev}</a>`; mostrarPend(); }).catch(() => {});
@@ -1842,6 +1843,12 @@ const clsRCQ = (v, sx) => v == null || !sx ? '' : v < (sx === 'M' ? 0.9 : 0.85) 
 const clsCint = (v, sx) => v == null || !sx ? '' : sx === 'M' ? (v >= 102 ? 'Risco muito aumentado' : v >= 94 ? 'Risco aumentado' : 'Dentro da referência') : (v >= 88 ? 'Risco muito aumentado' : v >= 80 ? 'Risco aumentado' : 'Dentro da referência');
 const clsPA = (s, d) => { if (!s || !d) return ''; if (s >= 180 || d >= 110) return 'Hipertensão estágio 3'; if (s >= 160 || d >= 100) return 'Hipertensão estágio 2'; if (s >= 140 || d >= 90) return 'Hipertensão estágio 1'; if (s >= 130 || d >= 85) return 'Pré-hipertensão'; if (s >= 120 || d >= 80) return 'Normal'; return 'Ótima'; };
 const mediana = (l) => { const v = l.filter((x) => x != null).sort((a, b) => a - b); if (!v.length) return null; const m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+// zonas de FC pela FC de limiar (Friel, 2009): Z1 < 85%, Z2 85-89%, Z3 90-94%, Z4 95-99%, Z5 100% ou mais da LTHR
+function zonasFCLimiar(lthr, fcMax) {
+  const Z = [['Z1', 'Regenerativo', 0.65, 0.84], ['Z2', 'Aeróbico leve', 0.85, 0.89], ['Z3', 'Aeróbico moderado', 0.9, 0.94], ['Z4', 'Limiar', 0.95, 0.99], ['Z5', 'Acima do limiar', 1, null]];
+  return Z.map(([z, n, a, b]) => ({ z, n, de: Math.round(a * lthr), ate: b ? Math.round(b * lthr) : Math.round(fcMax && fcMax > lthr ? fcMax : lthr * 1.08) }));
+}
+const zonasFCPerfil = (p) => (p.lthr ? zonasFCLimiar(p.lthr, p.fcMax) : zonasFC(p.fcMax, p.fcRep));
 function zonasFC(fcMax, fcRep) {
   const Z = [['Z1', 'Regenerativo', 0.5, 0.6], ['Z2', 'Aeróbico leve', 0.6, 0.7], ['Z3', 'Aeróbico moderado', 0.7, 0.8], ['Z4', 'Limiar', 0.8, 0.9], ['Z5', 'Máximo', 0.9, 1]];
   return Z.map(([z, n, a, b]) => ({ z, n, de: Math.round(fcRep ? fcRep + a * (fcMax - fcRep) : a * fcMax), ate: Math.round(fcRep ? fcRep + b * (fcMax - fcRep) : b * fcMax) }));
@@ -2964,8 +2971,11 @@ function perfilCorrida(m) {
   const fcMax = c.fc_max || (idade ? 208 - 0.7 * idade : null);
   // zonas automáticas (VDOT) + ajustes manuais do treinador, que têm prioridade
   let paces = pacesDe(vdot); const man = c.paces_manual && Object.keys(c.paces_manual).length ? c.paces_manual : null;
+  let za = c.zonas_auto && c.zonas_auto.paces ? c.zonas_auto : null; // zonas do último teste de campo (30 min, VAM ou VC)
+  if (za && c.teste_data && za.data && za.data < c.teste_data) za = null; // teste de prova mais novo vale mais
+  if (za) paces = { ...(paces || {}), ...za.paces };
   if (man) paces = { ...(paces || {}), ...man };
-  return { ...c, vdot, paces, manual: !!man, fcMax, fcRep: c.fc_rep || null };
+  return { ...c, vdot, paces, manual: !!man, auto: za, fcMax, fcRep: c.fc_rep || null, lthr: c.lthr || null };
 }
 function inicioSemana(d = new Date()) { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 const isoDia = (d) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
@@ -4073,6 +4083,137 @@ async function viewCorrida(id) {
   };
 }
 
+
+/* ---------- zonas automáticas pelos testes de campo ---------- */
+const TESTE_NOME = { t30: 'teste de 30 min (Friel)', vam: 'teste de VAM', vc: 'teste de velocidade crítica', cooper: 'teste de Cooper', t2400: 'teste de 2.400 m', t10k: 'teste de 10 km', fcmax: 'teste de FC máxima' };
+function tipoDoTeste(p) {
+  const t = semAcento(String((p && p.titulo) || '')).toLowerCase();
+  if (/30 ?min/.test(t) && /friel|limiar|teste/.test(t)) return 't30';
+  if (/\bvam\b|leger|boucher|vo2 ?max/.test(t)) return 'vam';
+  if (/velocidade critica|\bvc\b|1\.?200.*3\.?600/.test(t)) return 'vc';
+  if (/cooper|12 ?min/.test(t)) return 'cooper';
+  if (/2\.?400/.test(t)) return 't2400';
+  if (/fc ?max|frequencia cardiaca maxima/.test(t)) return 'fcmax';
+  if (/10 ?k|10 ?km/.test(t)) return 't10k';
+  return null;
+}
+// janela de tempo com maior velocidade média: {v (m/s), i, j}
+function melhorJanelaTempo(S_, W) {
+  const T = S_.t, D = S_.d; let best = null, j = 0;
+  for (let i = 0; i < T.length; i++) { while (j < T.length && T[j] - T[i] < W) j++; if (j >= T.length) break; const dt = T[j] - T[i]; if (dt > W * 1.15) continue; const v = (D[j] - D[i]) / dt; if (!best || v > best.v) best = { v, i, j }; }
+  return best;
+}
+// trecho de distância mais rápido: {seg, i, j}
+function melhorTrechoDist(S_, L) {
+  const T = S_.t, D = S_.d; let best = null, j = 0;
+  for (let i = 0; i < D.length; i++) { while (j < D.length && D[j] - D[i] < L) j++; if (j >= D.length) break; const dd = D[j] - D[i]; const seg = (T[j] - T[i]) * L / dd; if (!best || seg < best.seg) best = { seg, i, j }; }
+  return best;
+}
+function fcMediaEntre(S_, t0, t1) {
+  const T = S_.t, F = S_.fc; let soma = 0, peso = 0;
+  for (let k = 1; k < T.length; k++) { if (T[k] <= t0 || T[k - 1] >= t1 || !F[k]) continue; const dt = Math.min(T[k], t1) - Math.max(T[k - 1], t0); if (dt > 0) { soma += F[k] * dt; peso += dt; } }
+  return peso ? soma / peso : null;
+}
+// faixa de pace [rápido, lento] em s/km a partir de % de uma velocidade de referência (m/s)
+const faixaPorVel = (v, a, b) => [Math.round(1000 / (v * b)), Math.round(1000 / (v * a))];
+// paces por % do pace de limiar (Friel): maior % = mais lento
+const faixaPorLimiar = (pl, rapido, lento) => [Math.round(pl * rapido), Math.round(pl * lento)];
+function calcularTeste(tipo, c) {
+  const S_ = c.analise && c.analise.serie;
+  const temS = S_ && S_.t && S_.d && S_.t.length > 20;
+  const hoje = isoDia(c.data);
+  if (tipo === 't30') {
+    if (!temS) return null;
+    const w = melhorJanelaTempo(S_, 1800); if (!w || w.v < 1.5) return null;
+    const pl = 1000 / w.v, t0 = S_.t[w.i], t1 = S_.t[w.j];
+    const lthr = S_.fc ? Math.round(fcMediaEntre(S_, t0 + 600, t1) || 0) || null : null;
+    const paces = { rec: faixaPorLimiar(pl, 1.29, 1.4), leve: faixaPorLimiar(pl, 1.14, 1.29), maratona: faixaPorLimiar(pl, 1.06, 1.13), limiar: faixaPorLimiar(pl, 0.99, 1.05), intervalado: faixaPorLimiar(pl, 0.9, 0.96), tiros: faixaPorLimiar(pl, 0.82, 0.89) };
+    return { zonas_auto: { tipo, data: hoje, corrida_id: c.id, paces, pace_limiar: Math.round(pl), resumo: `limiar ${fmtPace(pl)}${lthr ? ` · FC de limiar ${lthr} bpm` : ''}` }, ...(lthr && lthr > 100 && lthr < 215 ? { lthr } : {}),
+      teste_km: +(w.v * 1.8).toFixed(2), teste_seg: 1800, teste_data: hoje }; // os 30 min também atualizam o VDOT e as previsões
+  }
+  if (tipo === 'vam') {
+    // velocidade do último estágio completo (2 min) = melhor média de 2 min
+    const vMan = c._vam ? c._vam / 3.6 : null; const w = vMan ? { v: vMan } : temS ? melhorJanelaTempo(S_, 120) : null; if (!w || w.v < 2) return null;
+    const kmh = w.v * 3.6;
+    const paces = { rec: faixaPorVel(w.v, 0.5, 0.6), leve: faixaPorVel(w.v, 0.6, 0.7), maratona: faixaPorVel(w.v, 0.75, 0.82), limiar: faixaPorVel(w.v, 0.83, 0.88), intervalado: faixaPorVel(w.v, 0.95, 1.0), tiros: faixaPorVel(w.v, 1.05, 1.15) };
+    return { zonas_auto: { tipo, data: hoje, corrida_id: c.id || null, paces, vam: +kmh.toFixed(1), vo2: +(3.5 * kmh).toFixed(1), resumo: `VAM ${f1(kmh)} km/h · VO₂máx estimado ${f1(3.5 * kmh)}` } };
+  }
+  if (tipo === 'vc') {
+    const t1 = c._t1 || (temS ? (melhorTrechoDist(S_, 1200) || {}).seg : null), t2 = c._t2 || (temS ? (melhorTrechoDist(S_, 3600) || {}).seg : null);
+    if (!t1 || !t2 || t2 <= t1) return null;
+    const vc = 2400 / (t2 - t1); if (vc < 2 || vc > 7) return null; const dl = Math.round(1200 - vc * t1);
+    const paces = { rec: faixaPorVel(vc, 0.6, 0.7), leve: faixaPorVel(vc, 0.7, 0.8), maratona: faixaPorVel(vc, 0.82, 0.88), limiar: faixaPorVel(vc, 0.9, 0.97), intervalado: faixaPorVel(vc, 1.0, 1.06), tiros: faixaPorVel(vc, 1.1, 1.2) };
+    return { zonas_auto: { tipo, data: hoje, corrida_id: c.id || null, paces, vc: +vc.toFixed(2), dlinha: dl, resumo: `VC ${f1(vc * 3.6)} km/h (${fmtPace(1000 / vc)})${dl > 0 ? ` · D' ${dl} m` : ''}` }, teste_km: 3.6, teste_seg: Math.round(t2), teste_data: hoje };
+  }
+  if (tipo === 'cooper' || tipo === 't2400' || tipo === 't10k') {
+    let km, seg;
+    if (tipo === 'cooper') { const w = temS ? melhorJanelaTempo(S_, 720) : null; const dist = w ? w.v * 720 : (c.duracao_s >= 690 && c.duracao_s <= 760 ? c.distancia_m * 720 / c.duracao_s : null); if (!dist) return null; km = +(dist / 1000).toFixed(2); seg = 720; }
+    else { const L = tipo === 't2400' ? 2400 : 10000; const b = temS ? melhorTrechoDist(S_, L) : null; seg = b ? Math.round(b.seg) : (c.distancia_m >= L * 0.99 && c.distancia_m <= L * 1.05 ? Math.round(c.duracao_s * L / c.distancia_m) : null); if (!seg) return null; km = L / 1000; }
+    if (seg / km < 150) return null;
+    return { teste_km: km, teste_seg: seg, teste_data: hoje };
+  }
+  if (tipo === 'fcmax') {
+    const F = (S_ && S_.fc) || []; if (F.length < 20) return null;
+    const sm = F.map((_, k) => { const v = F.slice(Math.max(0, k - 2), k + 3).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; });
+    const mx = Math.round(Math.max(...sm)); if (mx < 140 || mx > 225) return null;
+    return { fc_max: mx };
+  }
+  return null;
+}
+// procura testes da planilha já corridos e ainda não usados, calcula e aplica no perfil
+async function processarTestes(m) {
+  const alunoId = m.user_id, feitos = new Set(((m.corrida || {}).testes_proc) || []);
+  const { data: pl } = await sb.from('nx_plano_corrida').select('id,titulo,tipo,data').eq('aluno_id', alunoId).eq('tipo', 'teste').gte('data', isoDia(Date.now() - 45 * 864e5));
+  const testes = (pl || []).map((p) => ({ p, tipo: tipoDoTeste(p) })).filter((x) => x.tipo);
+  if (!testes.length) return [];
+  const { data: cs } = await sb.from('nx_corridas').select('id,data,distancia_m,duracao_s,plano_id,analise').in('plano_id', testes.map((x) => x.p.id));
+  const novos = (cs || []).filter((c) => !feitos.has(c.id)).sort((a, b) => (a.data < b.data ? -1 : 1));
+  const aplicados = [];
+  for (const c of novos) {
+    const t = testes.find((x) => x.p.id === c.plano_id); const r = calcularTeste(t.tipo, c);
+    feitos.add(c.id);
+    const dados = { ...(r || {}), testes_proc: [...feitos].slice(-30) };
+    const { data: nova, error } = await sb.rpc('nx_aplicar_teste', { p_aluno: alunoId, p_dados: dados });
+    if (error) { console.error(error); continue; }
+    if (nova) m.corrida = nova;
+    if (r) aplicados.push({ tipo: t.tipo, r });
+  }
+  if (alunoId === S.user.id && !S.staff) S.me.corrida = m.corrida;
+  return aplicados;
+}
+function formTesteCampo(m, onSalvo) {
+  openSheet(`<p class="eyebrow">Teste de campo</p><div class="h2" style="margin-top:4px">${esc(firstName(m.nome))}</div>
+    <p class="small muted" style="margin-top:6px">Lance o resultado de um teste feito sem relógio ou na esteira. As zonas do aluno se atualizam na hora.</p>
+    <div class="chips" id="tc-tipo" style="margin-top:12px"><button type="button" class="chip on" data-t="vam">VAM</button><button type="button" class="chip" data-t="vc">Velocidade crítica</button><button type="button" class="chip" data-t="t30">30 min (Friel)</button></div>
+    <form id="f-tc" style="margin-top:12px"><div id="tc-campos"></div><label class="field"><span>Data do teste</span><input class="input" type="date" name="data" value="${hojeISO()}"></label><p class="small" id="tc-prev" style="margin:-4px 0 12px;color:var(--acc)"></p><button class="btn block">Aplicar nas zonas</button></form>`, (r) => {
+    let tipo = 'vam'; const f = r.querySelector('#f-tc'), cp = r.querySelector('#tc-campos');
+    const CAMPOS = {
+      vam: '<label class="field"><span>Velocidade do último estágio completo (km/h)</span><input class="input" name="vam" data-mask="dec" inputmode="decimal" placeholder="Ex.: 16,5"></label>',
+      vc: '<div class="grid2"><label class="field"><span>Tempo dos 1.200 m</span><input class="input" name="t1" data-mask="tempo" inputmode="numeric" placeholder="4:10"></label><label class="field"><span>Tempo dos 3.600 m</span><input class="input" name="t2" data-mask="tempo" inputmode="numeric" placeholder="14:05"></label></div>',
+      t30: '<div class="grid2"><label class="field"><span>Distância em 30 min (km)</span><input class="input" name="km30" data-mask="dec" inputmode="decimal" placeholder="Ex.: 6,8"></label><label class="field"><span>FC média dos últimos 20 min</span><input class="input" name="fc30" data-mask="num" inputmode="numeric" placeholder="Ex.: 168"></label></div>',
+    };
+    const montar = () => { cp.innerHTML = CAMPOS[tipo]; aplicarMascaras(f); prev(); };
+    const calc = () => {
+      const base = { id: null, data: f.data.value || hojeISO(), analise: null };
+      if (tipo === 'vam') return calcularTeste('vam', { ...base, _vam: num(f.vam.value) });
+      if (tipo === 'vc') return calcularTeste('vc', { ...base, _t1: lerTempo(f.t1.value), _t2: lerTempo(f.t2.value) });
+      const km = num(f.km30.value), fc = Math.round(num(f.fc30.value) || 0); if (!km) return null;
+      const v = km * 1000 / 1800;
+      return calcularTeste('t30', { ...base, analise: { serie: { t: Array.from({ length: 31 }, (_, i) => i * 60), d: Array.from({ length: 31 }, (_, i) => Math.round(i * 60 * v)), fc: Array(31).fill(fc || null) } } });
+    };
+    const prev = () => { const x = calc(); r.querySelector('#tc-prev').textContent = x && x.zonas_auto ? x.zonas_auto.resumo + ` · leve ${faixaPace(x.zonas_auto.paces.leve)} · limiar ${faixaPace(x.zonas_auto.paces.limiar)}` : ''; };
+    r.querySelector('#tc-tipo').onclick = (e) => { const b = e.target.closest('[data-t]'); if (!b) return; tipo = b.dataset.t; r.querySelectorAll('#tc-tipo .chip').forEach((x) => x.classList.toggle('on', x === b)); montar(); };
+    f.oninput = prev; montar();
+    f.onsubmit = async (e) => {
+      e.preventDefault(); const x = calc(); if (!x) return toast('Confira os valores do teste.', true);
+      if (x.zonas_auto) x.zonas_auto.data = f.data.value || hojeISO(); if (x.teste_data) x.teste_data = f.data.value || hojeISO();
+      const { error } = await sb.rpc('nx_aplicar_teste', { p_aluno: m.user_id, p_dados: x });
+      if (error) { console.error(error); return toast('Não foi possível aplicar.', true); }
+      closeSheet(); toast('Zonas atualizadas pelo teste.'); onSalvo();
+    };
+  });
+}
+
 function formPerfilCorrida(m, onSalvo) {
   const c = m.corrida || {};
   openSheet(`<p class="eyebrow">Perfil de corrida</p><div class="h2" style="margin-top:4px">${esc(firstName(m.nome))}</div>
@@ -4825,6 +4966,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   S.cache.garmOn = !!garm;
   const perfil = perfilCorrida(m);
   const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
+  if (!st.testesOk) { st.testesOk = true; processarTestes(m).then((r) => { if (r && r.length) { toast(`Zonas atualizadas pelo ${TESTE_NOME[r[0].tipo]}.`); recarregar(); } }).catch((e) => console.error(e)); }
   const sub = st.sub;
   const subTabs = `<div class="subtabs">${[['planilha', 'Planilha'], ['evolucao', 'Evolução'], ['corridas', `Atividades${ativsTodas.length ? ' (' + ativsTodas.length + ')' : ''}`], ['ritmos', 'Ritmos e zonas']].filter(([k]) => SUBS.includes(k)).map(([k, l]) => `<button class="${sub === k ? 'on' : ''}" data-sub="${k}">${l}</button>`).join('')}</div>`;
   const rotulo = st.off === 0 ? (semanas > 1 ? 'Esta semana e a próxima' : 'Esta semana') : st.off === 1 ? 'Próxima semana' : st.off === -1 ? 'Semana passada' : `${ini.getDate()}/${ini.getMonth() + 1} a ${fim.getDate()}/${fim.getMonth() + 1}`;
@@ -4870,16 +5012,17 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const tileZ = ([k, l]) => staff
       ? `<div class="pz-ed" style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><div class="pz-in"><input class="input mono" data-pz="${k}" data-i="0" data-mask="pace" value="${mmss(faixaDe(k)[0])}" inputmode="numeric" aria-label="${l} de"><i>–</i><input class="input mono" data-pz="${k}" data-i="1" data-mask="pace" value="${mmss(faixaDe(k)[1])}" inputmode="numeric" aria-label="${l} até"><em>/km</em></div></div>`
       : `<div style="border-left:4px solid ${ZONAS_INFO[k].c}"><span>${l}</span><b>${paceZonaTxt(k, perfil)}</b></div>`;
-    corpo = `${perfil.paces || staff ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
+    corpo = `${perfil.paces || staff ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.auto && !perfil.manual ? `Base: ${esc(TESTE_NOME[perfil.auto.tipo] || 'teste de campo')}${perfil.auto.data ? ' · ' + fmtDia(perfil.auto.data) : ''} · ${esc(perfil.auto.resumo || '')}` : perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.auto ? '<span class="tag ok">atualizado pelo teste</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
         ${staff ? '<p class="tiny dim" style="margin-top:8px">Edite o pace de cada zona (minutos:segundos por km) e toque em “Salvar zonas”. É o que o aluno vê nos treinos.</p>' : ''}
         <div class="paces">${ZT.map(tileZ).join('')}</div>
         ${staff ? `<div class="${perfil.manual ? 'grid2' : ''}" style="margin-top:12px"><button class="btn block" id="pz-salvar">${I.check} Salvar zonas</button>${perfil.manual ? '<button class="btn ghost" id="pz-auto">Voltar ao automático</button>' : ''}</div>` : ''}
         ${perfil.vdot ? `<span class="small muted" style="display:block;margin-top:14px;font-weight:700">Previsão de provas</span>
         <div class="prev-prova">${[[5000, '5 km'], [10000, '10 km'], [21097, '21 km'], [42195, '42 km']].map(([d, l]) => `<div><span>${l}</span><b>${fmtDurLongo(prever(perfil.teste_km * 1000, perfil.teste_seg, d))}</b></div>`).join('')}</div>
-        <p class="tiny dim" style="margin-top:8px">Paces automáticos pelo VDOT de Jack Daniels; previsões pela fórmula de Riegel. São estimativas para provas no plano e com treino específico.</p>` : ''}</div>`
+        <p class="tiny dim" style="margin-top:8px">${perfil.auto && !perfil.manual ? ({ t30: 'Zonas em % do pace e da FC de limiar (Friel, 2009)', vam: 'Zonas em % da VAM (Léger e Boucher, 1980; Billat, 2001)', vc: 'Zonas em % da velocidade crítica (Jones e Vanhatalo, 2017)' }[perfil.auto.tipo] || 'Zonas pelo teste de campo') : 'Paces automáticos pelo VDOT de Jack Daniels'}; previsões pela fórmula de Riegel. São estimativas para provas no plano e com treino específico.</p>` : ''}</div>`
       : `<div class="empty"><div class="h3">Ritmos ainda não calculados</div><p class="small">Seu treinador vai cadastrar um teste para calcular os seus paces.</p></div>`}
-      ${staff ? `<button class="btn ${perfil.paces ? 'ghost' : ''} sm" id="ed-perfil" style="margin-top:12px">${perfil.paces ? 'Atualizar teste' : 'Cadastrar teste'}</button>` : ''}
-      ${perfil.fcMax ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}</span><div class="zonas" style="margin-top:12px">${zonasFC(perfil.fcMax, perfil.fcRep).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
+      ${staff ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn ${perfil.paces ? 'ghost' : ''} sm" id="ed-perfil">${perfil.paces ? 'Atualizar teste de prova' : 'Cadastrar teste'}</button><button class="btn ghost sm" id="ed-campo">Lançar teste de campo</button>${(m.corrida || {}).zonas_hist && (m.corrida || {}).zonas_hist.length ? '<button class="btn ghost sm" id="zn-volta">Voltar às zonas anteriores</button>' : ''}</div>
+        <p class="tiny dim" style="margin-top:8px">Quando o aluno corre um teste da biblioteca (30 min de Friel, VAM, velocidade crítica, Cooper, 2.400 m, 10 km ou FC máxima), as zonas se atualizam sozinhas com os dados do relógio.</p>` : ''}
+      ${perfil.fcMax || perfil.lthr ? `<div class="card" style="margin-top:12px"><span class="small muted">Zonas de FC · ${perfil.lthr ? `pela FC de limiar ${perfil.lthr} bpm (teste de 30 min, Friel)` : `FC máx ${Math.round(perfil.fcMax)} bpm${perfil.fc_max ? ' (medida)' : ' (estimada)'}${perfil.fcRep ? ` · repouso ${perfil.fcRep}` : ''}`}</span><div class="zonas" style="margin-top:12px">${zonasFCPerfil(perfil).map((z, i) => `<div class="zona z${i + 1}"><b>${z.z}</b><span>${z.n}</span><em>${z.de}–${z.ate}</em></div>`).join('')}</div></div>` : ''}`;
   }
   box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${corpo}</div>`;
   if (sv) { const bl = box.querySelector('.biblio-l'); if (bl) bl.scrollLeft = sv.bl; scrollTo(scrollX, sv.y); requestAnimationFrame(() => { box.style.minHeight = ''; }); }
@@ -4903,6 +5046,14 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const { error } = await sb.from('nx_membros').update({ corrida }).eq('org_id', S.org.id).eq('user_id', alunoId);
     if (error) return toast('Não foi possível salvar.', true);
     m.corrida = corrida; toast('Zonas voltaram ao cálculo automático.'); recarregar();
+  };
+  const recarregarM = async () => { const { data } = await sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); m = data || m; recarregar(); };
+  if (q('#ed-campo')) q('#ed-campo').onclick = () => formTesteCampo(m, recarregarM);
+  if (q('#zn-volta')) q('#zn-volta').onclick = async () => {
+    const h = ((m.corrida || {}).zonas_hist || [])[0]; if (!h || !h.antes) return;
+    const corrida = { ...h.antes, zonas_hist: ((m.corrida || {}).zonas_hist || []).slice(1), testes_proc: (m.corrida || {}).testes_proc || [] };
+    const { error } = await sb.from('nx_membros').update({ corrida }).eq('org_id', S.org.id).eq('user_id', alunoId);
+    if (error) return toast('Não foi possível voltar.', true); toast('Zonas anteriores restauradas.'); recarregarM();
   };
   if (q('#ed-perfil')) q('#ed-perfil').onclick = () => formPerfilCorrida(m, async () => { const { data } = await sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(); m = data || m; recarregar(); });
   if (q('#intervals-box')) bindIntervals(q('#intervals-box'), integ, staff, alunoId, recarregar);
