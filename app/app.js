@@ -8479,7 +8479,7 @@ async function viewGps(id, modo) {
 }
 
 /* ---------- marcas de relógio: Garmin pela API oficial; as outras pelo Intervals.icu ---------- */
-const MARCAS = [['garmin', 'Garmin'], ['coros', 'Coros'], ['polar', 'Polar'], ['suunto', 'Suunto'], ['wahoo', 'Wahoo'], ['outro', 'Outro relógio']];
+const MARCAS = [['garmin', 'Garmin'], ['coros', 'Coros'], ['polar', 'Polar'], ['suunto', 'Suunto'], ['wahoo', 'Wahoo'], ['amazfit', 'Amazfit'], ['outro', 'Outro relógio']];
 const MARCA_NOME = Object.fromEntries(MARCAS);
 // logo oficial se o arquivo existir em icons/marcas/<marca>.png; senão, o nome da marca
 const marcaLogo = (k, nome) => k === 'outro' ? `<span class="marca-txt outro">${I.plus}<small>${nome}</small></span>` : `<img class="marca-img" src="icons/marcas/${k}.png" alt="${nome}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'marca-txt',textContent:'${nome}'}))">`;
@@ -8493,9 +8493,9 @@ function abrirMarca(k, garm, integ, marcaInt, recarregar) {
     return;
   }
   if (k === 'outro') {
-    openSheet(`<div class="h2">Outro relógio</div><p class="small muted" style="margin-top:6px">Amazfit, Apple Watch, Samsung, Xiaomi ou app de celular: envie o arquivo da corrida ou digite os dados.</p>
+    openSheet(`<div class="h2">Outro relógio</div><p class="small muted" style="margin-top:6px">Apple Watch, Samsung, Xiaomi ou app de celular: envie o arquivo da corrida ou digite os dados.</p>
       <button class="btn block" id="m-arq" style="margin-top:16px">${I.plus} Registrar uma corrida</button>
-      <p class="tiny dim" style="margin-top:12px"><b>Apple Watch:</b> o app HealthFit (iPhone) exporta a corrida em .FIT. <b>Amazfit/Zepp:</b> exporte pelo Strava ou pelo próprio app em .GPX.</p>`, (r) => { r.querySelector('#m-arq').onclick = () => { closeSheet(); registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; }); }; });
+      <p class="tiny dim" style="margin-top:12px"><b>Apple Watch:</b> o app HealthFit (iPhone) exporta a corrida em .FIT. <b>Amazfit:</b> conecte pelo botão Amazfit, que as corridas entram sozinhas.</p>`, (r) => { r.querySelector('#m-arq').onclick = () => { closeSheet(); registrarCorrida(S.user.id, (id) => { location.hash = '#/corrida/' + id; }); }; });
     return;
   }
   const ligado = integ && (!marcaInt || marcaInt === k);
@@ -8506,7 +8506,7 @@ function abrirMarca(k, garm, integ, marcaInt, recarregar) {
       : `<p class="small muted" style="margin-top:6px">O ${nome} chega ao app pelo <b>Intervals.icu</b>, um site gratuito que recebe as corridas do seu relógio. É só fazer uma vez:</p>
       <ol class="passos-marca">
         <li>Crie uma conta grátis no <a href="https://intervals.icu" target="_blank" rel="noopener">intervals.icu</a> (pode entrar com o Google).</li>
-        <li>Lá, abra <b>Configurações → Conexões</b> e conecte o seu <b>${nome}</b>.</li>
+        <li>Lá, abra <b>Configurações → Conexões</b> e conecte o seu <b>${nome}</b>.${k === 'amazfit' ? ' Ele entra com a sua conta do app <b>Zepp</b>; abra o Zepp no celular antes, para sincronizar.' : ''}</li>
         <li>Volte aqui e toque no botão abaixo para autorizar.</li></ol>
       <div id="m-box"><button class="btn block" id="int-on">Conectar ${nome}</button></div>
       <p class="tiny dim" style="margin-top:8px">Depois de conectado, cada corrida nova entra no app com gráficos, voltas, zonas e mapa.</p>`}`, (r) => {

@@ -1313,19 +1313,21 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
   .pa-btn{margin-top:8px;padding:7px 12px;font-size:.8rem;min-height:0}
 }
 /* marcas de relógio (Conexões) */
-.marcas{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-@media (min-width:760px){.marcas{grid-template-columns:repeat(6,1fr)}}
+.marcas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.marcas .marca[data-marca=outro]{grid-column:1/-1;height:56px}
+.marcas .marca[data-marca=outro] .marca-txt.outro{display:flex;align-items:center;gap:8px}
+@media (min-width:760px){.marcas{grid-template-columns:repeat(6,minmax(0,1fr))}}
 .marca{position:relative;height:84px;border-radius:16px;border:1px solid var(--line);background:var(--s1);display:grid;place-items:center;cursor:pointer;padding:10px;transition:transform .15s,border-color .15s;color:var(--ink)}
 .marca:active{transform:scale(.97)}
 .marca.on{border:2px solid var(--ok);box-shadow:0 6px 18px -10px var(--ok)}
 .marca-img{max-width:86%;max-height:34px;object-fit:contain}
-.marca-txt{font-family:var(--f-h);font-weight:800;font-size:.95rem;letter-spacing:.04em;text-transform:uppercase}
+.marca-txt{font-size:clamp(.72rem,3.4vw,1rem);font-family:var(--f-h);font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .marca-txt.outro{display:grid;justify-items:center;gap:4px;text-transform:none;letter-spacing:0;font-family:var(--f-b);color:var(--mute)}
 .marca-txt.outro svg{width:20px;height:20px}.marca-txt.outro small{font-size:.74rem;font-weight:700}
 .marca-ok{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:.62rem;font-weight:800;color:var(--ok);white-space:nowrap}
-.marca.on .marca-img,.marca.on .marca-txt{margin-bottom:12px}
+.marca.on .marca-img,.marca.on .marca-txt{font-size:clamp(.72rem,3.4vw,1rem);margin-bottom:12px}
 .marca-topo{display:grid;place-items:center;height:64px;border-radius:16px;background:var(--s1);border:1px solid var(--line)}
-.marca-topo .marca-txt{font-size:1.2rem}
+.marca-topo .marca-txt{font-size:clamp(.72rem,3.4vw,1rem);font-size:1.2rem}
 .passos-marca{margin:12px 0 14px;padding-left:20px;display:grid;gap:8px;font-size:.92rem}
 .passos-marca li::marker{font-weight:800;color:var(--acc2)}
 .aviso-dup{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,207,92,.14);border:1px solid rgba(255,207,92,.45);font-size:.85rem}
