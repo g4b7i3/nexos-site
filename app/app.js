@@ -861,7 +861,7 @@ function letraTreino(t, i) {
 const REG_DOR = { pescoco: 'Pescoço e trapézio', ombro: 'Ombro', braco: 'Braço (bíceps)', triceps: 'Braço (tríceps)', antebraco: 'Antebraço', mao: 'Punho e mão', peito: 'Peito', abdomen: 'Abdômen', quadril: 'Quadril e virilha', coxa_f: 'Coxa (frente)', joelho: 'Joelho', canela: 'Canela', tornozelo: 'Tornozelo', pe: 'Pé', costas: 'Costas', lombar: 'Lombar', gluteo: 'Glúteo', coxa_t: 'Coxa (posterior)', panturrilha: 'Panturrilha', aquiles: 'Tendão de Aquiles', calcanhar: 'Calcanhar e sola' };
 const REG_FEM = ['canela', 'panturrilha', 'coxa_f', 'coxa_t'];
 const nomeRegDor = (k) => {
-  const m = /^(.*)_(d|e)$/.exec(k); const b = m && REG_DOR[m[1]] ? m[1] : k, l = m && REG_DOR[m[1]] ? m[2] : ''; const n = REG_DOR[b] || b;
+  const m = /^(.*)_(d|e)$/.exec(k); const b = m && REG_DOR[m[1]] ? m[1] : k, l = m && REG_DOR[m[1]] ? m[2] : ''; const n = REG_DOR[b] || (b === 'colica' ? 'Cólica menstrual' : b);
   if (!l) return n;
   const lado = (REG_FEM.includes(b) ? (l === 'd' ? 'direita' : 'esquerda') : (l === 'd' ? 'direito' : 'esquerdo'));
   if (/ e /.test(n)) return `${n} (lado ${l === 'd' ? 'direito' : 'esquerdo'})`;
@@ -1213,6 +1213,9 @@ const SUG_DOR = {
   triceps: { c: null, f: [/tr[ií]ceps|supino|paralela|mergulho|franc[eê]s|testa|push/, ['Reduzir a carga de: {ex}']] },
   antebraco: { c: null, f: [/rosca|terra|remada|barra|farmer|pegada/, ['Usar pegada neutra ou strap', 'Reduzir a carga de: {ex}']] },
   mao: { c: null, f: [/rosca|terra|remada|barra|farmer|pegada|flex[aã]o/, ['Usar pegada neutra ou strap', 'Reduzir a carga de: {ex}']] },
+  // cólica marcada pela aluna (check-in ou área do ciclo): não é lesão, então o ajuste é só de intensidade
+  colica: { c: ['Cólica menstrual. Exercício leve costuma aliviar a dor; treino intenso pode aumentar o desconforto nos dias de cólica forte.', ['Trocar tiros e treinos fortes por rodagem leve ou regenerativo nos dias de cólica forte', 'Se ela se sentir bem, pode manter o treino: estar menstruada não é motivo para parar', 'Cólica muito forte, que não melhora com analgésico comum ou que se repete todo ciclo: orientar avaliação ginecológica']],
+    f: [/abdominal|prancha|crunch|eleva[cç][aã]o de pernas|terra|agach|stiff|rdl|hip ?thrust|leg ?press/, ['Reduzir a carga de: {ex}', 'Evitar exercícios com muita pressão no abdome nos dias de cólica forte']] },
 };
 const baseReg = (k) => { const m = /^(.*)_(d|e)$/.exec(k); return m && SUG_DOR[m[1]] ? m[1] : k; };
 // junta os dados de um ou mais alunos para montar as sugestões
@@ -1223,7 +1226,9 @@ async function dadosSugestoes(alunoIds, diasPront = 2) {
     sb.from('nx_prontidao').select('id,aluno_id,dia,dor,dor_locais,dor_int,obs,total').eq('org_id', S.org.id).in('aluno_id', alunoIds).gte('dia', isoDia(Date.now() - 7 * 864e5)).order('dia', { ascending: false }).then((r) => r.data || [], () => []),
     sb.from('nx_sug_ocultas').select('chave').eq('org_id', S.org.id).in('aluno_id', alunoIds).then((r) => new Set((r.data || []).map((x) => x.chave)), () => new Set()),
   ]);
-  const comDor = pronts.filter((p) => p.dia >= ini && p.dor_locais && p.dor_locais.length);
+  const cics = await sb.from('nx_ciclo_dias').select('id,aluno_id,dia,colica_int').eq('org_id', S.org.id).in('aluno_id', alunoIds).gte('dia', ini).gte('colica_int', 6).order('dia', { ascending: false }).then((r) => r.data || [], () => []);
+  const comDor = [...pronts.filter((p) => p.dia >= ini && p.dor_locais && p.dor_locais.length),
+    ...cics.map((x) => ({ id: 'cic' + x.id, aluno_id: x.aluno_id, dia: x.dia, dor: null, dor_locais: ['colica'], dor_int: x.colica_int, obs: null }))].sort((a, b) => (a.dia < b.dia ? 1 : -1));
   const ids = [...new Set(comDor.map((p) => p.aluno_id))];
   if (!ids.length) return [];
   const ini28 = isoDia(Date.now() - 28 * 864e5);
@@ -1255,8 +1260,9 @@ function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave, cg) {
   const fazC = faz('corrida', m), fazF = faz('musculacao', m);
   const blocos = [], dados = [], alertas = [];
   const int = p.dor_int;
-  if (int != null && int >= 7) alertas.push(`Dor intensa (${int}/10): encaminhar para avaliação de fisioterapeuta ou médico antes de treinar a região.`);
-  if (repeticoes >= 3) alertas.push(`Dor relatada em ${repeticoes} check-ins nos últimos 7 dias: encaminhar para avaliação.`);
+  if (b === 'colica') { if (int != null && int >= 8) alertas.push(`Cólica muito forte (${int}/10). Se não melhorar com analgésico comum ou se repetir todo ciclo, orientar avaliação ginecológica.`); }
+  else if (int != null && int >= 7) alertas.push(`Dor intensa (${int}/10): encaminhar para avaliação de fisioterapeuta ou médico antes de treinar a região.`);
+  if (b !== 'colica' && repeticoes >= 3) alertas.push(`Dor relatada em ${repeticoes} check-ins nos últimos 7 dias: encaminhar para avaliação.`);
   if (base.alerta) alertas.push(base.alerta);
   // corrida: volume da semana e carga aguda x crônica
   if (fazC && base.c) {
@@ -1288,8 +1294,9 @@ function montarSugestao(p, k, m, corrs, trs, sess, repeticoes, chave, cg) {
 }
 
 /* ---------- ajuste pronto a partir da sugestão: treinos e textos escritos como o treinador ---------- */
-const REG_PERNA = ['joelho', 'canela', 'panturrilha', 'aquiles', 'calcanhar', 'pe', 'tornozelo', 'coxa_t', 'coxa_f', 'quadril', 'gluteo', 'lombar'];
+const REG_PERNA = ['colica', 'joelho', 'canela', 'panturrilha', 'aquiles', 'calcanhar', 'pe', 'tornozelo', 'coxa_t', 'coxa_f', 'quadril', 'gluteo', 'lombar'];
 const DICA_DOR = {
+  colica: 'Ritmo confortável. Se a cólica apertar durante o treino, diminua o ritmo ou caminhe. Bolsa de água morna depois do treino ajuda.',
   joelho: 'Evite descidas e mantenha passadas curtas, com a cadência um pouco mais alta.',
   canela: 'Prefira terra batida ou grama. Se a dor aumentar durante a corrida, pare e caminhe.',
   panturrilha: 'Sem subidas e sem acelerações por enquanto.',
@@ -1304,7 +1311,7 @@ const DICA_DOR = {
   lombar: 'Ritmo confortável, postura alta e core ativo. Se a dor descer para a perna, me avise.',
 };
 const ehForte = (p) => /tiros|intervalado|ritmo|fartlek|longao|teste/.test(p.tipo || '') || estruturaDe(p).some((e) => ['limiar', 'intervalado', 'tiros'].includes(e.z) || (e.passos || []).some((x) => ['limiar', 'intervalado', 'tiros'].includes(x.z)));
-const nivelDor = (x) => ((x.p.dor_int != null && x.p.dor_int >= 7) || x.rep >= 3 || x.p.dor === 1 ? 'alto' : x.p.dor_int != null && x.p.dor_int <= 3 ? 'leve' : 'medio');
+const nivelDor = (x) => (x.k === 'colica' ? (x.p.dor_int != null && x.p.dor_int >= 8 ? 'medio' : 'leve') : ((x.p.dor_int != null && x.p.dor_int >= 7) || x.rep >= 3 || x.p.dor === 1 ? 'alto' : x.p.dor_int != null && x.p.dor_int <= 3 ? 'leve' : 'medio'));
 const min5 = (v) => Math.max(15, Math.round(v / 5) * 5);
 async function dadosAjuste(x) {
   const hoje = hojeISO(), fimSem = somaDias(isoDia(inicioSemana()), 6);
@@ -1320,7 +1327,7 @@ async function dadosAjuste(x) {
 }
 function proporAjuste(x, d, nivel) {
   const b = baseReg(x.k), reg = nomeRegDor(x.k).toLowerCase(), hoje = hojeISO();
-  const motivo = `Ajustado por causa da dor ${x.p.dor_int != null ? `(${x.p.dor_int}/10) ` : ''}que você marcou no check-in: ${reg}.`;
+  const motivo = b === 'colica' ? `Ajustado por causa da cólica ${x.p.dor_int != null ? `(${x.p.dor_int}/10) ` : ''}que você registrou.` : `Ajustado por causa da dor ${x.p.dor_int != null ? `(${x.p.dor_int}/10) ` : ''}que você marcou no check-in: ${reg}.`;
   const dica = DICA_DOR[b] || '';
   const fim = 'Se a dor passar de 5 de 10 durante o treino, pare e me avise.';
   const corr = [];
@@ -1355,6 +1362,9 @@ function msgAjuste(x, corr, forca, nivel) {
   const b = baseReg(x.k), reg = nomeRegDor(x.k).toLowerCase(), dica = DICA_DOR[b] || '', fim = 'Se a dor passar de 5 de 10 durante o treino, pare e me avise.';
   const diaC = (q) => `${DSEM[dsemIdx(q.data)].slice(0, 3)} ${fmtCurto(q.data)}`;
   const linhas = [...corr.map((c) => `- ${diaC(c.q)}: ${c.para}`), ...forca.map((f) => `- ${f.n}: ${f.tipo === 'pausar' ? 'pausado' : 'carga reduzida'}`)];
+  if (b === 'colica') return [`Oi, ${firstName(x.m.nome)}! Vi que você registrou cólica ${x.p.dor_int != null ? `(${x.p.dor_int}/10) ` : ''}hoje.`,
+    linhas.length ? `Deixei os próximos treinos mais leves:\n${linhas.join('\n')}` : 'Treine pela sensação nos próximos dias.',
+    dica, 'Se a cólica estiver muito forte e não melhorar com o remédio de costume, vale conversar com o seu ginecologista.', 'Qualquer coisa, me chama por aqui.'].filter(Boolean).join('\n\n');
   return [`Oi, ${firstName(x.m.nome)}! Vi no seu check-in a dor ${x.p.dor_int != null ? `(${x.p.dor_int}/10) ` : ''}que você marcou: ${reg}.`,
     linhas.length ? `Ajustei seus treinos para a região recuperar:\n${linhas.join('\n')}` : 'Vamos acompanhar de perto nos próximos dias.',
     dica, nivel === 'alto' ? 'Como a dor está forte, quero que você procure uma avaliação com fisioterapeuta ou médico antes de voltar a treinar a região.' : fim,
@@ -1362,6 +1372,8 @@ function msgAjuste(x, corr, forca, nivel) {
 }
 async function revisarAjuste(x, depois) {
   const d = await dadosAjuste(x);
+  // cólica passa em poucos dias: o ajuste vale só para hoje e os 2 dias seguintes
+  if (x.k === 'colica') { d.ate = somaDias(hojeISO(), 2); d.plano = d.plano.filter((q) => q.data <= d.ate); }
   let nivel = nivelDor(x), prop = proporAjuste(x, d, nivel);
   const reg = nomeRegDor(x.k).toLowerCase();
   const corpo = () => `<p class="eyebrow">Ajuste pronto · revise antes de aplicar</p><div class="h2" style="margin-top:4px">${esc(firstName(x.m.nome))} · dor: ${esc(reg)}</div>
@@ -6480,11 +6492,12 @@ function abrirCiclo(c, depois) {
 }
 
 /* ---------- Ciclo menstrual: área completa (Mais > Ciclo menstrual) ---------- */
-const CIC_SINT = [['colica', 'Cólica'], ['lombar', 'Dor lombar'], ['cabeca', 'Dor de cabeça'], ['inchaco', 'Inchaço'], ['seios', 'Seios sensíveis'], ['cansaco', 'Cansaço'], ['espinhas', 'Espinhas'], ['calor', 'Ondas de calor'], ['nausea', 'Náusea'], ['manchas', 'Manchas fora da menstruação']];
-const CIC_HUMOR = [['bem', 'Bem'], ['sensivel', 'Sensível'], ['irritada', 'Irritada'], ['ansiosa', 'Ansiosa'], ['triste', 'Triste'], ['desanimada', 'Desanimada']];
+const CIC_SINT = [['colica', 'Cólica'], ['lombar', 'Dor lombar'], ['cabeca', 'Dor de cabeça'], ['inchaco', 'Inchaço'], ['seios', 'Seios sensíveis'], ['cansaco', 'Cansaço'], ['pernas', 'Pernas pesadas'], ['sono_ruim', 'Sono ruim'], ['intestino', 'Intestino alterado'], ['doce', 'Vontade de doce'], ['espinhas', 'Espinhas'], ['calor', 'Ondas de calor'], ['nausea', 'Náusea'], ['tontura', 'Tontura'], ['manchas', 'Manchas fora da menstruação']];
+const CIC_CUID = [['remedio', 'Tomei remédio para dor'], ['bolsa', 'Usei bolsa quente'], ['alongou', 'Fiz alongamento ou respiração']];
+const CIC_HUMOR = [['bem', 'Bem'], ['calma', 'Calma'], ['motivada', 'Motivada'], ['sensivel', 'Sensível'], ['irritada', 'Irritada'], ['ansiosa', 'Ansiosa'], ['estressada', 'Estressada'], ['triste', 'Triste'], ['desanimada', 'Desanimada']];
 const CIC_FLUXO = [['leve', 'Leve', 1], ['medio', 'Médio', 2], ['intenso', 'Intenso', 3]];
 const CIC_ROSA = '#e85d75';
-const nomeSint = (k) => (CIC_SINT.find((x) => x[0] === k) || [, k])[1];
+const nomeSint = (k) => ([...CIC_SINT, ...CIC_CUID].find((x) => x[0] === k) || [, k])[1];
 const nomeHumor = (k) => (CIC_HUMOR.find((x) => x[0] === k) || [, k])[1];
 const nomeFluxo = (k) => (CIC_FLUXO.find((x) => x[0] === k) || [, k])[1];
 const gotasSVG = (n, cor = 'currentColor') => `<span class="gotas">${Array.from({ length: 3 }, (_, i) => `<svg viewBox="0 0 24 24" width="13" height="13" style="opacity:${i < n ? 1 : 0.25}"><path fill="${cor}" d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>`).join('')}</span>`;
@@ -6493,7 +6506,7 @@ function resumoDiaCiclo(r) {
   if (!r) return '';
   const p = [];
   if (r.menstruada) p.push(`Menstruada${r.fluxo ? ' · fluxo ' + nomeFluxo(r.fluxo).toLowerCase() : ''}`);
-  (r.sintomas || []).forEach((k) => p.push(k === 'colica' && r.colica_int != null ? `Cólica ${r.colica_int}/10` : nomeSint(k)));
+  (r.sintomas || []).filter((k) => !CIC_CUID.some((x) => x[0] === k)).forEach((k) => p.push(k === 'colica' && r.colica_int != null ? `Cólica ${r.colica_int}/10` : nomeSint(k)));
   return p.join(' · ');
 }
 // marca o início da menstruação quando ela não foi registrada nos 10 dias anteriores
@@ -6519,7 +6532,8 @@ function camposCicloHTML(r, curto) {
     <div class="pq cic-fluxo" ${r.menstruada ? '' : 'hidden'}><b>Fluxo</b><div class="cic-chips">${CIC_FLUXO.map(([k, t, n]) => `<button type="button" data-fl="${k}" class="${r.fluxo === k ? 'on' : ''}">${gotasSVG(n)}${t}</button>`).join('')}</div></div>
     <div class="pq"><b>Sintomas</b><div class="cic-chips">${sint.map(([k, t]) => `<button type="button" data-s="${k}" class="${(r.sintomas || []).includes(k) ? 'on' : ''}">${t}</button>`).join('')}</div></div>
     <div class="pq cic-colint" ${(r.sintomas || []).includes('colica') ? '' : 'hidden'}><b>Intensidade da cólica</b><div class="pq-int">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-ci="${i}" class="${r.colica_int === i ? 'on' : ''}">${i}</button>`).join('')}</div><div class="row between tiny dim" style="margin-top:4px"><span>leve</span><span>pior dor possível</span></div></div>
-    ${curto ? '' : `<div class="pq"><b>Humor</b><div class="cic-chips">${CIC_HUMOR.map(([k, t]) => `<button type="button" data-h="${k}" class="${(r.humor || []).includes(k) ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    ${curto ? '' : `<div class="pq"><b>Cuidados de hoje</b><div class="cic-chips">${CIC_CUID.map(([k, t]) => `<button type="button" data-s="${k}" class="${(r.sintomas || []).includes(k) ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    <div class="pq"><b>Humor</b><div class="cic-chips">${CIC_HUMOR.map(([k, t]) => `<button type="button" data-h="${k}" class="${(r.humor || []).includes(k) ? 'on' : ''}">${t}</button>`).join('')}</div></div>
     <label class="field"><span>Anotação do dia (opcional)</span><textarea class="input" id="cic-nota" rows="2" maxlength="1000" placeholder="Ex.: cólica forte de manhã, melhorou depois da caminhada">${esc(r.nota || '')}</textarea></label>`}
   </div>`;
 }
@@ -6584,6 +6598,21 @@ const ROTINAS_CICLO = {
     ['Ponte suave', 'Deitada, joelhos dobrados: suba o quadril devagar e desça vértebra por vértebra.', 60],
     ['Torção deitada', 'Joelhos dobrados caem para um lado, depois para o outro. Sem forçar.', 60],
   ] },
+  pernas: { t: 'Pernas leves', d: 'Para inchaço e pernas pesadas, 6 minutos', passos: [
+    ['Pernas na parede', 'Deitada, apoie as pernas na parede com o quadril perto dela. Respire devagar e solte o peso.', 120],
+    ['Bomba da panturrilha', 'Ainda com as pernas para cima, flexione e estenda os tornozelos sem parar, em ritmo calmo.', 60],
+    ['Alongamento de posterior', 'Deitada, uma perna estendida para cima com as mãos atrás da coxa. Troque na metade do tempo.', 60],
+    ['Borboleta deitada', 'Solas dos pés juntas, joelhos abertos. Mãos na barriga, respiração lenta.', 60],
+    ['Respiração 4 e 6', 'Inspire em 4 tempos e solte o ar em 6.', 60],
+  ] },
+  dormir: { t: 'Relaxar para dormir', d: 'Relaxamento do corpo antes de deitar, 5 minutos', passos: [
+    ['Ajeite-se', 'Deitada de barriga para cima, braços ao lado do corpo. Feche os olhos e respire normalmente.', 30],
+    ['Pés e pernas', 'Contraia os pés e as pernas por 5 segundos e solte tudo. Repita duas vezes e sinta o peso das pernas.', 50],
+    ['Barriga e quadril', 'Leve a atenção para a barriga. A cada vez que soltar o ar, deixe a região mais solta.', 50],
+    ['Ombros e braços', 'Suba os ombros em direção às orelhas, segure e solte. Deixe os braços pesados.', 50],
+    ['Rosto', 'Solte a mandíbula, a testa e os olhos. Língua solta dentro da boca.', 40],
+    ['Respiração lenta', 'Inspire em 4 tempos e solte em 6, até o fim do tempo. Se der sono, pode dormir.', 80],
+  ] },
   resp: { t: 'Respirar e relaxar', d: 'Respiração guiada para dor, ansiedade e sono, 3 minutos', resp: 180 },
 };
 function abrirRotina(k) {
@@ -6647,12 +6676,14 @@ const FASE_TXT = {
 async function viewCicloAluna(mesSel) {
   loading(); dockAluno();
   const hj = hojeISO();
-  const [c0, inis, dias] = await Promise.all([
+  const [c0, inis, dias, prontsC] = await Promise.all([
     sb.from('nx_ciclo').select('*').eq('aluno_id', S.user.id).maybeSingle().then((r) => r.data, () => null),
     sb.from('nx_ciclo_inicios').select('data').eq('aluno_id', S.user.id).order('data', { ascending: false }).limit(13).then((r) => (r.data || []).map((x) => x.data), () => []),
     sb.from('nx_ciclo_dias').select('*').eq('aluno_id', S.user.id).gte('dia', somaDias(hj, -400)).order('dia', { ascending: false }).then((r) => r.data || [], () => []),
+    sb.from('nx_prontidao').select('dia,sono,energia,total').eq('aluno_id', S.user.id).gte('dia', somaDias(hj, -200)).then((r) => r.data || [], () => []),
   ]);
   const c = c0 ? { ...c0, inicios: inis } : null;
+  if (c && c.ativo && mesSel === 'relatorio') return relatorioCiclo(c, inis, dias);
   const topo = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Saúde</p><h1 class="h1">Ciclo menstrual</h1>`;
   if (!c || !c.ativo) {
     $app.innerHTML = `${topo}<div class="card cic-intro" style="margin-top:14px"><div class="h3">Acompanhe o seu ciclo junto com o treino</div>
@@ -6710,22 +6741,121 @@ async function viewCicloAluna(mesSel) {
     const reg = porDia[k];
     cel.push(`<button type="button" class="cic-d${mens ? ' mens' : ''}${prev ? ' prev' : ''}${k === hj ? ' hoje' : ''}${futuro ? ' fut' : ''}" data-dia="${k}" ${futuro ? 'disabled' : ''}><b>${n}</b>${reg && ((reg.sintomas || []).length || (reg.humor || []).length || reg.nota) ? '<i></i>' : ''}</button>`);
   }
+  const verAno = mesSel === 'ano';
   const nomeMes = `${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][d0.getMonth()]} de ${d0.getFullYear()}`;
   $app.innerHTML = `${topo}${hero}
-    <div class="section"><div class="section-h"><h2 class="h2">${nomeMes}</h2><div class="row" style="gap:6px"><a class="icon-btn sm" href="#/ciclo/${mesAnt}" aria-label="Mês anterior">${I.back}</a><a class="icon-btn sm" href="#/ciclo/${mesProx}" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</a></div></div>
-      <div class="cic-cal"><div class="cic-sem">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cic-grade">${cel.join('')}</div></div>
+    <div class="section"><div class="cic-modo"><a href="#/ciclo" class="${verAno ? '' : 'on'}">Mês</a><a href="#/ciclo/ano" class="${verAno ? 'on' : ''}">Ano</a></div>
+      ${verAno ? anoCicloHTML(c, mensDias, porDia, inf) : `<div class="section-h" style="margin-top:12px"><h2 class="h2">${nomeMes}</h2><div class="row" style="gap:6px"><a class="icon-btn sm" href="#/ciclo/${mesAnt}" aria-label="Mês anterior">${I.back}</a><a class="icon-btn sm" href="#/ciclo/${mesProx}" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</a></div></div>
+      <div class="cic-cal"><div class="cic-sem">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cic-grade">${cel.join('')}</div></div>`}
       <div class="cic-leg cal"><span><i class="m"></i>Menstruação</span><span><i class="p"></i>Previsão</span><span><i class="r"></i>Registro do dia</span></div>
-      <p class="tiny dim" style="margin-top:6px">Toque em um dia para registrar ou ver como você estava.</p></div>
+      ${verAno ? '' : '<p class="tiny dim" style="margin-top:6px">Toque em um dia para registrar ou ver como você estava.</p>'}</div>
     <div class="section"><div class="section-h"><h2 class="h2">Seu histórico</h2></div>
       <div class="cic-stats"><div><b>${medCiclo || inf.ciclo || c.duracao_ciclo || '–'}<small> dias</small></b><span>ciclo ${medCiclo ? 'médio' : 'informado'}</span></div><div><b>${medMens || dm}<small> dias</small></b><span>menstruação ${medMens ? 'média' : 'informada'}</span></div><div><b>${inis.length}</b><span>${inis.length === 1 ? 'início registrado' : 'inícios registrados'}</span></div></div>
       ${ciclos.length ? `<div class="card" style="margin-top:10px"><b class="small">Últimos ciclos</b><div class="cic-hist">${ciclos.slice(0, 6).map((x) => `<div><span class="tiny dim">${fmtCurto(x.ini + 'T12:00:00')}</span><i style="width:${Math.min(100, (x.n / 45) * 100)}%"></i><b class="tiny">${x.n} dias</b></div>`).join('')}</div>${ciclos.some((x) => x.n < 21 || x.n > 35) ? '<p class="tiny" style="color:var(--warn);margin-top:8px">Algum ciclo ficou fora da faixa comum (21 a 35 dias). Se isso se repetir, vale conversar com o seu médico.</p>' : ''}</div>` : '<p class="small muted" style="margin-top:10px">Com dois ou mais inícios registrados aparece a duração de cada ciclo.</p>'}
       ${topS.length ? `<div class="card" style="margin-top:10px"><b class="small">Sintomas mais frequentes (90 dias)</b><div class="cic-hist">${topS.map(([k, n]) => `<div><span class="tiny dim">${esc(nomeSint(k))}</span><i style="width:${(n / maxS) * 100}%;background:${CIC_ROSA}"></i><b class="tiny">${n}x</b></div>`).join('')}</div></div>` : ''}</div>
+    ${padroesCicloHTML(c, dias, prontsC, inf)}
+    ${!inf.semFase ? hormoniosHTML(inf) : ''}
     ${autocuidadoHTML()}
-    <div class="section"><a class="link-btn small" href="#/saude">Editar ou desativar o acompanhamento do ciclo</a></div>`;
+    <div class="section"><div class="section-h"><h2 class="h2">Configurações</h2></div><div class="stack">
+      <label class="list-item" style="cursor:pointer"><span class="ativ-ic">${I.bell}</span><div class="grow"><b>Lembretes do ciclo</b><div class="small muted">Aviso 2 dias antes da menstruação prevista e lembrete para registrar quando ela atrasar</div></div><input type="checkbox" id="cic-lemb" class="switch" ${c.lembretes ? 'checked' : ''}></label>
+      <a class="list-item" href="#/ciclo/relatorio" style="color:inherit"><span class="ativ-ic">${I.hist || I.cal}</span><div class="grow"><b>Relatório para o médico</b><div class="small muted">Resumo dos ciclos e sintomas para salvar em PDF ou imprimir</div></div>${I.chev}</a>
+      <a class="list-item" href="#/saude" style="color:inherit"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Editar ou desativar</b><div class="small muted">Duração do ciclo, situação e apagar os dados</div></div>${I.chev}</a>
+    </div></div>`;
+  const lb = document.getElementById('cic-lemb');
+  if (lb) lb.onchange = async () => { const { error } = await sb.from('nx_ciclo').update({ lembretes: lb.checked }).eq('aluno_id', S.user.id); if (error) { lb.checked = !lb.checked; return toast('Não foi possível salvar.', true); } toast(lb.checked ? 'Lembretes do ciclo ativados.' : 'Lembretes do ciclo desativados.'); };
   const rg = document.getElementById('cic-reg'); if (rg) rg.onclick = () => registrarDiaCiclo(c, hj, () => viewCicloAluna(mesK));
   const bi = document.getElementById('cic-ini'); if (bi) bi.onclick = () => abrirCiclo(c, () => viewCicloAluna(mesK));
-  $app.querySelectorAll('.cic-d[data-dia]').forEach((b) => b.onclick = () => registrarDiaCiclo(c, b.dataset.dia, () => viewCicloAluna(mesK)));
+  $app.querySelectorAll('.cic-d[data-dia]').forEach((b) => b.onclick = () => registrarDiaCiclo(c, b.dataset.dia, () => viewCicloAluna(verAno ? 'ano' : mesK)));
   bindAutocuidado();
+}
+
+/** visão do ano: 12 meses pequenos com menstruação registrada e prevista */
+function anoCicloHTML(c, mensDias, porDia, inf) {
+  const hj = hojeISO(), ano = +hj.slice(0, 4);
+  const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `<div class="cic-ano">${MES.map((nm, mi) => {
+    const d0 = new Date(ano, mi, 1, 12), off = (d0.getDay() + 6) % 7, n = new Date(ano, mi + 1, 0).getDate();
+    const cel = Array.from({ length: off }, () => '<span></span>');
+    for (let d = 1; d <= n; d++) {
+      const k = `${ano}-${String(mi + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const f = !inf.semFase ? cicloFaseDia(c, k) : null, mens = mensDias.has(k), prev = !mens && f && f.fase === 'menstrual' && k >= hj;
+      cel.push(`<span class="${mens ? 'm' : prev ? 'p' : ''}${k === hj ? ' h' : ''}${porDia[k] && !mens ? ' r' : ''}">${d}</span>`);
+    }
+    return `<a class="cic-mini" href="#/ciclo/${ano}-${String(mi + 1).padStart(2, '0')}"><b>${nm}</b><div>${cel.join('')}</div></a>`;
+  }).join('')}</div>`;
+}
+/** padrões pessoais: em que dias do ciclo cada sintoma aparece e como ficam energia e prontidão em cada fase */
+function padroesCicloHTML(c, dias, pronts, inf) {
+  if (inf.semFase || !c.inicios || !c.inicios.length) return '';
+  const cl = inf.ciclo || c.duracao_ciclo || 28;
+  const porSint = {};
+  dias.forEach((x) => { const f = cicloFaseDia(c, x.dia); if (!f || f.previsto) return; (x.sintomas || []).filter((k) => !CIC_CUID.some((y) => y[0] === k)).forEach((k) => { (porSint[k] = porSint[k] || Array(cl).fill(0))[Math.min(cl, f.dia) - 1]++; }); });
+  const top = Object.entries(porSint).map(([k, a]) => [k, a, a.reduce((s2, v) => s2 + v, 0)]).filter((x) => x[2] >= 2).sort((a, b) => b[2] - a[2]).slice(0, 4);
+  const fases = {}; pronts.forEach((p) => { const f = cicloFaseDia(c, p.dia); if (!f || f.previsto) return; const g = (fases[f.fase] = fases[f.fase] || { n: 0, en: 0, tot: 0 }); g.n++; g.en += p.energia; g.tot += p.total; });
+  const comFase = Object.entries(fases).filter(([, g]) => g.n >= 3);
+  if (!top.length && comFase.length < 2) return `<div class="section"><div class="section-h"><h2 class="h2">Seus padrões</h2></div><div class="card"><p class="small muted">Registre os sintomas e responda o check-in da manhã por alguns ciclos. Aqui vai aparecer em que dias do ciclo cada sintoma costuma vir e como fica a sua energia em cada fase.</p></div></div>`;
+  const maxT = comFase.length ? Math.max(...comFase.map(([, g]) => g.tot / g.n)) : 20;
+  const frase = (k, a) => { let best = 0; a.forEach((v, i) => { if (v > a[best]) best = i; }); const ini = Math.max(0, best - 1), fim = Math.min(cl - 1, best + 1); return `costuma aparecer perto do dia ${best + 1} do ciclo${a[ini] && a[fim] && ini !== fim ? ` (dias ${ini + 1} a ${fim + 1})` : ''}`; };
+  return `<div class="section"><div class="section-h"><h2 class="h2">Seus padrões</h2></div>
+    ${top.length ? `<div class="card"><b class="small">Sintomas por dia do ciclo</b><p class="tiny dim" style="margin-top:2px">Quanto mais forte a cor, mais vezes você registrou naquele dia do ciclo.</p>
+      ${top.map(([k, a]) => { const mx = Math.max(...a); return `<div class="cic-pad"><div class="row between"><span class="small"><b>${esc(nomeSint(k))}</b> · ${frase(k, a)}</span></div><div class="cic-pad-l">${a.map((v, i) => `<i style="opacity:${v ? 0.25 + 0.75 * (v / mx) : 0.08}" title="Dia ${i + 1}: ${v}x"></i>`).join('')}</div></div>`; }).join('')}
+      <div class="row between tiny dim" style="margin-top:4px"><span>dia 1</span><span>dia ${cl}</span></div></div>` : ''}
+    ${comFase.length >= 2 ? `<div class="card" style="margin-top:10px"><b class="small">Sua prontidão em cada fase</b><p class="tiny dim" style="margin-top:2px">Média do check-in da manhã (de 4 a 20) nos dias de cada fase.</p>
+      <div class="cic-hist">${['menstrual', 'folicular', 'ovulatoria', 'lutea'].filter((f) => fases[f] && fases[f].n >= 3).map((f) => { const g = fases[f], v = g.tot / g.n; return `<div><span class="tiny dim">${FASES_CICLO[f][0].replace('Fase ', '')}</span><i style="width:${(v / maxT) * 100}%;background:${FASES_CICLO[f][1]}"></i><b class="tiny">${f1(v)}</b></div>`; }).join('')}</div>
+      <p class="tiny dim" style="margin-top:8px">Isso é só o seu histórico. Cada mulher responde de um jeito ao ciclo, e é por isso que o treino é ajustado pelo que você sente.</p></div>` : ''}</div>`;
+}
+/** curva dos hormônios ao longo do ciclo, com a marca de hoje */
+function hormoniosHTML(inf) {
+  if (!inf || !inf.ciclo) return '';
+  const cl = inf.ciclo, ov = cl - 14, W = 320, H = 120, x = (d) => 10 + ((d - 1) / (cl - 1)) * (W - 20);
+  const g = (d, mu, sd) => Math.exp(-((d - mu) ** 2) / (2 * sd * sd));
+  const est = (d) => 0.15 + 0.85 * g(d, ov - 1, 2.6) + 0.4 * g(d, ov + 7, 3.2), prog = (d) => 0.05 + 0.85 * g(d, ov + 7, 3.4) * (d > ov ? 1 : 0.15);
+  const caminho = (fn) => Array.from({ length: cl * 2 }, (_, i) => { const d = 1 + (i * (cl - 1)) / (cl * 2 - 1); return `${i ? 'L' : 'M'}${x(d).toFixed(1)} ${(H - 14 - fn(d) * (H - 30)).toFixed(1)}`; }).join(' ');
+  const hx = x(Math.min(cl, inf.dia || 1));
+  return `<div class="section"><div class="section-h"><h2 class="h2">Entenda o seu ciclo</h2></div><div class="card">
+    <svg viewBox="0 0 ${W} ${H}" class="cic-horm" role="img" aria-label="Variação do estrogênio e da progesterona ao longo do ciclo">
+      <rect x="10" y="${H - 10}" width="${x((inf.dm || 5) + 0.5) - 10}" height="4" rx="2" fill="${FASES_CICLO.menstrual[1]}"/>
+      <rect x="${x(ov - 1)}" y="${H - 10}" width="${x(ov + 1) - x(ov - 1)}" height="4" rx="2" fill="${FASES_CICLO.ovulatoria[1]}"/>
+      <path d="${caminho(est)}" fill="none" stroke="#35c3f0" stroke-width="3" stroke-linecap="round"/>
+      <path d="${caminho(prog)}" fill="none" stroke="#8b6be8" stroke-width="3" stroke-linecap="round"/>
+      <line x1="${hx}" x2="${hx}" y1="6" y2="${H - 12}" stroke="currentColor" stroke-dasharray="3 4" opacity=".6"/><text x="${hx}" y="12" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor">hoje</text>
+    </svg>
+    <div class="cic-leg cal" style="margin-top:6px"><span><i style="background:#35c3f0"></i>Estrogênio</span><span><i style="background:#8b6be8"></i>Progesterona</span></div>
+    <details class="ajuda" style="margin-top:10px"><summary>O que acontece em cada fase</summary>
+      <p><b>Menstrual:</b> os dois hormônios estão baixos e o útero descama. Cólica e cansaço são mais comuns.</p>
+      <p><b>Folicular:</b> o estrogênio sobe aos poucos até perto da ovulação. Muitas mulheres se sentem com mais energia.</p>
+      <p><b>Ovulatória:</b> pico de estrogênio e liberação do óvulo, cerca de 14 dias antes da próxima menstruação.</p>
+      <p><b>Lútea:</b> a progesterona sobe, a temperatura do corpo aumenta um pouco e, perto do fim, podem surgir sintomas de TPM.</p>
+      <p class="tiny dim">Curva ilustrativa: os níveis reais variam de mulher para mulher. Com anticoncepcional hormonal esse padrão não acontece.</p></details>
+  </div></div>`;
+}
+/** relatório para levar ao médico (salvar em PDF ou imprimir) */
+function relatorioCiclo(c, inis, dias) {
+  dockAluno();
+  const hj = hojeISO(), lista = inis.slice().sort().reverse();
+  const linhas = lista.slice(0, 8).map((ini, i) => {
+    const prox = lista[i - 1], dur = prox ? Math.round((dia(prox) - dia(ini)) / 864e5) : null;
+    const seus = dias.filter((x) => x.dia >= ini && (!prox || x.dia < prox));
+    let mens = 0; while (mens < 12 && seus.some((x) => x.dia === somaDias(ini, mens) && x.menstruada)) mens++;
+    const flx = seus.map((x) => x.fluxo).filter(Boolean); const fMax = flx.includes('intenso') ? 'Intenso' : flx.includes('medio') ? 'Médio' : flx.length ? 'Leve' : '–';
+    const col = seus.map((x) => x.colica_int).filter((v) => v != null); const colMax = col.length ? Math.max(...col) : null;
+    return `<tr><td>${fmtCurto(ini + 'T12:00:00')}</td><td>${dur ? dur + ' dias' : 'em curso'}</td><td>${mens >= 2 ? mens + ' dias' : '–'}</td><td>${fMax}</td><td>${colMax != null ? colMax + '/10' : '–'}</td></tr>`;
+  }).join('');
+  const ult = dias.filter((x) => x.dia >= somaDias(hj, -180)); const cont = {};
+  ult.forEach((x) => (x.sintomas || []).forEach((k) => (cont[k] = (cont[k] || 0) + 1)));
+  const sint = Object.entries(cont).filter(([k]) => !CIC_CUID.some((y) => y[0] === k)).sort((a, b) => b[1] - a[1]);
+  const rem = cont.remedio || 0;
+  $app.innerHTML = `<a class="back no-print" href="#/ciclo">${I.back} Ciclo menstrual</a>
+    <div class="cic-rel"><p class="eyebrow">Nexos Performance e Saúde</p><h1 class="h1" style="margin-top:4px">Relatório do ciclo menstrual</h1>
+      <p class="small muted" style="margin-top:6px">${esc(S.me.nome || '')} · gerado em ${fmtCurto(hj + 'T12:00:00')} · situação informada: ${esc(((SIT_CICLO.find((x) => x[0] === c.situacao) || [, ''])[1]).toLowerCase())}</p>
+      <h2 class="h3" style="margin-top:18px">Ciclos registrados</h2>
+      ${linhas ? `<table class="cic-tab"><thead><tr><th>Início</th><th>Duração do ciclo</th><th>Menstruação</th><th>Fluxo máximo</th><th>Cólica máxima</th></tr></thead><tbody>${linhas}</tbody></table>` : '<p class="small muted">Nenhum início registrado ainda.</p>'}
+      <h2 class="h3" style="margin-top:18px">Sintomas nos últimos 6 meses</h2>
+      ${sint.length ? `<p class="small">${sint.map(([k, n]) => `${esc(nomeSint(k))} (${n} ${n === 1 ? 'dia' : 'dias'})`).join(' · ')}</p>` : '<p class="small muted">Nenhum sintoma registrado.</p>'}
+      ${rem ? `<p class="small" style="margin-top:6px">Uso de remédio para dor registrado em ${rem} ${rem === 1 ? 'dia' : 'dias'}.</p>` : ''}
+      <p class="tiny dim" style="margin-top:18px">Dados registrados pela própria aluna no app da Nexos. Não substitui avaliação médica.</p></div>
+    <button class="btn block no-print" id="rel-imp" style="margin-top:16px">Salvar em PDF ou imprimir</button>`;
+  document.getElementById('rel-imp').onclick = () => window.print();
 }
 function autocuidadoHTML() {
   return `<div class="section" id="cic-auto"><div class="section-h"><h2 class="h2">Autocuidado</h2></div>
