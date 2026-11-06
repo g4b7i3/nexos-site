@@ -937,7 +937,7 @@ async function alunoHoje() {
       <h1>${saud}, ${esc(firstName(S.me.nome) || "atleta")}</h1>
       <p>${descanso ? 'Hoje é dia de descanso. Recuperar também é treino.' : 'Seu treino, sua evolução e sua água em um só lugar.'}</p>
       <div class="hh-stats">
-        <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>seguidas treinando</small></span></div>
+        <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>em sequência</small></span></div>
         ${fC ? `<div><span class="hh-ic">${icCorr(S.me)}</span><span><b>${kmSem ? f1(kmSem) : '0'}</b> km<small>nesta semana</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosSem}</b> ${nTreinosSem === 1 ? 'treino' : 'treinos'}<small>nesta semana</small></span></div>`}
       </div>
     </section>
@@ -950,6 +950,7 @@ async function alunoHoje() {
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
     </div>
+    <div id="agua-slot-m" class="agua-slot-m"></div>
     ${corrNova ? `<button class="card-cta" id="card-nova" style="margin-top:12px"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Corrida de ${fmtKm(corrNova.distancia_m, 1)} registrada!</b><span class="small">Gere o card e poste no seu story</span></div>${I.chev}</button>` : ''}
     <div id="ciclo-box"></div>
     </div><div class="hoje-side">
@@ -966,9 +967,11 @@ async function alunoHoje() {
     <button class="fab-reg" id="fab-reg">${I.plus}<span>Registrar</span></button>`;
   const pendSec = document.getElementById('pend-sec');
   const mostrarPend = () => { if (pendSec) pendSec.hidden = !document.getElementById('pend').textContent.trim() && !document.querySelector('#pend .card,#pend .list-item'); };
+  { const ab = document.getElementById('agua-box'), sm = document.getElementById('agua-slot-m'); if (ab && sm && !matchMedia('(min-width:900px)').matches) sm.appendChild(ab); }
   montarAgua(document.getElementById('agua-box'), minTreinoHoje).catch((e) => console.error(e));
   if (fM) faseDaSemana(S.user.id, isoDia(inicioSemana())).then((f) => { const t = document.getElementById('fase-tile'); if (!t || !FASES_F[f]) return; const x = FASES_F[f]; t.hidden = false; t.style.setProperty('--fc', x.cor); t.classList.add('tile-fase'); t.innerHTML = `<span class="tile-l">${FORCA_IC}Força</span><b>${x.n}</b><small>${x.reps}</small>`; }).catch(() => {});
   if (fC) sb.from('nx_integracoes').select('id').eq('user_id', S.user.id).limit(1).then(({ data }) => { if (data && data.length) return; const b = document.getElementById('rel-pend'); if (!b || store.get('nx-rel-pend-off', false)) return; b.innerHTML = `<a class="list-item msg-row" href="#/conexoes"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Conecte o seu relógio</b><div class="small muted">Garmin e outras marcas: as corridas chegam sozinhas</div></div>${I.chev}</a>`; mostrarPend(); }).catch(() => {});
+  { const fab = document.getElementById('fab-reg'); let tk = 0; const onS = () => { if (!document.body.contains(fab)) return window.removeEventListener('scroll', onS); if (tk) return; tk = requestAnimationFrame(() => { tk = 0; fab.classList.toggle('mini', window.scrollY > 80); }); }; window.addEventListener('scroll', onS, { passive: true }); }
   document.getElementById('fab-reg').onclick = () => openSheet(`<p class="eyebrow">Registrar</p><div class="stack" style="margin-top:12px">
       ${fC ? `<a class="pag-op" href="#/gps" data-close><span class="ativ-ic">${I.play}</span><div class="grow"><b>Treinar pelo celular</b><small>Na rua (GPS) ou na esteira</small></div>${I.chev}</a>
       <button class="pag-op" data-r="corr"><span class="ativ-ic">${icCorr(S.me)}</span><div class="grow"><b>Registrar uma corrida</b><small>Distância, tempo e como foi</small></div>${I.chev}</button>` : ''}

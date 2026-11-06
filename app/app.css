@@ -2127,3 +2127,9 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 .as-col em{font-style:normal;color:var(--acc);height:10px;line-height:10px}
 @media(max-width:899px){.hoje-grid{padding-bottom:64px}}
 .hh-stats>div>span:last-child{min-width:0;line-height:1.15}
+.agua-slot-m:not(:empty){margin-top:14px}
+.fab-reg{transition:padding .25s,width .25s,gap .25s}
+.fab-reg span{transition:opacity .2s,max-width .25s;max-width:120px;overflow:hidden;white-space:nowrap}
+.fab-reg.mini{width:52px;padding:0;gap:0;justify-content:center}
+.fab-reg.mini span{opacity:0;max-width:0}
+.hh-stats small{white-space:nowrap}
