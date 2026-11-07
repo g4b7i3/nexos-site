@@ -4299,7 +4299,10 @@ function etapas(form, validar, aoAvancar) { // aoAvancar(etapa): salva na hora o
     prog.innerHTML = `<div class="wz-txt"><b>Etapa ${i + 1} de ${L.length}</b><span>${esc(el.dataset.titulo || '')}</span></div><div class="wz-bar">${L.map((_, k) => `<i class="${k < i ? 'ok' : k === i ? 'on' : ''}"></i>`).join('')}</div>`;
     volta.hidden = i === 0; prox.hidden = i === L.length - 1; enviar.hidden = i !== L.length - 1;
     checar();
-    if (rolar) prog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (rolar) { // a barra de etapas é fixa: rola até o começo do formulário (página ou painel)
+      const sc = form.closest('.sheet'), y = form.getBoundingClientRect().top;
+      if (sc) sc.scrollTop += y - sc.getBoundingClientRect().top - 8; else window.scrollTo(0, Math.max(0, y + window.scrollY - 8));
+    }
   };
   prox.onclick = () => {
     const err = validar(atual());
