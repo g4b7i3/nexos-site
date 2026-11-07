@@ -2227,27 +2227,27 @@ function registrarMedidas(depois) {
     <p class="small muted" style="margin-top:6px">Meça de manhã, em jejum, depois de ir ao banheiro. Fita justa, sem apertar, e relaxado.</p>
     <form id="f-med" style="margin-top:14px">
       ${sx ? '' : `<div class="field"><span>Sexo (usado na equação)</span><div class="seg" id="med-sx"><button type="button" data-v="M">Masculino</button><button type="button" data-v="F">Feminino</button></div></div>`}
-      <div class="grid2"><label class="field"><span>Peso (kg)</span><input class="input" name="peso" data-mask="peso" inputmode="decimal" placeholder="Ex.: 70,5" required></label><label class="field"><span>Altura (cm)</span><input class="input" name="altura" data-mask="cm" inputmode="decimal" placeholder="Ex.: 175" required></label></div>
-      <label class="field"><span>Pescoço (cm)</span><input class="input" name="pescoco" data-mask="circ" inputmode="decimal" placeholder="Ex.: 38,5" required><small class="tiny dim">Logo abaixo do pomo de Adão, com a fita levemente inclinada para a frente.</small></label>
-      <label class="field" data-sxm><span>Abdômen (cm)</span><input class="input" name="abdomen" data-mask="circ" inputmode="decimal"><small class="tiny dim">Na altura do umbigo, no fim de uma expiração normal.</small></label>
-      <label class="field" data-sxf><span>Cintura (cm)</span><input class="input" name="cintura" data-mask="circ" inputmode="decimal"><small class="tiny dim">Na parte mais fina, entre as costelas e o umbigo.</small></label>
-      <label class="field" data-sxf><span>Quadril (cm)</span><input class="input" name="quadril" data-mask="circ" inputmode="decimal"><small class="tiny dim">Na parte mais larga do bumbum, com os pés juntos.</small></label>
+      <div class="grid2"><label class="field"><span>Peso (kg)</span><input class="input" name="peso" data-mask="peso" inputmode="numeric" placeholder="Ex.: 70,5" required></label><label class="field"><span>Altura (m)</span><input class="input" name="altura" data-mask="altura" inputmode="numeric" placeholder="Ex.: 1,75" required></label></div>
+      <label class="field"><span>Pescoço (cm)</span><input class="input" name="pescoco" data-mask="circ" inputmode="numeric" placeholder="Ex.: 38,5" required><small class="tiny dim">Logo abaixo do pomo de Adão, com a fita levemente inclinada para a frente.</small></label>
+      <label class="field" data-sxm><span>Abdômen (cm)</span><input class="input" name="abdomen" data-mask="circ" inputmode="numeric"><small class="tiny dim">Na altura do umbigo, no fim de uma expiração normal.</small></label>
+      <label class="field" data-sxf><span>Cintura (cm)</span><input class="input" name="cintura" data-mask="circ" inputmode="numeric"><small class="tiny dim">Na parte mais fina, entre as costelas e o umbigo.</small></label>
+      <label class="field" data-sxf><span>Quadril (cm)</span><input class="input" name="quadril" data-mask="circ" inputmode="numeric"><small class="tiny dim">Na parte mais larga do bumbum, com os pés juntos.</small></label>
       <p class="small" id="med-prev" style="margin:2px 0 12px;color:var(--acc)"></p>
       <button class="btn block">Salvar e ver o resultado</button></form>`, (r) => {
     const f = r.querySelector('#f-med'); aplicarMascaras(f); let sexo = sx;
     const mostra = () => { f.querySelectorAll('[data-sxm]').forEach((e) => e.hidden = sexo !== 'M'); f.querySelectorAll('[data-sxf]').forEach((e) => e.hidden = sexo !== 'F'); };
-    const ler = () => ({ sexo, idade, peso: num(f.peso.value), altura: num(f.altura.value), metodo: 'perimetros', perimetros: Object.fromEntries(['pescoco', 'abdomen', 'cintura', 'quadril'].map((k) => [k, num(f[k].value)]).filter(([, v]) => v)) });
+    const ler = () => ({ sexo, idade, peso: num(f.peso.value), altura: altCm(f.altura.value), metodo: 'perimetros', perimetros: Object.fromEntries(['pescoco', 'abdomen', 'cintura', 'quadril'].map((k) => [k, num(f[k].value)]).filter(([, v]) => v)) });
     const prev = () => { const x = calcAval(ler()); r.querySelector('#med-prev').textContent = x.gordura != null ? `Gordura estimada: ${f1(x.gordura)}% · massa magra ${f1(x.massa_magra)} kg` : ''; };
     const sg = r.querySelector('#med-sx'); if (sg) sg.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; sexo = b.dataset.v; sg.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y === b)); mostra(); prev(); };
     mostra(); f.oninput = prev;
     // reaproveita peso e altura da última avaliação
-    buscarAvaliacoes(S.user.id).then((avs) => { const u = avs[avs.length - 1]; if (!u) return; if (u.altura && !f.altura.value) f.altura.value = String(u.altura).replace('.', ','); if (!sexo && u.sexo) { sexo = u.sexo; mostra(); } prev(); }).catch(() => {});
+    buscarAvaliacoes(S.user.id).then((avs) => { const u = avs[avs.length - 1]; if (!u) return; if (u.altura && !f.altura.value) f.altura.value = altM(u.altura); if (!sexo && u.sexo) { sexo = u.sexo; mostra(); } prev(); }).catch(() => {});
     f.onsubmit = async (e) => {
       e.preventDefault(); const a = ler();
       if (!a.sexo) return toast('Escolha o sexo.', true);
       // valores fora do possível (dígito a mais, vírgula no lugar errado) não entram
       if (!(a.peso >= 30 && a.peso <= 250)) return toast('Confira o peso, em kg (ex.: 70,5).', true);
-      if (!(a.altura >= 120 && a.altura <= 230)) return toast('Confira a altura, em cm (ex.: 175).', true);
+      if (!(a.altura >= 120 && a.altura <= 230)) return toast('Confira a altura, em metros (ex.: 1,75).', true);
       const fora = Object.entries(a.perimetros).find(([k, v]) => !(v >= (k === 'pescoco' ? 20 : 40) && v <= (k === 'pescoco' ? 70 : 200)));
       if (fora) return toast(`Confira ${({ pescoco: 'o pescoço', abdomen: 'o abdômen', cintura: 'a cintura', quadril: 'o quadril' })[fora[0]]}, em cm.`, true);
       const x = calcAval(a); if (x.gordura == null) return toast(a.sexo === 'M' ? 'Confira pescoço e abdômen (o abdômen precisa ser maior que o pescoço).' : 'Confira pescoço, cintura e quadril.', true);
@@ -3899,6 +3899,9 @@ function abrirCheckin(t, itens, st, key, fase) {
 
 /* ================= EVOLUÇÃO: cargas, avaliações e conversa ================= */
 const num = (v) => { if (v === '' || v == null) return null; const n = +String(v).replace(',', '.'); return isFinite(n) ? n : null; };
+// altura: a pessoa digita em metros (1,75); o banco e os cálculos seguem em cm (175)
+const altCm = (v) => { const n = num(v); if (n == null) return null; return n < 3 ? Math.round(n * 100) : Math.round(n); };
+const altM = (cm) => (cm == null || cm === '' ? '' : (num(cm) / 100).toFixed(2).replace('.', ','));
 const f1 = (n, d = 1) => (n == null || !isFinite(n)) ? '–' : (+n).toFixed(d).replace('.', ',');
 const fN = (n, d = 1) => f1(n, Math.abs(Math.round(n * 10 ** d) / 10 ** d % 1) < 1e-9 ? 0 : d);
 const dia = (d) => new Date(String(d).length === 10 ? d + 'T12:00:00' : d);
@@ -4089,8 +4092,8 @@ async function formAvaliacao(alunoId, avId) {
   };
   if (!av) { $app.innerHTML = '<div class="empty" style="margin-top:40px"><div class="h3">Avaliação não encontrada</div></div>'; return; }
   const v = (x) => (x == null ? '' : String(x).replace('.', ','));
-  const mk = (name) => name === 'peso' ? 'data-mask="peso" inputmode="decimal"' : name === 'altura' ? 'data-mask="cm" inputmode="decimal"' : /^(idade|pa_sis|pa_dia|fc_rep)$/.test(name) ? 'data-mask="num" data-max="3" inputmode="numeric"'
-    : /^p_/.test(name) ? 'data-mask="circ" inputmode="decimal"' : /^b_/.test(name) ? 'data-mask="dec" data-int="3" data-casas="1" inputmode="decimal"' : 'data-mask="dec" data-int="2" data-casas="1" inputmode="decimal"';
+  const mk = (name) => name === 'peso' ? 'data-mask="peso" inputmode="numeric"' : name === 'altura' ? 'data-mask="altura" inputmode="numeric"' : /^(idade|pa_sis|pa_dia|fc_rep)$/.test(name) ? 'data-mask="num" data-max="3" inputmode="numeric"'
+    : /^p_/.test(name) ? 'data-mask="circ" inputmode="numeric"' : /^b_/.test(name) ? 'data-mask="dec" data-int="3" data-casas="1" inputmode="decimal"' : 'data-mask="dec" data-int="2" data-casas="1" inputmode="decimal"';
   const inp = (name, val, ph = '', unid = '') => `<div class="inp-u"><input class="input" name="${name}" ${mk(name)} value="${esc(v(val))}" placeholder="${ph}">${unid ? `<em>${unid}</em>` : ''}</div>`;
   const radios = (name, val, ops) => `<div class="radios">${ops.map(([k, l]) => `<label><input type="radio" name="${name}" value="${k}" ${val === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
   $app.innerHTML = `
@@ -4102,7 +4105,7 @@ async function formAvaliacao(alunoId, avId) {
         <div class="card"><span class="eyebrow">Dados</span>
           <div class="grid2" style="margin-top:12px"><label class="field"><span>Data da avaliação</span><input class="input" type="date" name="data" value="${esc(av.data)}" required></label><label class="field"><span>Próxima avaliação</span><input class="input" type="date" name="proxima" value="${esc(av.proxima || '')}"></label></div>
           <div class="field"><span>Sexo (usado nas equações)</span>${radios('sexo', av.sexo, [['M', 'Masculino'], ['F', 'Feminino']])}</div>
-          <div class="grid3"><label class="field"><span>Idade</span>${inp('idade', av.idade, '', 'anos')}</label><label class="field"><span>Peso</span>${inp('peso', av.peso, '', 'kg')}</label><label class="field"><span>Altura</span>${inp('altura', av.altura, '', 'cm')}</label></div>
+          <div class="grid3"><label class="field"><span>Idade</span>${inp('idade', av.idade, '', 'anos')}</label><label class="field"><span>Peso</span>${inp('peso', av.peso, '', 'kg')}</label><label class="field"><span>Altura</span>${inp('altura', altM(av.altura), '1,75', 'm')}</label></div>
           <div class="grid3"><label class="field"><span>PA sistólica</span>${inp('pa_sis', av.pa_sis, '120', 'mmHg')}</label><label class="field"><span>PA diastólica</span>${inp('pa_dia', av.pa_dia, '80', 'mmHg')}</label><label class="field"><span>FC repouso</span>${inp('fc_rep', av.fc_rep, '', 'bpm')}</label></div>
         </div>
         <div class="card"><span class="eyebrow">Composição corporal</span>
@@ -4138,7 +4141,7 @@ async function formAvaliacao(alunoId, avId) {
     const obj = (pre, lista) => { const o = {}; lista.forEach(([k]) => { const n = num(g(pre + k)); if (n != null) o[k] = n; }); return o; };
     const int = (k) => { const n = num(g(k)); return n == null ? null : Math.round(n); };
     const metodo = g('metodo') || 'dobras';
-    return { data: g('data'), proxima: g('proxima') || null, sexo: g('sexo') || null, idade: int('idade'), peso: num(g('peso')), altura: num(g('altura')),
+    return { data: g('data'), proxima: g('proxima') || null, sexo: g('sexo') || null, idade: int('idade'), peso: num(g('peso')), altura: altCm(g('altura')),
       pa_sis: int('pa_sis'), pa_dia: int('pa_dia'), fc_rep: int('fc_rep'), metodo, protocolo: metodo === 'dobras' ? g('protocolo') : null,
       dobras: metodo === 'dobras' ? lerDobras() : {}, bio: metodo === 'bioimpedancia' ? obj('b_', BIO) : {}, perimetros: obj('p_', PERIM),
       flexibilidade: num(g('flex')), observacoes: (g('obs') || '').trim() || null };
@@ -4214,7 +4217,7 @@ async function viewRelatorio(avId) {
   $app.innerHTML = `
     <div class="no-print row between"><a class="back" href="${voltar}" style="margin:0">${I.back} Voltar</a><div class="row" style="gap:8px">${S.staff ? `<a class="btn ghost sm" href="#/aluno/${av.aluno_id}/avaliacao/${av.id}">Editar</a>` : ''}<button class="btn ghost sm" id="imprimir">Salvar PDF</button></div></div>
     <div class="rel-head"><img src="${LOGO.s()}" alt=""><div><p class="eyebrow">Relatório de avaliação física</p><h1 class="h1" style="margin-top:4px">${esc(nome)}</h1>
-      <p class="small muted">${fmtDia(av.data)}${av.idade ? ` · ${av.idade} anos` : ''}${av.altura ? ` · ${f1(av.altura, 0)} cm` : ''} · ${av.metodo === 'bioimpedancia' ? 'Bioimpedância' : av.metodo === 'perimetros' ? `Perímetros (Marinha americana)${av.avaliador_id === av.aluno_id ? ' · medidas feitas pelo aluno' : ''}` : esc((PROTOCOLOS[av.protocolo] || {}).nome || '')}${ant ? ` · comparado a ${fmtDia(ant.data)}` : ''}</p></div></div>
+      <p class="small muted">${fmtDia(av.data)}${av.idade ? ` · ${av.idade} anos` : ''}${av.altura ? ` · ${altM(av.altura)} m` : ''} · ${av.metodo === 'bioimpedancia' ? 'Bioimpedância' : av.metodo === 'perimetros' ? `Perímetros (Marinha americana)${av.avaliador_id === av.aluno_id ? ' · medidas feitas pelo aluno' : ''}` : esc((PROTOCOLOS[av.protocolo] || {}).nome || '')}${ant ? ` · comparado a ${fmtDia(ant.data)}` : ''}</p></div></div>
     ${composicaoHTML(av, r, ant && ant.metodo === av.metodo ? ra : {})}
     <div class="metrics">
       ${met('Peso', num(av.peso), ant ? num(ant.peso) : null, ' kg', null)}
@@ -4457,6 +4460,7 @@ const MASCARA = {
     if (d.length === 11) return `(${dd}) ${r[0]} ${r.slice(1, 5)}-${r.slice(5)}`; return r.length > 4 ? `(${dd}) ${r.slice(0, 4)}-${r.slice(4)}` : `(${dd}) ${r}`; },
   data: (v) => { const d = soDig(v).slice(0, 8); return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/'); },
   hora: (v) => { const d = soDig(v).slice(0, 4); return d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d; },
+  // altura em metros: 1 · 17 → 1,7 · 175 → 1,75
   altura: (v) => { const d = soDig(v).slice(0, 3); return d.length > 1 ? `${d[0]},${d.slice(1)}` : d; },
   peso: (v) => { const d = soDig(v).slice(0, 4); const n = d[0] === '1' || d[0] === '2' ? 3 : 2; return d.length > n ? `${d.slice(0, n)},${d[n]}` : d; }, // 88 · 885→88,5 · 105 · 1055→105,5
   num: (v, el) => soDig(v).slice(0, +(el && el.dataset.max) || 3),
