@@ -2222,6 +2222,65 @@ function composicaoHTML(av, r, ra) {
     </div>
     <p class="tiny dim" style="margin-top:8px">${av.metodo === 'perimetros' ? 'Estimativa pelas medidas de fita (Hodgdon e Beckett, 1984), com erro típico de 3 a 4%, semelhante ao de balanças de bioimpedância domésticas. Para comparar, use sempre o mesmo método e meça nas mesmas condições.' : 'Para comparar a evolução, use sempre o mesmo método e meça nas mesmas condições.'}</p></div>`;
 }
+// Faixa saudável de % de gordura por idade e sexo (Gallagher et al., 2000, Am J Clin Nutr), a mesma referência das balanças de bioimpedância:
+// [idade até, saudável de, saudável até, obesidade a partir de]
+const GALLAGHER = { F: [[39, 21, 33, 39], [59, 23, 34, 40], [200, 24, 36, 42]], M: [[39, 8, 19, 25], [59, 11, 21, 28], [200, 13, 24, 30]] };
+function metasHTML(av, r) {
+  const sx = av.sexo, idade = num(av.idade), peso = num(av.peso), alt = num(av.altura), cint = num((av.perimetros || {}).cintura);
+  if (!sx || !peso || !(idade >= 18)) return '';
+  const fxG = GALLAGHER[sx].find((x) => idade <= x[0]), [, gMin, gMax, gOb] = fxG;
+  const temComp = r.gordura != null && r.massa_magra;
+  const kg = (v) => f1(v, 1).replace(',0', '');
+  const faixaIdade = idade < 40 ? '20 a 39 anos' : idade < 60 ? '40 a 59 anos' : '60 anos ou mais';
+  const linhas = [], tag = (ok, t) => `<span class="mt-tag ${ok ? 'ok' : 'at'}">${t || (ok ? 'Dentro' : 'Fora')}</span>`;
+  let kpis = '', plano = '', regua = '';
+  if (temComp) {
+    const g = r.gordura, mm = r.massa_magra, mid = Math.round((gMin + gMax) / 2);
+    const pesoCom = (pct) => mm / (1 - pct / 100); // mesmo peso de massa magra, outra % de gordura
+    let meta = null, etapa1 = null;
+    if (g > gMax) { meta = mid; etapa1 = gMax; } else if (g > mid + 1) meta = mid; else if (g < gMin) meta = gMin;
+    const st = g > gOb ? 'Obesidade' : g > gMax ? 'Acima do ideal' : g < gMin ? 'Abaixo do ideal' : 'Saudável';
+    // régua: abaixo · saudável · acima · obesidade, com o ponto de hoje e o da meta
+    const lo = Math.max(0, gMin - 8), hi = gOb + 10, pc = (v) => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
+    regua = `<div class="mt-regua"><div class="mt-faixas"><i class="b0" style="width:${pc(gMin)}%"></i><i class="b1" style="width:${pc(gMax) - pc(gMin)}%"></i><i class="b2" style="width:${pc(gOb) - pc(gMax)}%"></i><i class="b3" style="width:${100 - pc(gOb)}%"></i></div>
+      <span class="mt-pin hoje" style="left:${pc(g)}%"><b>Hoje ${f1(g)}%</b></span>${meta != null ? `<span class="mt-pin meta" style="left:${pc(meta)}%"><b>Meta ${meta}%</b></span>` : ''}
+      <div class="mt-leg"><span style="left:${pc(gMin) / 2}%">Abaixo</span><span style="left:${(pc(gMin) + pc(gMax)) / 2}%">Saudável ${gMin}–${gMax}%</span><span style="left:${(pc(gMax) + pc(gOb)) / 2}%">Acima</span><span style="left:${(pc(gOb) + 100) / 2}%">Obesidade</span></div></div>`;
+    linhas.push(['Gordura corporal', `${gMin} a ${gMax}%`, `${f1(g)}%`, tag(g >= gMin && g <= gMax, st)]);
+    linhas.push(['Massa gorda', `${kg(mm * gMin / (100 - gMin))} a ${kg(mm * gMax / (100 - gMax))} kg`, `${kg(r.massa_gorda)} kg`, tag(g >= gMin && g <= gMax)]);
+    linhas.push(['Peso saudável mantendo a sua massa magra', `${kg(pesoCom(gMin))} a ${kg(pesoCom(gMax))} kg`, `${kg(peso)} kg`, tag(peso >= pesoCom(gMin) - 0.5 && peso <= pesoCom(gMax) + 0.5)]);
+    linhas.push(['Massa magra', 'manter ou aumentar', `${kg(mm)} kg`, '<span class="mt-tag neu">Proteger</span>']);
+    if (meta != null) {
+      const pMeta = pesoCom(meta), dif = peso - pMeta, perder = dif > 0;
+      // perda: 0,5 a 1% do peso por semana preserva a massa magra (Helms et al., 2014; Garthe et al., 2011)
+      // ganho de massa magra: cerca de 0,5 a 1 kg por mês em homens e metade disso em mulheres
+      const mes = (v) => Math.max(1, Math.round(v));
+      const [mR, mL] = perder ? [mes(dif / (peso * 0.01) / 4.345), mes(dif / (peso * 0.005) / 4.345)] : sx === 'M' ? [mes(-dif / 1), mes(-dif / 0.5)] : [mes(-dif / 0.5), mes(-dif / 0.25)];
+      const prazo = mR === mL ? `${mR} ${mR > 1 ? 'meses' : 'mês'}` : `${mR} a ${mL} meses`;
+      kpis = `<div class="mt-kpis"><div><span>Meta de gordura</span><b>${meta}<small>%</small></b><em>hoje ${f1(g)}%</em></div><div><span>Peso-meta</span><b>${kg(pMeta)}<small> kg</small></b><em>${perder ? `${kg(dif)} kg de gordura a menos` : `${kg(-dif)} kg de massa magra a mais`}</em></div><div><span>Prazo estimado</span><b>${prazo}</b><em>${perder ? 'ritmo seguro, sem perder músculo' : 'com treino de força e proteína'}</em></div></div>`;
+      const e1 = etapa1 != null ? (() => { const p1 = pesoCom(etapa1), d1 = peso - p1; const a = mes(d1 / (peso * 0.01) / 4.345), b = mes(d1 / (peso * 0.005) / 4.345); return `<li><b>1ª etapa · sair da faixa acima do ideal</b><span>Chegar a ${etapa1}% de gordura, cerca de ${kg(p1)} kg, em ${a === b ? a : `${a} a ${b}`} meses.</span></li>`; })() : '';
+      plano = `<ol class="mt-plano">${e1}<li><b>${etapa1 != null ? '2ª etapa · meta final' : 'Meta'}</b><span>${perder ? `Chegar a ${meta}% de gordura, cerca de ${kg(pMeta)} kg, perdendo ${kg(dif)} kg de gordura e mantendo os ${kg(mm)} kg de massa magra.` : `Chegar a ${meta}% de gordura ganhando cerca de ${kg(-dif)} kg de massa magra, sem ganhar gordura.`}</span></li>
+        <li><b>Ritmo</b><span>${perder ? `Entre ${kg(peso * 0.005)} e ${kg(peso * 0.01)} kg por semana (0,5 a 1% do peso). Mais rápido que isso aumenta a perda de músculo e cai o rendimento nos treinos.` : `Ganho gradual, com treino de força 2 a 3 vezes por semana e proteína suficiente. Não é preciso comer em excesso.`}</span></li>
+        <li><b>Acompanhamento</b><span>Nova avaliação a cada 4 a 6 semanas, sempre pelo mesmo método, para ajustar a rota.</span></li></ol>`;
+    } else kpis = `<div class="mt-kpis um"><div><span>Situação</span><b>Dentro do ideal</b><em>${f1(g)}% de gordura, faixa saudável ${gMin}–${gMax}% para ${faixaIdade}. A meta agora é manter a gordura e ganhar massa magra.</em></div></div>`;
+  }
+  if (alt) {
+    const h = alt / 100, rcqLim = sx === 'M' ? 0.9 : 0.85, cLim = sx === 'M' ? 94 : 80;
+    linhas.push(['IMC (referência da OMS)', `18,5 a 24,9 · ${kg(18.5 * h * h)} a ${kg(24.9 * h * h)} kg`, f1(r.imc), tag(r.imc >= 18.5 && r.imc < 25, clsIMC(r.imc))]);
+    if (cint) {
+      const alvo = Math.min(cLim, Math.round(alt * 0.5));
+      linhas.push(['Cintura', `abaixo de ${alvo} cm`, `${f1(cint)} cm`, tag(cint < alvo, cint < alvo ? 'Dentro' : `${f1(cint - alvo)} cm acima`)]);
+      linhas.push(['Cintura/altura', 'até 0,50', f1(cint / alt, 2), tag(cint / alt <= 0.5)]);
+    }
+    if (r.rcq) linhas.push(['Cintura/quadril', `abaixo de ${f1(rcqLim, 2)}`, f1(r.rcq, 2), tag(r.rcq < rcqLim)]);
+  }
+  if (!linhas.length) return '';
+  return `<div class="section metas-sec"><div class="section-h"><h2 class="h2">Metas e valores ideais</h2>${slashes}</div>
+    <div class="card metas"><p class="small muted">Referências para ${sx === 'F' ? 'mulheres' : 'homens'} de ${faixaIdade}, calculadas com as suas medidas de hoje.</p>
+      ${kpis}${regua}
+      <div class="mt-tbl"><div class="mt-th"><span>Indicador</span><span>Ideal</span><span>Hoje</span><span></span></div>${linhas.map(([a, b, c, d]) => `<div><span>${a}</span><span>${b}</span><b>${c}</b>${d}</div>`).join('')}</div>
+      ${plano ? `<p class="eyebrow" style="margin-top:18px">Plano para chegar lá</p>${plano}` : ''}
+      <p class="tiny dim" style="margin-top:12px">Faixa de gordura por idade e sexo: Gallagher e colaboradores (2000), a mesma referência usada pelas balanças de bioimpedância. Peso-meta calculado mantendo a massa magra atual. Ritmo de perda de 0,5 a 1% do peso por semana para preservar músculo (Helms e colaboradores, 2014; Garthe e colaboradores, 2011). Cintura e cintura/quadril pela OMS; cintura até metade da altura (Ashwell e colaboradores, 2012; NICE, 2022). Os prazos são estimativas e mudam com a rotina de treino, sono e alimentação.</p></div></div>`;
+}
 // o aluno registra as próprias medidas em casa (fita métrica + balança)
 function registrarMedidas(depois) {
   const sx = S.me.sexo === 'F' ? 'F' : S.me.sexo === 'M' ? 'M' : null;
@@ -4299,6 +4358,7 @@ async function viewRelatorio(avId) {
     <div class="rel-head"><img src="${LOGO.s()}" alt=""><div><p class="eyebrow">Relatório de avaliação física</p><h1 class="h1" style="margin-top:4px">${esc(nome)}</h1>
       <p class="small muted">${fmtDia(av.data)}${av.idade ? ` · ${av.idade} anos` : ''}${av.altura ? ` · ${altM(av.altura)} m` : ''} · ${av.metodo === 'bioimpedancia' ? 'Bioimpedância' : av.metodo === 'perimetros' ? `Perímetros (Marinha americana)${av.avaliador_id === av.aluno_id ? ' · medidas feitas pelo aluno' : ''}` : esc((PROTOCOLOS[av.protocolo] || {}).nome || '')}${ant ? ` · comparado a ${fmtDia(ant.data)}` : ''}</p></div></div>
     ${composicaoHTML(av, r, ant && ant.metodo === av.metodo ? ra : {})}
+    ${metasHTML(av, r)}
     <div class="metrics">
       ${met('Peso', num(av.peso), ant ? num(ant.peso) : null, ' kg', null)}
       ${met('Gordura corporal', r.gordura, ra.gordura, '%', 'down')}
@@ -13590,7 +13650,7 @@ async function staffRelatorios() {
   const tabela = () => {
     const nq = semAcento(st.q);
     const l = linhas.filter((x) => !nq || semAcento(x.m.nome).includes(nq)).sort(ordenar[st.ord]);
-    document.getElementById('rel-tab').innerHTML = `<div class="rel-head"><span>Aluno</span><span>Km</span><span>Corridas</span><span>Força</span><span>Planilha</span><span>Pace médio</span><span>10 km previsto</span><span></span></div>`
+    document.getElementById('rel-tab').innerHTML = `<div class="rel-thead"><span>Aluno</span><span>Km</span><span>Corridas</span><span>Força</span><span>Planilha</span><span>Pace médio</span><span>10 km previsto</span><span></span></div>`
       + (l.map(linhaHTML).join('') || '<div class="empty"><p class="small">Nenhum aluno encontrado.</p></div>');
   };
   tabela();
