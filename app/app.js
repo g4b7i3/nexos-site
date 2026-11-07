@@ -2396,6 +2396,22 @@ function abrirRetro(h, k) {
 }
 
 /* ---------- 4) replay do percurso ---------- */
+// mapa de verdade por baixo do percurso (OpenFreeMap, o mesmo da tela do GPS): monta fora da tela, tira uma "foto" e devolve
+// a imagem e a posição de cada ponto do percurso nela. Sem internet ou sem suporte, o replay segue sem o mapa.
+async function mapaDoPercurso(R, w, h) {
+  let box = null, mapa = null;
+  try {
+    await carregarMapaLib();
+    box = document.createElement('div'); box.style.cssText = `position:fixed;left:-30000px;top:0;width:${w}px;height:${h}px;pointer-events:none`; document.body.append(box);
+    mapa = new window.maplibregl.Map({ container: box, style: 'https://tiles.openfreemap.org/styles/dark', pixelRatio: 1, interactive: false, attributionControl: false, preserveDrawingBuffer: true, fadeDuration: 0 });
+    const lats = R.map((p) => p[0]), lons = R.map((p) => p[1]);
+    mapa.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: { top: 150, bottom: 150, left: 110, right: 110 }, animate: false, maxZoom: 16.5 });
+    await new Promise((ok, er) => { const t = setTimeout(() => er(new Error('tempo')), 9000); mapa.once('idle', () => { clearTimeout(t); ok(); }); });
+    const img = document.createElement('canvas'); img.width = w; img.height = h; img.getContext('2d').drawImage(mapa.getCanvas(), 0, 0, w, h);
+    const P = R.map(([la, lo]) => { const q = mapa.project([lo, la]); return [q.x, q.y]; });
+    return { img, P };
+  } catch { return null; } finally { try { mapa && mapa.remove(); } catch {} if (box) box.remove(); }
+}
 function abrirReplay(c, perfil) {
   const R = c.rota; if (!R || R.length < 10) return;
   const ov = document.createElement('div'); ov.className = 'replay'; document.body.append(ov); document.body.style.overflow = 'hidden';
@@ -2408,18 +2424,25 @@ function abrirReplay(c, perfil) {
   const lats = R.map((p) => p[0]), lons = R.map((p) => p[1]), la0 = Math.min(...lats), la1 = Math.max(...lats), lo0 = Math.min(...lons), lo1 = Math.max(...lons);
   const kk = Math.cos(((la0 + la1) / 2) * Math.PI / 180), bw = Math.max((lo1 - lo0) * kk, 1e-6), bh = Math.max(la1 - la0, 1e-6);
   const BX = 90, BY = 440, BW = 900, BH = 940, sc = Math.min(BW / bw, BH / bh), ox = BX + (BW - bw * sc) / 2, oy = BY + (BH - bh * sc) / 2;
-  const P = R.map(([la, lo]) => [ox + (lo - lo0) * kk * sc, oy + (la1 - la) * sc]);
+  let P = R.map(([la, lo]) => [ox + (lo - lo0) * kk * sc, oy + (la1 - la) * sc]);
+  const MY = 400, MH = 1060; let fundoMapa = null; // faixa do mapa real: de cima do título até os números
   const dist = +c.distancia_m || 0, dur = +c.duracao_s || 0, DUR = 9000;
   const ser = c.analise && c.analise.serie;
   const desenha = (k) => {
     fundoStory(x, W, H);
+    if (fundoMapa) { // mapa escuro, puxado para o azul da Nexos, sumindo em cima e embaixo
+      x.drawImage(fundoMapa.vis, 0, MY);
+      x.textAlign = 'right'; x.font = "500 20px 'Manrope'"; x.fillStyle = 'rgba(255,255,255,.4)'; x.fillText('© OpenStreetMap · OpenFreeMap', W - 40, MY + MH - 30);
+    }
     x.textAlign = 'left'; x.fillStyle = corP().p1; x.font = "700 34px 'Manrope'"; try { x.letterSpacing = '7px'; } catch {} x.fillText(`${fmtDia(isoDia(c.data))}`.toUpperCase(), 90, 230); try { x.letterSpacing = '0px'; } catch {}
     x.fillStyle = '#fff'; x.font = "600 64px 'Unbounded'"; quebraTexto(x, c.titulo || 'Minha corrida', 900).slice(0, 2).forEach((l, j) => x.fillText(l, 90, 320 + j * 76));
     x.lineCap = 'round'; x.lineJoin = 'round';
-    x.strokeStyle = 'rgba(255,255,255,.14)'; x.lineWidth = 14; x.beginPath(); P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b))); x.stroke();
+    x.strokeStyle = fundoMapa ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.14)'; x.lineWidth = fundoMapa ? 10 : 14; x.beginPath(); P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b))); x.stroke();
     const n = Math.max(1, Math.floor(k * (P.length - 1)));
-    x.lineWidth = 16;
+    x.lineWidth = fundoMapa ? 12 : 16;
+    if (fundoMapa) { x.save(); x.shadowColor = cores ? 'rgba(70,214,255,.55)' : corP().p1; x.shadowBlur = 22; }
     for (let j = 1; j <= n; j++) { x.strokeStyle = cores ? cores[j - 1] : corP().p1; x.beginPath(); x.moveTo(P[j - 1][0], P[j - 1][1]); x.lineTo(P[j][0], P[j][1]); x.stroke(); }
+    if (fundoMapa) x.restore();
     const [px, py] = P[n]; const gl = x.createRadialGradient(px, py, 2, px, py, 50); gl.addColorStop(0, 'rgba(255,255,255,.95)'); gl.addColorStop(1, 'rgba(70,214,255,0)'); x.fillStyle = gl; x.beginPath(); x.arc(px, py, 50, 0, 7); x.fill();
     x.fillStyle = '#fff'; x.beginPath(); x.arc(px, py, 14, 0, 7); x.fill();
     // números ao vivo
@@ -2436,7 +2459,14 @@ function abrirReplay(c, perfil) {
     const f = (t) => { const k = Math.min(1, (t - t0) / DUR); const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; desenha(e); if (logo) { const h = 48, w = (logo.width / logo.height) * h; x.drawImage(logo, 90, 110, w, h); } if (k < 1) raf = requestAnimationFrame(f); else if (aoFim) setTimeout(aoFim, 1500); };
     raf = requestAnimationFrame(f);
   };
+  // mostra já o replay simples e, quando o mapa real carregar, recomeça por cima dele
   fontesStory().then(() => tocar());
+  const bv = ov.querySelector('#rp-video'); bv.disabled = true; bv.textContent = 'Carregando mapa…';
+  mapaDoPercurso(R, W, MH).then((m) => { bv.disabled = false; bv.textContent = 'Salvar vídeo'; if (!m || !ov.isConnected) return; const v = document.createElement('canvas'); v.width = W; v.height = MH; const g = v.getContext('2d');
+    g.drawImage(m.img, 0, 0); g.globalCompositeOperation = 'multiply'; g.fillStyle = '#2a4a8a'; g.fillRect(0, 0, W, MH);
+    const ms = g.createLinearGradient(0, 0, 0, MH); ms.addColorStop(0, 'rgba(0,0,0,0)'); ms.addColorStop(0.2, 'rgba(0,0,0,1)'); ms.addColorStop(0.78, 'rgba(0,0,0,1)'); ms.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = ms; g.fillRect(0, 0, W, MH);
+    fundoMapa = { ...m, vis: v }; P = m.P.map(([a, b]) => [a, b + MY]); tocar(); });
   ov.querySelector('#rp-de-novo').onclick = () => tocar();
   ov.querySelector('#rp-video').onclick = async (e) => {
     const b = e.currentTarget; const tipo = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
