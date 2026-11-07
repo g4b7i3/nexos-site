@@ -5337,8 +5337,13 @@ async function desenharCard(cv, c, o) {
     const lista = sel.slice(0, 3); let y = (H - 620) / 2;
     simbolo(80, y, 200, 'left'); y += 150;
     if (clima) {
-      const t = `${clima.temp}°C`, extra = [clima.fonte === 'clima' ? climaTxt(clima.cod) : '', clima.umid != null ? `${clima.umid}% umidade` : '', clima.vento != null ? `vento ${clima.vento} km/h` : ''].filter(Boolean).join(' · ');
-      const fs = 36, wT = larg(t, `800 46px ${FH}`) + larg(extra, `600 ${fs}px ${FB}`) + 200;
+      const t = `${clima.temp}°C`, partes = [clima.fonte === 'clima' ? climaTxt(clima.cod) : '', clima.umid != null ? `${clima.umid}% umidade` : '', clima.vento != null ? `vento ${clima.vento} km/h` : ''].filter(Boolean);
+      // o texto sempre cabe dentro do selo: diminui a letra e, se ainda faltar espaço, tira a descrição do céu
+      const cabe = W - 160 - 200 - larg(t, `800 46px ${FH}`) - 24;
+      let extra = partes.join(' · '), fs = 36;
+      while (fs > 26 && larg(extra, `600 ${fs}px ${FB}`) > cabe) fs--;
+      if (larg(extra, `600 ${fs}px ${FB}`) > cabe && partes.length > 2) { extra = partes.slice(1).join(' · '); fs = 36; while (fs > 26 && larg(extra, `600 ${fs}px ${FB}`) > cabe) fs--; }
+      const wT = larg(t, `800 46px ${FH}`) + larg(extra, `600 ${fs}px ${FB}`) + 200;
       ctx.save(); ctx.strokeStyle = tx; ctx.globalAlpha = .55; ctx.lineWidth = 3; ret(ctx, 80, y, Math.min(W - 160, wT), 110, 55); ctx.stroke(); ctx.restore();
       iconeClima(140, y + 55, 70);
       txt(t, 200, y + 72, `800 46px ${FH}`, tx, 'left', -1);
