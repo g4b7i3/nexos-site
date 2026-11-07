@@ -8645,8 +8645,8 @@ async function viewGps(id, modo) {
       <div class="gps-passo" id="g-passo" hidden></div>
       <div class="g2-stats">
         <div class="g2-st-h"><b>${est ? 'Esteira' : 'Corrida'}</b><button class="g2-exp" id="g-exp" aria-label="Mais números">${GPS_IC.expandir}</button></div>
-        <div class="g2-tres"><div><b id="g-tempo">0:00</b><span>Tempo</span></div><div><b id="g-pm">–</b><span>Pace médio (/km)</span></div><div><b id="g-dist">0,00</b><span>Distância (km)</span></div></div>
-        <div class="g2-extra" id="g-extra" ${est ? '' : 'hidden'}><div><b id="g-pace">–</b><span>Pace agora</span></div>${est ? '<div><b id="g-cad">–</b><span>Cadência</span></div><div><b id="g-np">0</b><span>Passos</span></div>' : '<div><b id="g-volta">1</b><span>Volta</span></div><div><b id="g-vkm">0,00</b><span>Km na volta</span></div>'}</div>
+        <div class="g2-tres"><div><b id="g-tempo">0:00</b><span>Tempo</span></div><div><b id="g-pace">–</b><span>Pace agora (/km)</span></div><div><b id="g-dist">0,00</b><span>Distância (km)</span></div></div>
+        <div class="g2-extra" id="g-extra" ${est ? '' : 'hidden'}><div><b id="g-pm">–</b><span>Pace médio</span></div>${est ? '<div><b id="g-cad">–</b><span>Cadência</span></div><div><b id="g-np">0</b><span>Passos</span></div>' : '<div><b id="g-volta">1</b><span>Volta</span></div><div><b id="g-vkm">0,00</b><span>Km na volta</span></div>'}</div>
         <div class="gps-prox" id="g-prox"></div>
       </div>
     </div>
@@ -8664,6 +8664,8 @@ async function viewGps(id, modo) {
   const $ = (s) => document.getElementById(s);
 
   // som, vibração e voz nas trocas
+  // tom no estilo dos relógios: curto e grave na contagem, longo e agudo quando começa a parte nova
+  const tom = (freq, dur, vol = 0.45) => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); const o = actx.createOscillator(), g = actx.createGain(); o.type = 'square'; o.frequency.value = freq; o.connect(g); g.connect(actx.destination); const t0 = actx.currentTime; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol * 0.35, t0 + 0.01); g.gain.setValueAtTime(vol * 0.35, t0 + dur - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.start(t0); o.stop(t0 + dur + 0.02); } catch {} };
   const beep = (n = 1) => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); for (let i = 0; i < n; i++) { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(actx.destination); const t0 = actx.currentTime + i * 0.28; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2); o.start(t0); o.stop(t0 + 0.22); } } catch {} };
   const falar = (t) => { if (!st.voz || !window.speechSynthesis) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'pt-BR'; u.rate = 1.05; speechSynthesis.speak(u); } catch {} };
   const paceFala = (s) => { const x = Math.round(s); return `${Math.floor(x / 60)} e ${String(x % 60).padStart(2, '0')}`; };
@@ -8681,16 +8683,27 @@ async function viewGps(id, modo) {
     else { const j = janela.filter((x) => Date.now() - x.t < 20000); if (j.length > 1) pa = (j[j.length - 1].t - j[0].t) / 1000 / ((j[j.length - 1].d - j[0].d) / 1000); }
     return pa && isFinite(pa) && pa > 120 && pa < 1200 ? pa : null;
   };
-  // de vez em quando (a cada 2 min) a voz diz o pace atual e se está no ritmo do treino
-  let ultFalaPace = Date.now(), ultTroca = 0;
+  // a voz diz o pace a cada 2 min; fora do ritmo do treino ela avisa logo (depois de 8 s fora, para não reagir a oscilação do GPS)
+  // e repete uma vez 30 s depois se continuar fora: no máximo 2 avisos por vez que sai do ritmo
+  let ultFalaPace = Date.now(), ultTroca = 0, foraDir = 0, foraDesde = 0, foraFalas = 0, ultFora = 0;
   const falarPace = () => {
     if (st.estado !== 'correndo' || !st.voz) return;
-    const ag = Date.now(); if (ag - ultFalaPace < 120000 || ag - ultTroca < 20000) return;
+    const ag = Date.now(); if (ag - ultTroca < 20000) return;
     const pa = paceAgora(); if (!pa) return;
+    const s = passoAtual(), alvo = s && s.pa && s.pb;
+    const dir = !alvo ? 0 : pa < s.pa * 0.97 ? 1 : pa > s.pb * 1.03 ? -1 : 0;
+    const txtFora = (d) => d > 0 ? (est ? 'Acima do alvo, confira a velocidade da esteira.' : 'Rápido demais, segure um pouco.') : (est ? 'Abaixo do alvo, confira a velocidade da esteira.' : 'Abaixo do alvo, acelere um pouco.');
+    if (dir !== foraDir) { // mudou de situação: começa a contar de novo
+      if (foraDir && !dir && foraFalas) { falar('Agora sim, no ritmo.'); ultFalaPace = ag; }
+      foraDir = dir; foraDesde = ag; foraFalas = 0; return;
+    }
+    if (dir) {
+      if (foraFalas < 2 && ag - foraDesde >= 8000 && ag - ultFora >= 30000) { foraFalas++; ultFora = ag; ultFalaPace = ag; falar(`Pace ${est ? 'aproximado ' : ''}${paceFala(pa)}. ${txtFora(dir)}`); }
+      return;
+    }
+    if (ag - ultFalaPace < 120000) return;
     ultFalaPace = ag;
-    const s = passoAtual(); let txt = `Pace ${est ? 'aproximado ' : ''}${paceFala(pa)}.`;
-    if (s && s.pa && s.pb) txt += pa < s.pa * 0.97 ? (est ? ' Acima do alvo, confira a velocidade da esteira.' : ' Rápido demais, segure um pouco.') : pa > s.pb * 1.03 ? (est ? ' Abaixo do alvo, confira a velocidade da esteira.' : ' Abaixo do alvo, acelere um pouco.') : ' No ritmo.';
-    falar(txt);
+    falar(`Pace ${est ? 'aproximado ' : ''}${paceFala(pa)}.${alvo ? ' No ritmo.' : ''}`);
   };
   const desenha = () => {
     if (!minha()) return;
@@ -8767,15 +8780,28 @@ async function viewGps(id, modo) {
   };
 
   // fecha a parte atual (volta) e passa para a próxima
+  // contagem regressiva: bipe curto a cada segundo nos 5 últimos segundos de cada parte (aquecimento, tiro, recuperação...)
+  // em parte por distância, os segundos que faltam vêm do pace atual
+  let contou = 9;
+  const contagem = () => {
+    if (st.estado !== 'correndo' || !passos.length) return;
+    const s = passoAtual(); if (!s) return;
+    const mov = movAgora() / 1000; let rest = null;
+    if (s.t) rest = s.t - (mov - st.pIni.t);
+    else if (s.d) { const pa = paceAgora(); if (pa) rest = (s.d - (st.dist - st.pIni.d)) / 1000 * pa; }
+    if (rest == null || rest <= 0 || rest > 5.2) return;
+    const n = Math.ceil(rest - 0.05);
+    if (n >= 1 && n < contou) { contou = n; tom(880, 0.14); vibrar(70); }
+  };
   const fecharPasso = () => {
-    ultTroca = Date.now();
+    ultTroca = Date.now(); foraDir = 0; foraFalas = 0; contou = 9;
     const mov = movAgora() / 1000;
     const v = { d: Math.round(st.dist - st.pIni.d), seg: Math.round(mov - st.pIni.t) };
     if (v.seg > 0) st.voltas.push(v);
     st.pIni = { t: mov, d: st.dist };
     if (passos.length) {
       st.passo++; const nx = passoAtual();
-      vibrar([300, 120, 300]); beep(nx && nx.k === 'co' ? 3 : 2);
+      vibrar([500]); tom(1320, 0.7); contou = 9;
       if (nx) anunciar(nx); else falar('Treino completo. Muito bem! Toque em terminar para salvar.');
     } else { vibrar(200); beep(1); falar(`${st.voltas.length} quilômetro${st.voltas.length > 1 ? 's' : ''}. Pace ${paceFala(v.seg / (v.d / 1000))}.`); }
     salvar(); desenha();
@@ -8784,7 +8810,7 @@ async function viewGps(id, modo) {
   const marcarVolta = () => {
     const mov = movAgora() / 1000, v = { d: Math.round(st.dist - st.pIni.d), seg: Math.round(mov - st.pIni.t) };
     if (v.seg < 3) return;
-    st.voltas.push(v); st.pIni = { t: mov, d: st.dist }; ultTroca = Date.now();
+    st.voltas.push(v); st.pIni = { t: mov, d: st.dist }; ultTroca = Date.now(); foraDir = 0; foraFalas = 0;
     vibrar(200); beep(1); falar(`Volta ${st.voltas.length}. ${durFala(v.seg)}${v.d > 50 ? `. Pace ${paceFala(v.seg / (v.d / 1000))}` : ''}.`);
     salvar(); desenha();
   };
@@ -9012,7 +9038,7 @@ async function viewGps(id, modo) {
   dest.addEventListener('pointerdown', ini); dest.addEventListener('pointerup', sol); dest.addEventListener('pointerleave', sol); dest.addEventListener('contextmenu', (e) => e.preventDefault());
   // relógio da tela + checagem das partes por tempo
   const tick = () => { if (!document.getElementById('g-tempo') || !minha()) return encerrar(); if (!est && pref.autopausa && st.estado === 'correndo' && ultMov && Date.now() - ultMov > 10000 && st.dist > 30) autoPausar(); if (est && st.estado === 'correndo') serieEsteira(); verificaPasso(); if (est) sinalEsteira(); if (st.estado === 'correndo') { falarPace(); desenha(); if (++nTick % 5 === 0) salvar(); } };
-  tickRef = setInterval(tick, 1000);
+  tickRef = setInterval(tick, 1000); const contRef = setInterval(() => { if (!document.getElementById('g-tempo')) return clearInterval(contRef); contagem(); }, 200);
   ligarGPS(); desenha(); iniciarMapa();
   setTimeout(() => { podeSemSinal = true; if (document.getElementById('g-bts')) desenha(); }, 15000); // sem sinal bom em 15 s: libera começar assim mesmo
   // saiu da tela por navegação: libera GPS e tela
