@@ -1234,9 +1234,43 @@ async function mapaDoPercurso(R, w, h) {
 }
 const REPLAY_MODOS = [
   ['classico', 'Clássico'],
+  ['sat', 'Satélite 3D'],
   ['3d', '3D noturno'],
   ['3d-real', '3D realista'],
 ];
+// chave do mapa de satélite (Esri): fica no banco, só para quem está logado, e só funciona no domínio da Nexos
+let chaveMapaP = null;
+const chaveMapa = () =>
+  (chaveMapaP =
+    chaveMapaP ||
+    sb.rpc('nx_config_mapa').then(
+      (r) => r.data || null,
+      () => null,
+    ));
+const SAT_FONTES = [
+  (k) => `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${k}`,
+  (k) =>
+    `https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1/arcgis/imagery/static/tile/{z}/{y}/{x}?token=${k}`,
+];
+// testa um pedaço de imagem de cada endereço e usa o primeiro que responder (chave válida e dentro do limite)
+async function fonteSatelite(lon, lat) {
+  const k = await chaveMapa();
+  if (!k) return null;
+  const z = 15,
+    n = 2 ** z,
+    tx = Math.floor(((lon + 180) / 360) * n),
+    r = (lat * Math.PI) / 180,
+    ty = Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n);
+  for (const f of SAT_FONTES) {
+    const url = f(k);
+    try {
+      const resp = await fetch(url.replace('{z}', z).replace('{y}', ty).replace('{x}', tx));
+      if (resp.ok && /^image\//.test(resp.headers.get('content-type') || ''))
+        return { url, tam: /static-map-tiles/.test(url) ? 512 : 256 };
+    } catch {}
+  }
+  return null;
+}
 function abrirReplay(c, perfil) {
   const R = c.rota;
   if (!R || R.length < 10) return;
@@ -1296,7 +1330,154 @@ function abrirReplay(c, perfil) {
   faixa.width = W;
   faixa.height = MH;
   const fx = faixa.getContext('2d');
+  // números ao vivo: distância, tempo e pace no ponto k do percurso
+  const vivo = (k) => {
+    const dk = dist * k,
+      tk = dur * k;
+    let pc = dk > 50 ? tk / (dk / 1000) : null;
+    if (ser && ser.t && ser.vel) {
+      let jx = ser.t.findIndex((t) => t >= tk);
+      if (jx < 0) jx = ser.t.length - 1;
+      const vs = ser.vel.slice(Math.max(0, jx - 3), jx + 3).filter((v) => v > 0.8);
+      if (vs.length) pc = 1000 / (vs.reduce((a, b) => a + b, 0) / vs.length);
+    }
+    return { dk, tk, pc };
+  };
+  // modo satélite (estilo dos vídeos de prova): mapa na tela inteira, números em cima, câmera de drone
+  const desenhaSat = (k) => {
+    x.drawImage(m3.map.getCanvas(), 0, 0, W, H);
+    let g = x.createLinearGradient(0, 0, 0, 760);
+    g.addColorStop(0, 'rgba(3,8,20,.9)');
+    g.addColorStop(0.55, 'rgba(3,8,20,.5)');
+    g.addColorStop(1, 'rgba(3,8,20,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, W, 760);
+    g = x.createLinearGradient(0, H - 440, 0, H);
+    g.addColorStop(0, 'rgba(3,8,20,0)');
+    g.addColorStop(1, 'rgba(3,8,20,.88)');
+    x.fillStyle = g;
+    x.fillRect(0, H - 440, W, 440);
+    P = R.map(([la, lo]) => {
+      const q = m3.map.project([lo, la]);
+      return [q.x, q.y];
+    });
+    const n = Math.max(1, Math.floor(k * (P.length - 1)));
+    let [px, py] = P[n];
+    if (n < P.length - 1) {
+      const fr = k * (P.length - 1) - n;
+      px += (P[n + 1][0] - px) * fr;
+      py += (P[n + 1][1] - py) * fr;
+    }
+    x.save();
+    x.beginPath();
+    x.rect(0, 560, W, H - 560);
+    x.clip();
+    x.lineCap = 'round';
+    x.lineJoin = 'round';
+    // o percurso todo bem leve; a parte já corrida grossa, com contorno escuro para destacar no satélite
+    x.strokeStyle = 'rgba(255,255,255,.28)';
+    x.lineWidth = 6;
+    x.beginPath();
+    P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b)));
+    x.stroke();
+    const feito = (larg, cor) => {
+      x.lineWidth = larg;
+      for (let j = 1; j <= n; j++) {
+        x.strokeStyle = cor || (cores ? cores[j - 1] : corP().p1);
+        x.beginPath();
+        x.moveTo(P[j - 1][0], P[j - 1][1]);
+        x.lineTo(j === n ? px : P[j][0], j === n ? py : P[j][1]);
+        x.stroke();
+      }
+    };
+    feito(24, 'rgba(0,0,0,.4)');
+    x.shadowColor = corP().p1;
+    x.shadowBlur = 18;
+    feito(15);
+    x.shadowBlur = 0;
+    const gl = x.createRadialGradient(px, py, 2, px, py, 46);
+    gl.addColorStop(0, 'rgba(255,255,255,.9)');
+    gl.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gl;
+    x.beginPath();
+    x.arc(px, py, 46, 0, 7);
+    x.fill();
+    x.fillStyle = corP().p1;
+    x.beginPath();
+    x.arc(px, py, 19, 0, 7);
+    x.fill();
+    x.fillStyle = '#fff';
+    x.beginPath();
+    x.arc(px, py, 12, 0, 7);
+    x.fill();
+    x.restore();
+    // título e data
+    x.textAlign = 'center';
+    x.fillStyle = '#fff';
+    x.font = "600 50px 'Unbounded'";
+    x.fillText(quebraTexto(x, c.titulo || 'Minha corrida', 920)[0], W / 2, 270);
+    x.fillStyle = corP().p1;
+    x.font = "700 28px 'Manrope'";
+    try {
+      x.letterSpacing = '6px';
+    } catch {}
+    x.fillText(`${fmtDia(isoDia(c.data))}`.toUpperCase(), W / 2, 325);
+    try {
+      x.letterSpacing = '0px';
+    } catch {}
+    // números ao vivo, em três colunas
+    const { dk, tk, pc } = vivo(k);
+    [
+      ['Distância', f1(dk / 1000), 'km'],
+      ['Tempo', fmtDurLongo(tk), ''],
+      ['Pace', pc ? fmtPace(pc).replace('/km', '') : '–', '/km'],
+    ].forEach(([l, v, u], j) => {
+      const cx = W / 6 + (j * W) / 3;
+      x.textAlign = 'center';
+      x.font = "600 30px 'Manrope'";
+      x.fillStyle = 'rgba(255,255,255,.75)';
+      x.fillText(l, cx, 420);
+      x.font = "600 68px 'Unbounded'";
+      x.fillStyle = '#fff';
+      x.fillText(v, cx, 500);
+      if (u) {
+        x.font = "700 28px 'Manrope'";
+        x.fillStyle = 'rgba(255,255,255,.75)';
+        x.fillText(u, cx, 545);
+      }
+    });
+    x.textAlign = 'left';
+    x.font = "700 32px 'Manrope'";
+    x.fillStyle = '#fff';
+    x.fillText(S.staff ? '' : S.me.nome || '', 90, H - 160);
+    x.font = "500 28px 'Manrope'";
+    x.fillStyle = 'rgba(255,255,255,.7)';
+    x.fillText('Treino acompanhado pela Nexos Performance e Saúde', 90, H - 112);
+    x.font = "500 19px 'Manrope'";
+    x.fillStyle = 'rgba(255,255,255,.55)';
+    x.fillText('Powered by Esri · Imagem: Esri, Maxar, Earthstar Geographics · Relevo: Mapzen/AWS', 90, H - 52);
+  };
+  // fim do vídeo no satélite: a câmera sobe para mostrar o percurso inteiro e entra o cartão da Nexos
+  const cartaoFinal = (a) => {
+    x.save();
+    x.globalAlpha = a;
+    fundoStory(x, W, H);
+    if (logo) {
+      const h = 120,
+        w = (logo.width / logo.height) * h;
+      x.drawImage(logo, (W - w) / 2, H / 2 - 160, w, h);
+    }
+    x.textAlign = 'center';
+    x.fillStyle = '#fff';
+    x.font = "600 46px 'Unbounded'";
+    x.fillText(`${f1(dist / 1000)} km · ${fmtDurLongo(dur)}`, W / 2, H / 2 + 60);
+    x.font = "500 30px 'Manrope'";
+    x.fillStyle = 'rgba(255,255,255,.7)';
+    x.fillText('Treino acompanhado pela Nexos Performance e Saúde', W / 2, H / 2 + 120);
+    x.restore();
+  };
   const desenha = (k) => {
+    if (modo === 'sat' && m3 && m3.pronto) return desenhaSat(k);
     fundoStory(x, W, H);
     if (m3 && m3.pronto) {
       // mapa 3D: a câmera já foi posicionada; copia o quadro e apaga as bordas de cima e de baixo
@@ -1457,18 +1638,49 @@ function abrirReplay(c, perfil) {
         : k < 0.5
           ? 2 * k * k
           : 1 - Math.pow(-2 * k + 2, 2) / 2;
-      if (d3) camera3D(e);
+      if (d3) (modo === 'sat' ? cameraSat : camera3D)(e);
       desenha(e);
       if (logo) {
         const h = 48,
           w = (logo.width / logo.height) * h;
-        x.drawImage(logo, 90, 110, w, h);
+        x.drawImage(logo, modo === 'sat' && d3 ? (W - w) / 2 : 90, 110, w, h);
       }
       if (k < 1) raf = requestAnimationFrame(f);
+      else if (d3 && modo === 'sat') fimSat(aoFim);
       else if (aoFim) setTimeout(aoFim, 1500);
     };
     raf = requestAnimationFrame(f);
   };
+  function fimSat(aoFim) {
+    const t0 = performance.now(),
+      de = { c: m3.map.getCenter(), z: m3.map.getZoom(), b: m3.map.getBearing(), p: m3.map.getPitch() },
+      ate = m3.vista;
+    const f = (t) => {
+      const q = Math.min(1, (t - t0) / 4200),
+        s1 = Math.min(1, q / 0.62),
+        e = s1 < 0.5 ? 2 * s1 * s1 : 1 - Math.pow(-2 * s1 + 2, 2) / 2;
+      m3.map.jumpTo({
+        center: [de.c.lng + (ate.c[0] - de.c.lng) * e, de.c.lat + (ate.c[1] - de.c.lat) * e],
+        zoom: de.z + (ate.z - de.z) * e,
+        bearing: de.b + 25 * e,
+        pitch: de.p + (45 - de.p) * e,
+      });
+      desenhaSat(1);
+      if (logo) {
+        const h = 48,
+          w = (logo.width / logo.height) * h;
+        x.drawImage(logo, (W - w) / 2, 110, w, h);
+      }
+      if (q > 0.72) cartaoFinal(Math.min(1, (q - 0.72) / 0.2));
+      if (q < 1) raf = requestAnimationFrame(f);
+      else if (aoFim) setTimeout(aoFim, 900);
+    };
+    raf = requestAnimationFrame(f);
+  }
+  // câmera de drone: alta, inclinada, girando devagar em volta do ponto que corre
+  function cameraSat(e) {
+    m3.map.jumpTo({ center: pontoEm(e), bearing: m3.rumo0 + e * 80, pitch: 60, zoom: m3.zoom });
+  }
   // ---------- modos 3D: câmera inclinada que segue o corredor, com prédios em 3D ----------
   const pontoEm = (e) => {
     const t = e * (R.length - 1),
@@ -1500,12 +1712,36 @@ function abrirReplay(c, perfil) {
   async function preparar3D(estilo) {
     fechar3D();
     await carregarMapaLib();
+    const sat = estilo === 'sat';
+    let estiloMapa = `https://tiles.openfreemap.org/styles/${estilo === '3d' ? 'dark' : 'liberty'}`;
+    if (sat) {
+      const fonte = await fonteSatelite(R[0][1], R[0][0]);
+      if (!fonte) return 'sem-satelite';
+      estiloMapa = {
+        version: 8,
+        sources: {
+          sat: { type: 'raster', tiles: [fonte.url], tileSize: fonte.tam, maxzoom: 19 },
+          dem: {
+            type: 'raster-dem',
+            tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+            encoding: 'terrarium',
+            tileSize: 256,
+            maxzoom: 15,
+          },
+        },
+        layers: [
+          { id: 'fundo', type: 'background', paint: { 'background-color': '#0b1a2e' } },
+          { id: 'sat', type: 'raster', source: 'sat' },
+        ],
+        terrain: { source: 'dem', exaggeration: 1.4 },
+      };
+    }
     const box = document.createElement('div');
-    box.style.cssText = `position:fixed;left:-30000px;top:0;width:${W}px;height:${MH}px;pointer-events:none`;
+    box.style.cssText = `position:fixed;left:-30000px;top:0;width:${W}px;height:${sat ? H : MH}px;pointer-events:none`;
     document.body.append(box);
     const map = new window.maplibregl.Map({
       container: box,
-      style: `https://tiles.openfreemap.org/styles/${estilo === '3d' ? 'dark' : 'liberty'}`,
+      style: estiloMapa,
       pixelRatio: 1,
       interactive: false,
       attributionControl: false,
@@ -1533,6 +1769,7 @@ function abrirReplay(c, perfil) {
       });
     });
     if (m3 !== meu) return false;
+    if (sat) return prepararSat(meu);
     // prédios em 3D (o estilo escuro não traz; no realista reforça a altura)
     const camadas = map.getStyle().layers || [];
     if (!camadas.some((l) => l.type === 'fill-extrusion')) {
@@ -1567,6 +1804,56 @@ function abrirReplay(c, perfil) {
     meu.pronto = true;
     return true;
   }
+  // satélite: céu no horizonte, enquadramento final e mapas baixados antes de gravar
+  async function prepararSat(meu) {
+    const map = meu.map;
+    try {
+      map.setSky({
+        'sky-color': '#7fb2e6',
+        'horizon-color': '#cfe3f5',
+        'sky-horizon-blend': 0.6,
+        'horizon-fog-blend': 0.5,
+        'fog-color': '#b8cde0',
+        'fog-ground-blend': 0.6,
+      });
+    } catch {}
+    let erros = 0;
+    map.on('error', (ev) => {
+      if (ev && ev.sourceId === 'sat') erros++;
+    });
+    const km = dist / 1000;
+    meu.zoom = km < 3 ? 15.8 : km < 8 ? 15.2 : km < 15 ? 14.7 : 14.2;
+    meu.rumo0 = rumoEntre(pontoEm(0), pontoEm(0.08)) - 30;
+    const ls = R.map((p) => p[0]),
+      os = R.map((p) => p[1]);
+    const cam = map.cameraForBounds(
+      [
+        [Math.min(...os), Math.min(...ls)],
+        [Math.max(...os), Math.max(...ls)],
+      ],
+      { padding: { top: 640, bottom: 420, left: 120, right: 120 } },
+    );
+    meu.vista = { c: cam ? [cam.center.lng, cam.center.lat] : pontoEm(0.5), z: cam ? cam.zoom - 0.35 : meu.zoom - 1.5 };
+    const espera = (ms) =>
+      new Promise((ok) => {
+        const t = setTimeout(ok, ms);
+        map.once('idle', () => {
+          clearTimeout(t);
+          ok();
+        });
+      });
+    const N = 12;
+    for (let i = 0; i <= N + 1; i++) {
+      if (m3 !== meu || !ov.isConnected) return false;
+      if (i <= N) cameraSat(i / N);
+      else map.jumpTo({ center: meu.vista.c, zoom: meu.vista.z, bearing: meu.rumo0 + 105, pitch: 45 });
+      bv.textContent = `Preparando o satélite… ${Math.round((i / (N + 1)) * 100)}%`;
+      await espera(3000);
+      if (erros > 6) return 'sem-satelite';
+    }
+    meu.pronto = true;
+    return true;
+  }
   ov.querySelectorAll('[data-rpm]').forEach((bt) => {
     bt.onclick = async () => {
       if (bt.dataset.rpm === modo || bv.dataset.gravando) return;
@@ -1581,11 +1868,17 @@ function abrirReplay(c, perfil) {
         return tocar();
       }
       bv.disabled = true;
-      bv.textContent = 'Preparando o 3D…';
+      bv.textContent = modo === 'sat' ? 'Preparando o satélite…' : 'Preparando o 3D…';
       const ok = await preparar3D(modo).catch(() => false);
       if (!ov.isConnected || modo !== bt.dataset.rpm) return;
       bv.disabled = false;
       bv.textContent = 'Salvar vídeo';
+      if (ok === 'sem-satelite') {
+        // chave vencida, limite do mês ou internet fraca: segue com o mapa realista gratuito
+        fechar3D();
+        toast('O satélite não está disponível agora. Usando o mapa 3D realista.');
+        return ov.querySelector('[data-rpm="3d-real"]').click();
+      }
       if (!ok) {
         toast('Não foi possível carregar o mapa 3D agora. Confira a internet e tente de novo.', true);
         return ov.querySelector('[data-rpm="classico"]').click();
