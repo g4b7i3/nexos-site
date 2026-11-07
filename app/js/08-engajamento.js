@@ -1232,6 +1232,11 @@ async function mapaDoPercurso(R, w, h) {
     if (box) box.remove();
   }
 }
+const REPLAY_MODOS = [
+  ['classico', 'Clássico'],
+  ['3d', '3D noturno'],
+  ['3d-real', '3D realista'],
+];
 function abrirReplay(c, perfil) {
   const R = c.rota;
   if (!R || R.length < 10) return;
@@ -1239,7 +1244,9 @@ function abrirReplay(c, perfil) {
   ov.className = 'replay';
   document.body.append(ov);
   document.body.style.overflow = 'hidden';
-  ov.innerHTML = `<button class="retro-x" aria-label="Fechar">${I.x}</button><canvas id="rp-cv"></canvas><div class="replay-bts"><button class="btn ghost sm" id="rp-de-novo">Ver de novo</button><button class="btn sm" id="rp-video">Salvar vídeo</button></div>`;
+  ov.innerHTML = `<button class="retro-x" aria-label="Fechar">${I.x}</button><canvas id="rp-cv"></canvas>
+    <div class="replay-modos" role="radiogroup" aria-label="Estilo do vídeo">${REPLAY_MODOS.map(([k, n]) => `<button type="button" data-rpm="${k}" class="${k === 'classico' ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <div class="replay-bts"><button class="btn ghost sm" id="rp-de-novo">Ver de novo</button><button class="btn sm" id="rp-video">Salvar vídeo</button></div>`;
   const cv = ov.querySelector('#rp-cv'),
     W = 1080,
     H = 1920;
@@ -1247,8 +1254,12 @@ function abrirReplay(c, perfil) {
   cv.height = H;
   const x = cv.getContext('2d');
   let raf = 0;
+  let modo = 'classico',
+    m3 = null; // mapa 3D ao vivo (só nos modos 3D)
+  const bv = ov.querySelector('#rp-video');
   const fecha = () => {
     cancelAnimationFrame(raf);
+    fechar3D();
     ov.remove();
     document.body.style.overflow = '';
   };
@@ -1273,6 +1284,7 @@ function abrirReplay(c, perfil) {
     ox = BX + (BW - bw * sc) / 2,
     oy = BY + (BH - bh * sc) / 2;
   let P = R.map(([la, lo]) => [ox + (lo - lo0) * kk * sc, oy + (la1 - la) * sc]);
+  const P0 = P;
   const MY = 400,
     MH = 1060;
   let fundoMapa = null; // faixa do mapa real: de cima do título até os números
@@ -1280,9 +1292,40 @@ function abrirReplay(c, perfil) {
     dur = +c.duracao_s || 0,
     DUR = 9000;
   const ser = c.analise && c.analise.serie;
+  const faixa = document.createElement('canvas');
+  faixa.width = W;
+  faixa.height = MH;
+  const fx = faixa.getContext('2d');
   const desenha = (k) => {
     fundoStory(x, W, H);
-    if (fundoMapa) {
+    if (m3 && m3.pronto) {
+      // mapa 3D: a câmera já foi posicionada; copia o quadro e apaga as bordas de cima e de baixo
+      fx.globalCompositeOperation = 'source-over';
+      fx.clearRect(0, 0, W, MH);
+      fx.drawImage(m3.map.getCanvas(), 0, 0, W, MH);
+      if (modo === '3d') {
+        fx.globalCompositeOperation = 'multiply';
+        fx.fillStyle = '#3a5aa0';
+        fx.fillRect(0, 0, W, MH);
+      }
+      const ms = fx.createLinearGradient(0, 0, 0, MH);
+      ms.addColorStop(0, 'rgba(0,0,0,0)');
+      ms.addColorStop(0.16, 'rgba(0,0,0,1)');
+      ms.addColorStop(0.82, 'rgba(0,0,0,1)');
+      ms.addColorStop(1, 'rgba(0,0,0,0)');
+      fx.globalCompositeOperation = 'destination-in';
+      fx.fillStyle = ms;
+      fx.fillRect(0, 0, W, MH);
+      x.drawImage(faixa, 0, MY);
+      x.textAlign = 'right';
+      x.font = "500 20px 'Manrope'";
+      x.fillStyle = 'rgba(255,255,255,.5)';
+      x.fillText('© OpenStreetMap · OpenFreeMap', W - 40, MY + MH - 30);
+      P = R.map(([la, lo]) => {
+        const q = m3.map.project([lo, la]);
+        return [q.x, q.y + MY];
+      });
+    } else if (fundoMapa) {
       // mapa escuro, puxado para o azul da Nexos, sumindo em cima e embaixo
       x.drawImage(fundoMapa.vis, 0, MY);
       x.textAlign = 'right';
@@ -1305,9 +1348,16 @@ function abrirReplay(c, perfil) {
     quebraTexto(x, c.titulo || 'Minha corrida', 900)
       .slice(0, 2)
       .forEach((l, j) => x.fillText(l, 90, 320 + j * 76));
+    const em3 = m3 && m3.pronto;
+    if (em3) {
+      x.save();
+      x.beginPath();
+      x.rect(0, MY + 40, W, MH - 80);
+      x.clip();
+    }
     x.lineCap = 'round';
     x.lineJoin = 'round';
-    x.strokeStyle = fundoMapa ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.14)';
+    x.strokeStyle = fundoMapa || em3 ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.14)';
     x.lineWidth = fundoMapa ? 10 : 14;
     x.beginPath();
     P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b)));
@@ -1327,7 +1377,13 @@ function abrirReplay(c, perfil) {
       x.stroke();
     }
     if (fundoMapa) x.restore();
-    const [px, py] = P[n];
+    let [px, py] = P[n];
+    if (em3 && n < P.length - 1) {
+      // no 3D o ponto anda suave entre as amostras do GPS (a câmera segue o mesmo ponto)
+      const fr = k * (P.length - 1) - n;
+      px += (P[n + 1][0] - px) * fr;
+      py += (P[n + 1][1] - py) * fr;
+    }
     const gl = x.createRadialGradient(px, py, 2, px, py, 50);
     gl.addColorStop(0, 'rgba(255,255,255,.95)');
     gl.addColorStop(1, 'rgba(70,214,255,0)');
@@ -1339,6 +1395,7 @@ function abrirReplay(c, perfil) {
     x.beginPath();
     x.arc(px, py, 14, 0, 7);
     x.fill();
+    if (em3) x.restore();
     // números ao vivo
     const dk = dist * k,
       tk = dur * k;
@@ -1385,9 +1442,22 @@ function abrirReplay(c, perfil) {
   const tocar = (aoFim) => {
     cancelAnimationFrame(raf);
     const t0 = performance.now();
+    const d3 = m3 && m3.pronto,
+      dur = d3 ? Math.min(24000, Math.max(13000, (dist / 1000) * 2600)) : DUR;
+    if (d3) m3.rumo = null;
     const f = (t) => {
-      const k = Math.min(1, (t - t0) / DUR);
-      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const k = Math.min(1, (t - t0) / dur);
+      // no 3D a velocidade é quase constante (só suaviza a saída e a chegada)
+      const e = d3
+        ? k < 0.06
+          ? (k * k) / 0.12
+          : k > 0.94
+            ? 1 - ((1 - k) * (1 - k)) / 0.12
+            : k
+        : k < 0.5
+          ? 2 * k * k
+          : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      if (d3) camera3D(e);
       desenha(e);
       if (logo) {
         const h = 48,
@@ -1399,14 +1469,139 @@ function abrirReplay(c, perfil) {
     };
     raf = requestAnimationFrame(f);
   };
+  // ---------- modos 3D: câmera inclinada que segue o corredor, com prédios em 3D ----------
+  const pontoEm = (e) => {
+    const t = e * (R.length - 1),
+      i = Math.min(R.length - 2, Math.floor(t)),
+      fr = t - i;
+    return [R[i][1] + (R[i + 1][1] - R[i][1]) * fr, R[i][0] + (R[i + 1][0] - R[i][0]) * fr];
+  };
+  const rumoEntre = (a, b) => {
+    const k = Math.cos((a[1] * Math.PI) / 180);
+    return (Math.atan2((b[0] - a[0]) * k, b[1] - a[1]) * 180) / Math.PI;
+  };
+  function camera3D(e) {
+    const c0 = pontoEm(e),
+      adiante = pontoEm(Math.min(1, e + 0.035));
+    let alvo = Math.hypot(adiante[0] - c0[0], adiante[1] - c0[1]) > 1e-6 ? rumoEntre(c0, adiante) : (m3.rumo ?? 0);
+    if (m3.rumo == null) m3.rumo = alvo;
+    let d = ((alvo - m3.rumo + 540) % 360) - 180; // gira pelo lado mais curto
+    m3.rumo += d * 0.05;
+    m3.map.jumpTo({ center: c0, bearing: m3.rumo, pitch: 58, zoom: m3.zoom });
+  }
+  function fechar3D() {
+    if (!m3) return;
+    try {
+      m3.map.remove();
+    } catch {}
+    m3.box.remove();
+    m3 = null;
+  }
+  async function preparar3D(estilo) {
+    fechar3D();
+    await carregarMapaLib();
+    const box = document.createElement('div');
+    box.style.cssText = `position:fixed;left:-30000px;top:0;width:${W}px;height:${MH}px;pointer-events:none`;
+    document.body.append(box);
+    const map = new window.maplibregl.Map({
+      container: box,
+      style: `https://tiles.openfreemap.org/styles/${estilo === '3d' ? 'dark' : 'liberty'}`,
+      pixelRatio: 1,
+      interactive: false,
+      attributionControl: false,
+      preserveDrawingBuffer: true,
+      fadeDuration: 0,
+      center: pontoEm(0),
+      zoom: 16,
+      pitch: 62,
+      maxPitch: 75,
+    });
+    const meu = (m3 = { map, box, pronto: false, rumo: null, zoom: 16.2 });
+    const espera = (ms) =>
+      new Promise((ok) => {
+        const t = setTimeout(ok, ms);
+        map.once('idle', () => {
+          clearTimeout(t);
+          ok();
+        });
+      });
+    await new Promise((ok, er) => {
+      const t = setTimeout(() => er(new Error('tempo')), 15000);
+      map.once('load', () => {
+        clearTimeout(t);
+        ok();
+      });
+    });
+    if (m3 !== meu) return false;
+    // prédios em 3D (o estilo escuro não traz; no realista reforça a altura)
+    const camadas = map.getStyle().layers || [];
+    if (!camadas.some((l) => l.type === 'fill-extrusion')) {
+      const fonte = Object.keys(map.getStyle().sources).find((k) => map.getStyle().sources[k].type === 'vector');
+      if (fonte)
+        map.addLayer({
+          id: 'nx-predios-3d',
+          type: 'fill-extrusion',
+          source: fonte,
+          'source-layer': 'building',
+          minzoom: 14,
+          paint: {
+            'fill-extrusion-color': estilo === '3d' ? '#1d2c4f' : '#d9d4cc',
+            'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 6],
+            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+            'fill-extrusion-opacity': 0.9,
+          },
+        });
+    }
+    // zoom pelo tamanho do percurso: corrida curta mais perto, longa um pouco mais longe
+    const km = dist / 1000;
+    meu.zoom = km < 3 ? 16.6 : km < 8 ? 16.2 : km < 15 ? 15.8 : 15.4;
+    // percorre o caminho antes para baixar os mapas, assim o vídeo não aparece com buracos
+    const N = 12;
+    for (let i = 0; i <= N; i++) {
+      if (m3 !== meu || !ov.isConnected) return false;
+      m3.rumo = null;
+      camera3D(i / N);
+      bv.textContent = `Preparando o 3D… ${Math.round((i / N) * 100)}%`;
+      await espera(2500);
+    }
+    meu.pronto = true;
+    return true;
+  }
+  ov.querySelectorAll('[data-rpm]').forEach((bt) => {
+    bt.onclick = async () => {
+      if (bt.dataset.rpm === modo || bv.dataset.gravando) return;
+      modo = bt.dataset.rpm;
+      ov.querySelectorAll('[data-rpm]').forEach((o) => o.classList.toggle('on', o === bt));
+      cancelAnimationFrame(raf);
+      if (modo === 'classico') {
+        fechar3D();
+        P = fundoMapa ? fundoMapa.P.map(([a, b]) => [a, b + MY]) : P0;
+        bv.disabled = false;
+        bv.textContent = 'Salvar vídeo';
+        return tocar();
+      }
+      bv.disabled = true;
+      bv.textContent = 'Preparando o 3D…';
+      const ok = await preparar3D(modo).catch(() => false);
+      if (!ov.isConnected || modo !== bt.dataset.rpm) return;
+      bv.disabled = false;
+      bv.textContent = 'Salvar vídeo';
+      if (!ok) {
+        toast('Não foi possível carregar o mapa 3D agora. Confira a internet e tente de novo.', true);
+        return ov.querySelector('[data-rpm="classico"]').click();
+      }
+      tocar();
+    };
+  });
   // mostra já o replay simples e, quando o mapa real carregar, recomeça por cima dele
   fontesStory().then(() => tocar());
-  const bv = ov.querySelector('#rp-video');
   bv.disabled = true;
   bv.textContent = 'Carregando mapa…';
   mapaDoPercurso(R, W, MH).then((m) => {
-    bv.disabled = false;
-    bv.textContent = 'Salvar vídeo';
+    if (modo === 'classico') {
+      bv.disabled = false;
+      bv.textContent = 'Salvar vídeo';
+    }
     if (!m || !ov.isConnected) return;
     const v = document.createElement('canvas');
     v.width = W;
@@ -1425,6 +1620,7 @@ function abrirReplay(c, perfil) {
     g.fillStyle = ms;
     g.fillRect(0, 0, W, MH);
     fundoMapa = { ...m, vis: v };
+    if (modo !== 'classico') return; // o aluno já trocou para o 3D
     P = m.P.map(([a, b]) => [a, b + MY]);
     tocar();
   });
@@ -1438,6 +1634,7 @@ function abrirReplay(c, perfil) {
       return toast('Este navegador não grava vídeo. Grave a tela do celular enquanto o replay toca.', true);
     b.disabled = true;
     b.textContent = 'Gravando…';
+    b.dataset.gravando = '1';
     const rec = new MediaRecorder(cv.captureStream(30), { mimeType: tipo, videoBitsPerSecond: 6000000 });
     const partes = [];
     rec.ondataavailable = (ev) => ev.data.size && partes.push(ev.data);
@@ -1447,6 +1644,7 @@ function abrirReplay(c, perfil) {
         file = new File([blob], `replay-nexos.${ext}`, { type: blob.type });
       b.disabled = false;
       b.textContent = 'Salvar vídeo';
+      delete b.dataset.gravando;
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file] });
