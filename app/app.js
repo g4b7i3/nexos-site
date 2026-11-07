@@ -2395,6 +2395,56 @@ function abrirRetro(h, k) {
   desenha();
 }
 
+/* ---------- treino não feito: o aluno conta o motivo (pergunta enviada pelo nx-faltas de manhã) ---------- */
+const FALTA_MOT = [['cansaco', 'Cansaço ou fadiga'], ['dor', 'Dor ou lesão'], ['doenca', 'Doença'], ['trabalho', 'Trabalho ou estudo'], ['pessoal', 'Compromisso pessoal'], ['clima', 'Chuva ou clima'], ['sono', 'Dormi mal'], ['esqueci', 'Esqueci'], ['fiz', 'Fiz, mas não registrei'], ['outro', 'Outro motivo']];
+const faltaMotTxt = (k) => (FALTA_MOT.find((m) => m[0] === k) || [k, k])[1];
+const DIA_SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const diaSemDe = (iso) => DIA_SEM[new Date(iso + 'T12:00:00').getDay()];
+async function faltasPendentes() {
+  const box = document.getElementById('falta-pend'); if (!box) return;
+  const desde = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const { data } = await sb.from('nx_faltas').select('id,dia,treinos').eq('aluno_id', S.user.id).is('respondido_em', null).gte('dia', desde).order('dia', { ascending: false }).then((r) => r, () => ({ data: [] }));
+  if (!data || !data.length || !document.getElementById('falta-pend')) return;
+  box.innerHTML = data.map((f) => `<button type="button" class="list-item falta-row" data-falta="${f.id}" style="width:100%;text-align:left"><span class="ativ-ic">${I.cal}</span><div class="grow"><b>Treino de ${diaSemDe(f.dia)} não registrado</b><div class="small muted">${esc((f.treinos || []).join(' e '))}. Conte o que aconteceu para o seu treinador ajustar a semana.</div></div>${I.chev}</button>`).join('');
+  const ps = document.getElementById('pend-sec'); if (ps) ps.hidden = false;
+  box.querySelectorAll('[data-falta]').forEach((b) => { b.onclick = () => responderFalta(data.find((f) => f.id === b.dataset.falta), () => { b.remove(); }); });
+}
+function responderFalta(f, depois) {
+  if (!f) return;
+  let mot = null;
+  openSheet(`<p class="eyebrow">Treino de ${diaSemDe(f.dia)} · ${fmtCurto(f.dia + 'T12:00:00')}</p><div class="h2" style="margin-top:4px">O que aconteceu?</div>
+    <p class="small muted" style="margin-top:6px">${esc((f.treinos || []).join(' e '))} não ${(f.treinos || []).length > 1 ? 'foram registrados' : 'foi registrado'}. Sua resposta vai só para o seu treinador e ajuda a ajustar os próximos treinos.</p>
+    <div class="chips" id="fm-ch" style="margin-top:14px;flex-wrap:wrap;overflow:visible">${FALTA_MOT.map(([k, t]) => `<button type="button" class="chip" data-m="${k}">${t}</button>`).join('')}</div>
+    <label class="field" style="margin-top:14px"><span>Quer contar mais? (opcional)</span><textarea class="input" id="fm-det" rows="3" maxlength="400" placeholder="Ex.: dor no joelho direito desde quarta"></textarea></label>
+    <p class="small" id="fm-fiz" hidden style="margin-top:8px">Depois de enviar, registre o treino em <b>Histórico</b> para ele contar na sua evolução.</p>
+    <button class="btn block" id="fm-ok" style="margin-top:14px" disabled>Enviar para o treinador</button>`, (r) => {
+    const ok = r.querySelector('#fm-ok');
+    r.querySelectorAll('#fm-ch [data-m]').forEach((c) => { c.onclick = () => { mot = c.dataset.m; r.querySelectorAll('#fm-ch [data-m]').forEach((x) => x.classList.toggle('on', x === c)); ok.disabled = false; r.querySelector('#fm-fiz').hidden = mot !== 'fiz'; }; });
+    ok.onclick = async () => {
+      if (!mot) return;
+      ok.disabled = true; ok.textContent = 'Enviando…';
+      const det = r.querySelector('#fm-det').value.trim().slice(0, 400) || null;
+      const { error } = await sb.from('nx_faltas').update({ motivo: faltaMotTxt(mot), detalhe: det, respondido_em: new Date().toISOString() }).eq('id', f.id).eq('aluno_id', S.user.id);
+      if (error) { ok.disabled = false; ok.textContent = 'Enviar para o treinador'; return toast('Não foi possível enviar. Tente de novo.', true); }
+      sb.functions.invoke('nx-faltas', { body: { acao: 'respondida', id: f.id } }).catch(() => {});
+      closeSheet(); toast('Obrigado! Seu treinador já recebeu.'); if (depois) depois();
+      if (mot === 'fiz') location.hash = '#/historico/corrida';
+    };
+  });
+}
+/** treinador: treinos não feitos nos últimos 7 dias, com o motivo que o aluno contou (ou aguardando resposta) */
+async function faltasEquipe(ids, porId) {
+  const box = document.getElementById('faltas-eq'); if (!box || !ids.length) return;
+  const desde = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const { data } = await sb.from('nx_faltas').select('id,aluno_id,dia,treinos,motivo,detalhe,respondido_em,visto_treinador').eq('org_id', S.org.id).in('aluno_id', ids).gte('dia', desde).order('dia', { ascending: false }).limit(30).then((r) => r, () => ({ data: [] }));
+  if (!data || !data.length || !document.getElementById('faltas-eq')) return;
+  const novas = data.filter((f) => f.respondido_em && !f.visto_treinador).length;
+  box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Treinos não feitos</h2>${novas ? `<span class="tag acc">${novas} resposta${novas > 1 ? 's' : ''} nova${novas > 1 ? 's' : ''}</span>` : `<span class="small muted">últimos 7 dias</span>`}</div><div class="stack">${data.map((f) => {
+    const m = porId[f.aluno_id] || { nome: 'Aluno' };
+    return `<a class="list-item" href="#/aluno/${f.aluno_id}" data-falta-vista="${f.respondido_em && !f.visto_treinador ? f.id : ''}" style="color:inherit;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${diaSemDe(f.dia)}</b><div class="small muted">${esc((f.treinos || []).join(' e '))}</div>${f.respondido_em ? `<div class="small" style="margin-top:4px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `: ${esc(f.detalhe)}` : ''}</div>` : '<div class="small muted" style="margin-top:4px">Aguardando a resposta do aluno</div>'}</div>${f.respondido_em && !f.visto_treinador ? '<i class="alert-dot"></i>' : ''}</a>`;
+  }).join('')}</div></div>`;
+  box.querySelectorAll('[data-falta-vista]').forEach((a) => { if (!a.dataset.faltaVista) return; a.addEventListener('click', () => { sb.from('nx_faltas').update({ visto_treinador: true }).eq('id', a.dataset.faltaVista).then(() => {}, () => {}); }); });
+}
 /* ---------- 4) replay do percurso ---------- */
 // mapa de verdade por baixo do percurso (OpenFreeMap, o mesmo da tela do GPS): monta fora da tela, tira uma "foto" e devolve
 // a imagem e a posição de cada ponto do percurso nela. Sem internet ou sem suporte, o replay segue sem o mapa.
@@ -3096,7 +3146,7 @@ async function alunoHoje() {
     </section>
     <div class="hoje-grid"><div class="hoje-main">
     <div id="momentos" class="stack mom-box"></div>
-    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="pront-pend"></div><div id="ck-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
+    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="falta-pend"></div><div id="pront-pend"></div><div id="ck-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
     <div id="desafio-box"></div>
     <div id="meta-hoje"></div>
     <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
@@ -3167,6 +3217,7 @@ async function alunoHoje() {
     bx.innerHTML = `<a class="list-item" href="#/conversa" style="color:inherit"><span class="ativ-ic">${I.cal}</span><div class="grow"><b>Hora da reavaliação física</b><div class="small muted">Estava marcada para ${fmtCurto(av.proxima)}. Combine o dia com seu treinador.</div></div>${I.chev}</a>`;
     const sec = document.getElementById('pend-sec'); if (sec) sec.hidden = false;
   }, () => {});
+  faltasPendentes();
   if (fEnv) { fEnv.onclick = () => trocarFoto(() => { const c = document.getElementById('foto-pend'); if (c) c.remove(); }); document.getElementById('foto-x').onclick = () => { store.set('nx-foto-adiada', Date.now() + 7 * 864e5); document.getElementById('foto-pend').remove(); }; }
   $app.onclick = (e) => {
     const r = e.target.closest('[data-reg]'); if (r) return registrarCorrida(S.user.id, () => alunoHoje());
@@ -9412,6 +9463,7 @@ async function staffHoje() {
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
     <div id="cic-term"></div>
+    <div id="faltas-eq"></div>
     ${pendentes.length ? `<div class="section"><div class="section-h"><h2 class="h2">Novos alunos para aprovar</h2><span class="tag acc">${pendentes.length}</span></div><div class="stack">${pendentes.map((m) => `<div class="card aprovar" data-pend="${m.user_id}">
       <div class="row" style="gap:12px">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small muted ellip" style="display:block">${esc(m.email || '')}</span></div><span class="tiny dim">${m.pedido_em ? quando(m.pedido_em) : ''}</span></div>
       ${(() => { const md = m.modalidades || [], c = md.includes('corrida'), f = md.includes('musculacao'); const ic = (c ? selo('corrida', 'sm') : '') + (f ? selo('forca', 'sm') : ''); const t = (ic ? `<span class="pend-ic">${ic}</span>` : '') + `<span>${c && f ? 'Este aluno é de <b>corrida e musculação</b>' : c ? 'Este aluno é <b>só de corrida</b>' : f ? 'Este aluno é <b>só de musculação</b>' : 'Não marcou a modalidade'}</span>`; return `<div class="pend-mod">${t}</div>`; })()}
@@ -9435,6 +9487,7 @@ async function staffHoje() {
     </div>`;
   dadosSugestoes(ativos.map((m) => m.user_id), 1).then((sg) => { const bx = document.getElementById('sug-hoje'); if (!bx || !sg.length) return; bx.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Sugestões do app</h2><span class="tag acc">${sg.length}</span></div><div class="stack">${sg.map((x) => sugCardHTML(x)).join('')}</div></div>`; bindSugestoes(bx, sg, () => { if (!bx.querySelector('.sug-card')) bx.innerHTML = ''; }); }).catch((e) => console.error(e));
   ciclosTerminandoHTML(vis, Object.fromEntries(membros.map((m) => [m.user_id, m.nome]))).then((h) => { const el = document.getElementById('cic-term'); if (el) el.innerHTML = h; }, () => {});
+  faltasEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m])));
   bindCartaoPush();
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
