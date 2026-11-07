@@ -5941,7 +5941,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     abertura = repPl && plano.titulo
       ? `${plano.titulo}: ${E.length >= nPl ? `fez ${nPl === E.length ? 'as' : 'mais que as'} ${nPl} repetições` : `${E.length} de ${nPl} repetições`}${esf ? `, com ${esf}` : ''}`
       : `${tipo === 'corrida' ? 'Treino intervalado' : nome} com ${E.length} ${E.length === 1 ? 'tiro' : 'tiros'}${nPl ? ` de ${nPl} previstos` : ''}${esf ? `, ${esf}` : ''}`;
-    sec.exe.push(`${E.length} ${E.length === 1 ? 'esforço' : 'esforços'} identificados nas voltas do relógio${nPl ? ` (planilha: ${nPl})` : ''}. Pace médio nos tiros: ${fmtPace(pm)}; o mais rápido em ${fmtPace(melhor)} e o mais lento em ${fmtPace(pior)}.`);
+    sec.exe.push(`${E.length} ${E.length === 1 ? 'esforço' : 'esforços'} identificados nas ${c.fonte === 'celular' ? 'etapas gravadas pelo celular' : 'voltas do relógio'}${nPl ? ` (planilha: ${nPl})` : ''}. Pace médio nos tiros: ${fmtPace(pm)}; o mais rápido em ${fmtPace(melhor)} e o mais lento em ${fmtPace(pior)}.`);
     sec.exe.push(`Tiros: ${E.map((v, k) => `${k + 1}º ${v.d >= 950 ? N1(v.d / 1000) + ' km' : Math.round(v.d) + ' m'} em ${fmtSeg(v.seg)}${v.fc ? ` (${v.fc} bpm)` : ''}`).join(' · ')}.`);
     if (alvoPasso) {
       const alvoQ = alvoPasso.med === 'm' ? alvoPasso.v : alvoPasso.med === 'km' ? alvoPasso.v * 1000 : null, alvoT = alvoPasso.med === 'min' ? alvoPasso.v * 60 : null;
