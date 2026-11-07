@@ -312,40 +312,49 @@ let hubAnim = null;
 function fecharHub() { const h = document.getElementById('nx-hub'); if (h) h.remove(); if (hubAnim) { cancelAnimationFrame(hubAnim.raf); removeEventListener('resize', hubAnim.rs); hubAnim = null; } }
 function staffSistema() {
   fecharHub(); $dock.hidden = true; $app.innerHTML = '';
-  const card = (h, ic, t, d, n) => `<a class="hub-card" href="${h}" style="--d:${n * 90}ms"><span class="hub-ic">${ic}</span><span class="hub-tx"><b>${t}</b><small>${d}</small></span><span class="hub-seta">${I.chev}</span></a>`;
+  const card = (h, ic, t, d, n) => `<a class="hub-card" href="${h}" style="--d:${300 + n * 120}ms"><span class="hub-num">0${n + 1}</span><span class="hub-ic">${ic}</span><span class="hub-tx"><b>${t}</b><small>${d}</small></span><span class="hub-seta">${I.chev}</span><i class="hub-luz"></i></a>`;
   const hub = document.createElement('div'); hub.id = 'nx-hub';
-  hub.innerHTML = `<canvas id="hub-cv"></canvas><div class="hub-brilho"></div>
-    <div class="hub-marca"><img src="icons/simbolo.svg" alt=""></div>
-    <div class="hub-c"><p class="hub-ey">Nexos Performance e Saúde</p><h1 class="hub-h">Sistema Nexos</h1><p class="hub-sub">Olá, ${esc(firstName(S.me && S.me.nome) || 'treinador')}. Escolha por onde começar.</p>
-      <div class="hub-cards">${card('#/', I.today, 'Painel do treinador', 'Alunos, treinos, mensagens, planilhas e o dia a dia da assessoria', 0)}${card('#/laboratorio', LAB_IC, 'Laboratório Nexos', 'Dossiês de desempenho, visão da assessoria e evolução dos atletas', 1)}${card('#/aprimoramento', APR_IC, 'Aprimoramento intelectual', 'Estudo, questões e atualização científica da equipe', 2)}</div>
-      <div class="hub-pal" aria-label="Cor do sistema">${PALETAS.map(([k, n, c]) => `<button type="button" data-hpal="${k}" title="${esc(n)}" style="background:${c}" class="${(document.documentElement.dataset.paleta || 'nexos') === k ? 'on' : ''}"></button>`).join('')}</div></div>`;
+  hub.innerHTML = `<canvas id="hub-cv"></canvas><div class="hub-grade"></div><div class="hub-brilho"></div><div class="hub-scan"></div>
+    <div class="hub-lado"><div class="hub-orb">
+      <span class="hub-anel a1"></span><span class="hub-anel a2"></span><span class="hub-anel a3"></span><span class="hub-radar"></span>
+      <span class="hub-sat s1"></span><span class="hub-sat s2"></span><span class="hub-sat s3"></span>
+      <span class="hub-onda"></span><span class="hub-onda o2"></span>
+      <img src="icons/simbolo.svg" alt="" class="hub-logo"></div></div>
+    <div class="hub-c"><p class="hub-ey"><i></i>Nexos Performance e Saúde</p><h1 class="hub-h">Sistema<br>Nexos</h1><p class="hub-sub">Olá, ${esc(firstName(S.me && S.me.nome) || 'treinador')}. Escolha por onde começar.</p>
+      <div class="hub-cards">${card('#/', I.today, 'Painel do treinador', 'Alunos, treinos, mensagens, planilhas e o dia a dia da assessoria', 0)}${card('#/laboratorio', LAB_IC, 'Laboratório Nexos', 'Dossiês de desempenho, visão da assessoria e evolução dos atletas', 1)}${card('#/aprimoramento', APR_IC, 'Aprimoramento intelectual', 'Estudo, questões e atualização científica da equipe', 2)}</div></div>
+    <div class="hub-rod"><span>${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span><span class="hub-on"><i></i>Sistema online</span></div>`;
   document.body.appendChild(hub);
-  hub.querySelectorAll('[data-hpal]').forEach((b) => b.onclick = () => { aplicarPaleta(b.dataset.hpal); hub.querySelectorAll('[data-hpal]').forEach((x) => x.classList.toggle('on', x === b)); });
-  // fundo: rede de pontos com as cores da paleta, que reage ao mouse
+  // fundo: rede de pontos nas cores da paleta escolhida no perfil, com pacotes de luz correndo pelas ligações; reage ao mouse
   const cv = hub.querySelector('#hub-cv'), ctx = cv.getContext('2d'), rap = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let W = 0, H = 0, dpr = Math.min(2, devicePixelRatio || 1), pts = [], mx = -999, my = -999, cor = corP(), t0 = performance.now();
-  const rs = () => { W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const n = Math.round(W * H / 14000); pts = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35, r: 1 + Math.random() * 1.6, f: Math.random() * 6.28 })); };
+  let W = 0, H = 0, dpr = Math.min(2, devicePixelRatio || 1), pts = [], pac = [], mx = -999, my = -999, cor = corP(), t0 = performance.now(), ultCor = 0;
+  const rs = () => { W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const n = Math.min(170, Math.round(W * H / 9000)); pts = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, r: 1 + Math.random() * 2, f: Math.random() * 6.28 })); pac = []; };
   rs();
-  hub.addEventListener('mousemove', (e) => { mx = e.clientX; my = e.clientY; });
-  hub.addEventListener('mouseleave', () => { mx = my = -999; });
+  const mover = (e) => { mx = e.clientX; my = e.clientY; hub.style.setProperty('--mx', (mx / W - 0.5).toFixed(3)); hub.style.setProperty('--my', (my / H - 0.5).toFixed(3)); };
+  hub.addEventListener('pointermove', mover); hub.addEventListener('pointerleave', () => { mx = my = -999; });
   const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(',');
-  let ultCor = 0;
   const quadro = (agora) => {
-    if (agora - ultCor > 500) { cor = corP(); ultCor = agora; hub.style.setProperty('--hp1', cor.p1); hub.style.setProperty('--hp3', cor.p3); hub.style.setProperty('--hh3', cor.h3); }
+    if (agora - ultCor > 400) { cor = corP(); ultCor = agora; hub.style.setProperty('--hp1', cor.p1); hub.style.setProperty('--hp3', cor.p3); hub.style.setProperty('--hh3', cor.h3); hub.style.setProperty('--hh1', cor.h1); }
     const c1 = rgb(cor.p1), c3 = rgb(cor.p3), tt = (agora - t0) / 1000;
     ctx.clearRect(0, 0, W, H);
     for (const p of pts) {
       if (!rap) { p.x += p.vx; p.y += p.vy; }
       if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1;
       const dx = p.x - mx, dy = p.y - my, d = Math.hypot(dx, dy);
-      if (d < 140 && d > 0) { p.x += dx / d * 1.2; p.y += dy / d * 1.2; }
+      if (d < 170 && d > 0) { p.x += dx / d * 1.6; p.y += dy / d * 1.6; }
     }
+    const lig = [];
     for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-      const a = pts[i], b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y); if (d > 130) continue;
-      ctx.strokeStyle = `rgba(${c3},${(1 - d / 130) * 0.35})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      const a = pts[i], b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y); if (d > 150) continue;
+      const perto = mx > 0 && Math.hypot((a.x + b.x) / 2 - mx, (a.y + b.y) / 2 - my) < 200;
+      ctx.strokeStyle = `rgba(${perto ? c1 : c3},${(1 - d / 150) * (perto ? 0.7 : 0.38)})`; ctx.lineWidth = perto ? 1.4 : 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      lig.push([a, b]);
     }
-    for (const p of pts) { const pisca = 0.45 + 0.55 * Math.abs(Math.sin(tt * 1.4 + p.f)); ctx.fillStyle = `rgba(${c1},${pisca})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill(); }
-    if (mx > 0) { const g = ctx.createRadialGradient(mx, my, 0, mx, my, 160); g.addColorStop(0, `rgba(${c1},.18)`); g.addColorStop(1, `rgba(${c1},0)`); ctx.fillStyle = g; ctx.fillRect(mx - 160, my - 160, 320, 320); }
+    // pacotes de luz: nascem em ligações aleatórias e correm de um ponto ao outro
+    if (!rap && lig.length && pac.length < 26 && Math.random() < 0.25) { const [a, b] = lig[(Math.random() * lig.length) | 0]; pac.push({ a, b, t: 0, v: 0.012 + Math.random() * 0.02 }); }
+    pac = pac.filter((k) => (k.t += k.v) < 1);
+    for (const k of pac) { const x = k.a.x + (k.b.x - k.a.x) * k.t, y = k.a.y + (k.b.y - k.a.y) * k.t; const g = ctx.createRadialGradient(x, y, 0, x, y, 9); g.addColorStop(0, `rgba(${c1},.95)`); g.addColorStop(1, `rgba(${c1},0)`); ctx.fillStyle = g; ctx.fillRect(x - 9, y - 9, 18, 18); }
+    for (const p of pts) { const pisca = 0.35 + 0.65 * Math.abs(Math.sin(tt * 1.6 + p.f)); ctx.fillStyle = `rgba(${c1},${pisca})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill(); }
+    if (mx > 0) { const g = ctx.createRadialGradient(mx, my, 0, mx, my, 220); g.addColorStop(0, `rgba(${c1},.22)`); g.addColorStop(1, `rgba(${c1},0)`); ctx.fillStyle = g; ctx.fillRect(mx - 220, my - 220, 440, 440); }
     hubAnim.raf = requestAnimationFrame(quadro);
   };
   hubAnim = { raf: 0, rs }; addEventListener('resize', rs);
@@ -363,7 +372,7 @@ function setDock(items) {
     const on = it.match.some((m) => cur === m || (m.length > 2 && cur.startsWith(m + '/')));
     return `<a href="${it.href}" class="${on ? 'on' : ''} ${it.cls || ''}" aria-label="${esc(it.label)}">${it.icon}<span>${esc(it.label)}</span>${it.badge ? `<i class="badge">${it.badge}</i>` : ''}</a>`;
   }).join('') + eu;
-  $dock.classList.toggle('d7', items.filter((it) => !/so-desk/.test(it.cls || '')).length > 6);
+  $dock.classList.toggle('d7', items.filter((it) => !/so-desk|so-tab/.test(it.cls || '')).length > 6);
   $dock.hidden = false;
 }
 const MODS = [['musculacao', 'Musculação'], ['corrida', 'Corrida']];
@@ -380,16 +389,17 @@ const dockAluno = () => setDock([
   { href: '#/mais', match: ['#/mais', '#/eventos', '#/conexoes', '#/pagamentos', '#/perfil', '#/saude', '#/termo', '#/agua', '#/prontidao', '#/recordes'], icon: I.grid, label: 'Mais', cls: 'so-mob' },
 ]);
 const SIS_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>';
-const ehDesk = () => matchMedia('(min-width:1100px)').matches;
+// computador e tablet (tela grande); celular deitado não conta
+const ehDesk = () => matchMedia('(min-width:768px) and (min-height:600px)').matches;
 const dockStaff = () => setDock([
-  { href: '#/sistema', match: ['#/sistema', '#/laboratorio', '#/relatorios', '#/aprimoramento'], icon: SIS_IC, label: 'Sistema Nexos', cls: 'so-desk' },
+  { href: '#/sistema', match: ['#/sistema', '#/laboratorio', '#/relatorios', '#/aprimoramento'], icon: SIS_IC, label: 'Sistema', cls: 'so-tab' },
   { href: '#/', match: ['#/', '#', '#/feed', '#/prontidao-equipe'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.pendentes || 0) || '' },
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
   // no computador o Laboratório e o Aprimoramento abrem pela tela do Sistema Nexos (logo no topo do menu)
-  { href: '#/laboratorio', match: ['#/laboratorio', '#/relatorios'], icon: LAB_IC, label: 'Laboratório', cls: 'so-mob' },
-  { href: '#/aprimoramento', match: ['#/aprimoramento'], icon: APR_IC, label: 'Aprimorar', cls: 'so-mob' },
+  { href: '#/laboratorio', match: ['#/laboratorio', '#/relatorios'], icon: LAB_IC, label: 'Laboratório', cls: 'so-cel' },
+  { href: '#/aprimoramento', match: ['#/aprimoramento'], icon: APR_IC, label: 'Aprimorar', cls: 'so-cel' },
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios', '#/saude-sistema', '#/erros', '#/checkup'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
