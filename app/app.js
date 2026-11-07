@@ -307,6 +307,51 @@ new MutationObserver(() => enfeitarVazios(document.body)).observe(document.body,
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 && !e.target.closest('#cd-cv')) e.preventDefault(); }, { passive: false });
 
+/* ---------- Sistema Nexos (só no computador, área do treinador) ---------- */
+let hubAnim = null;
+function fecharHub() { const h = document.getElementById('nx-hub'); if (h) h.remove(); if (hubAnim) { cancelAnimationFrame(hubAnim.raf); removeEventListener('resize', hubAnim.rs); hubAnim = null; } }
+function staffSistema() {
+  fecharHub(); $dock.hidden = true; $app.innerHTML = '';
+  const card = (h, ic, t, d, n) => `<a class="hub-card" href="${h}" style="--d:${n * 90}ms"><span class="hub-ic">${ic}</span><span class="hub-tx"><b>${t}</b><small>${d}</small></span><span class="hub-seta">${I.chev}</span></a>`;
+  const hub = document.createElement('div'); hub.id = 'nx-hub';
+  hub.innerHTML = `<canvas id="hub-cv"></canvas><div class="hub-brilho"></div>
+    <div class="hub-marca"><img src="icons/simbolo.svg" alt=""></div>
+    <div class="hub-c"><p class="hub-ey">Nexos Performance e Saúde</p><h1 class="hub-h">Sistema Nexos</h1><p class="hub-sub">Olá, ${esc(firstName(S.me && S.me.nome) || 'treinador')}. Escolha por onde começar.</p>
+      <div class="hub-cards">${card('#/', I.today, 'Painel do treinador', 'Alunos, treinos, mensagens, planilhas e o dia a dia da assessoria', 0)}${card('#/laboratorio', LAB_IC, 'Laboratório Nexos', 'Dossiês de desempenho, visão da assessoria e evolução dos atletas', 1)}${card('#/aprimoramento', APR_IC, 'Aprimoramento intelectual', 'Estudo, questões e atualização científica da equipe', 2)}</div>
+      <div class="hub-pal" aria-label="Cor do sistema">${PALETAS.map(([k, n, c]) => `<button type="button" data-hpal="${k}" title="${esc(n)}" style="background:${c}" class="${(document.documentElement.dataset.paleta || 'nexos') === k ? 'on' : ''}"></button>`).join('')}</div></div>`;
+  document.body.appendChild(hub);
+  hub.querySelectorAll('[data-hpal]').forEach((b) => b.onclick = () => { aplicarPaleta(b.dataset.hpal); hub.querySelectorAll('[data-hpal]').forEach((x) => x.classList.toggle('on', x === b)); });
+  // fundo: rede de pontos com as cores da paleta, que reage ao mouse
+  const cv = hub.querySelector('#hub-cv'), ctx = cv.getContext('2d'), rap = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W = 0, H = 0, dpr = Math.min(2, devicePixelRatio || 1), pts = [], mx = -999, my = -999, cor = corP(), t0 = performance.now();
+  const rs = () => { W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const n = Math.round(W * H / 14000); pts = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35, r: 1 + Math.random() * 1.6, f: Math.random() * 6.28 })); };
+  rs();
+  hub.addEventListener('mousemove', (e) => { mx = e.clientX; my = e.clientY; });
+  hub.addEventListener('mouseleave', () => { mx = my = -999; });
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(',');
+  let ultCor = 0;
+  const quadro = (agora) => {
+    if (agora - ultCor > 500) { cor = corP(); ultCor = agora; hub.style.setProperty('--hp1', cor.p1); hub.style.setProperty('--hp3', cor.p3); hub.style.setProperty('--hh3', cor.h3); }
+    const c1 = rgb(cor.p1), c3 = rgb(cor.p3), tt = (agora - t0) / 1000;
+    ctx.clearRect(0, 0, W, H);
+    for (const p of pts) {
+      if (!rap) { p.x += p.vx; p.y += p.vy; }
+      if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1;
+      const dx = p.x - mx, dy = p.y - my, d = Math.hypot(dx, dy);
+      if (d < 140 && d > 0) { p.x += dx / d * 1.2; p.y += dy / d * 1.2; }
+    }
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+      const a = pts[i], b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y); if (d > 130) continue;
+      ctx.strokeStyle = `rgba(${c3},${(1 - d / 130) * 0.35})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (const p of pts) { const pisca = 0.45 + 0.55 * Math.abs(Math.sin(tt * 1.4 + p.f)); ctx.fillStyle = `rgba(${c1},${pisca})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill(); }
+    if (mx > 0) { const g = ctx.createRadialGradient(mx, my, 0, mx, my, 160); g.addColorStop(0, `rgba(${c1},.18)`); g.addColorStop(1, `rgba(${c1},0)`); ctx.fillStyle = g; ctx.fillRect(mx - 160, my - 160, 320, 320); }
+    hubAnim.raf = requestAnimationFrame(quadro);
+  };
+  hubAnim = { raf: 0, rs }; addEventListener('resize', rs);
+  hubAnim.raf = requestAnimationFrame(quadro);
+}
+
 /* ---------- navegação ---------- */
 function setDock(items) {
   if (!items) { $dock.hidden = true; return; }
@@ -334,13 +379,17 @@ const dockAluno = () => setDock([
   { href: '#/conexoes', match: ['#/conexoes'], icon: I.watch, label: 'Conexões', cls: 'so-desk' },
   { href: '#/mais', match: ['#/mais', '#/eventos', '#/conexoes', '#/pagamentos', '#/perfil', '#/saude', '#/termo', '#/agua', '#/prontidao', '#/recordes'], icon: I.grid, label: 'Mais', cls: 'so-mob' },
 ]);
+const SIS_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>';
+const ehDesk = () => matchMedia('(min-width:1100px)').matches;
 const dockStaff = () => setDock([
+  { href: '#/sistema', match: ['#/sistema', '#/laboratorio', '#/relatorios', '#/aprimoramento'], icon: SIS_IC, label: 'Sistema Nexos', cls: 'so-desk' },
   { href: '#/', match: ['#/', '#', '#/feed', '#/prontidao-equipe'], icon: I.today, label: 'Hoje', badge: (S.cache.naoVistos || 0) + (S.cache.pendentes || 0) || '' },
   { href: '#/alunos', match: ['#/alunos', '#/aluno', '#/treino', '#/corrida', '#/relatorio', '#/postural'], icon: I.users, label: 'Atletas' },
   { href: '#/mensagens', match: ['#/mensagens'], icon: I.feed, label: 'Mensagens', badge: S.cache.msgNovas || '' },
   { href: '#/treinos', match: ['#/treinos', '#/modelo', '#/biblioteca'], icon: I.lib, label: 'Treinos' },
-  { href: '#/laboratorio', match: ['#/laboratorio', '#/relatorios'], icon: LAB_IC, label: 'Laboratório' },
-  { href: '#/aprimoramento', match: ['#/aprimoramento'], icon: APR_IC, label: 'Aprimorar' },
+  // no computador o Laboratório e o Aprimoramento abrem pela tela do Sistema Nexos (logo no topo do menu)
+  { href: '#/laboratorio', match: ['#/laboratorio', '#/relatorios'], icon: LAB_IC, label: 'Laboratório', cls: 'so-mob' },
+  { href: '#/aprimoramento', match: ['#/aprimoramento'], icon: APR_IC, label: 'Aprimorar', cls: 'so-mob' },
   { href: '#/mais', match: ['#/mais', '#/financeiro', '#/eventos', '#/perfil', '#/formularios', '#/saude-sistema', '#/erros', '#/checkup'], icon: I.grid, label: 'Mais', badge: (S.cache.pagInformados || 0) + (S.cache.fichasNovas || 0) || '' },
 ]);
 
@@ -380,6 +429,10 @@ async function router() {
       if (!sd.anamnese) return await viewAnamnese({ gate: true, anamnese: null });
     }
     if (S.staff) {
+      fecharHub();
+      // computador: ao abrir a área do treinador, primeiro a tela do Sistema Nexos (uma vez por sessão)
+      if (!a && ehDesk() && !sessionStorage.getItem('nx-hub')) { sessionStorage.setItem('nx-hub', '1'); location.replace(location.pathname + '#/sistema'); return; }
+      if (a === 'sistema') { sessionStorage.setItem('nx-hub', '1'); if (!ehDesk()) { location.replace(location.pathname + '#/'); return; } return staffSistema(); }
       dockStaff(); layout('wide');
       if (!a) return await staffHoje();
       if (a === 'alunos') return await staffAlunos();

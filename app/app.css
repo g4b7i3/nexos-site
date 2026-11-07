@@ -3070,3 +3070,28 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
   .mt-kpis b,.mt-tbl b,.mt-plano b{color:#0b1834}
   .mt-tbl>div{break-inside:avoid}
 }
+
+/* ---------- Sistema Nexos (computador) ---------- */
+#nx-hub{position:fixed;inset:0;z-index:1500;overflow:hidden;color:#eef3ff;--hp1:#46d6ff;--hp3:#2f6bff;--hh3:#071230;background:radial-gradient(120% 90% at 70% 40%,color-mix(in srgb,var(--hh3) 70%,#0b2352) 0%,#040914 75%);font-family:var(--f-b)}
+#hub-cv{position:absolute;inset:0}
+.hub-brilho{position:absolute;inset:0;pointer-events:none;background:radial-gradient(40% 50% at 72% 50%,color-mix(in srgb,var(--hp3) 28%,transparent),transparent 70%)}
+.hub-marca{position:absolute;right:6vw;top:50%;width:min(38vw,560px);transform:translateY(-50%);pointer-events:none}
+.hub-marca img{width:100%;display:block;filter:brightness(0) invert(1) drop-shadow(0 0 40px var(--hp1));opacity:.16;animation:hubPisca 3.2s ease-in-out infinite}
+@keyframes hubPisca{0%,100%{opacity:.12;filter:brightness(0) invert(1) drop-shadow(0 0 18px var(--hp1))}50%{opacity:.32;filter:brightness(0) invert(1) drop-shadow(0 0 60px var(--hp1))}}
+.hub-c{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 7vw;max-width:720px}
+.hub-ey{font-family:var(--f-m);font-size:.78rem;letter-spacing:.24em;text-transform:uppercase;color:var(--hp1);margin:0}
+.hub-h{font-family:var(--f-h);font-weight:800;font-size:clamp(2.4rem,4.2vw,3.6rem);line-height:1.05;margin:10px 0 8px;background:linear-gradient(90deg,#fff 30%,var(--hp1));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hub-sub{color:#a9b8d6;margin:0 0 28px;font-size:1.02rem}
+.hub-cards{display:flex;flex-direction:column;gap:14px}
+.hub-card{display:flex;align-items:center;gap:18px;padding:20px 22px;border-radius:20px;color:#eef3ff;text-decoration:none;background:rgba(10,22,52,.55);border:1px solid color-mix(in srgb,var(--hp1) 22%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;transform:translateX(-24px);animation:hubIn .55s cubic-bezier(.2,.9,.3,1) var(--d) forwards;transition:border-color .2s,background .2s,box-shadow .2s,transform .2s}
+.hub-card:hover{border-color:var(--hp1);background:rgba(14,30,70,.75);box-shadow:0 0 0 1px var(--hp1),0 18px 50px -12px color-mix(in srgb,var(--hp1) 55%,transparent);transform:translateX(6px)}
+@keyframes hubIn{to{opacity:1;transform:none}}
+.hub-ic{width:54px;height:54px;flex:none;border-radius:16px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--hp3),var(--hp1));box-shadow:0 8px 24px -8px var(--hp1)}
+.hub-ic svg{width:26px;height:26px}
+.hub-tx{flex:1;min-width:0}.hub-tx b{display:block;font-family:var(--f-h);font-weight:600;font-size:1.15rem}.hub-tx small{display:block;color:#a9b8d6;font-size:.88rem;margin-top:4px}
+.hub-seta{color:var(--hp1);opacity:.7;transition:transform .2s,opacity .2s}.hub-seta svg{width:20px;height:20px}
+.hub-card:hover .hub-seta{opacity:1;transform:translateX(4px)}
+.hub-pal{display:flex;gap:8px;margin-top:30px;opacity:0;animation:hubIn .5s ease .45s forwards}
+.hub-pal button{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.2);cursor:pointer;padding:0;transition:transform .15s}
+.hub-pal button:hover{transform:scale(1.2)}.hub-pal button.on{border-color:#fff;box-shadow:0 0 12px currentColor}
+@media (prefers-reduced-motion:reduce){.hub-marca img{animation:none}.hub-card,.hub-pal{animation-duration:.01s}}
