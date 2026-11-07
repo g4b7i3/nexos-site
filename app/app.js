@@ -6478,8 +6478,9 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     const cads = ant.map((x) => x.cadencia).filter((v) => v > 100);
     if (c.cadencia > 100 && cads.length >= 3) { const mc = Math.round(media(cads)), dc = Math.round(c.cadencia - mc); if (Math.abs(dc) >= 4) sec.comp.push(`Cadência de ${Math.round(c.cadencia)} passos por minuto, ${Math.abs(dc)} ${dc > 0 ? 'acima' : 'abaixo'} da sua média (${mc}).${misto ? ' Em treinos com tiros ela costuma subir.' : ''}`); }
     // frequência de treino: dias desde a corrida anterior e corridas na semana
-    const ultAnt = ant.reduce((m, x) => Math.max(m, Date.parse(x.data)), 0);
-    const nSem = ant.filter((x) => Date.parse(x.data) > t0 - 7 * 864e5).length + 1, mSem = ant.filter((x) => Date.parse(x.data) > t0 - 35 * 864e5 && Date.parse(x.data) <= t0 - 7 * 864e5).length / 4;
+    const todas = hist.filter((x) => x.id !== c.id && ehCorr(x) && Date.parse(x.data) < t0); // aqui conta toda corrida, mesmo as curtas
+    const ultAnt = todas.reduce((m, x) => Math.max(m, Date.parse(x.data)), 0);
+    const nSem = todas.filter((x) => Date.parse(x.data) > t0 - 7 * 864e5).length + 1, mSem = todas.filter((x) => Date.parse(x.data) > t0 - 35 * 864e5 && Date.parse(x.data) <= t0 - 7 * 864e5).length / 4;
     if (ultAnt) { const dd = Math.round((t0 - ultAnt) / 864e5); if (dd >= 4) sec.comp.push(`Foram ${dd} dias desde a sua corrida anterior.`); }
     if (mSem >= 1 && nSem >= mSem + 2) sec.comp.push(`Esta é a sua ${nSem}ª corrida em 7 dias, acima do seu costume (cerca de ${N1(mSem)} por semana).`);
     const sem4 = ant.filter((x) => Date.parse(x.data) > t0 - 28 * 864e5).reduce((a, x) => a + x.distancia_m, 0) / 4000;
