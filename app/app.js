@@ -457,11 +457,19 @@ async function router() {
 window.addEventListener('hashchange', router);
 
 /* ---------- sessão ---------- */
+// último acesso ao app (painel de fidelização do treinador): marca ao abrir e ao voltar para o app, no máximo a cada 15 min
+let ultMarca = 0;
+function marcarAcesso() {
+  if (!S.user || Date.now() - ultMarca < 15 * 60000) return;
+  ultMarca = Date.now(); sb.rpc('nx_marcar_acesso').then(() => {}, () => {});
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') marcarAcesso(); });
 async function carregarPerfil() {
   const { data, error } = await sb.from('nx_membros').select('*, nx_orgs(id,nome,slug,config)').eq('user_id', S.user.id).eq('ativo', true).order('criado_em');
   if (error) throw error;
   const m = (data || []).sort((x, y) => (x.papel === 'aluno') - (y.papel === 'aluno'))[0] || null;
   S.me = m; S.org = m?.nx_orgs || null; S.staff = !!m && (m.papel === 'admin' || m.papel === 'treinador');
+  marcarAcesso();
   // aparência salva na conta acompanha a pessoa em qualquer aparelho
   if (m?.tema && m.tema !== document.documentElement.dataset.tema) aplicarTema(m.tema);
   if (m?.paleta && m.paleta !== document.documentElement.dataset.paleta) aplicarPaleta(m.paleta);
@@ -1654,10 +1662,35 @@ const relogioResumo = (r) => {
   if (cx.erro) return { cls: 'err', st: 'Conexão com problema', via: `${g ? 'Garmin' : 'Intervals.icu'}: ${cx.erro}` };
   return { cls: 'ok', st: g ? 'Garmin conectado' : 'Conectado pelo Intervals.icu', via: `${cx.ultima_sync ? 'Última sincronização ' + quando(cx.ultima_sync) : 'Ainda não sincronizou'}${r.ultRel ? ` · última atividade ${quando(r.ultRel.data)}` : ''}` };
 };
+/** notificação de volta ao app, escrita pelo treinador (o aluno recebe no celular e no sininho) */
+function lembreteVolta(x, btn) {
+  const ap = (x.m.apelido && String(x.m.apelido).trim()) || firstName(x.m.nome);
+  const tit = `Oi, ${ap}! Sentimos sua falta por aqui`;
+  const corpo = x.semTreino != null && x.semTreino >= 7
+    ? 'Que tal voltar hoje com um treino leve? Sua planilha está pronta no app, com a sua evolução e as informações da sua saúde. Estou contigo!'
+    : 'Passa no app da Nexos: sua planilha, sua evolução e as informações importantes sobre a sua saúde estão te esperando. Qualquer coisa, me chama por lá!';
+  openSheet(`<p class="eyebrow">Notificação no celular</p><div class="h2" style="margin-top:4px">Chamar ${esc(firstName(x.m.nome))} de volta</div>
+    <p class="small muted" style="margin-top:6px">Chega no celular dele e fica no sininho do app. Ajuste o texto do seu jeito.</p>
+    <label class="field" style="margin-top:14px"><span>Título</span><input class="input" id="lv-t" maxlength="70" value="${esc(tit)}"></label>
+    <label class="field" style="margin-top:10px"><span>Mensagem</span><textarea class="input" id="lv-c" rows="4" maxlength="180">${esc(corpo)}</textarea></label>
+    <button class="btn block" id="lv-ok" style="margin-top:14px">Enviar notificação</button>`, (r) => {
+    const ok = r.querySelector('#lv-ok');
+    ok.onclick = async () => {
+      const t = r.querySelector('#lv-t').value.trim(), c = r.querySelector('#lv-c').value.trim();
+      if (t.length < 3 || c.length < 3) return toast('Escreva o título e a mensagem.', true);
+      ok.disabled = true; ok.textContent = 'Enviando…';
+      const { data, error } = await sb.functions.invoke('nx-faltas', { body: { acao: 'lembrete', aluno_id: x.m.user_id, titulo: t, corpo: c } });
+      if (error || !data || data.erro) { ok.disabled = false; ok.textContent = 'Enviar notificação'; return toast((data && data.erro) || 'Não foi possível enviar agora.', true); }
+      closeSheet();
+      toast(data.enviados ? 'Notificação enviada!' : 'Enviada para o sininho. As notificações estão desligadas no celular dele.');
+      if (btn) { btn.disabled = true; btn.textContent = 'Notificação enviada'; }
+    };
+  });
+}
 /* ---------- painel de fidelização: quem está esfriando, por quê e o que fazer ---------- */
 async function staffFidelizacao() {
   loading(); dockStaff();
-  const ms = await sb.from('nx_membros').select('user_id,nome,apelido,foto_url,ativo,aprovacao,treinador_id,modalidades,telefone,criado_em').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
+  const ms = await sb.from('nx_membros').select('user_id,nome,apelido,foto_url,ativo,aprovacao,treinador_id,modalidades,telefone,criado_em,ultimo_acesso').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
   const al = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
   const ids = al.map((m) => m.user_id);
   const agora = Date.now(), d28 = new Date(agora - 28 * 864e5).toISOString(), d14 = agora - 14 * 864e5, dia14 = isoDia(new Date(d14)), hoje = hojeISO();
@@ -1686,6 +1719,7 @@ async function staffFidelizacao() {
     const cumpr = plan.length >= 3 ? Math.round(100 * plan.filter((x) => diasFeitos.has(x.data)).length / plan.length) : null;
     // último sinal de uso do app: check-in, mensagem do aluno, água, treino de força, comentário ou esforço numa corrida
     const usos = [...de(pr, id).map((x) => Date.parse(x.criado_em)), ...de(msg, id).filter((x) => x.autor_id === id).map((x) => Date.parse(x.criado_em)), ...de(hid, id).map((x) => Date.parse(x.atualizado_em)), ...s2.map((x) => Date.parse(x.iniciado_em)), ...c.filter((x) => x.rpe != null || x.comentario || x.fonte === 'celular').map((x) => Date.parse(x.data))].filter(Boolean);
+    if (m.ultimo_acesso) usos.push(Date.parse(m.ultimo_acesso)); // último acesso real (gravado ao abrir o app); as ações valem para quem ainda não tem o registro
     const uso = usos.length ? diasDesde(new Date(Math.max(...usos))) : null;
     const dor = de(pr, id).some((x) => x.dor && Date.parse(x.criado_em) >= d14) || c.some((x) => x.dor && Date.parse(x.data) >= d14) || s2.some((x) => x.dor && Date.parse(x.iniciado_em) >= d14);
     const faltasPend = de(ft, id).filter((x) => !x.respondido_em).length;
@@ -1709,11 +1743,11 @@ async function staffFidelizacao() {
   S.cache.fidel = lin;
   const card = (x) => `<div class="card fid-card fid-${x.nivel}"><div class="row" style="gap:12px;align-items:flex-start">${avAluno(x.m)}<div class="grow" style="min-width:0">
       <a href="#/aluno/${x.m.user_id}" style="color:inherit"><b class="ellip" style="display:block">${esc(x.m.nome)}</b></a>
-      <div class="small muted">${x.casaD < 30 ? `Na Nexos há ${x.casaD} dia${x.casaD === 1 ? '' : 's'}` : `Na Nexos há ${Math.floor(x.casaD / 30)} ${Math.floor(x.casaD / 30) === 1 ? 'mês' : 'meses'}`} · ${x.rec} treino${x.rec === 1 ? '' : 's'} em 14 dias${x.cumpr != null ? ` · ${x.cumpr}% da planilha` : ''}</div></div>
+      <div class="small muted">${x.casaD < 30 ? `Na Nexos há ${x.casaD} dia${x.casaD === 1 ? '' : 's'}` : `Na Nexos há ${Math.floor(x.casaD / 30)} ${Math.floor(x.casaD / 30) === 1 ? 'mês' : 'meses'}`} · ${x.rec} treino${x.rec === 1 ? '' : 's'} em 14 dias${x.cumpr != null ? ` · ${x.cumpr}% da planilha` : ''}${x.m.ultimo_acesso ? ` · abriu o app ${quando(x.m.ultimo_acesso)}` : ''}</div></div>
       <span class="tag ${x.nivel === 'alto' ? 'err' : x.nivel === 'medio' ? 'warn' : 'ok'}">${x.nivel === 'alto' ? 'Risco alto' : x.nivel === 'medio' ? 'Atenção' : 'Em dia'}</span></div>
     ${x.sinais.length ? `<ul class="fid-sinais">${x.sinais.map((g) => `<li><b>${esc(g.t)}</b>${g.acao ? `<span>${esc(g.acao)}</span>` : ''}</li>`).join('')}</ul>` : ''}
-    ${x.nivel !== 'ok' ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><a class="btn sm" href="#/aluno/${x.m.user_id}/conversa">${I.feed} Conversa no app</a>${x.semTreino != null && x.semTreino >= 7 ? `<button class="btn sm ghost" data-fid-rsg="${x.m.user_id}">${I.wa} Mensagem pronta</button>` : ''}<a class="btn sm ghost" href="#/aluno/${x.m.user_id}">Ver aluno</a></div>` : ''}</div>`;
-  const okLinha = (x) => `<a class="list-item" href="#/aluno/${x.m.user_id}" style="color:inherit">${avAluno(x.m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(x.m.nome)}</b><span class="small muted">${x.rec} treino${x.rec === 1 ? '' : 's'} em 14 dias${x.semTreino != null ? ` · último ${quando(Date.now() - x.semTreino * 864e5)}` : ''}</span></div>${x.sinais.length ? `<span class="small muted">${esc(x.sinais[0].t)}</span>` : ''}${I.chev}</a>`;
+    ${x.nivel !== 'ok' ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><a class="btn sm" href="#/aluno/${x.m.user_id}/conversa">${I.feed} Conversa no app</a><button class="btn sm ghost" data-fid-volta="${x.m.user_id}">${I.bell} Notificação no celular</button>${x.semTreino != null && x.semTreino >= 7 ? `<button class="btn sm ghost" data-fid-rsg="${x.m.user_id}">${I.wa} WhatsApp</button>` : ''}<a class="btn sm ghost" href="#/aluno/${x.m.user_id}">Ver aluno</a></div>` : ''}</div>`;
+  const okLinha = (x) => `<a class="list-item" href="#/aluno/${x.m.user_id}" style="color:inherit">${avAluno(x.m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(x.m.nome)}</b><span class="small muted">${x.rec} treino${x.rec === 1 ? '' : 's'} em 14 dias${x.semTreino != null ? ` · último treino ${quando(Date.now() - x.semTreino * 864e5)}` : ''}${x.m.ultimo_acesso ? ` · app ${quando(x.m.ultimo_acesso)}` : ''}</span></div>${x.sinais.length ? `<span class="small muted">${esc(x.sinais[0].t)}</span>` : ''}${I.chev}</a>`;
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe</p><h1 class="h1">Painel de fidelização</h1>
     <p class="muted" style="margin-top:6px">Os seus alunos que estão esfriando, o motivo e o que fazer. Olha os treinos, a planilha, o uso do app, dores, treinos perdidos e mensalidades das últimas semanas.</p>
     <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b style="color:var(--err)">${alto.length}</b><span>risco alto</span></div><div><b style="color:var(--warn)">${medio.length}</b><span>atenção</span></div><div><b style="color:var(--ok)">${ok.length}</b><span>em dia</span></div></div></div>
@@ -1723,6 +1757,7 @@ async function staffFidelizacao() {
     ${!lin.length ? '<div class="empty" style="margin-top:16px">Nenhum aluno ativo ainda.</div>' : ''}
     <p class="tiny dim" style="margin-top:18px">Como o risco é calculado: dias sem treinar, queda de treinos em relação às duas semanas anteriores, cumprimento da planilha, dias sem usar o app, dor recente, treinos perdidos sem resposta e mensalidade atrasada. Alunos com menos de 4 semanas não entram na comparação de treinos.</p>`;
   $app.querySelectorAll('[data-fid-rsg]').forEach((b) => { b.onclick = () => { const x = lin.find((y) => y.m.user_id === b.dataset.fidRsg); if (x) abrirResgate(x.m, x.semTreino, () => {}); }; });
+  $app.querySelectorAll('[data-fid-volta]').forEach((b) => { b.onclick = () => { const x = lin.find((y) => y.m.user_id === b.dataset.fidVolta); if (x) lembreteVolta(x, b); }; });
 }
 async function staffRelogios() {
   loading(); dockStaff();
