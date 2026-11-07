@@ -385,6 +385,7 @@ async function router() {
       if (a === 'alunos') return await staffAlunos();
       if (a === 'financeiro') return await staffFinanceiro();
       if (a === 'falta' && b) { await staffHoje(); return abrirFaltaStaff(b); }
+      if (a === 'faltas') { history.replaceState(null, '', location.pathname + '#/'); await staffHoje(); return rolarAte('faltas-eq'); }
       if (a === 'aluno' && b && c === 'postural') return await formPostural(b, d && d !== 'nova' ? d : null);
       if (a === 'postural' && b) return await viewPostural(b);
       if (a === 'aluno' && b && c === 'treino') return await staffTreinoEditor(b, d || null);
