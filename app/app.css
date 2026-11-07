@@ -3018,3 +3018,11 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .lt-form{position:sticky;bottom:-1px;background:var(--bg2);padding:12px 0 4px;margin-top:12px;border-top:1px solid var(--line)}
 .int-rel{margin-top:12px;padding:12px;border-radius:var(--r-sm);background:var(--s1);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .int-rel p{margin:0;flex:1;min-width:180px}
+/* foto do aluno em tela cheia (treinador) */
+.av.com-foto img{cursor:zoom-in}
+.foto-full{position:fixed;inset:0;z-index:200;background:rgba(3,8,20,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:56px 16px 32px;animation:fotoIn .15s ease}
+.foto-full img{max-width:min(100%,640px);max-height:calc(100vh - 160px);object-fit:contain;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.foto-full p{margin:0;color:#eef3ff;font-weight:700;font-size:1.05rem;text-align:center}
+.foto-full-x{position:absolute;top:14px;right:14px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;cursor:pointer}
+.foto-full-x svg{width:20px;height:20px}
+@keyframes fotoIn{from{opacity:0}to{opacity:1}}

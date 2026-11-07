@@ -2062,7 +2062,7 @@ function recarregarSug(root, sugs, x, depois) {
 
 function sugCardHTML(x, comNome = true) {
   const nm = firstName(x.m.nome), reg = nomeRegDor(x.k).toLowerCase();
-  return `<div class="card sug-card" data-sug="${esc(x.chave)}"><div class="sug-top"><span class="sug-ic">${PRONT_IC}</span><div class="grow"><span class="eyebrow">Sugestão do app${x.p.dia === hojeISO() ? ' · hoje' : ' · ' + fmtCurto(x.p.dia)}</span><b>${comNome ? esc(nm) + ' · ' : ''}dor: ${esc(reg)}${x.p.dor_int != null ? ` (${x.p.dor_int}/10)` : ''}</b></div><button type="button" class="sug-x" data-ocultar="${esc(x.chave)}" aria-label="Ocultar sugestão">${I.x || '×'}</button></div>
+  return `<div class="card sug-card" data-sug="${esc(x.chave)}"><div class="sug-top"><span class="sug-ic">${PRONT_IC}</span><div class="grow"><span class="eyebrow">Sugestão do app${x.p.dia === hojeISO() ? ' · hoje' : ' · ' + fmtCurto(x.p.dia)}</span><b>${comNome ? esc(nm) + ' · ' : ''}dor: ${esc(reg)}${x.p.dor_int != null ? ` (${x.p.dor_int}/10)` : ''}</b></div><button type="button" class="sug-x" data-ocultar="${esc(x.chave)}" aria-label="Ocultar sugestão">${I.x}</button></div>
     ${x.alertas.map((a) => `<p class="sug-alerta">${a}</p>`).join('')}
     ${x.dados.length ? `<ul class="sug-dados">${x.dados.map((d) => `<li>${d}</li>`).join('')}</ul>` : ''}
     ${x.blocos.map((bk) => `<div class="sug-bloco"><span class="sug-t">${bk.t}</span><p class="small muted">${bk.padrao}</p><ul>${bk.sug.map((sg) => `<li>${esc(sg)}</li>`).join('')}</ul></div>`).join('')}
@@ -9446,7 +9446,24 @@ async function carregarEquipe(forcar) {
   S.cache.equipe = data || []; return S.cache.equipe;
 }
 const fotoHTML = (p, cls = '') => p && p.foto_url ? `<img class="foto ${cls}" src="${esc(p.foto_url)}" alt="${esc(p.nome || '')}" loading="lazy">` : `<span class="foto ini ${cls}">${esc(initials((p && p.nome) || 'N'))}</span>`;
-const avAluno = (m, cls = '') => `<div class="av ${cls} ${m && m.foto_url ? 'com-foto' : ''}">${m && m.foto_url ? `<img src="${esc(m.foto_url)}" alt="" loading="lazy">` : esc(initials((m && m.nome) || ''))}</div>`;
+const avAluno = (m, cls = '') => `<div class="av ${cls} ${m && m.foto_url ? 'com-foto' : ''}">${m && m.foto_url ? `<img src="${esc(m.foto_url)}" alt="${esc((m && m.nome) || '')}" data-nome="${esc((m && m.nome) || '')}" loading="lazy">` : esc(initials((m && m.nome) || ''))}</div>`;
+/** treinador toca na foto do aluno e vê a foto inteira, para reconhecer quem é */
+function verFoto(src, nome) {
+  const old = document.getElementById('foto-full'); if (old) old.remove();
+  const d = document.createElement('div'); d.id = 'foto-full'; d.className = 'foto-full'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', nome ? `Foto de ${nome}` : 'Foto');
+  d.innerHTML = `<button type="button" class="foto-full-x" aria-label="Fechar">${I.x}</button><img src="${esc(src)}" alt="${esc(nome || '')}">${nome ? `<p>${esc(nome)}</p>` : ''}`;
+  const fechar = () => { d.remove(); document.removeEventListener('keydown', esc1); };
+  const esc1 = (e) => { if (e.key === 'Escape') fechar(); };
+  d.addEventListener('click', fechar); document.addEventListener('keydown', esc1);
+  document.body.append(d); d.querySelector('button').focus();
+}
+document.addEventListener('click', (e) => {
+  if (!S.staff) return;
+  const img = e.target.closest && e.target.closest('.av.com-foto img, .b-linha img.foto');
+  if (!img || !img.getAttribute('src')) return;
+  e.preventDefault(); e.stopPropagation();
+  verFoto(img.getAttribute('src'), img.dataset.nome || img.getAttribute('alt') || '');
+}, true);
 function reduzirImagem(file, lado = 512) {
   return new Promise((res, rej) => {
     const img = new Image(); const url = URL.createObjectURL(file);
