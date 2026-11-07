@@ -2253,6 +2253,7 @@ function registrarMedidas(depois) {
       const x = calcAval(a); if (x.gordura == null) return toast(a.sexo === 'M' ? 'Confira pescoço e abdômen (o abdômen precisa ser maior que o pescoço).' : 'Confira pescoço, cintura e quadril.', true);
       const { data, error } = await sb.from('nx_avaliacoes').insert({ org_id: S.org.id, aluno_id: S.user.id, avaliador_id: S.user.id, data: hojeISO(), ...a, dobras: {}, bio: {}, resultados: x, observacoes: null }).select('id').single();
       if (error) { console.error(error); return toast('Não foi possível salvar.', true); }
+      sb.functions.invoke('nx-faltas', { body: { acao: 'medidas', id: data.id } }).catch(() => {}); // avisa o treinador
       closeSheet(); toast('Medidas salvas.'); if (depois) depois(data.id);
     };
   });
