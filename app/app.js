@@ -8451,7 +8451,7 @@ async function viewGps(id, modo) {
   const recuperado = !!(ant && ant.id === id && !!ant.est === est && ant.inicio);
   const pref = { autopausa: false, voltas: false, ...store.get('nx-gps-pref', {}) };
   const outro = ant && ant.inicio && !(ant.id === id && !!ant.est === est) ? ant : null; // outro treino ficou em andamento
-  let mapa = null, mapaPronto = false, seguir = true, eu = null, euMk = null, euNoMapa = false, p3d = false, ultMov = 0, autoBase = null, ultPosSalva = 0, folhaAberta = false;
+  let mapa = null, mapaPronto = false, seguir = true, eu = null, euMk = null, euNoMapa = false, p3d = false, ultMov = 0, autoBase = null, ultPosSalva = 0, folhaAberta = false, aproxDesde = 0;
   let btsChave = '', nTick = 0, podeSemSinal = false, ultimo = null, ultimoT = 0, tickRef = 0, watch = null, lock = null, actx = null, marcaMov = 0, janela = [], gpsOk = est;
   // esteira: detector de passos (pico da aceleração) e passada calibrada pelo painel nas corridas anteriores
   // onde está o celular: no corpo (bolso/braçadeira) sente a pisada; na mão sente o balanço do braço. Cada jeito tem a sua passada calibrada.
@@ -8564,7 +8564,7 @@ async function viewGps(id, modo) {
       : E === 'correndo'
         ? circ('g-trv', GPS_IC.trava, 'Travar') + grande('g-pau', GPS_IC.pausa, 'Pausar', 'pausa') + (passos.length && passoAtual() ? circ('g-pul', GPS_IC.pular, 'Pular parte') : !passos.length && pref.voltas ? circ('g-vlt', GPS_IC.volta, 'Volta') : vozB)
         : circ('g-fim', GPS_IC.parar, 'Terminar', 'fim') + grande('g-con', I.play, 'Continuar') + vozB;
-    $('g-dica').textContent = E === 'pronto' ? (est ? (st.local === 'mao' ? 'Corra com o celular na mão, balançando o braço normalmente (não no suporte da esteira), e toque em começar.' : 'Coloque o celular no bolso ou na braçadeira (preso ao corpo, não no suporte da esteira) e toque em começar.') : gpsOk ? 'GPS pronto. Toque no botão quando for sair.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Procurando o GPS. Ao ar livre ele acha o sinal mais rápido.') : E === 'pausado' ? (st.auto ? 'Pausa automática. O treino volta sozinho quando você voltar a correr.' : recuperado && !marcaMov ? 'Treino recuperado. Toque em continuar para seguir.' : 'Treino pausado.') : est ? 'Distância estimada pelos passos. No fim, confirme com o painel da esteira.' : 'A tela fica acesa durante o treino.';
+    $('g-dica').textContent = E === 'pronto' ? (est ? (st.local === 'mao' ? 'Corra com o celular na mão, balançando o braço normalmente (não no suporte da esteira), e toque em começar.' : 'Coloque o celular no bolso ou na braçadeira (preso ao corpo, não no suporte da esteira) e toque em começar.') : gpsOk ? 'GPS pronto. Toque no botão quando for sair.' : aproxDesde && Date.now() - aproxDesde > 8000 ? 'O celular está dando só a localização aproximada para a Nexos. Ative a localização precisa: toque e segure o ícone da Nexos, Informações do app, Permissões, Localização e ligue "Usar localização precisa". Se abrir pelo Chrome, faça o mesmo no app Chrome.' : podeSemSinal ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.' : 'Procurando o GPS. Ao ar livre ele acha o sinal mais rápido.') : E === 'pausado' ? (st.auto ? 'Pausa automática. O treino volta sozinho quando você voltar a correr.' : recuperado && !marcaMov ? 'Treino recuperado. Toque em continuar para seguir.' : 'Treino pausado.') : est ? 'Distância estimada pelos passos. No fim, confirme com o painel da esteira.' : 'A tela fica acesa durante o treino.';
     if (folhaAberta) $('g-opc').innerHTML = opcHTML();
     liga();
   };
@@ -8636,6 +8636,7 @@ async function viewGps(id, modo) {
     if (!document.getElementById('g-sinal') || !minha()) return; // já saiu da tela do treino
     const c = pos.coords, pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6)], t = pos.timestamp || Date.now();
     gpsOk = c.accuracy <= 25;
+    if (c.accuracy >= 1000) aproxDesde = aproxDesde || Date.now(); else if (c.accuracy <= 100) aproxDesde = 0; // ±2 km fixo = permissão de localização aproximada
     // posição da rede (±centenas de metros, comum logo que a tela volta) não move o seu ponto no mapa:
     // fica no último ponto bom (da rota, do último treino) até o GPS de verdade responder
     if (c.accuracy <= 100) { eu = pt; if (Date.now() - ultPosSalva > 60000) { store.set('nx-gps-ult', pt); ultPosSalva = Date.now(); } }
