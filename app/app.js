@@ -2560,6 +2560,55 @@ async function faltasEquipe(ids, porId) {
   }).join('')}</div></div>`;
   box.querySelectorAll('[data-falta-vista]').forEach((a) => { if (!a.dataset.faltaVista) return; a.addEventListener('click', () => { sb.from('nx_faltas').update({ visto_treinador: true }).eq('id', a.dataset.faltaVista).then(() => {}, () => {}); }); });
 }
+/** seções da Hoje do treinador: seta para ocultar/mostrar (lembra a escolha) e "Mostrar mais" quando a lista é longa.
+    Vale também para as seções que carregam depois (faltas, sugestões, datas especiais). */
+let obsRecolhe = null;
+const recAbertas = new Set(); // listas que o treinador expandiu nesta visita
+function vigiarRecolhiveis() {
+  if (obsRecolhe) obsRecolhe.disconnect();
+  let agendado = false;
+  const roda = () => { agendado = false; if (!/^#?\/?$/.test(location.hash)) { obsRecolhe.disconnect(); return; } recolhiveis($app); };
+  obsRecolhe = new MutationObserver(() => { if (!agendado) { agendado = true; requestAnimationFrame(roda); } });
+  obsRecolhe.observe($app, { childList: true, subtree: true });
+  recolhiveis($app);
+}
+function recolhiveis(raiz) {
+  const SETA = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>';
+  raiz.querySelectorAll('.section').forEach((sec) => {
+    if (sec.dataset.recolhe || sec.querySelector('#ocultar-ativ')) return;
+    const cab = sec.querySelector(':scope > .section-h'), h = cab && cab.querySelector('h2');
+    if (!h) return;
+    sec.dataset.recolhe = '1';
+    const nome = h.textContent.trim(), chave = 'nx_sec_' + nome.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '_');
+    const corpo = document.createElement('div'); corpo.className = 'sec-corpo';
+    while (cab.nextSibling) corpo.appendChild(cab.nextSibling);
+    sec.appendChild(corpo);
+    // lista principal da seção: a que tem mais itens
+    const listas = [corpo, ...corpo.querySelectorAll('.stack, .card.ativ, .list')];
+    const lista = listas.reduce((a, b) => (b.children.length > a.children.length ? b : a), corpo);
+    const itens = [...lista.children].filter((x) => !x.matches('button'));
+    const LIM = 5;
+    if (itens.length > LIM + 1) {
+      const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'link-btn small sec-mais';
+      const pinta = () => { const ab = recAbertas.has(chave); itens.forEach((x, i) => { x.hidden = !ab && i >= LIM; }); bt.textContent = ab ? 'Mostrar menos' : `Mostrar mais ${itens.length - LIM}`; };
+      bt.onclick = () => { recAbertas.has(chave) ? recAbertas.delete(chave) : recAbertas.add(chave); pinta(); };
+      lista.after(bt); pinta();
+    }
+    const qtd = itens.length;
+    const aviso = document.createElement('p'); aviso.className = 'small muted sec-oculta';
+    aviso.textContent = `${qtd > 1 ? qtd + ' itens ocultos' : qtd === 1 ? '1 item oculto' : 'Seção oculta'}. Toque na seta para mostrar.`;
+    sec.appendChild(aviso);
+    const ob = document.createElement('button'); ob.type = 'button'; ob.className = 'ocultar-btn';
+    ob.innerHTML = SETA;
+    const aplica = () => { const f = !!store.get(chave, false); corpo.hidden = f; aviso.hidden = !f; ob.classList.toggle('fechado', f); ob.title = f ? 'Mostrar' : 'Ocultar'; ob.setAttribute('aria-label', `${f ? 'Mostrar' : 'Ocultar'} ${nome}`); };
+    ob.onclick = (e) => { e.preventDefault(); e.stopPropagation(); store.set(chave, !store.get(chave, false)); aplica(); };
+    // a seta fica à direita, junto do que já existia no cabeçalho
+    const extras = [...cab.children].filter((x) => x !== h);
+    const lado = document.createElement('div'); lado.className = 'row'; lado.style.cssText = 'gap:6px;align-items:center';
+    extras.forEach((x) => lado.appendChild(x)); lado.appendChild(ob); cab.appendChild(lado);
+    aplica();
+  });
+}
 /** abertas pela notificação: o aluno cai direto na pergunta; o treinador, direto na resposta */
 async function abrirFaltaAluno(dia) {
   history.replaceState(null, '', location.pathname + '#/');
@@ -9653,6 +9702,7 @@ async function staffHoje() {
   dadosSugestoes(ativos.map((m) => m.user_id), 1).then((sg) => { const bx = document.getElementById('sug-hoje'); if (!bx || !sg.length) return; bx.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Sugestões do app</h2><span class="tag acc">${sg.length}</span></div><div class="stack">${sg.map((x) => sugCardHTML(x)).join('')}</div></div>`; bindSugestoes(bx, sg, () => { if (!bx.querySelector('.sug-card')) bx.innerHTML = ''; }); }).catch((e) => console.error(e));
   ciclosTerminandoHTML(vis, Object.fromEntries(membros.map((m) => [m.user_id, m.nome]))).then((h) => { const el = document.getElementById('cic-term'); if (el) el.innerHTML = h; }, () => {});
   faltasEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m])));
+  vigiarRecolhiveis();
   bindCartaoPush();
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
