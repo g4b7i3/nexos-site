@@ -6442,7 +6442,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   // ---------- 6. comparação com o próprio atleta (90 dias) ----------
   const t0 = Date.parse(c.data);
   const ant = hist.filter((x) => x.id !== c.id && ehCorr(x) && x.distancia_m >= 2000 && Date.parse(x.data) < t0 && Date.parse(x.data) > t0 - 90 * 864e5);
-  let marco = '';
+  let marco = '', dEf = null;
   if (ant.length >= 3) {
     const maxKm = Math.max(...ant.map((x) => x.distancia_m)) / 1000;
     const rap = ant.filter((x) => x.distancia_m >= Math.min(5000, c.distancia_m * 0.9)).map(paceDe).filter(Boolean);
@@ -6453,13 +6453,35 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
       const ef = (x) => (x.distancia_m / x.duracao_s) / x.fc_media;
       const base = ant.filter((x) => x.fc_media && x.fc_media / fcMax < 0.86 && x.duracao_s > 900).map(ef);
       if (base.length >= 3) {
-        const d = (ef(c) - media(base)) / media(base);
+        const d = (ef(c) - media(base)) / media(base); dEf = d;
         const sKm = Math.round(pace - 1000 / (media(base) * c.fc_media));
         if (d > 0.03) { sec.comp.push(`Na mesma frequência cardíaca, você correu cerca de ${fmtSeg(-sKm)}/km mais rápido que a média das suas corridas leves e moderadas dos últimos 3 meses.`); frases.push(`Na mesma frequência cardíaca, correu cerca de ${fmtSeg(-sKm)}/km mais rápido que a média das suas corridas dos últimos 3 meses.`); }
         else if (d < -0.05) sec.comp.push(`Na mesma frequência cardíaca, o ritmo ficou cerca de ${fmtSeg(sKm)}/km mais lento que a sua média dos últimos 3 meses.`);
         else sec.comp.push('Eficiência (ritmo para a mesma frequência) igual à sua média recente.');
       }
     }
+    // corridas parecidas: distância até 25% diferente e ritmo até 20 s/km diferente
+    if (!misto && pace) {
+      const par = ant.filter((x) => Math.abs(x.distancia_m - c.distancia_m) / c.distancia_m <= 0.25 && paceDe(x) && Math.abs(paceDe(x) - pace) <= 20);
+      const pF = par.filter((x) => x.fc_media);
+      if (c.fc_media && pF.length >= 2) {
+        const mf = Math.round(media(pF.map((x) => x.fc_media))), df = c.fc_media - mf;
+        sec.comp.push(`Em ${pF.length} corridas parecidas dos últimos 3 meses (distância e ritmo semelhantes), sua FC média foi ${mf} bpm; hoje, ${c.fc_media} bpm${Math.abs(df) <= 2 ? ', praticamente igual' : df < 0 ? `, ${-df} bpm a menos (sinal de boa adaptação ou de um dia descansado)` : `, ${df} bpm a mais (calor, cansaço, sono ou desidratação costumam explicar)`}.`);
+      }
+      const pR = par.filter((x) => x.rpe != null);
+      if (c.rpe != null && pR.length >= 2) {
+        const mr = media(pR.map((x) => x.rpe)), dr = c.rpe - mr;
+        if (Math.abs(dr) >= 1.5) sec.comp.push(`O esforço que você deu (${c.rpe}/10) ficou ${dr > 0 ? 'acima' : 'abaixo'} do que costuma dar em corridas parecidas (média ${N1(mr)}/10)${dr > 0 ? ': o mesmo treino pareceu mais pesado hoje' : ': o mesmo treino pareceu mais leve, bom sinal de evolução'}.`);
+      }
+    }
+    // cadência comparada com a sua média
+    const cads = ant.map((x) => x.cadencia).filter((v) => v > 100);
+    if (c.cadencia > 100 && cads.length >= 3) { const mc = Math.round(media(cads)), dc = Math.round(c.cadencia - mc); if (Math.abs(dc) >= 4) sec.comp.push(`Cadência de ${Math.round(c.cadencia)} passos por minuto, ${Math.abs(dc)} ${dc > 0 ? 'acima' : 'abaixo'} da sua média (${mc}).${misto ? ' Em treinos com tiros ela costuma subir.' : ''}`); }
+    // frequência de treino: dias desde a corrida anterior e corridas na semana
+    const ultAnt = ant.reduce((m, x) => Math.max(m, Date.parse(x.data)), 0);
+    const nSem = ant.filter((x) => Date.parse(x.data) > t0 - 7 * 864e5).length + 1, mSem = ant.filter((x) => Date.parse(x.data) > t0 - 35 * 864e5 && Date.parse(x.data) <= t0 - 7 * 864e5).length / 4;
+    if (ultAnt) { const dd = Math.round((t0 - ultAnt) / 864e5); if (dd >= 4) sec.comp.push(`Foram ${dd} dias desde a sua corrida anterior.`); }
+    if (mSem >= 1 && nSem >= mSem + 2) sec.comp.push(`Esta é a sua ${nSem}ª corrida em 7 dias, acima do seu costume (cerca de ${N1(mSem)} por semana).`);
     const sem4 = ant.filter((x) => Date.parse(x.data) > t0 - 28 * 864e5).reduce((a, x) => a + x.distancia_m, 0) / 4000;
     if (sem4 > 0) sec.comp.push(`Sua média nas últimas 4 semanas é de ${N1(sem4)} km por semana; este treino representa ${Math.round((km / sem4) * 100)}% disso.`);
     // salto de treino isolado (Frandsen et al. 2025): mais de 10% acima do mais longo dos 30 dias anteriores
@@ -6470,7 +6492,21 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   // ---------- 7. corpo ----------
   let alerta = '';
   if (c.dor) alerta = `Você relatou dor${c.dor_local ? ' (' + c.dor_local + ')' : ''}: se continuar nos próximos treinos, avise o seu treinador.`;
-  else if (c.sono === 1 || c.cansaco === 2) sec.comp.push('Você marcou sono ruim ou cansaço alto: dê atenção à recuperação nos próximos dias.');
+  else {
+    // escalas: sono 0 bom, 1 regular, 2 ruim; cansaço 0 normal, 1 cansado, 2 muito cansado
+    const sinais = [c.cansaco === 2 ? 'muito cansaço' : c.cansaco === 1 ? 'cansaço' : '', c.sono === 2 ? 'sono ruim' : ''].filter(Boolean);
+    if (sinais.length) {
+      const q = sinais.join(' e ');
+      let t = `Se você marcou ${q} neste treino, vale dar atenção à recuperação nos próximos dias, principalmente ao sono.`;
+      if (dEf != null && dEf > 0.03) t += ' Mesmo assim, os números mostram que o corpo respondeu bem: o ritmo para a mesma frequência ficou melhor que a sua média.';
+      else if (dEf != null && dEf < -0.05) t += ' Os números também mostram um dia mais pesado: o ritmo para a mesma frequência ficou abaixo da sua média.';
+      sec.comp.push(t);
+    }
+    // padrão nas últimas 2 semanas
+    const rec14 = [c, ...hist.filter((x) => x.id !== c.id && ehCorr(x) && Date.parse(x.data) < t0 && Date.parse(x.data) > t0 - 14 * 864e5)].filter((x) => x.sono != null || x.cansaco != null);
+    const pes = rec14.filter((x) => x.cansaco >= 1 || x.sono === 2).length;
+    if (rec14.length >= 3 && pes >= 3) sec.comp.push(`Nos registros das últimas 2 semanas, cansaço ou sono ruim aparecem em ${pes} de ${rec14.length} corridas. Quando isso se repete, pode ser sinal de que o corpo precisa de mais descanso; vale comentar com o seu treinador.`);
+  }
   // ---------- texto final ----------
   let txt = abertura + '.';
   const extra = [marco && `Foi ${marco}`, planTxt && (marco ? `e ${planTxt}` : `Você ${planTxt}`)].filter(Boolean).join(' ');
@@ -6487,7 +6523,7 @@ function nexosIntHTML(r) {
   return `<div class="ni-card"><div class="ni-h">${NI_LOGO}<b>Leitura Nexos</b></div><p class="ni-txt">${esc(r.txt)}</p>
     ${r.det.length ? `<details class="ni-mais"><summary><span class="ni-a">Ver mais</span><span class="ni-b">Ver menos</span></summary>${r.det.map(([t, l]) => `<div class="ni-sec"><b>${t}</b><ul>${l.map((d) => `<li>${esc(d)}</li>`).join('')}</ul></div>`).join('')}</details>` : ''}</div>`;
 }
-const buscarHist90 = (alunoId, ate) => sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fc_media').eq('aluno_id', alunoId).gte('data', new Date(Date.parse(ate) - 92 * 864e5).toISOString()).lte('data', ate).then((r) => r.data || [], () => []);
+const buscarHist90 = (alunoId, ate) => sb.from('nx_corridas').select('id,data,tipo,distancia_m,duracao_s,fc_media,cadencia,rpe,sono,cansaco').eq('aluno_id', alunoId).gte('data', new Date(Date.parse(ate) - 92 * 864e5).toISOString()).lte('data', ate).then((r) => r.data || [], () => []);
 
 async function viewCorrida(id) {
   loading();
