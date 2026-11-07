@@ -409,6 +409,7 @@ async function router() {
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
       if (a === 'relogios') return await staffRelogios();
+      if (a === 'fidelizacao') return await staffFidelizacao();
       if (a === 'antes-depois' && b) return await viewAntesDepois(b);
       if (a === 'formularios') return await staffFormularios(b);
       if (a === 'mensagens') return await staffMensagens(b);
@@ -1653,6 +1654,76 @@ const relogioResumo = (r) => {
   if (cx.erro) return { cls: 'err', st: 'Conexão com problema', via: `${g ? 'Garmin' : 'Intervals.icu'}: ${cx.erro}` };
   return { cls: 'ok', st: g ? 'Garmin conectado' : 'Conectado pelo Intervals.icu', via: `${cx.ultima_sync ? 'Última sincronização ' + quando(cx.ultima_sync) : 'Ainda não sincronizou'}${r.ultRel ? ` · última atividade ${quando(r.ultRel.data)}` : ''}` };
 };
+/* ---------- painel de fidelização: quem está esfriando, por quê e o que fazer ---------- */
+async function staffFidelizacao() {
+  loading(); dockStaff();
+  const ms = await sb.from('nx_membros').select('user_id,nome,apelido,foto_url,ativo,aprovacao,treinador_id,modalidades,telefone,criado_em').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
+  const al = ms.filter((m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
+  const ids = al.map((m) => m.user_id);
+  const agora = Date.now(), d28 = new Date(agora - 28 * 864e5).toISOString(), d14 = agora - 14 * 864e5, dia14 = isoDia(new Date(d14)), hoje = hojeISO();
+  const nada = { data: [] }, q = (x) => x.then((r) => r, () => nada);
+  const [cs, ss, pl, pr, msg, hid, ft, cb, ultC, ultS] = ids.length ? await Promise.all([
+    q(sb.from('nx_corridas').select('aluno_id,data,rpe,comentario,dor,fonte').in('aluno_id', ids).gte('data', d28).limit(3000)),
+    q(sb.from('nx_sessoes').select('aluno_id,iniciado_em,dor').in('aluno_id', ids).not('finalizado_em', 'is', null).gte('iniciado_em', d28).limit(3000)),
+    q(sb.from('nx_plano_corrida').select('aluno_id,data,tipo,liberado').in('aluno_id', ids).gte('data', dia14).lt('data', hoje).eq('liberado', true).neq('tipo', 'folga')),
+    q(sb.from('nx_prontidao').select('aluno_id,dia,dor,criado_em').in('aluno_id', ids).gte('criado_em', d28)),
+    q(sb.from('nx_mensagens').select('aluno_id,autor_id,criado_em').eq('org_id', S.org.id).in('aluno_id', ids).gte('criado_em', d28).limit(3000)),
+    q(sb.from('nx_hidratacao').select('aluno_id,atualizado_em').in('aluno_id', ids).gte('dia', isoDia(new Date(agora - 28 * 864e5)))),
+    q(sb.from('nx_faltas').select('aluno_id,respondido_em').in('aluno_id', ids).gte('dia', dia14)),
+    q(sb.from('nx_cobrancas').select('aluno_id,status,vencimento').eq('org_id', S.org.id).in('aluno_id', ids).in('status', ['pendente', 'atrasada', 'informada'])),
+    q(sb.from('nx_corridas').select('aluno_id,data').in('aluno_id', ids).order('data', { ascending: false }).limit(2000)),
+    q(sb.from('nx_sessoes').select('aluno_id,iniciado_em').in('aluno_id', ids).not('finalizado_em', 'is', null).order('iniciado_em', { ascending: false }).limit(2000)),
+  ]) : Array(10).fill(nada);
+  const de = (r, id) => (r.data || []).filter((x) => x.aluno_id === id);
+  const lin = al.map((m) => {
+    const id = m.user_id, casaD = diasDesde(m.criado_em);
+    const c = de(cs, id), s2 = de(ss, id);
+    const datas = [...c.map((x) => Date.parse(x.data)), ...s2.map((x) => Date.parse(x.iniciado_em))];
+    const rec = datas.filter((t) => t >= d14).length, ant = datas.filter((t) => t < d14).length;
+    const ult = Math.max(...de(ultC, id).slice(0, 1).map((x) => Date.parse(x.data)), ...de(ultS, id).slice(0, 1).map((x) => Date.parse(x.iniciado_em)), 0);
+    const semTreino = ult ? diasDesde(new Date(ult)) : null;
+    const plan = de(pl, id), diasFeitos = new Set(c.map((x) => isoDia(x.data)));
+    const cumpr = plan.length >= 3 ? Math.round(100 * plan.filter((x) => diasFeitos.has(x.data)).length / plan.length) : null;
+    // último sinal de uso do app: check-in, mensagem do aluno, água, treino de força, comentário ou esforço numa corrida
+    const usos = [...de(pr, id).map((x) => Date.parse(x.criado_em)), ...de(msg, id).filter((x) => x.autor_id === id).map((x) => Date.parse(x.criado_em)), ...de(hid, id).map((x) => Date.parse(x.atualizado_em)), ...s2.map((x) => Date.parse(x.iniciado_em)), ...c.filter((x) => x.rpe != null || x.comentario || x.fonte === 'celular').map((x) => Date.parse(x.data))].filter(Boolean);
+    const uso = usos.length ? diasDesde(new Date(Math.max(...usos))) : null;
+    const dor = de(pr, id).some((x) => x.dor && Date.parse(x.criado_em) >= d14) || c.some((x) => x.dor && Date.parse(x.data) >= d14) || s2.some((x) => x.dor && Date.parse(x.iniciado_em) >= d14);
+    const faltasPend = de(ft, id).filter((x) => !x.respondido_em).length;
+    const atrasada = de(cb, id).some((x) => x.status === 'atrasada' || (x.status === 'pendente' && x.vencimento && x.vencimento < hoje));
+    const sinais = []; let pts = 0;
+    const add = (p, t, acao) => { pts += p; sinais.push({ t, acao }); };
+    if (semTreino == null) { if (casaD >= 7) add(3, 'Ainda não registrou nenhum treino', 'Confira se ele conseguiu entrar no app e conectar o relógio.'); }
+    else if (semTreino >= 14) add(3, `Sem treinar há ${semTreino} dias`, 'Mande uma mensagem pessoal perguntando como ele está.');
+    else if (semTreino >= 7) add(2, `Sem treinar há ${semTreino} dias`, 'Mande uma mensagem leve, sem cobrança, perguntando como foi a semana.');
+    if (casaD >= 28 && ant >= 3 && rec <= ant / 2) add(2, `Treinou ${rec} vez${rec === 1 ? '' : 'es'} nos últimos 14 dias, contra ${ant} nos 14 anteriores`, 'Pergunte se a rotina mudou e ajuste a planilha à disponibilidade dele.');
+    if (cumpr != null && cumpr < 50) add(2, `Cumpriu ${cumpr}% da planilha nos últimos 14 dias`, 'A planilha pode estar acima do que ele consegue fazer. Reduza ou mude os dias.');
+    if (uso == null ? casaD >= 7 : uso >= 10) add(2, uso == null ? 'Não usou o app ainda' : `Não abre o app há ${uso} dias`, 'Mostre algo novo para ele no app: evolução, card da corrida, previsão de prova.');
+    else if (uso != null && uso >= 7) add(1, `Não abre o app há ${uso} dias`, '');
+    if (dor) add(1, 'Relatou dor nos últimos 14 dias', 'Pergunte como está a dor e ajuste a carga. Aluno com dor é o que mais desiste.');
+    if (faltasPend >= 2) add(1, `${faltasPend} treinos perdidos sem resposta`, 'Ele não está respondendo as perguntas do app. Vale um contato direto.');
+    if (atrasada) add(2, 'Mensalidade em atraso', 'Converse antes de cobrar: atraso costuma vir junto com desânimo.');
+    const nivel = pts >= 4 ? 'alto' : pts >= 2 ? 'medio' : 'ok';
+    return { m, pts, nivel, sinais, semTreino, rec, cumpr, uso, casaD };
+  }).sort((a, b) => b.pts - a.pts || (b.semTreino || 0) - (a.semTreino || 0));
+  const alto = lin.filter((x) => x.nivel === 'alto'), medio = lin.filter((x) => x.nivel === 'medio'), ok = lin.filter((x) => x.nivel === 'ok');
+  S.cache.fidel = lin;
+  const card = (x) => `<div class="card fid-card fid-${x.nivel}"><div class="row" style="gap:12px;align-items:flex-start">${avAluno(x.m)}<div class="grow" style="min-width:0">
+      <a href="#/aluno/${x.m.user_id}" style="color:inherit"><b class="ellip" style="display:block">${esc(x.m.nome)}</b></a>
+      <div class="small muted">${x.casaD < 30 ? `Na Nexos há ${x.casaD} dia${x.casaD === 1 ? '' : 's'}` : `Na Nexos há ${Math.floor(x.casaD / 30)} ${Math.floor(x.casaD / 30) === 1 ? 'mês' : 'meses'}`} · ${x.rec} treino${x.rec === 1 ? '' : 's'} em 14 dias${x.cumpr != null ? ` · ${x.cumpr}% da planilha` : ''}</div></div>
+      <span class="tag ${x.nivel === 'alto' ? 'err' : x.nivel === 'medio' ? 'warn' : 'ok'}">${x.nivel === 'alto' ? 'Risco alto' : x.nivel === 'medio' ? 'Atenção' : 'Em dia'}</span></div>
+    ${x.sinais.length ? `<ul class="fid-sinais">${x.sinais.map((g) => `<li><b>${esc(g.t)}</b>${g.acao ? `<span>${esc(g.acao)}</span>` : ''}</li>`).join('')}</ul>` : ''}
+    ${x.nivel !== 'ok' ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><a class="btn sm" href="#/aluno/${x.m.user_id}/conversa">${I.feed} Conversa no app</a>${x.semTreino != null && x.semTreino >= 7 ? `<button class="btn sm ghost" data-fid-rsg="${x.m.user_id}">${I.wa} Mensagem pronta</button>` : ''}<a class="btn sm ghost" href="#/aluno/${x.m.user_id}">Ver aluno</a></div>` : ''}</div>`;
+  const okLinha = (x) => `<a class="list-item" href="#/aluno/${x.m.user_id}" style="color:inherit">${avAluno(x.m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(x.m.nome)}</b><span class="small muted">${x.rec} treino${x.rec === 1 ? '' : 's'} em 14 dias${x.semTreino != null ? ` · último ${quando(Date.now() - x.semTreino * 864e5)}` : ''}</span></div>${x.sinais.length ? `<span class="small muted">${esc(x.sinais[0].t)}</span>` : ''}${I.chev}</a>`;
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe</p><h1 class="h1">Painel de fidelização</h1>
+    <p class="muted" style="margin-top:6px">Os seus alunos que estão esfriando, o motivo e o que fazer. Olha os treinos, a planilha, o uso do app, dores, treinos perdidos e mensalidades das últimas semanas.</p>
+    <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b style="color:var(--err)">${alto.length}</b><span>risco alto</span></div><div><b style="color:var(--warn)">${medio.length}</b><span>atenção</span></div><div><b style="color:var(--ok)">${ok.length}</b><span>em dia</span></div></div></div>
+    ${alto.length ? `<div class="section"><div class="section-h"><h2 class="h2">Risco alto</h2><span class="tag err">${alto.length}</span></div><p class="small muted" style="margin:-4px 0 10px">Fale com eles esta semana.</p><div class="stack">${alto.map(card).join('')}</div></div>` : ''}
+    ${medio.length ? `<div class="section"><div class="section-h"><h2 class="h2">Atenção</h2><span class="tag warn">${medio.length}</span></div><div class="stack">${medio.map(card).join('')}</div></div>` : ''}
+    ${ok.length ? `<div class="section"><div class="section-h"><h2 class="h2">Em dia</h2><span class="tag ok">${ok.length}</span></div><div class="stack">${ok.map(okLinha).join('')}</div></div>` : ''}
+    ${!lin.length ? '<div class="empty" style="margin-top:16px">Nenhum aluno ativo ainda.</div>' : ''}
+    <p class="tiny dim" style="margin-top:18px">Como o risco é calculado: dias sem treinar, queda de treinos em relação às duas semanas anteriores, cumprimento da planilha, dias sem usar o app, dor recente, treinos perdidos sem resposta e mensalidade atrasada. Alunos com menos de 4 semanas não entram na comparação de treinos.</p>`;
+  $app.querySelectorAll('[data-fid-rsg]').forEach((b) => { b.onclick = () => { const x = lin.find((y) => y.m.user_id === b.dataset.fidRsg); if (x) abrirResgate(x.m, x.semTreino, () => {}); }; });
+}
 async function staffRelogios() {
   loading(); dockStaff();
   const ms = await sb.from('nx_membros').select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,sexo').eq('org_id', S.org.id).eq('papel', 'aluno').eq('ativo', true).order('nome').then((r) => r.data || [], () => []);
@@ -13513,6 +13584,7 @@ function staffMais() {
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
+      ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}
       ${it('#/relogios', I.watch, 'Relógios dos alunos', 'Quem está conectado, por onde e qual o modelo do relógio')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}

@@ -3026,3 +3026,11 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .foto-full-x{position:absolute;top:14px;right:14px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;cursor:pointer}
 .foto-full-x svg{width:20px;height:20px}
 @keyframes fotoIn{from{opacity:0}to{opacity:1}}
+/* painel de fidelização */
+.fid-card{padding:16px}
+.fid-card.fid-alto{border-left:0;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--err) 45%,transparent)}
+.fid-sinais{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.fid-sinais li{display:flex;flex-direction:column;gap:2px;padding-left:12px;position:relative;font-size:.92rem}
+.fid-sinais li::before{content:'';position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--warn)}
+.fid-alto .fid-sinais li::before{background:var(--err)}
+.fid-sinais li span{color:var(--mute);font-size:.85rem}
