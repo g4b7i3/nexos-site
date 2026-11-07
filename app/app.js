@@ -8636,7 +8636,10 @@ async function viewGps(id, modo) {
     if (!document.getElementById('g-sinal') || !minha()) return; // já saiu da tela do treino
     const c = pos.coords, pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6)], t = pos.timestamp || Date.now();
     gpsOk = c.accuracy <= 25;
-    eu = pt; if (Date.now() - ultPosSalva > 60000) { store.set('nx-gps-ult', pt); ultPosSalva = Date.now(); }
+    // posição da rede (±centenas de metros, comum logo que a tela volta) não move o seu ponto no mapa:
+    // fica no último ponto bom (da rota, do último treino) até o GPS de verdade responder
+    if (c.accuracy <= 100) { eu = pt; if (Date.now() - ultPosSalva > 60000) { store.set('nx-gps-ult', pt); ultPosSalva = Date.now(); } }
+    else if (!eu) eu = st.rota.length ? st.rota[st.rota.length - 1] : store.get('nx-gps-ult', null) || pt;
     $('g-sinal').textContent = c.accuracy <= 12 ? 'GPS ótimo' : c.accuracy <= 25 ? 'GPS bom' : `GPS fraco (±${Math.round(c.accuracy)} m)`;
     $('g-sinal').className = 'tiny ' + (c.accuracy <= 25 ? 'gps-ok' : 'gps-fraco');
     if (st.estado === 'pronto') desenha();
