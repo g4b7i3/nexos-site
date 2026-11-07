@@ -384,6 +384,7 @@ async function router() {
       if (!a) return await staffHoje();
       if (a === 'alunos') return await staffAlunos();
       if (a === 'financeiro') return await staffFinanceiro();
+      if (a === 'falta' && b) { await staffHoje(); return abrirFaltaStaff(b); }
       if (a === 'aluno' && b && c === 'postural') return await formPostural(b, d && d !== 'nova' ? d : null);
       if (a === 'postural' && b) return await viewPostural(b);
       if (a === 'aluno' && b && c === 'treino') return await staffTreinoEditor(b, d || null);
@@ -421,6 +422,7 @@ async function router() {
     if (a === 'treino' && b) { $dock.hidden = true; layout(); return await viewExecucao(b, false); }
     dockAluno(); layout('wide aluno');
     if (!a) return await alunoHoje();
+    if (a === 'falta') { await alunoHoje(); return abrirFaltaAluno(b); }
     if (a === 'historico') return await alunoHistorico(b);
     if (a === 'checkup') return await viewCheckup(b, c);
     if (a === 'planilha') return await viewPlanilhaAluno(b);
@@ -2556,6 +2558,33 @@ async function faltasEquipe(ids, porId) {
     return `<a class="list-item" href="#/aluno/${f.aluno_id}" data-falta-vista="${f.respondido_em && !f.visto_treinador ? f.id : ''}" style="color:inherit;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${diaSemDe(f.dia)}</b><div class="small muted">${esc((f.treinos || []).join(' e '))}</div>${f.respondido_em ? `<div class="small" style="margin-top:4px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `: ${esc(f.detalhe)}` : ''}</div>` : '<div class="small muted" style="margin-top:4px">Aguardando a resposta do aluno</div>'}</div>${f.respondido_em && !f.visto_treinador ? '<i class="alert-dot"></i>' : ''}</a>`;
   }).join('')}</div></div>`;
   box.querySelectorAll('[data-falta-vista]').forEach((a) => { if (!a.dataset.faltaVista) return; a.addEventListener('click', () => { sb.from('nx_faltas').update({ visto_treinador: true }).eq('id', a.dataset.faltaVista).then(() => {}, () => {}); }); });
+}
+/** abertas pela notificação: o aluno cai direto na pergunta; o treinador, direto na resposta */
+async function abrirFaltaAluno(dia) {
+  history.replaceState(null, '', location.pathname + '#/');
+  let q = sb.from('nx_faltas').select('id,dia,treinos,respondido_em').eq('aluno_id', S.user.id);
+  q = /^\d{4}-\d{2}-\d{2}$/.test(dia || '') ? q.eq('dia', dia) : q.is('respondido_em', null).order('dia', { ascending: false });
+  const { data } = await q.limit(1).then((r) => r, () => ({ data: [] }));
+  const f = data && data[0];
+  if (!f) return;
+  if (f.respondido_em) return toast('Você já contou o motivo desse treino. Obrigado!');
+  responderFalta(f, () => { const b = document.querySelector(`[data-falta="${f.id}"]`); if (b) b.remove(); });
+}
+async function abrirFaltaStaff(id) {
+  history.replaceState(null, '', location.pathname + '#/');
+  const { data: f } = await sb.from('nx_faltas').select('id,aluno_id,dia,treinos,motivo,detalhe,respondido_em').eq('id', id).maybeSingle().then((r) => r, () => ({ data: null }));
+  if (!f) return rolarAte('faltas-eq');
+  const { data: m } = await sb.from('nx_membros').select('nome').eq('org_id', S.org.id).eq('user_id', f.aluno_id).maybeSingle().then((r) => r, () => ({ data: null }));
+  const nome = firstName((m && m.nome) || 'Aluno');
+  if (f.respondido_em) sb.from('nx_faltas').update({ visto_treinador: true }).eq('id', f.id).then(() => {}, () => {});
+  openSheet(`<p class="eyebrow">Treino de ${diaSemDe(f.dia)} · ${fmtCurto(f.dia + 'T12:00:00')}</p><div class="h2" style="margin-top:4px">${esc(nome)} ${f.respondido_em ? 'explicou a falta' : 'ainda não respondeu'}</div>
+    <p class="small muted" style="margin-top:6px">${esc((f.treinos || []).join(' e '))}</p>
+    ${f.respondido_em ? `<div class="card" style="margin-top:14px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `<p style="margin-top:6px">${esc(f.detalhe)}</p>` : ''}</div>` : ''}
+    <div class="stack" style="margin-top:14px"><a class="btn block" href="#/aluno/${f.aluno_id}/conversa">Responder na conversa</a><a class="btn block ghost" href="#/aluno/${f.aluno_id}">Ver aluno</a></div>`);
+}
+/** rola até uma seção que carrega depois da tela (espera até 4 s) */
+function rolarAte(id) {
+  let n = 0; const t = setInterval(() => { const el = document.getElementById(id); if ((el && el.childElementCount) || ++n > 20) { clearInterval(t); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, 200);
 }
 /* ---------- 4) replay do percurso ---------- */
 // mapa de verdade por baixo do percurso (OpenFreeMap, o mesmo da tela do GPS): monta fora da tela, tira uma "foto" e devolve
