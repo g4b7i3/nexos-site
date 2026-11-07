@@ -5120,10 +5120,11 @@ function formCorrida(alunoId, d, plano, onSalvo) {
       if (!km || km <= 0) return toast('Informe a distância em km.', true);
       if (!seg) return toast('Informe o tempo, por exemplo 45:30.', true);
       const btn = f.querySelector('[type=submit]'); btn.disabled = true;
-      const reaproveitaArquivo = lido && Math.abs(km * 1000 - d.distancia_m) < 5;
+      // a distância aparece arredondada (2 casas): se a pessoa não mexeu nela, os dados do GPS/arquivo (etapas, parciais, gráficos) vão junto
+      const reaproveitaArquivo = lido && (f.km.value === f.km.defaultValue || Math.abs(km * 1000 - d.distancia_m) <= 10);
       const row = {
         org_id: S.org.id, aluno_id: alunoId, data: new Date(f.data.value).toISOString(), tipo: f.tipo.value,
-        titulo: d.titulo || null, distancia_m: Math.round(km * 1000), duracao_s: seg,
+        titulo: d.titulo || null, distancia_m: reaproveitaArquivo ? Math.round(d.distancia_m) : Math.round(km * 1000), duracao_s: seg,
         fc_media: num(f.fc_media.value), fc_max: num(f.fc_max.value), elevacao_m: d.elevacao_m ?? null, cadencia: d.cadencia ?? null,
         rpe, dor, dor_local: dor ? (r.querySelector('#dor-local').value.trim() || null) : null, cansaco: corpo.cansaco ?? null, sono: corpo.sono ?? null,
         comentario: f.comentario.value.trim() || null, plano_id: f.plano ? (f.plano.value || null) : null,
