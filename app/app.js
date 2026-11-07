@@ -37,7 +37,8 @@ const DIAS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 const fmtData = (d) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 const fmtHora = (d) => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-const diasDesde = (d) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+// dias de calendário (meia-noite a meia-noite, no horário do aparelho): ontem às 18h é "ontem", mesmo que faça menos de 24 h
+const diasDesde = (d) => { const a = new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(d)) ? d + 'T12:00:00' : d), h = new Date(); if (isNaN(a)) return 0; return Math.round((new Date(h.getFullYear(), h.getMonth(), h.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000); };
 const quando = (d) => { const n = diasDesde(d); return n <= 0 ? 'hoje' : n === 1 ? 'ontem' : `há ${n} dias`; };
 const minutos = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 60000));
 const store = {
