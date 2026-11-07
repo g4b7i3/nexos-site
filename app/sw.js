@@ -35,7 +35,7 @@ self.addEventListener('fetch', (e) => {
     const guardada = await cache.match(req, { ignoreSearch: true });
     const rede = fetch(req).then(async (r) => {
       if (r.ok && r.type === 'basic') {
-        const mudou = guardada && /\/app\.(js|css)$/.test(url.pathname) && guardada.headers.get('etag') && r.headers.get('etag') !== guardada.headers.get('etag');
+        const mudou = guardada && /\/app\/(app\.css|js\/[^/]+\.js)$/.test(url.pathname) && guardada.headers.get('etag') && r.headers.get('etag') !== guardada.headers.get('etag');
         await cache.put(req, r.clone());
         if (mudou) avisar({ atualizado: true });
       }
