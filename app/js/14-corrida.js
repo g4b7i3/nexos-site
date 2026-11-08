@@ -168,9 +168,16 @@ const ehAniversario = (nasc, dias = 0) => {
       Só entram treinos fortes (80% da FCmáx ou mais, ou esforço 7+): em treino leve a FC varia muito de um dia para o outro
       e com o calor, e um erro pequeno nela vira uma previsão bem acima do real.
    2) Junta com o VDOT direto das corridas e do teste do perfil (desempenho real é piso). Com teste recente, ele é a
-      referência: a FC só ajusta até 5% acima dele (o quanto alguém melhora em poucas semanas).
+      referência: a FC só mostra a evolução desde ele, até 1% por semana passada e no máximo 5%.
+      FC máxima: a medida no perfil; sem ela, a maior entre a de Tanaka (208 − 0,7 × idade) e o maior pico já gravado
+      pelo relógio (ninguém passa da própria máxima, então o pico corrige a fórmula quando ela erra para baixo).
+      Com FC de repouso no perfil, usa a reserva de FC (Swain e Leutholtz, 1997; ACSM: %FCreserva ≈ %VO2reserva),
+      que é mais precisa que o percentual da FC máxima.
    3) Converte o VDOT no tempo de cada prova (inverso da fórmula de Daniels) e ajusta meia e maratona pela
-      corrida mais longa e pelo volume semanal recentes (sem base de longão, a previsão fica mais conservadora). */
+      corrida mais longa e pelo volume semanal recentes (sem base de longão, a previsão fica mais conservadora).
+   4) Maratona: quando o aluno tem 8 semanas de treino registradas e está na faixa em que o estudo foi validado
+      (40–111 km/semana, ritmo médio de 4:13 a 5:31 /km), usa a equação de Tanda (2011), feita com maratonistas reais:
+      ritmo (s/km) = 17,1 + 140 × e^(−0,0053 × km/semana) + 0,55 × ritmo médio dos treinos. */
 const PROVAS_PREV = [
   [5000, '5K', '5 km'],
   [10000, '10K', '10 km'],
@@ -194,7 +201,24 @@ function previsaoEm(corridas, perfil, ate) {
     ests = [];
   let longa = 0,
     km42 = 0,
-    n = 0;
+    n = 0,
+    pico = 0,
+    km56 = 0,
+    seg56 = 0,
+    primeira = Infinity;
+  corridas.forEach((c) => {
+    const tc = Date.parse(c.data);
+    if (tc <= t1 && ehCorr(c) && c.tipo !== 'caminhada') {
+      if (c.fc_max > pico && c.fc_max <= 230) pico = c.fc_max;
+      primeira = Math.min(primeira, tc);
+      if (tc > t1 - 56 * 864e5 && c.distancia_m > 0 && c.duracao_s > 0) {
+        km56 += c.distancia_m / 1000;
+        seg56 += c.duracao_s;
+      }
+    }
+  });
+  const fcMax = perfil.fc_max || (perfil.fcMax ? Math.max(perfil.fcMax, pico) : null);
+  const fcRep = perfil.fcRep && fcMax && perfil.fcRep < fcMax - 40 ? perfil.fcRep : null;
   corridas.forEach((c) => {
     const t = Date.parse(c.data);
     if (!(t <= t1 && t > t0 - 14 * 864e5) || !ehCorr(c) || c.tipo === 'caminhada' || !c.distancia_m || !c.duracao_s)
@@ -208,18 +232,24 @@ function previsaoEm(corridas, perfil, ate) {
     n++;
     diretos.push(vdotDe(c.distancia_m, c.duracao_s));
     let pct = null;
-    if (c.fc_media && perfil.fcMax) {
-      const f = (c.fc_media / perfil.fcMax) * 100;
-      if (f >= 80 && f <= 102) pct = Math.min(1, (f - 37) / 64);
-    } else if (c.rpe != null && c.rpe >= 7) pct = Math.min(1, 0.55 + c.rpe * 0.045);
-    if (pct) ests.push({ v: (-4.6 + 0.182258 * v + 0.000104 * v * v) / pct, p: Math.min(2, c.duracao_s / 1800) });
+    const vo2 = -4.6 + 0.182258 * v + 0.000104 * v * v; // custo de O2 nessa velocidade (Daniels)
+    let est = null;
+    if (c.fc_media && fcMax && c.fc_media >= 0.8 * fcMax && c.fc_media <= 1.02 * fcMax) {
+      if (fcRep) {
+        const r = Math.min(1, (c.fc_media - fcRep) / (fcMax - fcRep)); // %FC de reserva = %VO2 de reserva
+        est = 3.5 + (vo2 - 3.5) / r;
+      } else est = vo2 / Math.min(1, (c.fc_media / fcMax - 0.37) / 0.64); // Swain: %FCmáx = 0,64 × %VO2máx + 37
+    } else if (!c.fc_media && c.rpe != null && c.rpe >= 7) est = vo2 / Math.min(1, 0.55 + c.rpe * 0.045);
+    if (est) ests.push({ v: est, p: Math.min(2, c.duracao_s / 1800) });
   });
-  let teste = 0;
+  let teste = 0,
+    semTeste = 0;
   if (perfil.vdot && perfil.teste_data) {
     const tt = Date.parse(perfil.teste_data + 'T12:00:00');
     if (tt <= t1 && tt > t1 - 90 * 864e5) {
       diretos.push(perfil.vdot);
       teste = perfil.vdot;
+      semTeste = (t1 - tt) / (7 * 864e5);
     }
   }
   if (!diretos.length && !ests.length) return null;
@@ -231,11 +261,20 @@ function previsaoEm(corridas, perfil, ate) {
     const top = ests.slice(0, Math.ceil(ests.length / 2));
     fis = top.reduce((a, x) => a + x.v * x.p, 0) / top.reduce((a, x) => a + x.p, 0);
   }
-  // treino comum não é feito no máximo, por isso sem teste a FC pode puxar até 20% acima; com teste, até 5%
-  let vdot = dir ? Math.max(dir, Math.min(fis, teste ? Math.max(teste * 1.05, dir) : dir * 1.2)) : fis;
+  // treino comum não é feito no máximo, por isso sem teste a FC pode puxar até 20% acima. Com teste, a FC só mostra
+  // a evolução desde ele: até 1% por semana passada, no máximo 5%
+  const tetoTeste = teste * (1 + Math.min(0.05, semTeste * 0.01));
+  let vdot = dir ? Math.max(dir, Math.min(fis, teste ? Math.max(tetoTeste, dir) : dir * 1.2)) : fis;
   vdot = Math.max(20, Math.min(80, vdot));
   const semana = km42 / 6;
+  const k8 = km56 / 8,
+    p8 = km56 ? seg56 / km56 : 0;
+  const tanda =
+    primeira <= t1 - 56 * 864e5 && k8 >= 40 && k8 <= 111 && p8 >= 253 && p8 <= 331
+      ? (17.1 + 140 * Math.exp(-0.0053 * k8) + 0.55 * p8) * 42.195
+      : null;
   const tempos = PROVAS_PREV.map(([d]) => {
+    if (d > 40000 && tanda) return tanda;
     let s = tempoPorVdot(vdot, d);
     if (d > 20000 && d < 22000 && longa < 16) s *= 1 + ((16 - longa) / 16) * 0.05;
     if (d > 40000)
@@ -296,7 +335,7 @@ function previsoesCard(box, corridas, perfil, { titulo = true } = {}) {
       <div class="seg pv-per">${PV_PER.map(([k, l]) => `<button type="button" data-pv="${k}" class="${k === per ? 'on' : ''}">${l}</button>`).join('')}</div>
       ${hist.length > 2 ? `<div style="margin-top:14px"><span class="small muted" style="font-weight:700">Previsão dos 10 km nos últimos 6 meses · menor é melhor</span>${grafico(hist, { fmt: (v) => fmtDurLongo(v * 60) })}</div>` : ''}
       <p class="pv-cred">Baseado nas equações de Jack Daniels e em estudos de fisiologia do exercício.</p>
-      <details class="ajuda" style="margin-top:6px"><summary>Como a Nexos calcula?</summary><p>Usamos as suas corridas das últimas 6 semanas: o ritmo de cada uma e quanto ela exigiu de você (pela frequência cardíaca do relógio ou pelo esforço que você marcou). Só os treinos fortes entram nessa conta, e o seu último teste é a referência principal. Isso estima o seu condicionamento (VDOT) e vira o tempo de cada prova. Meia e maratona também dependem do seu longão e do seu volume semanal. É uma estimativa para prova em percurso plano, com o treino específico; quanto mais corridas com relógio, mais precisa.</p></details>
+      <details class="ajuda" style="margin-top:6px"><summary>Como a Nexos calcula?</summary><p>Usamos as suas corridas das últimas 6 semanas: o ritmo de cada uma e quanto ela exigiu de você (pela frequência cardíaca do relógio ou pelo esforço que você marcou). Só os treinos fortes entram nessa conta, e o seu último teste é a referência principal. Isso estima o seu condicionamento (VDOT) e vira o tempo de cada prova. Meia e maratona também dependem do seu longão e do seu volume semanal; com 8 semanas de treino registradas, a maratona usa a equação de Tanda, feita com maratonistas reais. É uma estimativa para prova em percurso plano, com o treino específico; quanto mais corridas com relógio, mais precisa.</p></details>
     </div>`;
     box.querySelector('.pv-per').onclick = (e) => {
       const b = e.target.closest('[data-pv]');
@@ -311,7 +350,7 @@ function previsoesCard(box, corridas, perfil, { titulo = true } = {}) {
 async function buscarCorridasPrev(alunoId, ate = Date.now()) {
   const { data } = await sb
     .from('nx_corridas')
-    .select('data,tipo,distancia_m,duracao_s,fc_media,rpe')
+    .select('data,tipo,distancia_m,duracao_s,fc_media,fc_max,rpe')
     .eq('aluno_id', alunoId)
     .gte('data', new Date(ate - 260 * 864e5).toISOString())
     .lte('data', new Date(ate).toISOString())
