@@ -1168,9 +1168,11 @@ function forcaDiaHTML(fc, k, semana, staff) {
     .join('');
 }
 /** antes de liberar uma semana à frente: mostra qual semana é e avisa se uma semana anterior ainda está em rascunho */
-async function confirmarLiberacao(alunoId, de, ate, dist) {
+async function confirmarLiberacao(alunoId, de, ate, dist, buscarAntes) {
   let antes = [];
-  if (dist >= 1) {
+  // força: quem diz quais semanas anteriores estão em rascunho é a própria tela (tabela de liberação da força)
+  if (dist >= 1 && buscarAntes) antes = await buscarAntes().catch(() => []);
+  else if (dist >= 1) {
     const { data } = await sb
       .from('nx_plano_corrida')
       .select('data')

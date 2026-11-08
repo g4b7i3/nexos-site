@@ -775,9 +775,10 @@ async function staffAluno(alunoId, aba, extra) {
     ]);
     const temFixos = ativosT.some((t) => t.dias && t.dias.length) || offF.length;
     corpo =
-      `<div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fs-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fs-h">${fst.off === 0 ? 'Esta semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fs-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
+      `<div class="pl-top"><div class="sem-nav ${fst.off === 0 ? '' : 'fora'}"><button class="icon-btn sm" id="fs-a" aria-label="Semana anterior">${I.back}</button><div class="sem-nav-t"><b>${semRel(fst.off)}</b><span>${diaMes(dia(diasF[0]))} a ${diaMes(dia(diasF[6]))}</span></div><button class="icon-btn sm" id="fs-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button>${fst.off !== 0 ? `<button class="btn sm sem-volta" id="fs-h"><i></i>Voltar para esta semana</button>` : ''}</div>
       <span class="small muted">${sess.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos na semana</span></div>
-      ${temFixos ? (libF ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" id="f-desliberar">Cancelar liberação</button></div>` : `<div class="lib-bar"><span>Rascunho: o aluno ainda não vê esta semana</span><button type="button" class="btn sm lib-btn" id="f-liberar">Liberar semana</button></div>`) : ''}
+      <div class="sem-tit" style="margin:10px 0 2px"><span class="sem-rel ${fst.off === 0 ? 'atual' : fst.off === 1 ? 'prox' : fst.off > 1 ? 'futura' : 'passada'}">${fst.off === 0 ? '<i></i>' : ''}${semRel(fst.off)}</span><b>${diaMes(dia(diasF[0]))} – ${diaMes(dia(diasF[6]))}</b></div>
+      ${temFixos ? (libF ? `<div class="lib-bar ok"><span>✓ Semana liberada: o aluno já vê estes treinos</span><button type="button" class="link-btn small" id="f-desliberar">Cancelar liberação</button></div>` : `<div class="lib-bar"><span>Rascunho: o aluno ainda não vê esta semana</span><button type="button" class="btn sm lib-btn" id="f-liberar">Liberar ${fst.off === 0 ? 'esta semana' : fst.off === 1 ? 'a próxima semana' : fst.off > 1 ? `a semana de ${diaMes(dia(diasF[0]))}` : 'semana passada'}</button></div>`) : ''}
       <div class="fase-sel"><span class="small muted" style="font-weight:700">Fase desta semana</span><div class="fase-chips">${Object.entries(
         FASES_F,
       )
@@ -961,10 +962,12 @@ async function staffAluno(alunoId, aba, extra) {
       fst.off += 1;
       re();
     };
-    document.getElementById('fs-h').onclick = () => {
-      fst.off = 0;
-      re();
-    };
+    const fh = document.getElementById('fs-h');
+    if (fh)
+      fh.onclick = () => {
+        fst.off = 0;
+        re();
+      };
     const salvarDias = async (t, dias) => {
       const { error } = await sb
         .from('nx_treinos')
@@ -980,6 +983,27 @@ async function staffAluno(alunoId, aba, extra) {
     if (fl)
       fl.onclick = async () => {
         fl.disabled = true;
+        // mesma conferência da corrida: semana distante ou semana anterior ainda em rascunho
+        const fimF = dia(segF);
+        fimF.setDate(fimF.getDate() + 6);
+        const antesF = async () => {
+          const hoje0 = isoDia(inicioSemana());
+          const { data } = await sb
+            .from('nx_forca_semanas')
+            .select('semana')
+            .eq('aluno_id', alunoId)
+            .gte('semana', hoje0)
+            .lt('semana', segF);
+          const lib = new Set((data || []).map((x) => x.semana));
+          const out = [];
+          for (const d = dia(hoje0); isoDia(d) < segF; d.setDate(d.getDate() + 7))
+            if (!lib.has(isoDia(d))) out.push(isoDia(d));
+          return out;
+        };
+        if (!(await confirmarLiberacao(alunoId, segF, isoDia(fimF), fst.off, antesF))) {
+          fl.disabled = false;
+          return;
+        }
         const { error } = await sb
           .from('nx_forca_semanas')
           .insert({ org_id: S.org.id, aluno_id: alunoId, semana: segF, liberado_por: S.user.id });

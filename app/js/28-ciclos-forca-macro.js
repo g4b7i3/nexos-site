@@ -263,6 +263,151 @@ function viewCicloForca(id) {
       .join('')}</div>`;
   document.getElementById('cf-apl').onclick = () => cfAplicar(c, fs);
 }
+/* ---------- treinos de força na semana ----------
+   Os ciclos de força definem a fase de cada semana (faixa de repetições e carga). Os exercícios vêm dos treinos do
+   aluno, que ficam em dias fixos. Quando o aluno ainda não tem treino de força em nenhum dia, o app monta os treinos
+   base da Nexos para corredor e põe nos dias de força dele, para a semana não ficar vazia na planilha.
+   Escolha dos exercícios: multiarticulares de membros inferiores, cadeia posterior, unilaterais, panturrilha e core,
+   que são os que melhoram a economia de corrida e protegem contra lesão (Llanos-Lagos et al. 2024; Blagrove et al. 2018). */
+const TREINOS_BASE_F = [
+  {
+    titulo: 'Treino A',
+    foco: 'Inferiores e core',
+    itens: [
+      ['Agachamento goblet', 3],
+      ['Levantamento terra romeno', 3],
+      ['Avanço para trás com halteres', 3],
+      ['Panturrilha em pé com halteres', 3],
+      ['Prancha', 3, '30 s'],
+      ['Dead bug', 3, '10 cada lado'],
+    ],
+  },
+  {
+    titulo: 'Treino B',
+    foco: 'Superiores, glúteos e core',
+    itens: [
+      ['Elevação pélvica com barra', 3],
+      ['Puxada frontal pegada aberta', 3],
+      ['Supino reto com halteres', 3],
+      ['Remada unilateral com halter (serrote)', 3],
+      ['Desenvolvimento com halteres', 3],
+      ['Prancha lateral', 3, '30 s cada lado'],
+    ],
+  },
+  {
+    titulo: 'Treino C',
+    foco: 'Unilateral e potência',
+    itens: [
+      [
+        'Salto na caixa (múltiplas repetições)',
+        3,
+        '5',
+        'Saltos de qualidade: suba leve e desça controlado. Descanso completo.',
+      ],
+      ['Subida no banco com halteres', 3],
+      ['Levantamento terra unilateral com kettlebell', 3],
+      ['Ponte de glúteos unilateral', 3],
+      ['Panturrilha sentado', 3],
+      ['Pallof press', 3, '10 cada lado'],
+    ],
+  },
+];
+// dias padrão quando o aluno não marcou os dias de força (0 = segunda)
+const DIAS_BASE_F = { 1: [2], 2: [0, 3], 3: [0, 2, 4] };
+/** garante que a semana de força do aluno tenha treinos nos dias. Devolve um texto curto para o aviso, ou '' */
+async function garantirTreinosForca(alunoId) {
+  const [m, treinos] = await Promise.all([
+    sb
+      .from('nx_membros')
+      .select('user_id,nome,modalidades,disponibilidade')
+      .eq('org_id', S.org.id)
+      .eq('user_id', alunoId)
+      .maybeSingle()
+      .then((r) => r.data || {}),
+    sb
+      .from('nx_treinos')
+      .select('id,titulo,ativo,dias,ordem')
+      .eq('org_id', S.org.id)
+      .eq('aluno_id', alunoId)
+      .order('ordem')
+      .then((r) => r.data || []),
+  ]);
+  const ativos = treinos.filter((t) => t.ativo);
+  if (ativos.some((t) => t.dias && t.dias.length)) return ''; // já tem treino em dia fixo: o ciclo só troca a fase
+  const dp = dispDe(m),
+    off = dp.off_forca || [];
+  let dias = (dp.forca || []).filter((d) => !off.includes(d)).sort();
+  const nTreinos = ativos.length || (faz('corrida', m) ? 2 : 3);
+  if (!dias.length) dias = (DIAS_BASE_F[Math.min(3, Math.max(1, nTreinos))] || [0, 3]).filter((d) => !off.includes(d));
+  if (!dias.length) dias = [0, 3];
+  const pares = (n) => dias.slice(0, Math.max(n, 1)).map((d, i) => [d, i % n]);
+  // 1) já tem treinos, só sem dia: distribui nos dias de força
+  if (ativos.length) {
+    const map = {};
+    pares(ativos.length).forEach(([d, i]) => (map[ativos[i].id] = [...(map[ativos[i].id] || []), d]));
+    for (const t of ativos) {
+      if (!map[t.id]) continue;
+      const { error } = await sb.from('nx_treinos').update({ dias: map[t.id] }).eq('id', t.id);
+      if (error) throw error;
+    }
+    return `Os treinos de força dele foram para ${dias.map((d) => DSEM[d].toLowerCase()).join(', ')}.`;
+  }
+  // 2) não tem treino nenhum: monta os treinos base
+  const n = Math.min(3, Math.max(2, dias.length)),
+    base = TREINOS_BASE_F.slice(0, n);
+  const nomes = [...new Set(base.flatMap((t) => t.itens.map((x) => x[0])))];
+  const { data: exs } = await sb.from('nx_exercicios').select('id,nome,org_id').in('nome', nomes);
+  const idDe = {};
+  (exs || []).forEach((e) => {
+    if (!idDe[e.nome] || e.org_id === S.org.id) idDe[e.nome] = e.id;
+  });
+  const diasDe = {};
+  pares(n).forEach(([d, i]) => (diasDe[i] = [...(diasDe[i] || []), d]));
+  const agora = new Date().toISOString();
+  const { data: novos, error } = await sb
+    .from('nx_treinos')
+    .insert(
+      base.map((t, i) => ({
+        org_id: S.org.id,
+        aluno_id: alunoId,
+        titulo: t.titulo,
+        foco: t.foco,
+        observacoes: 'Séries e repetições seguem a fase da semana, que aparece no topo do treino.',
+        ativo: true,
+        ordem: treinos.length + i,
+        dias: diasDe[i] || null,
+        criado_por: S.user.id,
+        atualizado_em: agora,
+      })),
+    )
+    .select('id,titulo');
+  if (error) throw error;
+  const itens = [];
+  (novos || []).forEach((nv) => {
+    const t = base.find((x) => x.titulo === nv.titulo);
+    t.itens
+      .filter(([nome]) => idDe[nome])
+      .forEach(([nome, series, reps, obs], k) =>
+        itens.push({
+          treino_id: nv.id,
+          exercicio_id: idDe[nome],
+          ordem: k,
+          series,
+          repeticoes: reps || null,
+          descanso_seg: reps === '5' ? 120 : 90,
+          observacao: obs || null,
+        }),
+      );
+  });
+  if (itens.length) {
+    const { error: e2 } = await sb.from('nx_treino_itens').insert(itens);
+    if (e2) throw e2;
+  }
+  return `Montamos ${base.map((t) => t.titulo.replace('Treino ', '')).join(', ')} (treinos base de força) em ${dias
+    .slice(0, n)
+    .map((d) => DSEM[d].toLowerCase())
+    .join(', ')}. Ajuste os exercícios se quiser.`;
+}
 async function cfAplicar(c, fs) {
   const ms = await sb
     .from('nx_membros')
@@ -291,7 +436,7 @@ async function cfAplicar(c, fs) {
       <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${pre.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${pre.ini || prox}" required></label>
       <p class="small" id="cf-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
-      <p class="tiny dim" style="margin-bottom:12px">As fases dessas semanas são trocadas pelas do ciclo. Os treinos do aluno e a liberação das semanas não mudam.</p>
+      <p class="tiny dim" style="margin-bottom:12px">As fases dessas semanas são trocadas pelas do ciclo. Se o aluno ainda não tiver treino de força nos dias, o app monta os treinos base e põe nos dias de força dele. Tudo fica em rascunho até você liberar a semana.</p>
       <button class="btn block" type="submit">Aplicar ${fs.length} semana${fs.length > 1 ? 's' : ''}</button></form>`,
     (r) => {
       const f = r.querySelector('#f-cf');
@@ -323,8 +468,12 @@ async function cfAplicar(c, fs) {
         }
         const m = alunos.find((x) => x.user_id === alunoId);
         registrarCiclo(alunoId, 'forca', c, ini, fs.length);
+        const extra = await garantirTreinosForca(alunoId).catch((er) => {
+          console.error(er);
+          return 'Atenção: não foi possível montar os treinos da semana. Monte em Força.';
+        });
         closeSheet(true);
-        toast(`Ciclo aplicado: ${fs.length} semanas de ${firstName(m && m.nome)}.`);
+        toast(`Ciclo aplicado: ${fs.length} semanas de ${firstName(m && m.nome)}.${extra ? ' ' + extra : ''}`);
         location.hash = `#/aluno/${alunoId}/forca`;
       };
     },
@@ -812,6 +961,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
         const ini0 = inicioSemana(dia(f.ini.value || prox)),
           fimT = new Date(ini0);
         fimT.setDate(fimT.getDate() + 7 * tot - 1);
+        let extraF = '';
         try {
           let ini = new Date(ini0);
           if (forca) {
@@ -827,6 +977,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
             });
             const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' });
             if (error) throw error;
+            extraF = await garantirTreinosForca(alunoId);
           } else {
             const perfil = perfilCorrida(m || {}),
               rows = [];
@@ -857,7 +1008,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
           return toast('Não foi possível aplicar a trilha. Tente de novo.', true);
         }
         closeSheet(true);
-        toast(`Trilha aplicada para ${firstName(m && m.nome)}: ${tot} semanas.`);
+        toast(`Trilha aplicada para ${firstName(m && m.nome)}: ${tot} semanas.${extraF ? ' ' + extraF : ''}`);
         location.hash = `#/aluno/${alunoId}/${forca ? 'forca' : 'corrida'}`;
       };
     },
@@ -1381,6 +1532,7 @@ async function viewMacro() {
     );
     const fim = new Date(ini0);
     fim.setDate(fim.getDate() + 7 * pl.total - 1);
+    let extraF = '';
     try {
       if (document.getElementById('mac-limpar').checked) {
         const { error: e1 } = await sb
@@ -1409,6 +1561,7 @@ async function viewMacro() {
         });
         const { error: e3 } = await sb.from('nx_forca_fases').upsert(fs, { onConflict: 'aluno_id,semana' });
         if (e3) throw e3;
+        extraF = await garantirTreinosForca(st.aluno);
         registrarCiclo(
           st.aluno,
           'forca',
@@ -1425,7 +1578,7 @@ async function viewMacro() {
       return toast('Não foi possível montar o macrociclo. Tente de novo.', true);
     }
     toast(
-      `${rows.length} treinos montados para ${firstName(m && m.nome)} em ${pl.total} semanas. Libere semana a semana.`,
+      `${rows.length} treinos montados para ${firstName(m && m.nome)} em ${pl.total} semanas. Libere semana a semana.${extraF ? ' Força: ' + extraF : ''}`,
     );
     location.hash = `#/aluno/${st.aluno}/corrida`;
   }
