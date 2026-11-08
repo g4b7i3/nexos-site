@@ -316,18 +316,19 @@ function testesPendentesHTML(m, lista) {
       if (x.r && (x.r.zonas_auto || x.r.teste_km)) delete c0.paces_manual;
       const novo = x.r ? perfilCorrida({ ...m, corrida: c0 }) : null;
       const temPace = x.r && (x.r.zonas_auto || x.r.teste_km);
-      return `<div class="card tst-card"><span class="eyebrow">Teste para confirmar</span>
-        <div class="row between" style="gap:8px;margin-top:6px;flex-wrap:wrap"><b>${esc(x.p.titulo || TESTE_NOME[x.tipo] || 'Teste')}</b><span class="small muted">${fmtDia(isoDia(x.c.data))}</span></div>
+      return `<div class="card tst-card"><div class="tst-top"><span class="tst-ic">${I.timer}</span><div class="tst-txt"><span class="eyebrow">Teste para confirmar</span><b>${esc(x.p.titulo || TESTE_NOME[x.tipo] || 'Teste')}</b><span>Feito em ${fmtDia(isoDia(x.c.data))}</span></div></div>
         ${
           x.r
             ? `<p class="small" style="margin-top:4px">${esc(resumoTeste(x))}</p>
         ${
           temPace
-            ? `<div class="tst-zonas"><div class="tst-h"><span>Zona</span><span>Agora</span><span>Com o teste</span></div><div class="tst-h tst-u"><span></span><span>min/km</span><span>min/km</span></div>${ZT.map(([k, l]) => `<div><span style="--zc:${ZONAS_INFO[k].c}">${l}</span><span>${faixa(atual, k)}</span><b>${faixa(novo, k)}</b></div>`).join('')}</div>`
+            ? atual.paces
+              ? `<div class="tst-zonas"><div class="tst-h"><span>Zona</span><span>Agora</span><span>Com o teste</span></div><div class="tst-h tst-u"><span></span><span>min/km</span><span>min/km</span></div>${ZT.map(([k, l]) => `<div><span style="--zc:${ZONAS_INFO[k].c}">${l}</span><span>${faixa(atual, k)}</span><b>${faixa(novo, k)}</b></div>`).join('')}</div>`
+              : `<div class="tst-zonas um"><div class="tst-h"><span>Zona</span><span>Ritmo com o teste (min/km)</span></div>${ZT.map(([k, l]) => `<div><span style="--zc:${ZONAS_INFO[k].c}">${l}</span><b>${faixa(novo, k)}</b></div>`).join('')}</div><p class="tiny dim" style="margin-top:6px">O aluno ainda não tem ritmos: estes passam a valer quando você confirmar.</p>`
             : `<p class="small muted" style="margin-top:6px">As zonas de FC passam a usar ${x.r.fc_max} bpm${atual.fcMax ? ` (hoje: ${Math.round(atual.fcMax)} bpm${atual.fc_max ? '' : ', estimada'})` : ''}.</p>`
         }
         ${atual.manual && temPace ? '<p class="tiny dim" style="margin-top:6px">Os ajustes que você fez à mão saem e entram os ritmos do teste.</p>' : ''}
-        <div class="grid2" style="margin-top:12px"><button class="btn" data-tst-ok="${i}">${I.check} Confirmar</button><button class="btn ghost" data-tst-no="${i}">Descartar</button></div>`
+        <div class="grid2" style="margin-top:12px"><button class="btn" data-tst-ok="${i}">Confirmar zonas</button><button class="btn ghost" data-tst-no="${i}">Descartar</button></div>`
             : `<p class="small muted" style="margin-top:4px">Não deu para calcular pelo relógio: a corrida não tem os dados de tempo e distância suficientes para esse teste. Confira a corrida e, se quiser, lance o resultado à mão.</p>
         <div class="grid2" style="margin-top:12px"><button class="btn" data-tst-mao="${i}">Lançar à mão</button><button class="btn ghost" data-tst-no="${i}">Descartar</button></div>`
         }

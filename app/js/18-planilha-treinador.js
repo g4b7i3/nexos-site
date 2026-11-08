@@ -1563,11 +1563,11 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     ? sub === 'ritmos' && SUBS.includes('ritmos')
       ? testesPendentesHTML(m, tPend)
       : SUBS.includes('ritmos')
-        ? `<button class="card tap tst-aviso" data-sub="ritmos">${I.check}<span class="grow"><b>${tPend.length > 1 ? `${tPend.length} testes para confirmar` : 'Teste feito: confirme as zonas'}</b><span class="small muted">Abrir Ritmos e zonas</span></span>${I.chev}</button>`
+        ? `<div class="card tst-aviso"><span class="tst-ic">${I.timer}</span><div class="tst-txt"><b>${tPend.length > 1 ? `${tPend.length} testes feitos` : esc(tPend[0].p.titulo || 'Teste') + ' feito'}</b><span>Resultado pronto. Confira e confirme as zonas.</span></div><button class="btn sm tst-ir" type="button">Revisar</button></div>`
         : ''
     : '';
   box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${avisoTeste}${corpo}</div>`;
-  box.querySelectorAll('.tst-aviso').forEach(
+  box.querySelectorAll('.tst-ir').forEach(
     (b) =>
       (b.onclick = () => {
         st.sub = 'ritmos';
