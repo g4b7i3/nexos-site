@@ -1234,8 +1234,8 @@ async function mapaDoPercurso(R, w, h) {
 }
 const REPLAY_MODOS = [
   ['classico', 'Clássico'],
-  ['sat', 'Satélite 3D'],
-  ['3d', 'Mapa 3D Nexos'],
+  ['sat', 'Satélite 3D Nexos'],
+  ['3d', '3D noturno'],
   ['3d-real', '3D realista'],
 ];
 // chave do mapa de satélite (Esri): fica no banco, só para quem está logado, e só funciona no domínio da Nexos
