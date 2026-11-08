@@ -1271,6 +1271,12 @@ async function fonteSatelite(lon, lat) {
   }
   return null;
 }
+// distância da câmera nos modos 3D (soma no zoom do mapa)
+const ZOOM_CAM = [
+  ['perto', 'Perto'],
+  ['medio', 'Médio'],
+  ['longe', 'Longe'],
+];
 function abrirReplay(c, perfil) {
   const R = c.rota;
   if (!R || R.length < 10) return;
@@ -1281,6 +1287,7 @@ function abrirReplay(c, perfil) {
   ov.innerHTML = `<button class="retro-x" aria-label="Fechar">${I.x}</button><canvas id="rp-cv"></canvas>
     <div class="replay-modos" role="radiogroup" aria-label="Estilo do vídeo">${REPLAY_MODOS.map(([k, n]) => `<button type="button" data-rpm="${k}" class="${k === 'classico' ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div class="replay-vel" role="radiogroup" aria-label="Velocidade do vídeo"><span>Velocidade</span>${[0.5, 1, 2].map((v) => `<button type="button" data-rpv="${v}" class="${v === 1 ? 'on' : ''}">${String(v).replace('.', ',')}x</button>`).join('')}</div>
+    <div class="replay-vel replay-zoom" role="radiogroup" aria-label="Distância da câmera" hidden><span>Câmera</span>${ZOOM_CAM.map(([k, n]) => `<button type="button" data-rpz="${k}">${n}</button>`).join('')}</div>
     <div class="replay-bts"><button class="btn ghost sm" id="rp-de-novo">Repetir</button><button class="btn ghost sm" id="rp-det">Detalhes</button><button class="btn sm" id="rp-video">Salvar vídeo</button></div>`;
   const cv = ov.querySelector('#rp-cv'),
     W = 1080,
@@ -1290,6 +1297,7 @@ function abrirReplay(c, perfil) {
   const x = cv.getContext('2d');
   let raf = 0;
   let vel = 1; // velocidade do vídeo: 0,5x, 1x ou 2x
+  let zoomCam = store.get('nx-replay-zoom', 'medio'); // nos modos 3D: câmera perto, média ou longe
   let modo = 'classico',
     m3 = null; // mapa 3D ao vivo (só nos modos 3D)
   const bv = ov.querySelector('#rp-video');
@@ -1873,7 +1881,7 @@ function abrirReplay(c, perfil) {
     }
     // zoom pelo tamanho do percurso: corrida curta mais perto, longa um pouco mais longe
     const km = dist / 1000;
-    meu.zoom = km < 3 ? 16.6 : km < 8 ? 16.2 : km < 15 ? 15.8 : 15.4;
+    meu.zoom = (km < 3 ? 16.6 : km < 8 ? 16.2 : km < 15 ? 15.8 : 15.4) + zoomDelta();
     // percorre o caminho antes para baixar os mapas, assim o vídeo não aparece com buracos
     const N = 12;
     for (let i = 0; i <= N; i++) {
@@ -1904,7 +1912,7 @@ function abrirReplay(c, perfil) {
       if (ev && ev.sourceId === 'sat') erros++;
     });
     const km = dist / 1000;
-    meu.zoom = km < 3 ? 15.8 : km < 8 ? 15.2 : km < 15 ? 14.7 : 14.2;
+    meu.zoom = (km < 3 ? 15.8 : km < 8 ? 15.2 : km < 15 ? 14.7 : 14.2) + zoomDelta();
     meu.rumo0 = rumoEntre(pontoEm(0), pontoEm(0.08)) - 30;
     const ls = R.map((p) => p[0]),
       os = R.map((p) => p[1]);
@@ -1985,6 +1993,7 @@ function abrirReplay(c, perfil) {
       if (bt.dataset.rpm === modo || bv.dataset.gravando) return;
       modo = bt.dataset.rpm;
       ov.querySelectorAll('[data-rpm]').forEach((o) => o.classList.toggle('on', o === bt));
+      ov.querySelector('.replay-zoom').hidden = modo === 'classico'; // o clássico mostra o percurso inteiro
       cancelAnimationFrame(raf);
       if (modo === 'classico') {
         fechar3D();
@@ -2078,6 +2087,22 @@ function abrirReplay(c, perfil) {
     pinta();
     ov.append(p);
   };
+  const zoomDelta = () => ({ perto: 1.3, medio: 0, longe: -1 })[zoomCam] || 0;
+  const marcaZoom = () =>
+    ov.querySelectorAll('[data-rpz]').forEach((o) => o.classList.toggle('on', o.dataset.rpz === zoomCam));
+  marcaZoom();
+  ov.querySelectorAll('[data-rpz]').forEach((bt) => {
+    bt.onclick = () => {
+      if (bv.dataset.gravando || bv.disabled || bt.dataset.rpz === zoomCam) return;
+      zoomCam = bt.dataset.rpz;
+      store.set('nx-replay-zoom', zoomCam);
+      marcaZoom();
+      // monta o 3D de novo com a câmera na nova distância (baixa os mapas no detalhe certo)
+      const atual = modo;
+      modo = '';
+      ov.querySelector(`[data-rpm="${atual}"]`).click();
+    };
+  });
   ov.querySelectorAll('[data-rpv]').forEach((bt) => {
     bt.onclick = () => {
       if (bv.dataset.gravando) return;
