@@ -325,7 +325,7 @@ const prontAlerta = (r) =>
   r.sono + r.energia + r.dor + r.estresse <= 10;
 const prontNivel = (t) => (t >= 16 ? ['Boa', 'ok'] : t >= 12 ? ['Moderada', 'warn'] : ['Baixa', 'err']);
 function prontCardHTML() {
-  return `<button class="list-item msg-row pront-row" id="pront-abrir" style="width:100%;text-align:left"><span class="ativ-ic">${PRONT_IC}</span><div class="grow"><b>Check-in da manhã</b><div class="small muted">Sono, energia, dor e estresse · 20 segundos</div></div>${I.chev}</button>`;
+  return `<button class="list-item msg-row pront-row" id="pront-abrir" style="width:100%;text-align:left"><span class="ativ-ic">${PRONT_IC}</span><div class="grow"><b>Check-in do dia</b><div class="small muted">Sono, energia, dor e estresse · 20 segundos</div></div>${I.chev}</button>`;
 }
 function abrirProntidao(aoSalvar) {
   const r = {},

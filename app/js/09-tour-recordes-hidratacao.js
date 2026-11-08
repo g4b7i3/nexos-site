@@ -977,9 +977,9 @@ async function alunoHoje() {
       sm = document.getElementById('agua-slot-m');
     if (ab && sm && !matchMedia('(min-width:900px)').matches) sm.appendChild(ab);
   }
+  // check-in do dia: aparece o dia todo, até a pessoa responder (o mesmo vale para os lembretes)
   {
-    const hr = new Date().getHours();
-    if (hr >= 4 && hr < 12)
+    if (!S.staff)
       sb.from('nx_prontidao')
         .select('id')
         .eq('aluno_id', S.user.id)
