@@ -442,7 +442,8 @@ function sugerirCarga(prev, presc, fase, it, psr) {
   const last = prev && prev.carga_kg != null ? +prev.carga_kg : null;
   const novaPresc = presc != null && (last == null || presc > last);
   if (rm && !novaPresc) {
-    const a = alvoDaFase(fase, it, psr);
+    const pr = it && it._presc;
+    const a = pr && !pr.rapido && !pr.leve ? { reps: pr.alvo, rir: Math.min(3, pr.rir) } : alvoDaFase(fase, it, psr);
     const bruto = cargaDoAlvo(rm, a);
     const kg = Math.max(passoCarga(bruto), arred(bruto, passoCarga(bruto)));
     const s = (prev && prev.sessao) || {};
@@ -529,7 +530,8 @@ async function viewExecucao(treinoId, preview) {
       });
   t._pausados = pausados.map((i) => (i.nx_exercicios && i.nx_exercicios.nome) || 'Exercício');
   const exIdsT = [...new Set(itens.map((i) => i.exercicio_id))];
-  const fase = faseDoTreino(await faseDaSemana(t.aluno_id, isoDia(inicioSemana())), t);
+  const fInfo = await faseInfo(t.aluno_id, isoDia(inicioSemana()));
+  const fase = faseDoTreino(fInfo.fase, t);
   const [prevs, prevsFase] = await Promise.all([
     ultimasCargas(t.aluno_id, exIdsT),
     ultimasCargasFase(t.aluno_id, exIdsT, fase),
@@ -547,6 +549,11 @@ async function viewExecucao(treinoId, preview) {
     store.set(key, st);
   }
   const feitos = new Set(st.feitos);
+  const marcaPresc = () =>
+    itens.forEach((it) => {
+      it._presc = prescSemana(fase, fInfo.k, it, st.psr);
+    });
+  marcaPresc();
   const sug = {};
   itens.forEach((it) => {
     sug[it.id] = sugerirCarga(prevs[it.exercicio_id], numCarga(it.carga), fase, it, st.psr);
@@ -579,6 +586,7 @@ async function viewExecucao(treinoId, preview) {
   };
 
   const render = () => {
+    marcaPresc();
     const pct = itens.length ? Math.round((feitos.size / itens.length) * 100) : 0;
     $app.innerHTML = `
       <div class="exec-head">
@@ -590,7 +598,7 @@ async function viewExecucao(treinoId, preview) {
         <div class="progress"><i style="width:${pct}%"></i></div>
       </div>
       ${t._pausados && t._pausados.length ? `<div class="aj-pausa">${I.alerta || ''}<span><b>Pausado pelo treinador nesta semana:</b> ${esc(t._pausados.join(', '))}. Pule ${t._pausados.length > 1 ? 'esses exercícios' : 'esse exercício'}.</span></div>` : ''}
-      ${fase ? faseCardHTML(fase, st.psr != null ? `<span class="tiny" style="display:block;margin-top:6px">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></span>` : '') : st.psr != null ? `<p class="small muted">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></p>` : ''}
+      ${fase ? faseCardHTML(fase, (FASES_F[fInfo.fase] && fInfo.n > 1 ? `<span class="tiny fase-sem">Semana ${fInfo.k} de ${fInfo.n} deste bloco${PRESC_F[fase] && PRESC_F[fase].reps ? `: ${prescTxt(prescSemana(fase, fInfo.k, { series: 3 }, st.psr) || {})}` : ''}</span>` : '') + (st.psr != null ? `<span class="tiny" style="display:block;margin-top:6px">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></span>` : '')) : st.psr != null ? `<p class="small muted">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></p>` : ''}
       ${t.observacoes ? `<div class="card" style="border-color:rgba(70,214,255,.3)"><span class="eyebrow">Recado do treinador</span><p style="margin-top:6px">${esc(t.observacoes)}</p></div>` : ''}
       <div class="stack" style="margin-top:12px">
       ${itens
@@ -613,8 +621,12 @@ async function viewExecucao(treinoId, preview) {
                       '',
                     )}<p class="tiny dim" style="margin-top:4px">Toque na série quando terminar: o descanso começa sozinho.</p></div>`
                 : `<div class="ex-pres">
-              ${it.series ? `<span class="pill"><b>${it.series}</b> séries</span>` : ''}
-              ${it.repeticoes ? `<span class="pill"><b>${esc(it.repeticoes)}</b> reps</span>` : ''}
+              ${
+                it._presc
+                  ? `<span class="pill fase-p"><b>${it._presc.series}</b> séries</span><span class="pill fase-p"><b>${esc(it._presc.reps)}</b> reps</span><span class="pill fase-p">${it._presc.rapido ? '<b>rápido</b>, sem chegar perto da falha' : `sobrando <b>${it._presc.rir}</b>`}</span>`
+                  : `${it.series ? `<span class="pill"><b>${it.series}</b> séries</span>` : ''}
+              ${it.repeticoes ? `<span class="pill"><b>${esc(it.repeticoes)}</b> reps</span>` : ''}`
+              }
               ${it.carga ? `<span class="pill">prescrita <b>${esc(it.carga)}</b></span>` : ''}
               ${it.descanso_seg ? `<span class="pill">descanso <b>${it.descanso_seg}s</b></span>` : ''}
             </div>`
@@ -866,6 +878,59 @@ const faseDoTreino = (fase, t) => {
   if (fase === 'conjugada') return l === 'A' ? 'forca' : l === 'B' ? 'potencia' : 'hipertrofia'; // esforço máximo, dinâmico e repetições
   return l === 'A' ? 'forca' : l === 'C' ? 'resistencia' : 'hipertrofia';
 };
+/* ---------- progressão dentro do bloco ----------
+   Num bloco da mesma fase, o volume sobe semana a semana (mais séries) e a série termina cada vez mais perto da falha
+   (menos repetições sobrando), até a semana leve. É a progressão usada nos programas de hipertrofia e força com
+   autorregulação (Helms et al. 2016; Zourdos et al. 2016). O volume semanal é o que mais pesa para ganhar músculo, até
+   umas 10 a 20 séries por grupo na semana (Schoenfeld et al. 2017; Pelland et al. 2024). A carga de cada semana sai do
+   máximo estimado do aluno e das repetições que devem sobrar (ver sugerirCarga). */
+const PRESC_F = {
+  resistencia: { reps: '15 a 20', alvo: 15, series: [2, 3, 3, 3], rir: [3, 2, 2, 2] },
+  hipertrofia: { reps: '8 a 12', alvo: 10, series: [3, 3, 4, 4], rir: [3, 2, 2, 1] },
+  forca: { reps: '4 a 6', alvo: 5, series: [3, 4, 4, 5], rir: [3, 2, 2, 2] },
+  potencia: { reps: '3 a 5', alvo: 4, series: [3, 3, 4, 4], rir: [4, 4, 4, 4], rapido: true },
+  autorregulada: { reps: null, alvo: null, series: [3, 3, 3, 3], rir: [2, 2, 2, 2] },
+};
+/** fase da semana e em que semana do bloco ela está (k de n) */
+async function faseInfo(alunoId, semana) {
+  const { data } = await sb
+    .from('nx_forca_fases')
+    .select('semana,fase')
+    .eq('aluno_id', alunoId)
+    .gte('semana', somaDias(semana, -7 * 16))
+    .lte('semana', somaDias(semana, 7 * 16))
+    .then(
+      (r) => r,
+      () => ({ data: [] }),
+    );
+  const map = Object.fromEntries((data || []).map((r) => [r.semana, r.fase]));
+  const f = map[semana];
+  if (!f) return { fase: null, k: 1, n: 1 };
+  let k = 1,
+    n = 1;
+  for (let w = somaDias(semana, -7); map[w] === f; w = somaDias(w, -7)) k++;
+  n = k;
+  for (let w = somaDias(semana, 7); map[w] === f; w = somaDias(w, 7)) n++;
+  return { fase: f, k, n };
+}
+/** séries, repetições e quantas devem sobrar para um exercício naquela semana (null = segue o que o treinador escreveu) */
+function prescSemana(fase, k, it, psr) {
+  if (!fase || !it || semCarga(it)) return null;
+  if (String(it.repeticoes || '').trim()) return null; // o treinador escreveu as repetições: vale o que ele escreveu
+  let f = fase;
+  if (f === 'flexivel') f = psr == null ? 'hipertrofia' : psr >= 8 ? 'forca' : psr >= 5 ? 'hipertrofia' : 'resistencia';
+  const base = numInt(it.series) || 3;
+  if (f === 'deload')
+    return { series: Math.max(2, Math.round(base / 2)), reps: '8 a 12', alvo: 10, rir: 4, leve: true, f };
+  const P = PRESC_F[f];
+  if (!P || !P.reps) return null;
+  const i = Math.min(3, Math.max(0, (k || 1) - 1));
+  return { series: P.series[i], reps: P.reps, alvo: P.alvo, rir: P.rir[i], rapido: !!P.rapido, f };
+}
+const prescTxt = (p) =>
+  p.rapido
+    ? `${p.series} séries de ${p.reps}, o mais rápido possível`
+    : `${p.series} séries de ${p.reps}, terminando com ${p.rir} sobrando`;
 /* treino de força trocado de dia só numa semana (o dia fixo continua valendo nas outras) */
 const buscarMovidos = (alunoId, de, ate) =>
   sb
@@ -1147,7 +1212,7 @@ function abrirCheckin(t, itens, st, key, fase) {
             exercicio_id: it.exercicio_id,
             exercicio_nome: (it.nx_exercicios || {}).nome || null,
             carga_kg: numCarga(st.cargas[it.id]),
-            reps: it.repeticoes || null,
+            reps: (it._presc && it._presc.reps) || it.repeticoes || null,
             reps_feitas: parseInt(st.repsf[it.id], 10) > 0 ? Math.min(100, parseInt(st.repsf[it.id], 10)) : null,
             rir: st.rir[it.id] ?? null,
             feito: st.feitos.includes(it.id),

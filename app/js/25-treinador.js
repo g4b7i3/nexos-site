@@ -790,7 +790,7 @@ async function staffAluno(alunoId, aba, extra) {
     const ativosT = treinos.filter((t) => t.ativo);
     const semDia = ativosT.filter((t) => !(t.dias && t.dias.length));
     const offF = dispDe(m).off_forca || [];
-    const [libF, faseF, metrHTML, movF] = await Promise.all([
+    let [libF, faseF, metrHTML, movF] = await Promise.all([
       sb
         .from('nx_forca_semanas')
         .select('id')
@@ -799,7 +799,7 @@ async function staffAluno(alunoId, aba, extra) {
         .maybeSingle()
         .then((r) => r.data)
         .catch(() => null),
-      faseDaSemana(alunoId, diasF[0]),
+      faseInfo(alunoId, diasF[0]),
       metricasForcaHTML(alunoId, diasF[0], sess).catch((e) => {
         console.error(e);
         return '';
@@ -807,6 +807,21 @@ async function staffAluno(alunoId, aba, extra) {
       buscarMovidos(alunoId, diasF[0]),
     ]);
     S.cache.fsemMov = movF;
+    const infoF = faseF;
+    faseF = infoF.fase;
+    // o que muda nesta semana do bloco (séries, repetições e quantas sobram) e a progressão do bloco inteiro
+    const progF = (() => {
+      if (!faseF || !PRESC_F[faseF] || !PRESC_F[faseF].reps) return '';
+      const linha = (k) => prescSemana(faseF, k, { series: 3 }, null);
+      const n = Math.min(infoF.n, 8);
+      return `<div class="prog-f"><b>Semana ${infoF.k} de ${infoF.n} deste bloco:</b> ${prescTxt(linha(infoF.k))}. A carga de cada exercício sobe sozinha pelo desempenho do aluno.
+        <div class="prog-f-l">${Array.from({ length: n }, (_, j) => {
+          const x = linha(j + 1);
+          return `<span class="${j + 1 === infoF.k ? 'on' : ''}"><small>S${j + 1}</small><b>${x.series}×${x.reps.replace(' a ', '–')}</b><em>${x.rapido ? 'rápido' : 'sobra ' + x.rir}</em></span>`;
+        }).join(
+          '',
+        )}</div><p class="tiny dim">Vale para os exercícios com peso em que você deixou as repetições em branco. Se escrever as repetições no treino, vale o que você escreveu.</p></div>`;
+    })();
     const temFixos = ativosT.some((t) => t.dias && t.dias.length) || offF.length;
     corpo =
       `<div class="pl-top"><div class="sem-nav ${fst.off === 0 ? '' : 'fora'}"><button class="icon-btn sm" id="fs-a" aria-label="Semana anterior">${I.back}</button><div class="sem-nav-t"><b>${semRel(fst.off)}</b><span>${diaMes(dia(diasF[0]))} a ${diaMes(dia(diasF[6]))}</span></div><button class="icon-btn sm" id="fs-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button>${fst.off !== 0 ? `<button class="btn sm sem-volta" id="fs-h"><i></i>Voltar para esta semana</button>` : ''}</div>
@@ -822,7 +837,7 @@ async function staffAluno(alunoId, aba, extra) {
         )
         .join(
           '',
-        )}</div>${faseF ? `<p class="tiny dim">${FASES_F[faseF].desc} O aluno vê a fase e a carga que usou na última semana de ${FASES_F[faseF].n.toLowerCase()}. <button type="button" class="link-btn tiny" data-fase="">Tirar a fase</button></p>` : '<p class="tiny dim">Escolha a fase para o aluno ver a zona de repetições e comparar com a última semana igual.</p>'}</div>
+        )}</div>${faseF ? `<p class="tiny dim">${FASES_F[faseF].desc} O aluno vê a fase e a carga que usou na última semana de ${FASES_F[faseF].n.toLowerCase()}. <button type="button" class="link-btn tiny" data-fase="">Tirar a fase</button></p>` : '<p class="tiny dim">Escolha a fase para o aluno ver a zona de repetições e comparar com a última semana igual.</p>'}${progF}</div>
       <div class="fsem ${temFixos && !libF ? 'rasc' : ''}">${diasF
         .map((k, i) => {
           // cada vez que o treino cai neste dia (o dia fixo dele ou trocado só nesta semana)

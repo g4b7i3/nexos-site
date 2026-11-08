@@ -951,6 +951,13 @@ html[data-tema="escuro"] .pt.plan i,html[data-tema="escuro"] .pt-l.plan{backgrou
 .bib-tb.aberto svg{transform:rotate(90deg)}
 .tr-novos .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px}
 @media (max-width:420px){.tr-novos{grid-template-columns:1fr}}
+.prog-f{margin-top:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--acc) 6%,transparent);font-size:.84rem}
+.prog-f-l{display:flex;gap:6px;overflow-x:auto;margin:8px 0 6px;padding-bottom:2px}
+.prog-f-l span{flex:none;display:flex;flex-direction:column;align-items:center;min-width:64px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--bg2)}
+.prog-f-l span.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.prog-f-l small{font-size:.66rem;color:var(--mute);font-weight:800}.prog-f-l b{font-size:.84rem}.prog-f-l em{font-style:normal;font-size:.66rem;color:var(--mute)}
+.pill.fase-p{border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
+.fase-sem{display:block;margin-top:6px;font-weight:700}
 .dias-mv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
 @media (max-width:520px){.fdia{grid-template-columns:1fr}.fdia-h{border-right:0;border-bottom:1px dashed var(--line);padding:8px 10px}}
 /* trava a rolagem enquanto arrasta um treino */
