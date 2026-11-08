@@ -201,7 +201,10 @@ function calcularTeste(tipo, c) {
       const v = F.slice(Math.max(0, k - 2), k + 3).filter(Boolean);
       return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
     });
-    const mx = Math.round(Math.max(...sm));
+    let mx = Math.round(Math.max(...sm));
+    // a série é resumida (média de trechos), então o pico dela fica alguns bpm abaixo do real; o pico gravado pelo
+    // relógio vale quando está até 6 bpm acima (mais que isso costuma ser falha do sensor)
+    if (c.fc_max && c.fc_max > mx && c.fc_max - mx <= 6) mx = Math.round(c.fc_max);
     if (mx < 140 || mx > 225) return null;
     return { fc_max: mx };
   }
@@ -221,7 +224,7 @@ async function processarTestes(m) {
   if (!testes.length) return [];
   const { data: cs } = await sb
     .from('nx_corridas')
-    .select('id,data,distancia_m,duracao_s,plano_id,analise')
+    .select('id,data,distancia_m,duracao_s,fc_max,plano_id,analise')
     .in(
       'plano_id',
       testes.map((x) => x.p.id),

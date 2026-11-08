@@ -2591,7 +2591,7 @@ async function viewPlanoProva(pid) {
       ),
     sb
       .from('nx_corridas')
-      .select('data,tipo,distancia_m,duracao_s,fc_media,rpe')
+      .select('data,tipo,distancia_m,duracao_s,fc_media,fc_max,rpe')
       .eq('aluno_id', p.aluno_id)
       .gte('data', new Date(Date.now() - 70 * 864e5).toISOString())
       .then(

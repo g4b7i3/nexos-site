@@ -2366,7 +2366,7 @@ const ZONAS_FC = [
   ['Z5', 'Máximo', 0.9, 9, '#ff6b6b'],
 ];
 const paceTxt = (v) => (v && v > 0.5 ? fmtPace(1000 / v).replace('/km', '') : '–');
-function analiseCorridaHTML(c, fcMax, fcMaxFonte, paces) {
+function analiseCorridaHTML(c, fcMax, fcMaxFonte, paces, zonasAluno) {
   const A = c.analise || {},
     S = A.serie || {},
     E = { ...(c.resumo_rel || {}), ...(A.extras || {}) };
@@ -2514,23 +2514,23 @@ function analiseCorridaHTML(c, fcMax, fcMaxFonte, paces) {
   // ---- zonas de FC ----
   if (S.fc && S.fc.filter((v) => v).length > 5) {
     const fm = fcMax || c.fc_max;
+    // mesmas zonas do perfil do aluno (FC de limiar, reserva ou % da máxima); sem perfil, % da máxima
+    const zs = zonasAluno || (fm ? zonasFC(fm) : null);
     const tz = ZONAS_FC.map(() => 0);
-    for (let i = 1; i < n; i++) {
+    for (let i = 1; zs && i < n; i++) {
       const v = S.fc[i];
       const dt = S.t[i] - S.t[i - 1];
       if (!v || !(dt > 0) || dt > 120) continue;
-      const p = v / fm;
-      const z = ZONAS_FC.findIndex(([, , a, b]) => p >= a && p < b);
-      if (z >= 0) tz[z] += dt;
+      tz[zonaFCIdx(zs, v)] += dt;
     }
     const tot = tz.reduce((a, b) => a + b, 0);
-    if (tot > 0 && fm)
+    if (tot > 0 && zs)
       blocos.push(`<div class="section"><div class="section-h"><h2 class="h2">Zonas de frequência cardíaca</h2>${slashes}</div><div class="card zonas-fc">
-      ${ZONAS_FC.map(([z, nm, a, b, cor], i) => {
+      ${ZONAS_FC.map(([z, nm, , , cor], i) => {
         const pc = (tz[i] / tot) * 100;
-        return `<div class="zf"><span class="zf-n"><b>${z}</b> ${nm}<em>${a === 0 ? 'até ' + Math.round(fm * b) : b > 2 ? Math.round(fm * a) + '+' : Math.round(fm * a) + '–' + Math.round(fm * b)} bpm</em></span><div class="zf-bar"><i style="width:${Math.max(pc, pc ? 2 : 0).toFixed(1)}%;background:${cor}"></i></div><span class="zf-t">${fmtDur(tz[i])}<em>${Math.round(pc)}%</em></span></div>`;
+        return `<div class="zf"><span class="zf-n"><b>${z}</b> ${nm}<em>${i === 0 ? 'até ' + (zs[1].de - 1) : i === 4 ? zs[4].de + '+' : zs[i].de + '–' + (zs[i + 1].de - 1)} bpm</em></span><div class="zf-bar"><i style="width:${Math.max(pc, pc ? 2 : 0).toFixed(1)}%;background:${cor}"></i></div><span class="zf-t">${fmtDur(tz[i])}<em>${Math.round(pc)}%</em></span></div>`;
       }).join('')}
-      <p class="tiny dim" style="margin-top:8px">FC máxima usada: ${Math.round(fm)} bpm (${fcMaxFonte || 'a maior da corrida'}).</p></div></div>`);
+      <p class="tiny dim" style="margin-top:8px">${zonasAluno && zonasAluno.base ? zonasAluno.base : `FC máxima usada: ${Math.round(fm)} bpm (${fcMaxFonte || 'a maior da corrida'})`}. As mesmas zonas do perfil de corrida.</p></div></div>`);
   }
   // ---- voltas ----
   const V = A.voltas || [];

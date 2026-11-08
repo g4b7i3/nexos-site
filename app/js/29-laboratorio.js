@@ -218,7 +218,7 @@ async function staffDossie(alunoId, semSel) {
         ),
       sb
         .from('nx_corridas')
-        .select('id,data,tipo,distancia_m,duracao_s,fc_media,rpe,dor,dor_local,plano_id,parciais,titulo')
+        .select('id,data,tipo,distancia_m,duracao_s,fc_media,fc_max,rpe,dor,dor_local,plano_id,parciais,titulo')
         .eq('aluno_id', alunoId)
         .gte('data', iso(tA - 56 * 864e5))
         .order('data')
@@ -1158,7 +1158,7 @@ async function staffRelatorios() {
     todasAsLinhas(() =>
       sb
         .from('nx_corridas')
-        .select('id,aluno_id,data,tipo,distancia_m,duracao_s,fc_media,rpe,dor,plano_id')
+        .select('id,aluno_id,data,tipo,distancia_m,duracao_s,fc_media,fc_max,rpe,dor,plano_id')
         .eq('org_id', S.org.id)
         .gte('data', iso(tA - 42 * 864e5))
         .order('data'),

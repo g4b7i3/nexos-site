@@ -70,22 +70,29 @@ function tirosDasVoltas(voltas, comAqDq, repPl) {
   if (esf.length < 2 || !rec.length || a > b * 0.88) return null; // não é um treino de tiros de verdade
   return { esf, rec };
 }
-/** tempo em cada zona de FC (Z1 a Z5, em % da FC máxima) pela série do relógio */
-function tempoZonasFC(serie, fcMax) {
+/** tempo em cada zona de FC (Z1 a Z5, as mesmas do perfil do aluno) pela série do relógio */
+function tempoZonasFC(serie, zs) {
   const T = serie && serie.t,
     F = serie && serie.fc;
-  if (!T || !F || !fcMax || T.length < 20) return null;
+  if (!T || !F || !zs || T.length < 20) return null;
   const z = [0, 0, 0, 0, 0];
   let tot = 0;
   for (let i = 1; i < T.length; i++) {
     const f = F[i];
     const dt = T[i] - T[i - 1];
     if (!f || !(dt > 0) || dt > 30) continue;
-    const p = f / fcMax;
-    z[p < 0.6 ? 0 : p < 0.7 ? 1 : p < 0.8 ? 2 : p < 0.9 ? 3 : 4] += dt;
+    z[zonaFCIdx(zs, f)] += dt;
     tot += dt;
   }
   return tot > 300 ? z.map((x) => x / tot) : null;
+}
+/** zonas da análise da corrida: as mesmas do perfil, com a frase que explica a base */
+function zonasDaAnalise(pc, fm) {
+  if (pc.lthr) return Object.assign(zonasFCLimiar(pc.lthr, fm), { base: `Zonas pela FC de limiar de ${pc.lthr} bpm` });
+  if (!fm) return null;
+  return Object.assign(zonasFC(fm, pc.fcRep), {
+    base: `FC máxima ${Math.round(fm)} bpm${pc.fcRep ? ` e de repouso ${pc.fcRep} bpm (reserva de FC)` : ''}`,
+  });
 }
 function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   if (!c || !comDist(c) || !c.duracao_s) return null;
@@ -248,7 +255,11 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     }
   } else if (!tiros) abertura += '';
   // ---------- 3. zonas de frequência ----------
-  const zf = tempoZonasFC(A.serie, fcMax);
+  // zonas: pela FC de limiar (teste de 30 min) ou pela máxima medida, com a reserva quando há FC de repouso
+  const zf = tempoZonasFC(
+    A.serie,
+    perfil.lthr ? zonasFCLimiar(perfil.lthr, fcMax) : fcMax ? zonasFC(fcMax, perfil.fcRep) : null,
+  );
   if (zf) {
     sec.fc.push(`Tempo em cada zona de FC: ${zf.map((x, i) => `Z${i + 1} ${Math.round(x * 100)}%`).join(' · ')}.`);
     if (leveP && zf[2] + zf[3] + zf[4] > 0.35)
@@ -535,6 +546,7 @@ async function viewCorrida(id) {
         pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? pc.fcMax : c.fc_max,
         pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? fcMaxFonte : 'a maior da corrida',
         pc.paces,
+        zonasDaAnalise(pc, pc.fcMax && (!c.fc_max || pc.fcMax >= c.fc_max) ? pc.fcMax : c.fc_max),
       )
     : [];
   // o treinador marca como visto quando quiser (o aluno é avisado)

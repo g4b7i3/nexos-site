@@ -199,6 +199,8 @@ function zonasFCLimiar(lthr, fcMax) {
   }));
 }
 const zonasFCPerfil = (p) => (p.lthr ? zonasFCLimiar(p.lthr, p.fcMax) : zonasFC(p.fcMax, p.fcRep));
+/** zona (0 a 4) de uma FC pelos limites do aluno: os mesmos que aparecem no perfil */
+const zonaFCIdx = (zs, f) => zs.slice(1).filter((z) => f >= z.de).length;
 function zonasFC(fcMax, fcRep) {
   const Z = [
     ['Z1', 'Regenerativo', 0.5, 0.6],
