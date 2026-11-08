@@ -450,6 +450,344 @@ const TREINOS_NEXOS = [
     ],
   },
 ];
+/* ---------- Programas completos (treinos + ciclo de 4 ou 12 semanas) ----------
+   Base: volume de umas 10 a 20 séries por músculo na semana, com retorno decrescente acima disso (Schoenfeld et al.
+   2017; Pelland et al. 2024); cada músculo 2 vezes por semana (Schoenfeld et al. 2016); séries terminando com 0 a 3
+   repetições sobrando (Refalo et al. 2023/2024; Robinson et al. 2024); exercícios com o músculo alongado crescem mais
+   (Pedrosa et al. 2022; Maeo et al. 2023; Kassiano et al. 2023). Glúteo: elevação pélvica e agachamento dão ganho
+   parecido no glúteo máximo, e o agachamento também no quadríceps e adutores (Plotkin et al. 2023); agachamento
+   profundo ganha mais glúteo que o parcial (Kubo et al. 2019); abdução trabalha a parte de cima do glúteo (glúteo
+   médio e mínimo). As séries e repetições de cada semana seguem a fase do ciclo; a carga sobe sozinha pelo que o
+   aluno registra. */
+const CAT_PG = [
+  ['gluteo', 'Glúteos e pernas (foco feminino)'],
+  ['estetica', 'Hipertrofia estética'],
+  ['iniciante', 'Iniciante'],
+];
+const TR = (titulo, foco, itens) => ({ titulo, foco, itens });
+const INF_GLU_A = TR('Treino A', 'Inferior · glúteo máximo e quadríceps', [
+  ['Elevação pélvica com barra', 4, '', 'Exercício principal do dia. Pausa de 1 segundo em cima, apertando o glúteo.'],
+  [
+    'Agachamento livre com barra',
+    3,
+    '',
+    'Desça fundo, até onde a técnica deixar: o agachamento profundo trabalha mais o glúteo.',
+  ],
+  ['Levantamento terra romeno', 3, '', 'Desça devagar sentindo alongar atrás da coxa e o glúteo.'],
+  ['Cadeira abdutora', 3, '15 a 20', 'Tronco um pouco inclinado para a frente.'],
+  ['Coice no cabo unilateral', 2, '12 a 15 cada perna'],
+  ['Panturrilha em pé na máquina', 3, '10 a 15'],
+]);
+const INF_GLU_B = TR('Treino C', 'Inferior · glúteo alongado e unilateral', [
+  ['Agachamento búlgaro no Smith', 3, '', 'Tronco levemente inclinado para a frente aumenta o trabalho do glúteo.'],
+  ['Stiff com halteres', 3],
+  ['Leg press', 3, '', 'Pés altos e afastados na plataforma, descendo fundo.'],
+  ['Pull through no cabo', 3, '12 a 15'],
+  ['Cadeira abdutora', 3, '15 a 20'],
+  ['Mesa flexora sentada', 3],
+]);
+const INF_GLU_C = TR('Treino D', 'Inferior · glúteo e posteriores', [
+  ['Levantamento terra sumô', 3],
+  ['Subida no banco com halteres', 3, '10 a 12 cada perna'],
+  ['Ponte de glúteos unilateral', 3, '12 a 15 cada perna'],
+  ['Extensão reversa de quadril', 3, '12 a 15'],
+  ['Cadeira adutora', 2, '12 a 15'],
+]);
+const SUP_FEM = TR('Treino B', 'Superior e core', [
+  ['Puxada frontal pegada aberta', 3],
+  ['Supino inclinado com halteres', 3],
+  ['Remada baixa no cabo', 3],
+  ['Desenvolvimento com halteres', 3],
+  ['Elevação lateral com halteres', 3, '12 a 15'],
+  ['Tríceps corda', 2],
+  ['Rosca direta com halteres', 2],
+  ['Prancha', 3, '30 a 45 s'],
+]);
+const PROGRAMAS_F = [
+  {
+    id: 'pg-glu4',
+    cat: 'gluteo',
+    niv: 'ini',
+    nome: 'Glúteo em Foco · 4 semanas',
+    seq: 'HHHL',
+    desc: '3 treinos por semana: dois de inferiores com foco em glúteo e um de superiores. Para começar a especialização em glúteos ou testar a rotina antes do programa de 12 semanas.',
+    treinos: [INF_GLU_A, SUP_FEM, { ...INF_GLU_B, titulo: 'Treino C' }],
+  },
+  {
+    id: 'pg-glu12',
+    cat: 'gluteo',
+    niv: 'int',
+    nome: 'Glúteo em Foco · 12 semanas',
+    seq: 'HHHLHHHLFFHL',
+    diasBase: [0, 1, 2, 4], // inferiores seg, qua e sex; superiores na terça
+    desc: '4 treinos por semana: três de inferiores (glúteo máximo, glúteo alongado e unilateral, glúteo e posteriores) e um de superiores. Glúteo trabalhado 3 vezes por semana, com um bloco de força no fim para ganhar carga.',
+    treinos: [INF_GLU_A, SUP_FEM, INF_GLU_B, INF_GLU_C],
+  },
+  {
+    id: 'pg-pg12',
+    cat: 'gluteo',
+    niv: 'int',
+    nome: 'Pernas e Glúteos · 12 semanas',
+    seq: 'HHHLHHHLFFHL',
+    desc: '3 treinos por semana: dois de inferiores e um de superiores. Para quem tem só 3 dias e quer prioridade em pernas e glúteos.',
+    treinos: [INF_GLU_A, SUP_FEM, { ...INF_GLU_B, titulo: 'Treino C' }],
+  },
+  {
+    id: 'pg-ul12',
+    cat: 'estetica',
+    niv: 'int',
+    nome: 'Hipertrofia Estética · Superior/Inferior · 12 semanas',
+    seq: 'HHHLHHHLFFHL',
+    desc: '4 treinos por semana (Upper/Lower): cada grupo muscular 2 vezes por semana, a divisão mais estudada para ganhar músculo.',
+    treinos: [
+      TR('Treino A', 'Superior · peito e costas', [
+        ['Supino reto com barra (pegada média)', 3],
+        ['Remada curvada com barra', 3],
+        ['Desenvolvimento militar com barra em pé', 3],
+        ['Puxada frontal pegada aberta', 3],
+        ['Rosca direta com barra', 2],
+        ['Tríceps pulley com barra', 2],
+      ]),
+      TR('Treino B', 'Inferior · quadríceps', [
+        ['Agachamento livre com barra', 3],
+        ['Levantamento terra romeno', 3],
+        ['Leg press', 3],
+        ['Cadeira extensora', 3, '10 a 15'],
+        ['Panturrilha em pé na máquina', 3, '10 a 15'],
+        ['Abdominal infra (crunch reverso)', 3, '12 a 15'],
+      ]),
+      TR('Treino C', 'Superior · ombros e braços', [
+        ['Supino inclinado com halteres', 3],
+        ['Remada unilateral com halter (serrote)', 3],
+        ['Elevação lateral com halteres', 3, '12 a 15'],
+        ['Puxada frontal com pegada supinada', 3],
+        ['Crucifixo na máquina (peck deck)', 2, '12 a 15'],
+        ['Rosca martelo com halteres', 2],
+        ['Tríceps testa com halteres', 2],
+      ]),
+      TR('Treino D', 'Inferior · posteriores e glúteo', [
+        ['Levantamento terra com barra', 3, '', 'Técnica impecável; pare a série se as costas arredondarem.'],
+        ['Agachamento búlgaro no Smith', 3],
+        ['Mesa flexora', 3],
+        ['Elevação pélvica com barra', 3],
+        ['Cadeira extensora unilateral', 2, '12 a 15'],
+        ['Panturrilha sentado', 3, '12 a 15'],
+      ]),
+    ],
+  },
+  {
+    id: 'pg-ppl12',
+    cat: 'estetica',
+    niv: 'int',
+    nome: 'Hipertrofia Estética · Push/Pull/Legs · 12 semanas',
+    seq: 'HHHLHHHLFFHL',
+    desc: '3 treinos por semana: empurrar (peito, ombro, tríceps), puxar (costas, bíceps) e pernas. Simples de seguir; para mais volume, repita a sequência em 6 dias.',
+    treinos: [
+      TR('Treino A', 'Push · peito, ombros e tríceps', [
+        ['Supino reto com barra (pegada média)', 3],
+        ['Supino inclinado com halteres', 3],
+        ['Desenvolvimento com halteres', 3],
+        ['Elevação lateral com halteres', 3, '12 a 15'],
+        ['Tríceps corda', 3],
+        ['Tríceps testa com halteres', 2],
+      ]),
+      TR('Treino B', 'Pull · costas e bíceps', [
+        ['Puxada frontal pegada aberta', 3],
+        ['Remada curvada com barra', 3],
+        ['Remada baixa no cabo', 3],
+        ['Face pull', 3, '12 a 15'],
+        ['Rosca direta com barra', 3],
+        ['Rosca martelo com halteres', 2],
+      ]),
+      TR('Treino C', 'Legs · pernas e glúteos', [
+        ['Agachamento livre com barra', 3],
+        ['Levantamento terra romeno', 3],
+        ['Leg press', 3],
+        ['Cadeira extensora', 3, '10 a 15'],
+        ['Mesa flexora', 3],
+        ['Panturrilha em pé na máquina', 3, '10 a 15'],
+      ]),
+    ],
+  },
+  {
+    id: 'pg-fb4',
+    cat: 'iniciante',
+    niv: 'ini',
+    nome: 'Hipertrofia Iniciante · Corpo Inteiro · 4 semanas',
+    seq: 'RHHL',
+    desc: '3 treinos por semana, corpo inteiro em todos, com máquinas e halteres: aprende os movimentos e já começa a ganhar músculo.',
+    treinos: null, // usa os treinos de corpo inteiro (TREINOS_NEXOS ini-a, ini-b) e um C
+  },
+  {
+    id: 'pg-fb12',
+    cat: 'iniciante',
+    niv: 'ini',
+    nome: 'Hipertrofia Iniciante · Corpo Inteiro · 12 semanas',
+    seq: 'RRHHLHHHLHHL',
+    desc: '3 treinos por semana, corpo inteiro: 2 semanas de adaptação, depois hipertrofia com semana leve a cada bloco.',
+    treinos: null,
+  },
+];
+const FB_C = TR('Treino C', 'Corpo inteiro', [
+  ['Leg press', 3],
+  ['Remada baixa no cabo', 3],
+  ['Supino inclinado com halteres', 3],
+  ['Elevação pélvica com barra', 3],
+  ['Mesa flexora', 3],
+  ['Dead bug', 3, '8 cada lado'],
+]);
+const treinosDoPrograma = (pg) => {
+  if (pg.treinos) return pg.treinos;
+  const a = TREINOS_NEXOS.find((t) => t.id === 'ini-a'),
+    b = TREINOS_NEXOS.find((t) => t.id === 'ini-b');
+  return [TR('Treino A', a.foco, a.itens), TR('Treino B', b.foco, b.itens), FB_C];
+};
+/** aplica um programa: pausa os treinos de força atuais (se marcado), cria os treinos do programa nos dias de força
+    do aluno, a partir da segunda escolhida, e grava as fases das semanas */
+async function aplicarPrograma(pg, alunoId, iniISO, pausar) {
+  const trs = treinosDoPrograma(pg);
+  const m = await sb
+    .from('nx_membros')
+    .select('user_id,nome,modalidades,disponibilidade')
+    .eq('org_id', S.org.id)
+    .eq('user_id', alunoId)
+    .maybeSingle()
+    .then((r) => r.data || {});
+  // dias: os de força que o aluno marcou (se bastam) ou o padrão do programa, que alterna inferiores e superiores
+  const nT = Math.min(4, Math.max(2, trs.length)),
+    marcados = (dispDe(m).forca || []).length;
+  const dias = marcados >= nT || !pg.diasBase ? escolherDiasF(m, nT) : pg.diasBase;
+  const nomes = [...new Set(trs.flatMap((t) => t.itens.map((x) => x[0])))];
+  const { data: exs } = await sb.from('nx_exercicios').select('id,nome,org_id').in('nome', nomes);
+  const idDe = {};
+  (exs || []).forEach((e) => {
+    if (!idDe[e.nome] || e.org_id === S.org.id) idDe[e.nome] = e.id;
+  });
+  if (pausar) {
+    const { error } = await sb
+      .from('nx_treinos')
+      .update({ ativo: false })
+      .eq('org_id', S.org.id)
+      .eq('aluno_id', alunoId)
+      .eq('ativo', true);
+    if (error) throw error;
+  }
+  const { data: ex } = await sb.from('nx_treinos').select('id').eq('org_id', S.org.id).eq('aluno_id', alunoId);
+  const agora = new Date().toISOString();
+  const { data: novos, error } = await sb
+    .from('nx_treinos')
+    .insert(
+      trs.map((t, i) => ({
+        org_id: S.org.id,
+        aluno_id: alunoId,
+        titulo: t.titulo,
+        foco: t.foco,
+        observacoes: `${pg.nome}. Séries e repetições seguem a fase da semana.`,
+        ativo: true,
+        ordem: (ex || []).length + i,
+        dias: dias[i] != null ? [dias[i]] : null,
+        inicio: iniISO,
+        criado_por: S.user.id,
+        atualizado_em: agora,
+      })),
+    )
+    .select('id,titulo');
+  if (error) throw error;
+  const itens = [];
+  (novos || []).forEach((nv, i) => {
+    trs[i].itens
+      .filter(([n]) => idDe[n])
+      .forEach(([n, series, reps, obs], k) =>
+        itens.push({
+          treino_id: nv.id,
+          exercicio_id: idDe[n],
+          ordem: k,
+          series,
+          repeticoes: reps || null,
+          descanso_seg: k === 0 ? 120 : 90,
+          observacao: obs || null,
+        }),
+      );
+  });
+  if (itens.length) {
+    const { error: e2 } = await sb.from('nx_treino_itens').insert(itens);
+    if (e2) throw e2;
+  }
+  const fs = fasesComLeve(cfFases(pg));
+  await gravarFasesForca(
+    alunoId,
+    fs.map((fase, i) => ({
+      org_id: S.org.id,
+      aluno_id: alunoId,
+      semana: somaDias(iniISO, 7 * i),
+      fase,
+      criado_por: S.user.id,
+    })),
+  );
+  registrarCiclo(alunoId, 'forca', { id: pg.id, nome: pg.nome }, dia(iniISO), fs.length);
+  return { dias: dias.slice(0, trs.length), n: trs.length };
+}
+async function programaSheet(pg, alunoPre) {
+  const ms = await sb
+    .from('nx_membros')
+    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,disponibilidade')
+    .eq('org_id', S.org.id)
+    .eq('papel', 'aluno')
+    .eq('ativo', true)
+    .order('nome')
+    .then(
+      (r) => r.data || [],
+      () => [],
+    );
+  const alunos = ms.filter(
+    (m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('musculacao', m),
+  );
+  const prox = (() => {
+    const d = inicioSemana();
+    d.setDate(d.getDate() + 7);
+    return isoDia(d);
+  })();
+  const trs = treinosDoPrograma(pg),
+    fs = cfFases(pg);
+  openSheet(
+    `<p class="eyebrow">Programa · ${CIC_NIV[pg.niv] || ''} · ${fs.length} semanas</p><div class="h2" style="margin-top:4px">${esc(pg.nome)}</div>
+    <p class="small muted" style="margin-top:6px">${esc(pg.desc)}</p>
+    ${cfBarra(fs)}
+    <div class="stack" style="margin-top:12px">${trs.map((t) => `<details class="card pg-tr"><summary><b>${esc(t.titulo)}</b><span class="small muted"> · ${esc(t.foco)}</span></summary><ol>${t.itens.map(([n, se, r]) => `<li>${esc(n)} <span class="dim">· ${se} séries${r ? ' · ' + esc(r) : ''}</span></li>`).join('')}</ol></details>`).join('')}</div>
+    <form id="f-pg" style="margin-top:14px">
+      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${alunoPre === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
+      <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
+      <label class="ck-check"><input type="checkbox" name="pausar" checked><span>Pausar os treinos de força que o aluno tem hoje (ficam guardados) e usar os do programa</span></label>
+      <p class="tiny dim" style="margin:8px 0 12px">Os treinos vão para os dias de força do aluno, a partir da segunda escolhida. As semanas ficam em rascunho até você liberar.</p>
+      <button class="btn block" type="submit">Aplicar ${fs.length} semanas</button></form>`,
+    (r) => {
+      const f = r.querySelector('#f-pg');
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        const alunoId = f.aluno.value;
+        if (!alunoId) return toast('Escolha o aluno.', true);
+        const b = f.querySelector('button[type=submit]');
+        b.disabled = true;
+        b.textContent = 'Montando…';
+        try {
+          const ini = isoDia(inicioSemana(dia(f.ini.value || prox)));
+          const res = await aplicarPrograma(pg, alunoId, ini, f.pausar.checked);
+          closeSheet(true);
+          const m = alunos.find((x) => x.user_id === alunoId);
+          toast(
+            `${pg.nome} aplicado para ${firstName(m && m.nome)}: ${res.n} treinos (${res.dias.map((d) => DSEM[d].toLowerCase()).join(', ')}) a partir de ${fmtDia(ini)}.`,
+          );
+          location.hash = `#/aluno/${alunoId}/forca`;
+        } catch (er) {
+          console.error(er);
+          b.disabled = false;
+          b.textContent = 'Tentar de novo';
+          toast('Não foi possível aplicar o programa.', true);
+        }
+      };
+    },
+  );
+}
 /** os treinos prontos no formato de modelo (com o id de cada exercício da biblioteca) */
 async function modelosNexos() {
   if (S.cache.mdNx) return S.cache.mdNx;
@@ -481,7 +819,7 @@ async function modelosNexos() {
   return S.cache.mdNx;
 }
 /** Biblioteca: treinos prontos (Nexos e os seus modelos) e, para o aluno, os ciclos de força prontos */
-async function bibliotecaForca({ alunoId = null, aoTreino, aba = 'treinos', ciclos = true }) {
+async function bibliotecaForca({ alunoId = null, aoTreino, aba = 'programas', ciclos = true }) {
   const [nx, seus] = await Promise.all([modelosNexos(), buscarModelosTreino()]);
   const exNome = (md, it) => it._nome || (S.cache.ex || []).find((e) => e.id === it.exercicio_id)?.nome || 'Exercício';
   const cartao = (md) =>
@@ -494,6 +832,16 @@ async function bibliotecaForca({ alunoId = null, aoTreino, aba = 'treinos', cicl
         `<p class="sec-lbl">${n}</p><div class="stack">${nx
           .filter((m) => m.cat === k)
           .map(cartao)
+          .join('')}</div>`,
+    ).join('')}`;
+  const programasH = () =>
+    `<p class="small muted" style="margin:8px 0 0">Treinos e ciclo juntos: escolha, confira e aplique. A progressão de séries, repetições e carga é automática.</p>${CAT_PG.map(
+      ([k, n]) =>
+        `<p class="sec-lbl">${esc(n)}</p><div class="stack">${PROGRAMAS_F.filter((p) => p.cat === k)
+          .map(
+            (p) =>
+              `<button type="button" class="list-item" data-pg="${p.id}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(p.nome)}</b><div class="small muted">${CIC_NIV[p.niv] || ''} · ${treinosDoPrograma(p).length} treinos por semana · ${p.seq.length} semanas</div></div>${I.chev}</button>`,
+          )
           .join('')}</div>`,
     ).join('')}`;
   const ciclosH = () =>
@@ -512,13 +860,14 @@ async function bibliotecaForca({ alunoId = null, aoTreino, aba = 'treinos', cicl
     <p class="sec-lbl">Ano inteiro</p><a class="list-item" href="#/treinos/ciclos/anual" style="color:inherit"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Macrociclo anual</b><div class="small muted">Corrida do ano pelas provas, com a musculação acompanhando</div></div>${I.chev}</a>`;
   openSheet(
     `<p class="eyebrow">Biblioteca Nexos</p><div class="h2" style="margin-top:4px">${ciclos ? 'Treinos e ciclos prontos' : 'Escolha um treino pronto'}</div>
-    ${ciclos ? `<div class="seg bib-abas" style="margin-top:12px"><button type="button" data-ba="treinos">Treinos prontos</button><button type="button" data-ba="ciclos">Ciclos prontos</button></div>` : ''}
+    ${ciclos ? `<div class="seg bib-abas" style="margin-top:12px"><button type="button" data-ba="programas">Programas</button><button type="button" data-ba="treinos">Treinos</button><button type="button" data-ba="ciclos">Ciclos</button></div>` : ''}
     <div id="bib-c"></div>`,
     (r) => {
       const pinta = (a) => {
         aba = a;
         r.querySelectorAll('[data-ba]').forEach((b) => b.classList.toggle('on', b.dataset.ba === a));
-        r.querySelector('#bib-c').innerHTML = a === 'ciclos' ? ciclosH() : treinosH();
+        r.querySelector('#bib-c').innerHTML =
+          a === 'ciclos' ? ciclosH() : a === 'programas' ? programasH() : treinosH();
       };
       pinta(ciclos ? aba : 'treinos');
       r.onclick = (e) => {
@@ -536,6 +885,12 @@ async function bibliotecaForca({ alunoId = null, aoTreino, aba = 'treinos', cicl
           pv.hidden = !pv.hidden;
           tb.classList.toggle('aberto', !pv.hidden);
           return;
+        }
+        const pgB = e.target.closest('[data-pg]');
+        if (pgB) {
+          const pg = PROGRAMAS_F.find((x) => x.id === pgB.dataset.pg);
+          closeSheet();
+          return setTimeout(() => programaSheet(pg, alunoId), 250);
         }
         const tr = e.target.closest('[data-trl]');
         if (tr) {

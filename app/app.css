@@ -958,6 +958,8 @@ html[data-tema="escuro"] .pt.plan i,html[data-tema="escuro"] .pt-l.plan{backgrou
 .prog-f-l small{font-size:.66rem;color:var(--mute);font-weight:800}.prog-f-l b{font-size:.84rem}.prog-f-l em{font-style:normal;font-size:.66rem;color:var(--mute)}
 .pill.fase-p{border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
 .fase-sem{display:block;margin-top:6px;font-weight:700}
+.seg.bib-abas{grid-template-columns:repeat(3,1fr)}
+.pg-tr summary{cursor:pointer;list-style:none}.pg-tr ol{margin:8px 0 0;padding-left:20px;display:grid;gap:3px;font-size:.86rem}
 .dias-mv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
 @media (max-width:520px){.fdia{grid-template-columns:1fr}.fdia-h{border-right:0;border-bottom:1px dashed var(--line);padding:8px 10px}}
 /* trava a rolagem enquanto arrasta um treino */
