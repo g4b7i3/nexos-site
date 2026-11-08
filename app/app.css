@@ -2336,6 +2336,20 @@ html[data-tema="escuro"] .cp-lin{stroke:rgba(190,210,245,.35)}
 .replay-vel span{margin-right:4px;letter-spacing:.04em;text-transform:uppercase}
 .replay-vel button{border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;font:700 .78rem var(--f-b);padding:6px 12px;border-radius:999px;cursor:pointer}
 .replay-vel button.on{background:#fff;color:#04122e;border-color:#fff}
+.replay-det{position:absolute;inset:0;z-index:5;background:rgba(2,6,16,.6);display:flex;align-items:flex-end;justify-content:center}
+.rd-box{width:100%;max-width:520px;background:#0b1630;border-radius:22px 22px 0 0;padding:18px 16px calc(16px + var(--safe-b));max-height:85vh;overflow:auto;animation:rdSobe .25s ease}
+@keyframes rdSobe{from{transform:translateY(30px);opacity:0}}
+.rd-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.rd-top b{display:block;font:600 1.05rem var(--f-h);color:#fff}.rd-top span{display:block;font-size:.85rem;color:rgba(255,255,255,.65);margin-top:2px}
+.rd-cont{flex:none;font:800 .8rem var(--f-b)!important;color:#04122e!important;background:var(--p1);padding:5px 10px;border-radius:999px}
+.rd-lista{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.rd-it{display:flex;align-items:center;gap:12px;text-align:left;width:100%;padding:11px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;cursor:pointer}
+.rd-it.on{border-color:var(--p1);background:rgba(70,214,255,.1)}
+.rd-it:disabled{opacity:.4;cursor:default}
+.rd-chk{width:24px;height:24px;flex:none;border-radius:7px;border:2px solid rgba(255,255,255,.35);display:grid;place-items:center;color:#04122e;font-weight:800}
+.rd-it.on .rd-chk{background:var(--p1);border-color:var(--p1)}.rd-chk svg{width:15px;height:15px}
+.rd-tx b{display:block;font-size:.95rem}.rd-tx small{display:block;font-size:.78rem;color:rgba(255,255,255,.6);margin-top:1px}
+.rd-aviso{font-size:.8rem;color:rgba(255,255,255,.6);margin:-4px 0 12px;text-align:center}
 .replay-bts{display:flex;gap:10px;justify-content:center;padding:12px 16px calc(16px + var(--safe-b))}
 .replay-bts .btn.ghost{color:#fff!important;border-color:rgba(255,255,255,.3)!important;background:rgba(255,255,255,.08)!important}
 /* você contra você */

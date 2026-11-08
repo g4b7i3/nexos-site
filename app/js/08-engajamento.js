@@ -1281,7 +1281,7 @@ function abrirReplay(c, perfil) {
   ov.innerHTML = `<button class="retro-x" aria-label="Fechar">${I.x}</button><canvas id="rp-cv"></canvas>
     <div class="replay-modos" role="radiogroup" aria-label="Estilo do vídeo">${REPLAY_MODOS.map(([k, n]) => `<button type="button" data-rpm="${k}" class="${k === 'classico' ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div class="replay-vel" role="radiogroup" aria-label="Velocidade do vídeo"><span>Velocidade</span>${[0.5, 1, 2].map((v) => `<button type="button" data-rpv="${v}" class="${v === 1 ? 'on' : ''}">${String(v).replace('.', ',')}x</button>`).join('')}</div>
-    <div class="replay-bts"><button class="btn ghost sm" id="rp-de-novo">Ver de novo</button><button class="btn sm" id="rp-video">Salvar vídeo</button></div>`;
+    <div class="replay-bts"><button class="btn ghost sm" id="rp-de-novo">Repetir</button><button class="btn ghost sm" id="rp-det">Detalhes</button><button class="btn sm" id="rp-video">Salvar vídeo</button></div>`;
   const cv = ov.querySelector('#rp-cv'),
     W = 1080,
     H = 1920;
@@ -1336,14 +1336,108 @@ function abrirReplay(c, perfil) {
   const vivo = (k) => {
     const dk = dist * k,
       tk = dur * k;
-    let pc = dk > 50 ? tk / (dk / 1000) : null;
-    if (ser && ser.t && ser.vel) {
-      let jx = ser.t.findIndex((t) => t >= tk);
-      if (jx < 0) jx = ser.t.length - 1;
-      const vs = ser.vel.slice(Math.max(0, jx - 3), jx + 3).filter((v) => v > 0.8);
+    let pc = dk > 50 ? tk / (dk / 1000) : null,
+      j = -1;
+    if (ser && ser.t) {
+      j = ser.t.findIndex((t) => t >= tk);
+      if (j < 0) j = ser.t.length - 1;
+    }
+    if (j >= 0 && ser.vel) {
+      const vs = ser.vel.slice(Math.max(0, j - 3), j + 3).filter((v) => v > 0.8);
       if (vs.length) pc = 1000 / (vs.reduce((a, b) => a + b, 0) / vs.length);
     }
-    return { dk, tk, pc };
+    return { dk, tk, pc, j };
+  };
+  // ---------- detalhes: o aluno escolhe até 3 números para aparecer no vídeo ----------
+  const temS = (k) => !!(ser && Array.isArray(ser[k]) && ser[k].some((v) => v != null && v > 0));
+  const perto = (arr, j) => {
+    if (!arr || j < 0) return null;
+    const v = arr.slice(Math.max(0, j - 3), j + 4).filter((y) => y != null && y > 0);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+  // subida acumulada até cada ponto (ignora oscilações menores que 1 m)
+  const subAc = [];
+  if (temS('alt')) {
+    let b = null,
+      acc = 0;
+    ser.alt.forEach((a, i) => {
+      if (a != null) {
+        if (b == null) b = a;
+        else if (a - b >= 1) {
+          acc += a - b;
+          b = a;
+        } else if (b - a >= 1) b = a;
+      }
+      subAc[i] = acc;
+    });
+  }
+  const DETALHES = [
+    { id: 'dist', n: 'Distância', d: 'Quanto já percorreu', ok: true, v: (q) => [f1(q.dk / 1000), 'km'] },
+    { id: 'tempo', n: 'Tempo', d: 'Tempo de corrida até o ponto', ok: true, v: (q) => [fmtDurLongo(q.tk), ''] },
+    {
+      id: 'pace',
+      n: 'Pace',
+      d: 'Ritmo naquele trecho',
+      ok: true,
+      v: (q) => [q.pc ? fmtPace(q.pc).replace('/km', '') : '–', '/km'],
+    },
+    {
+      id: 'vel',
+      n: 'Velocidade',
+      d: 'Em km por hora',
+      ok: true,
+      v: (q) => [q.pc ? (3600 / q.pc).toFixed(1).replace('.', ',') : '–', 'km/h'],
+    },
+    {
+      id: 'fc',
+      n: temS('fc') ? 'Freq. cardíaca' : 'FC média',
+      d: temS('fc') ? 'Batimentos naquele trecho' : 'Média do treino (o relógio não mandou o gráfico)',
+      ok: temS('fc') || !!c.fc_media,
+      v: (q) => {
+        const f = temS('fc') ? perto(ser.fc, q.j) : c.fc_media;
+        return [f ? Math.round(f) : '–', 'bpm'];
+      },
+    },
+    {
+      id: 'cad',
+      n: temS('cad') ? 'Cadência' : 'Cadência média',
+      d: temS('cad') ? 'Passos por minuto naquele trecho' : 'Média do treino',
+      ok: temS('cad') || !!c.cadencia,
+      v: (q) => {
+        const f = temS('cad') ? perto(ser.cad, q.j) : c.cadencia;
+        return [f ? Math.round(f) : '–', 'ppm'];
+      },
+    },
+    {
+      id: 'alt',
+      n: 'Altitude',
+      d: 'Altura em relação ao mar',
+      ok: temS('alt'),
+      v: (q) => [Math.round(perto(ser.alt, q.j) ?? 0), 'm'],
+    },
+    {
+      id: 'sub',
+      n: 'Subida',
+      d: 'Quanto já subiu no percurso',
+      ok: temS('alt'),
+      v: (q) => [Math.round(subAc[q.j] || 0), 'm'],
+    },
+    {
+      id: 'pot',
+      n: 'Potência',
+      d: 'Força medida pelo relógio',
+      ok: temS('pot'),
+      v: (q) => [Math.round(perto(ser.pot, q.j) ?? 0), 'W'],
+    },
+  ];
+  let det = (store.get('nx-replay-det', null) || ['dist', 'tempo', 'pace'])
+    .filter((id) => DETALHES.some((m) => m.id === id && m.ok))
+    .slice(0, 3);
+  if (!det.length) det = ['dist', 'tempo', 'pace'];
+  // colunas na ordem da lista: [rótulo, valor, unidade]
+  const colunas = (k) => {
+    const q = vivo(k);
+    return DETALHES.filter((m) => det.includes(m.id)).map((m) => [m.n, ...m.v(q).map(String)]);
   };
   // modo satélite (estilo dos vídeos de prova): mapa na tela inteira, números em cima, câmera de drone
   const desenhaSat = (k) => {
@@ -1428,13 +1522,9 @@ function abrirReplay(c, perfil) {
       x.letterSpacing = '0px';
     } catch {}
     // números ao vivo, em três colunas
-    const { dk, tk, pc } = vivo(k);
-    [
-      ['Distância', f1(dk / 1000), 'km'],
-      ['Tempo', fmtDurLongo(tk), ''],
-      ['Pace', pc ? fmtPace(pc).replace('/km', '') : '–', '/km'],
-    ].forEach(([l, v, u], j) => {
-      const cx = W / 6 + (j * W) / 3;
+    const cs = colunas(k);
+    cs.forEach(([l, v, u], j) => {
+      const cx = (W / cs.length) * (j + 0.5);
       x.textAlign = 'center';
       x.font = "600 30px 'Manrope'";
       x.fillStyle = 'rgba(255,255,255,.75)';
@@ -1579,24 +1669,10 @@ function abrirReplay(c, perfil) {
     x.arc(px, py, 14, 0, 7);
     x.fill();
     if (em3) x.restore();
-    // números ao vivo
-    const dk = dist * k,
-      tk = dur * k;
-    let pc = dk > 50 ? tk / (dk / 1000) : null;
-    if (ser && ser.t && ser.vel) {
-      const alvo = tk;
-      let jx = ser.t.findIndex((t) => t >= alvo);
-      if (jx < 0) jx = ser.t.length - 1;
-      const vs = ser.vel.slice(Math.max(0, jx - 3), jx + 3).filter((v) => v > 0.8);
-      if (vs.length) pc = 1000 / (vs.reduce((a, b) => a + b, 0) / vs.length);
-    }
-    const cols = [
-      ['Distância', `${f1(dk / 1000)}`, 'km'],
-      ['Tempo', fmtDurLongo(tk), ''],
-      ['Pace', pc ? fmtPace(pc).replace('/km', '') : '–', '/km'],
-    ];
+    // números ao vivo (os que o aluno escolheu em Detalhes)
+    const cols = colunas(k);
     cols.forEach(([l, v, u], j) => {
-      const cx = 90 + j * 320;
+      const cx = 90 + j * (cols.length === 3 ? 320 : cols.length === 2 ? 450 : 0);
       x.textAlign = 'left';
       x.font = "500 34px 'Manrope'";
       x.fillStyle = 'rgba(255,255,255,.65)';
@@ -1968,6 +2044,40 @@ function abrirReplay(c, perfil) {
     tocar();
   });
   ov.querySelector('#rp-de-novo').onclick = () => tocar();
+  ov.querySelector('#rp-det').onclick = () => {
+    if (bv.dataset.gravando || ov.querySelector('.replay-det')) return;
+    let sel = [...det];
+    const p = document.createElement('div');
+    p.className = 'replay-det';
+    const pinta = () => {
+      p.innerHTML = `<div class="rd-box"><div class="rd-top"><div><b>Detalhes do vídeo</b><span>Escolha até 3 números para aparecer no vídeo.</span></div><span class="rd-cont">${sel.length} de 3</span></div>
+        <div class="rd-lista">${DETALHES.map((m) => {
+          const on = sel.includes(m.id),
+            bloq = !m.ok || (!on && sel.length >= 3);
+          return `<button type="button" class="rd-it ${on ? 'on' : ''}" data-det="${m.id}" ${bloq ? 'disabled' : ''}><span class="rd-chk">${on ? I.check || '✓' : ''}</span><span class="rd-tx"><b>${m.n}</b><small>${m.ok ? m.d : 'Seu relógio não registrou neste treino'}</small></span></button>`;
+        }).join('')}</div>
+        ${sel.length >= 3 ? '<p class="rd-aviso">Para trocar, desmarque um antes de marcar outro.</p>' : ''}
+        <button type="button" class="btn block" id="rd-ok" ${sel.length ? '' : 'disabled'}>Pronto</button></div>`;
+      p.querySelectorAll('[data-det]').forEach((b) => {
+        b.onclick = () => {
+          const id = b.dataset.det;
+          sel = sel.includes(id) ? sel.filter((y) => y !== id) : [...sel, id];
+          pinta();
+        };
+      });
+      p.querySelector('#rd-ok').onclick = () => {
+        det = DETALHES.filter((m) => sel.includes(m.id)).map((m) => m.id);
+        store.set('nx-replay-det', det);
+        p.remove();
+        tocar();
+      };
+    };
+    p.onclick = (e) => {
+      if (e.target === p) p.remove();
+    };
+    pinta();
+    ov.append(p);
+  };
   ov.querySelectorAll('[data-rpv]').forEach((bt) => {
     bt.onclick = () => {
       if (bv.dataset.gravando) return;
