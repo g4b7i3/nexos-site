@@ -1724,8 +1724,15 @@ async function desenharCard(cv, c, o) {
         if (comLogo) {
           // a marca branca e nítida como os números (sombra curta, para não acinzentar o traço fino)
           const yL = yS - (post ? 160 : 185);
-          desenha(sim, 2333.5 / 5528.6, W / 2 - 165, yL, 220, 'center', true);
-          desenha(wm, 937.1 / 5645, W / 2 + 80, yL + 22, 340, 'center', true);
+          // símbolo e nome lado a lado, com espaço entre eles, centralizados juntos
+          const wS = 220,
+            wN = 330,
+            gap = 40,
+            hS = wS * (2333.5 / 5528.6),
+            hN = wN * (937.1 / 5645),
+            x0 = W / 2 - (wS + gap + wN) / 2;
+          desenha(sim, 2333.5 / 5528.6, x0, yL, wS, 'left', true);
+          desenha(wm, 937.1 / 5645, x0 + wS + gap, yL + (hS - hN) / 2, wN, 'left', true);
         }
         grade(tot, yS, pxB, 50, W - 50, 3, 'center');
       });
