@@ -1323,3 +1323,147 @@ async function ckForm(alunoId, fase, ciclo) {
       location.hash = '#/checkup/' + alunoId;
     };
 }
+
+/* ---------- ciclo sugerido pelo teste ----------
+   Nível pelo VDOT do teste (Daniels), limitado pelo volume das últimas 4 semanas, que mostra o que tendões e ossos
+   já toleram (Nielsen et al. 2014). Objetivo: a próxima prova do aluno; sem prova, o que ele marcou na ficha; sem nada,
+   um bloco de base. Pré-requisitos de distância iguais aos da ficha de entrada. */
+function sugerirCicloTeste({ vdot, corridas, prova, alvoFicha }) {
+  if (!vdot) return null;
+  const agora = Date.now();
+  const rec = (corridas || []).filter((c) => ehCorrHist(c) && agora - Date.parse(c.data) < 28 * 864e5);
+  const ult60 = (corridas || []).filter((c) => ehCorrHist(c) && agora - Date.parse(c.data) < 60 * 864e5);
+  const km = Math.round(rec.reduce((s, c) => s + (c.distancia_m || 0), 0) / 1000 / 4);
+  const longa = Math.max(0, ...ult60.map((c) => c.distancia_m || 0));
+  const contMin = Math.max(0, ...rec.map((c) => (c.duracao_s || 0) / 60));
+  const poucos = rec.length < 4;
+  const motivos = [];
+  let niv = nivVdot(vdot);
+  motivos.push(`Pelo teste, VDOT ${f1(vdot)}: nível ${CIC_NIV[niv].toLowerCase()}.`);
+  if (!poucos) {
+    const capV = km < 15 ? 'ini' : km < 30 ? 'int' : km < 50 ? 'ava' : 'pro';
+    if (NIV_ORD.indexOf(capV) < NIV_ORD.indexOf(niv)) {
+      motivos.push(
+        `O volume das últimas 4 semanas (${km} km por semana) é de nível ${CIC_NIV[capV].toLowerCase()}: o ciclo começa por aí, porque o volume mostra o que o corpo já tolera hoje.`,
+      );
+      niv = capV;
+    } else motivos.push(`Volume das últimas 4 semanas: ${km} km por semana, compatível com esse nível.`);
+  } else motivos.push('Poucos treinos registrados nas últimas 4 semanas: o volume ainda não entrou na conta.');
+  // objetivo
+  let alvo = null,
+    alvoTxt = '';
+  const semProva = prova ? Math.max(0, Math.round((Date.parse(prova.data + 'T12:00:00') - agora) / (7 * 864e5))) : null;
+  if (prova && semProva <= 40) {
+    const d = parseFloat(String(prova.distancia || '').replace(',', '.'));
+    alvo = /trail/i.test(prova.titulo || '')
+      ? 'trail'
+      : d
+        ? d <= 7
+          ? '5'
+          : d <= 15
+            ? '10'
+            : d <= 30
+              ? '21'
+              : '42'
+        : null;
+    alvoTxt = `${prova.titulo}${prova.distancia ? ` (${prova.distancia})` : ''}, daqui a ${semProva} semana${semProva === 1 ? '' : 's'}`;
+  }
+  if (!alvo && alvoFicha && alvoFicha !== 'nenhuma') {
+    alvo = alvoFicha;
+    alvoTxt = 'o objetivo que o aluno marcou na ficha';
+  }
+  let id;
+  if (vdot < 30 && contMin < 30 && !poucos) {
+    id = 'ini-30';
+    motivos.push('Ainda não corre 30 minutos seguidos nos treinos: primeiro chegar a 30 minutos contínuos.');
+  } else if (!alvo) {
+    id = MAC_BASE[niv];
+    motivos.push('Sem prova marcada: um bloco de base aeróbica, com a maior parte do volume leve.');
+  } else if (alvo === 'trail') {
+    id = niv === 'ini' ? 'tr-ini' : niv === 'int' ? 'tr-int21' : 'tr-ava21';
+    motivos.push(`Objetivo: ${alvoTxt}. Treino por tempo e esforço, com subidas e descidas.`);
+  } else {
+    let a = alvo;
+    motivos.push(`Objetivo: ${alvoTxt}.`);
+    if (a === '42' && !(longa >= 16000 && km >= 30)) {
+      a = '21';
+      motivos.push(
+        'Para a maratona, o recomendado é já fazer longões de uns 16 km e correr 30 km por semana: o ciclo prepara a meia primeiro.',
+      );
+    }
+    if (a === '21' && !(longa >= 10000 || km >= 20)) {
+      a = '10';
+      motivos.push(
+        'Para a meia, o recomendado é já correr 10 km ou uns 20 km por semana: o ciclo prepara os 10 km primeiro.',
+      );
+    }
+    if (a === '10' && niv === 'ini' && longa < 5000) {
+      a = '5';
+      motivos.push('Ainda sem 5 km nos treinos recentes: o primeiro ciclo é o de 5 km.');
+    }
+    id = MAC_CIC[a] && MAC_CIC[a][niv];
+  }
+  const ciclo = CICLOS_CORR.find((c) => c.id === id);
+  if (!ciclo) return null;
+  const sem = cicSem(ciclo);
+  if (semProva != null && alvo && alvo !== 'trail' && semProva < sem)
+    motivos.push(
+      `O ciclo tem ${sem} semanas e a prova é em ${semProva}: aplique a partir de uma semana mais adiantada, para terminar no dia da prova.`,
+    );
+  return { ciclo, niv, motivos, sem };
+}
+function sugCicloTesteHTML(s, alunoId, pendente) {
+  if (!s) return '';
+  const c = s.ciclo;
+  return `<div class="card tst-card sug-teste"><div class="tst-top"><span class="tst-ic">${I.run}</span><div class="tst-txt"><span class="eyebrow">Sugestão Nexos pelo teste</span><b>${esc(c.nome)}</b><span>${pendente ? 'Vale depois que você confirmar as zonas' : 'Com base no teste mais recente'}</span></div></div>
+    <div class="sug-chips"><span>${s.sem} semanas</span><span>${CIC_NIV[c.niv] || CIC_NIV[s.niv]}</span>${c.dias ? `<span>${c.dias} dias por semana</span>` : ''}</div>
+    ${c.desc ? `<p class="small" style="margin-top:10px">${esc(c.desc)}</p>` : ''}
+    <ul class="sug-lista">${s.motivos.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
+    <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><a class="btn sm" href="#/treinos/ciclos/${c.id}" data-sugal="${alunoId}">Ver e aplicar o ciclo</a><a class="btn ghost sm" href="#/treinos/ciclos" data-sugal="${alunoId}">Escolher outro</a></div>
+    <p class="tiny dim" style="margin-top:10px">Nível pelo VDOT do teste (Daniels), limitado pelo volume das últimas 4 semanas; nada muda na planilha até você aplicar.</p></div>`;
+}
+/** monta a sugestão em Ritmos e zonas: pelo teste pendente, ou pelo último teste se nenhum ciclo foi aplicado depois dele */
+async function montarSugTeste(el, { m, perfil, pend, corridas, provas, alunoId }) {
+  if (!el) return;
+  const x = (pend || []).find((y) => y.r && y.r.teste_km);
+  let vdot = x ? vdotDe(x.r.teste_km * 1000, x.r.teste_seg) : null;
+  let desde = x ? isoDia(x.c.data) : null;
+  if (
+    !vdot &&
+    perfil.vdot &&
+    perfil.teste_data &&
+    Date.now() - Date.parse(perfil.teste_data + 'T12:00:00') < 45 * 864e5
+  ) {
+    vdot = perfil.vdot;
+    desde = perfil.teste_data;
+  }
+  if (!vdot) return;
+  const [ja, ficha] = await Promise.all([
+    sb
+      .from('nx_ciclos_aplicados')
+      .select('id')
+      .eq('aluno_id', alunoId)
+      .eq('tipo', 'corrida')
+      .gte('criado_em', desde + 'T00:00:00')
+      .limit(1)
+      .then(
+        (r) => r.data || [],
+        () => [],
+      ),
+    sb
+      .from('nx_form_respostas')
+      .select('dados')
+      .eq('aluno_id', alunoId)
+      .order('criado_em', { ascending: false })
+      .limit(1)
+      .then(
+        (r) => (r.data || [])[0],
+        () => null,
+      ),
+  ]);
+  if (ja.length && !x) return; // já aplicou um ciclo depois do teste
+  const prova = (provas || []).find((p) => p.data >= hojeISO());
+  const alvoFicha = ficha && ficha.dados && ficha.dados.desemp && ficha.dados.desemp.alvo;
+  const s = sugerirCicloTeste({ vdot, corridas, prova, alvoFicha });
+  if (el.isConnected) el.innerHTML = sugCicloTesteHTML(s, alunoId, !!x);
+}

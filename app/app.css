@@ -3179,3 +3179,8 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 @media (max-width:380px){.tst-zonas{font-size:.8rem}.tst-aviso{flex-wrap:wrap}.tst-aviso .tst-ir{width:100%}}
 .tst-zonas.um>div{grid-template-columns:minmax(0,1fr) auto}
 .tst-card .grid2 .btn{white-space:nowrap;padding-left:12px;padding-right:12px}
+.sug-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.sug-chips span{font-size:.78rem;font-weight:600;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--ink)}
+.sug-lista{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:8px;font-size:.88rem;line-height:1.45}
+.sug-lista li{position:relative;padding-left:16px}
+.sug-lista li::before{content:'';position:absolute;left:2px;top:.6em;width:6px;height:6px;border-radius:50%;background:var(--acc)}

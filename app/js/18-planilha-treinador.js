@@ -1566,7 +1566,17 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         ? `<div class="card tst-aviso"><span class="tst-ic">${I.timer}</span><div class="tst-txt"><b>${tPend.length > 1 ? `${tPend.length} testes feitos` : esc(tPend[0].p.titulo || 'Teste') + ' feito'}</b><span>Resultado pronto. Confira e confirme as zonas.</span></div><button class="btn sm tst-ir" type="button">Revisar</button></div>`
         : ''
     : '';
-  box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${avisoTeste}${corpo}</div>`;
+  const sugTeste = staff && sub === 'ritmos' ? '<div id="sug-teste"></div>' : '';
+  box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${avisoTeste}${sugTeste}${corpo}</div>`;
+  if (sugTeste)
+    montarSugTeste(box.querySelector('#sug-teste'), {
+      m,
+      perfil,
+      pend: tPend,
+      corridas,
+      provas: provasProx,
+      alunoId,
+    }).catch((e) => console.error(e));
   box.querySelectorAll('.tst-ir').forEach(
     (b) =>
       (b.onclick = () => {
