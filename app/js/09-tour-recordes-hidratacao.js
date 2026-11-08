@@ -1017,7 +1017,14 @@ async function alunoHoje() {
   if (fC)
     processarTestes(S.me)
       .then((r) => {
-        if (r && r.length) toast(`Suas zonas de treino foram atualizadas pelo ${TESTE_NOME[r[0].tipo]}.`);
+        // o teste chegou: as zonas mudam quando o treinador conferir e confirmar
+        const x = (r || []).find((y) => y.r);
+        if (!x) return;
+        try {
+          if (localStorage.getItem('nx-teste-' + x.c.id)) return;
+          localStorage.setItem('nx-teste-' + x.c.id, '1');
+        } catch {}
+        toast(`Seu ${TESTE_NOME[x.tipo] || 'teste'} chegou. Seu treinador vai conferir e atualizar as suas zonas.`);
       })
       .catch(() => {});
   montarAgua(document.getElementById('agua-box'), minTreinoHoje).catch((e) => console.error(e));

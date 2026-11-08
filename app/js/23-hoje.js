@@ -477,6 +477,7 @@ async function staffHoje() {
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
     <div id="cic-term"></div>
+    <div id="testes-eq"></div>
     <div id="faltas-eq"></div>
     ${
       pendentes.length
@@ -571,6 +572,20 @@ async function staffHoje() {
     () => {},
   );
   faltasEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m])));
+  testesPendentesEquipe([...vis])
+    .then((ts) => {
+      const box = document.getElementById('testes-eq');
+      if (!box || !ts.length) return;
+      const porId = Object.fromEntries(membros.map((m) => [m.user_id, m]));
+      box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Testes para confirmar</h2><span class="tag acc">${ts.length}</span></div><div class="stack">${ts
+        .map((x) => {
+          const m = porId[x.c.aluno_id] || { nome: 'Aluno' };
+          return `<button class="list-item" data-tst-aluno="${x.c.aluno_id}" style="color:inherit;text-align:left;width:100%">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} fez o ${esc(x.p.titulo || 'teste')}</b><div class="small muted">${diaSemDe(isoDia(x.c.data))} · confira o resultado e confirme as zonas</div></div>${I.chev}</button>`;
+        })
+        .join('')}</div></div>`;
+      box.querySelectorAll('[data-tst-aluno]').forEach((b) => (b.onclick = () => abrirRitmosAluno(b.dataset.tstAluno)));
+    })
+    .catch((e) => console.error(e));
   vigiarRecolhiveis();
   bindCartaoPush();
   convidarTour();

@@ -261,23 +261,113 @@ async function processarTestes(m) {
       cs.push(c);
     }
   }
-  const novos = cs.filter((c) => !feitos.has(c.id)).sort((a, b) => (a.data < b.data ? -1 : 1));
-  const aplicados = [];
-  for (const c of novos) {
-    const t = testes.find((x) => x.p.id === c.plano_id);
-    const r = calcularTeste(t.tipo, c);
-    feitos.add(c.id);
-    const dados = { ...(r || {}), testes_proc: [...feitos].slice(-30) };
-    const { data: nova, error } = await sb.rpc('nx_aplicar_teste', { p_aluno: alunoId, p_dados: dados });
-    if (error) {
-      console.error(error);
-      continue;
-    }
-    if (nova) m.corrida = nova;
-    if (r) aplicados.push({ tipo: t.tipo, r });
-  }
-  if (alunoId === S.user.id && !S.staff) S.me.corrida = m.corrida;
-  return aplicados;
+  // o resultado não entra sozinho: fica esperando o treinador conferir e confirmar em Ritmos e zonas
+  return cs
+    .filter((c) => !feitos.has(c.id))
+    .sort((a, b) => (a.data < b.data ? -1 : 1))
+    .map((c) => {
+      const t = testes.find((x) => x.p.id === c.plano_id);
+      return { c, p: t.p, tipo: t.tipo, r: calcularTeste(t.tipo, c) };
+    });
+}
+/** o que o teste mediu, numa linha */
+function resumoTeste(x) {
+  const r = x.r || {};
+  if (r.zonas_auto && r.zonas_auto.resumo) return r.zonas_auto.resumo;
+  if (r.teste_km)
+    return `${String(r.teste_km).replace('.', ',')} km em ${fmtDurLongo(r.teste_seg)} · VDOT ${f1(vdotDe(r.teste_km * 1000, r.teste_seg))}`;
+  if (r.fc_max) return `FC máxima ${r.fc_max} bpm`;
+  return '';
+}
+/** treinador confirma: as zonas do teste passam a valer (e os ajustes à mão saem, porque o teste é mais novo) */
+async function confirmarTeste(m, x) {
+  const proc = [...((m.corrida || {}).testes_proc || []), x.c.id].slice(-30);
+  const { data, error } = await sb.rpc('nx_aplicar_teste', {
+    p_aluno: m.user_id,
+    p_dados: { ...(x.r || {}), testes_proc: proc },
+  });
+  if (error) throw error;
+  if (data) m.corrida = data;
+}
+/** treinador descarta: o teste sai da lista e as zonas continuam como estavam */
+async function descartarTeste(m, x) {
+  const proc = [...((m.corrida || {}).testes_proc || []), x.c.id].slice(-30);
+  const { data, error } = await sb.rpc('nx_aplicar_teste', { p_aluno: m.user_id, p_dados: { testes_proc: proc } });
+  if (error) throw error;
+  if (data) m.corrida = data;
+}
+/** cartão "Teste para confirmar": resultado, zonas de antes e as novas, confirmar ou descartar */
+function testesPendentesHTML(m, lista) {
+  if (!lista || !lista.length) return '';
+  const atual = perfilCorrida(m);
+  const ZT = [
+    ['rec', 'Recuperação'],
+    ...ZONAS_PACE.map(([k, l]) => [k, l.replace(/^Z\d · /, '').replace(/ \(.*\)$/, '')]),
+  ];
+  const faixa = (pf, k) => {
+    const pc = pf && pf.paces;
+    const f =
+      pc && (pc[k] || (k === 'rec' && pc.leve ? [Math.round(pc.leve[1] * 1.08), Math.round(pc.leve[1] * 1.16)] : null));
+    return f ? `${fmtPace(f[0]).replace('/km', '')}–${fmtPace(f[1]).replace('/km', '')}` : '–';
+  };
+  return lista
+    .map((x, i) => {
+      const c0 = { ...(m.corrida || {}), ...(x.r || {}) };
+      if (x.r && (x.r.zonas_auto || x.r.teste_km)) delete c0.paces_manual;
+      const novo = x.r ? perfilCorrida({ ...m, corrida: c0 }) : null;
+      const temPace = x.r && (x.r.zonas_auto || x.r.teste_km);
+      return `<div class="card tst-card"><span class="eyebrow">Teste para confirmar</span>
+        <div class="row between" style="gap:8px;margin-top:6px;flex-wrap:wrap"><b>${esc(x.p.titulo || TESTE_NOME[x.tipo] || 'Teste')}</b><span class="small muted">${fmtDia(isoDia(x.c.data))}</span></div>
+        ${
+          x.r
+            ? `<p class="small" style="margin-top:4px">${esc(resumoTeste(x))}</p>
+        ${
+          temPace
+            ? `<div class="tst-zonas"><div class="tst-h"><span>Zona</span><span>Agora</span><span>Com o teste</span></div><div class="tst-h tst-u"><span></span><span>min/km</span><span>min/km</span></div>${ZT.map(([k, l]) => `<div><span style="--zc:${ZONAS_INFO[k].c}">${l}</span><span>${faixa(atual, k)}</span><b>${faixa(novo, k)}</b></div>`).join('')}</div>`
+            : `<p class="small muted" style="margin-top:6px">As zonas de FC passam a usar ${x.r.fc_max} bpm${atual.fcMax ? ` (hoje: ${Math.round(atual.fcMax)} bpm${atual.fc_max ? '' : ', estimada'})` : ''}.</p>`
+        }
+        ${atual.manual && temPace ? '<p class="tiny dim" style="margin-top:6px">Os ajustes que você fez à mão saem e entram os ritmos do teste.</p>' : ''}
+        <div class="grid2" style="margin-top:12px"><button class="btn" data-tst-ok="${i}">${I.check} Confirmar</button><button class="btn ghost" data-tst-no="${i}">Descartar</button></div>`
+            : `<p class="small muted" style="margin-top:4px">Não deu para calcular pelo relógio: a corrida não tem os dados de tempo e distância suficientes para esse teste. Confira a corrida e, se quiser, lance o resultado à mão.</p>
+        <div class="grid2" style="margin-top:12px"><button class="btn" data-tst-mao="${i}">Lançar à mão</button><button class="btn ghost" data-tst-no="${i}">Descartar</button></div>`
+        }
+        <a class="small" href="#/corrida/${x.c.id}" style="display:inline-block;margin-top:10px">Ver a corrida do teste</a></div>`;
+    })
+    .join('');
+}
+/** treinador: alunos que fizeram um teste da planilha e ainda não tiveram as zonas confirmadas */
+async function testesPendentesEquipe(ids) {
+  if (!ids.length) return [];
+  const { data: pl } = await sb
+    .from('nx_plano_corrida')
+    .select('id,aluno_id,titulo,data')
+    .in('aluno_id', ids)
+    .eq('tipo', 'teste')
+    .gte('data', isoDia(Date.now() - 45 * 864e5));
+  if (!pl || !pl.length) return [];
+  const [{ data: cs }, { data: ms }] = await Promise.all([
+    sb
+      .from('nx_corridas')
+      .select('id,aluno_id,plano_id,tipo,data')
+      .in(
+        'plano_id',
+        pl.map((p) => p.id),
+      ),
+    sb
+      .from('nx_membros')
+      .select('user_id,corrida')
+      .eq('org_id', S.org.id)
+      .in('user_id', [...new Set(pl.map((p) => p.aluno_id))]),
+  ]);
+  const proc = Object.fromEntries((ms || []).map((m) => [m.user_id, new Set((m.corrida || {}).testes_proc || [])]));
+  return (cs || [])
+    .filter((c) => ehCorr(c) && c.tipo !== 'caminhada' && !(proc[c.aluno_id] || new Set()).has(c.id))
+    .map((c) => ({ c, p: pl.find((p) => p.id === c.plano_id) }));
+}
+/** abre a aba Ritmos e zonas do aluno */
+function abrirRitmosAluno(alunoId) {
+  S.cache.semCorr = { aluno: alunoId, off: 0, sub: 'ritmos', todas: false };
+  location.hash = '#/aluno/' + alunoId + '/corrida';
 }
 function formTesteCampo(m, onSalvo) {
   openSheet(

@@ -1361,14 +1361,14 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   S.cache.relNome = garm ? 'Garmin' : 'relógio';
   const perfil = perfilCorrida(m);
   const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
-  if (!st.testesOk) {
-    st.testesOk = true;
+  // testes da planilha que o aluno já correu: o treinador confere e confirma as zonas em Ritmos e zonas
+  if (staff && st.testesDe !== alunoId) {
+    st.testesDe = alunoId;
+    st.testes = [];
     processarTestes(m)
       .then((r) => {
-        if (r && r.length) {
-          toast(`Zonas atualizadas pelo ${TESTE_NOME[r[0].tipo]}.`);
-          recarregar();
-        }
+        st.testes = r || [];
+        if (st.testes.length && S.cache.semCorr === st && st.aluno === alunoId) recarregar();
       })
       .catch((e) => console.error(e));
   }
@@ -1543,7 +1543,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       ${
         staff
           ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn ${perfil.paces ? 'ghost' : ''} sm" id="ed-perfil">${perfil.paces ? 'Atualizar teste de prova' : 'Cadastrar teste'}</button><button class="btn ghost sm" id="ed-campo">Lançar teste de campo</button>${(m.corrida || {}).zonas_hist && (m.corrida || {}).zonas_hist.length ? '<button class="btn ghost sm" id="zn-volta">Voltar às zonas anteriores</button>' : ''}</div>
-        <p class="tiny dim" style="margin-top:8px">Quando o aluno corre um teste da biblioteca (30 min de Friel, VAM, velocidade crítica, Cooper, 2.400 m, 10 km ou FC máxima), as zonas se atualizam sozinhas com os dados do relógio.</p>`
+        <p class="tiny dim" style="margin-top:8px">Quando o aluno corre um teste da biblioteca (30 min de Friel, VAM, velocidade crítica, Cooper, 2.400 m, 10 km ou FC máxima), o resultado é calculado sozinho pelos dados do relógio e aparece aqui para você confirmar as zonas.</p>`
           : ''
       }
       ${
@@ -1558,7 +1558,45 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           : ''
       }`;
   }
-  box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${corpo}</div>`;
+  const tPend = staff && st.testesDe === alunoId ? st.testes || [] : [];
+  const avisoTeste = tPend.length
+    ? sub === 'ritmos' && SUBS.includes('ritmos')
+      ? testesPendentesHTML(m, tPend)
+      : SUBS.includes('ritmos')
+        ? `<button class="card tap tst-aviso" data-sub="ritmos">${I.check}<span class="grow"><b>${tPend.length > 1 ? `${tPend.length} testes para confirmar` : 'Teste feito: confirme as zonas'}</b><span class="small muted">Abrir Ritmos e zonas</span></span>${I.chev}</button>`
+        : ''
+    : '';
+  box.innerHTML = (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${avisoTeste}${corpo}</div>`;
+  box.querySelectorAll('.tst-aviso').forEach(
+    (b) =>
+      (b.onclick = () => {
+        st.sub = 'ritmos';
+        recarregar();
+      }),
+  );
+  box.querySelectorAll('[data-tst-ok],[data-tst-no],[data-tst-mao]').forEach((b) => {
+    b.onclick = async () => {
+      const x = tPend[+(b.dataset.tstOk || b.dataset.tstNo || b.dataset.tstMao)];
+      if (!x) return;
+      if (b.dataset.tstMao != null) return formTesteCampo(m, recarregar);
+      b.disabled = true;
+      try {
+        if (b.dataset.tstOk != null) await confirmarTeste(m, x);
+        else await descartarTeste(m, x);
+      } catch (e) {
+        console.error(e);
+        b.disabled = false;
+        return toast('Não foi possível salvar. Tente de novo.', true);
+      }
+      st.testes = tPend.filter((y) => y !== x);
+      toast(
+        b.dataset.tstOk != null
+          ? 'Zonas confirmadas. O aluno já vê os novos ritmos.'
+          : 'Teste descartado. As zonas continuam como estavam.',
+      );
+      recarregar();
+    };
+  });
   // sugestão de ciclo pela ficha de entrada (as zonas continuam vindo do teste), enquanto nenhum ciclo de corrida foi aplicado
   if (staff && sub === 'planilha')
     Promise.all([
@@ -1942,20 +1980,18 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             if (!b) return;
             const md = modelos.find((x) => x.id === b.dataset.pick);
             if (md && semCorrida(md)) {
-              const { error } = await sb
-                .from('nx_plano_corrida')
-                .insert({
-                  org_id: S.org.id,
-                  aluno_id: alunoId,
-                  data,
-                  tipo: md.tipo,
-                  titulo: md.nome,
-                  estrutura: [],
-                  distancia_km: 0,
-                  duracao_min: 0,
-                  zona: null,
-                  criado_por: S.user.id,
-                });
+              const { error } = await sb.from('nx_plano_corrida').insert({
+                org_id: S.org.id,
+                aluno_id: alunoId,
+                data,
+                tipo: md.tipo,
+                titulo: md.nome,
+                estrutura: [],
+                distancia_km: 0,
+                duracao_min: 0,
+                zona: null,
+                criado_por: S.user.id,
+              });
               closeSheet();
               return error
                 ? toast('Não foi possível salvar.', true)
@@ -2012,20 +2048,18 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             const md = modelos.find((x) => x.id === el.dataset.mod);
             if (!md) return;
             const rs = resumoEstrutura(md.estrutura, perfil);
-            const { error } = await sb
-              .from('nx_plano_corrida')
-              .insert({
-                org_id: S.org.id,
-                aluno_id: alunoId,
-                data,
-                tipo: md.tipo,
-                titulo: md.nome,
-                estrutura: md.estrutura,
-                distancia_km: Math.round(rs.km * 10) / 10,
-                duracao_min: Math.round(rs.seg / 60),
-                zona: null,
-                criado_por: S.user.id,
-              });
+            const { error } = await sb.from('nx_plano_corrida').insert({
+              org_id: S.org.id,
+              aluno_id: alunoId,
+              data,
+              tipo: md.tipo,
+              titulo: md.nome,
+              estrutura: md.estrutura,
+              distancia_km: Math.round(rs.km * 10) / 10,
+              duracao_min: Math.round(rs.seg / 60),
+              zona: null,
+              criado_por: S.user.id,
+            });
             error
               ? toast('Não foi possível adicionar.', true)
               : (toast(`${md.nome} em ${DIAS[dia(data).getDay()]} ${dia(data).getDate()}`), recarregar());
