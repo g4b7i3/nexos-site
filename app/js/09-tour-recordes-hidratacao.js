@@ -917,6 +917,7 @@ async function alunoHoje() {
       </div>
     </section>
     <div class="hoje-grid"><div class="hoje-main">
+    ${S.me.sexo === 'F' ? faseVidaCardHTML(S.me, false) : ''}
     <div id="momentos" class="stack mom-box"></div>
     <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="falta-pend"></div><div id="pront-pend"></div><div id="ck-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
     <div id="desafio-box"></div>

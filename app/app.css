@@ -3209,3 +3209,42 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .btn.carregando{opacity:.85;cursor:progress}
 .btn-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;display:inline-block;flex:0 0 auto;margin-right:8px;vertical-align:-3px;animation:btnGira .7s linear infinite}
 @keyframes btnGira{to{transform:rotate(360deg)}}
+/* saúde da atleta: energia (RED-S), fases da vida e ciclo × treino */
+.sa-card{display:flex;flex-direction:column}
+.sa-top{display:flex;align-items:center;gap:12px}
+.sa-ic{flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc)}
+.sa-ic svg{width:22px;height:22px}
+.sa-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sa-txt b{font-size:1rem;line-height:1.25}
+.sa-txt>span:not(.eyebrow){font-size:.84rem;color:var(--mute);line-height:1.35}
+.red-atencao{border:1px solid color-mix(in srgb,#f59e0b 55%,var(--line))}
+.red-atencao .sa-ic{background:color-mix(in srgb,#f59e0b 16%,transparent);color:#d97706}
+.red-alerta{border:1px solid color-mix(in srgb,var(--err,#e5484d) 55%,var(--line))}
+.red-alerta .sa-ic{background:color-mix(in srgb,var(--err,#e5484d) 16%,transparent);color:var(--err,#e5484d)}
+.red-lista{margin-top:12px;display:flex;flex-direction:column}
+.red-l{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+.red-l i{flex:0 0 auto;width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--line)}
+.red-l.ok i{background:var(--ok,#22c55e)}
+.red-l.alerta i{background:var(--err,#e5484d);box-shadow:0 0 0 4px color-mix(in srgb,var(--err,#e5484d) 18%,transparent)}
+.red-l div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.red-l b{font-size:.88rem}
+.red-l span{font-size:.82rem;color:var(--mute);line-height:1.4}
+.red-l.alerta span{color:var(--ink)}
+.red-acao{margin-top:12px;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,var(--acc) 7%,transparent)}
+.red-acao .sug-lista{margin-top:8px}
+.fv-etapa{margin-top:12px;display:inline-flex;align-self:flex-start;font-size:.78rem;font-weight:800;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
+.fv-parar{margin-top:12px;padding:12px 14px;border-radius:14px;border:1px solid color-mix(in srgb,var(--err,#e5484d) 40%,transparent);background:color-mix(in srgb,var(--err,#e5484d) 7%,transparent);font-size:.86rem}
+.fv-parar b{color:var(--err,#e5484d)}
+.fv-parar ul{margin:6px 0 0 18px;display:grid;gap:3px}
+.fv-opcoes{display:flex;flex-wrap:wrap;gap:8px}
+.ct-tab{margin-top:12px;overflow-x:auto}
+.ct-l{display:grid;grid-template-columns:minmax(0,1.35fr) repeat(4,minmax(0,1fr));gap:4px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:.82rem}
+.ct-l>span{display:flex;flex-direction:column;min-width:0}
+.ct-l>span small{font-size:.7rem;color:var(--mute)}
+.ct-l em{font-style:normal;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;padding:4px 0;border-radius:8px}
+.ct-l em.bom{background:color-mix(in srgb,var(--ok,#22c55e) 18%,transparent);color:var(--ok,#15803d)}
+.ct-l em.ruim{background:color-mix(in srgb,#f59e0b 18%,transparent);color:#b45309}
+.ct-h{border-top:0;padding-top:0}
+.ct-h em{font-size:.66rem;font-weight:800;color:var(--ink);border-bottom:3px solid var(--cf);border-radius:0;padding-bottom:6px}
+.card.sa-aviso{display:flex;align-items:center;gap:12px;margin-top:14px;border:1px solid color-mix(in srgb,var(--err,#e5484d) 50%,var(--line))}
+.sa-aviso .sa-ic{background:color-mix(in srgb,var(--err,#e5484d) 16%,transparent);color:var(--err,#e5484d)}

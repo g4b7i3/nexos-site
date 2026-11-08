@@ -175,21 +175,19 @@ function ativarCiclo(depois) {
           return toast('Confira a data do início da última menstruação.', true);
         }
         const agora = new Date().toISOString();
-        const { error } = await sb
-          .from('nx_ciclo')
-          .upsert(
-            {
-              aluno_id: S.user.id,
-              org_id: S.org.id,
-              ativo: true,
-              situacao: sit,
-              duracao_ciclo: cl,
-              duracao_menstr: dm,
-              consentimento_em: agora,
-              atualizado_em: agora,
-            },
-            { onConflict: 'aluno_id' },
-          );
+        const { error } = await sb.from('nx_ciclo').upsert(
+          {
+            aluno_id: S.user.id,
+            org_id: S.org.id,
+            ativo: true,
+            situacao: sit,
+            duracao_ciclo: cl,
+            duracao_menstr: dm,
+            consentimento_em: agora,
+            atualizado_em: agora,
+          },
+          { onConflict: 'aluno_id' },
+        );
         if (error) {
           b.disabled = false;
           return toast('Não foi possível ativar agora.', true);
@@ -885,6 +883,7 @@ async function viewCicloAluna(mesSel) {
       }
       ${topS.length ? `<div class="card" style="margin-top:10px"><b class="small">Sintomas mais frequentes (90 dias)</b><div class="cic-hist">${topS.map(([k, n]) => `<div><span class="tiny dim">${esc(nomeSint(k))}</span><i style="width:${(n / maxS) * 100}%;background:${CIC_ROSA}"></i><b class="tiny">${n}x</b></div>`).join('')}</div></div>` : ''}</div>
     ${padroesCicloHTML(c, dias, prontsC, inf)}
+    ${!inf.semFase ? '<div class="section" id="cic-treino" hidden><div class="section-h"><h2 class="h2">Seu ciclo e o treino</h2></div><div id="cic-treino-c"></div></div>' : ''}
     ${!inf.semFase ? hormoniosHTML(inf) : ''}
     ${autocuidadoHTML()}
     <div class="section"><div class="section-h"><h2 class="h2">Configurações</h2></div><div class="stack">
@@ -912,6 +911,16 @@ async function viewCicloAluna(mesSel) {
       (b) => (b.onclick = () => registrarDiaCiclo(c, b.dataset.dia, () => viewCicloAluna(verAno ? 'ano' : mesK))),
     );
   bindAutocuidado();
+  // o ciclo cruzado com os treinos dela (energia, sono, dor, esforço e eficiência em cada fase)
+  if (document.getElementById('cic-treino'))
+    cicloTreinoDados(S.user.id, c)
+      .then((F) => {
+        const sec = document.getElementById('cic-treino');
+        if (!sec || !F) return;
+        document.getElementById('cic-treino-c').innerHTML = cicloTreinoHTML(F, true);
+        sec.hidden = false;
+      })
+      .catch(() => {});
 }
 
 /** visão do ano: 12 meses pequenos com menstruação registrada e prevista */

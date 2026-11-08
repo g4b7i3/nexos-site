@@ -692,6 +692,13 @@ async function staffAluno(alunoId, aba, extra) {
     ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],
     ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? 'PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
     [
+      'energia',
+      'Saúde da atleta',
+      ENERGIA_IC,
+      m.sexo === 'F' ? 'Energia, ciclo e fases da vida' : 'Sinais de baixa energia',
+      true,
+    ],
+    [
       'conversa',
       'Conversa',
       I.feed,
@@ -730,6 +737,7 @@ async function staffAluno(alunoId, aba, extra) {
       <div class="card ov-card"><div class="row between"><b>Engajamento</b><span class="tag ${st[1]}">${st[0]}</span></div>
         <div class="ov-num"><div><span>Último treino há</span><b>${diasSem == null ? '–' : diasSem === 0 ? 'hoje' : diasSem + (diasSem === 1 ? ' dia' : ' dias')}</b></div><div><span>Frequência média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x semana</b></div></div></div>
       ${diasSem != null && diasSem >= RESGATE_DIAS ? `<button class="list-item resg-item" id="al-resg" data-dias="${diasSem}" style="width:100%;text-align:left"><span class="ativ-ic wa">${I.wa}</span><div class="grow"><b>Mandar mensagem de resgate</b><div class="small muted">Sem treinar há ${diasSem} dias · texto pronto para o WhatsApp</div></div>${I.chev}</button>` : ''}
+      <div id="energia-al"></div>
       <div id="meta-al" style="margin-top:14px"></div>
       <div class="sec-grid">${SECOES.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`;
   } else if (aba === 'relmes') {
@@ -841,6 +849,8 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = '<div id="corr"></div>';
   } else if (aba === 'fotos') {
     corpo = '<div id="fotos"></div>';
+  } else if (aba === 'energia') {
+    corpo = '<div id="saude-at" class="stack"></div>';
   } else if (aba === 'saude') {
     termo =
       (
@@ -896,6 +906,17 @@ async function staffAluno(alunoId, aba, extra) {
       <div class="sec-tit"><span class="st-ic">${secAtual ? secAtual[2] : I.user}</span><div><p class="eyebrow">${esc(firstName(m.nome))}</p><h1 class="h2">${secAtual ? secAtual[1] : 'Aluno'}</h1></div></div>
       <div class="stack">${corpo}</div>`;
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
+  if (aba === 'energia') viewSaudeAtleta(document.getElementById('saude-at'), m).catch((e) => console.error(e));
+  // aviso no início da ficha quando aparecem 2 ou mais sinais de baixa energia
+  if (aba === 'inicio')
+    sinaisEnergia([alunoId])
+      .then((r) => {
+        const x = r[alunoId],
+          el = document.getElementById('energia-al');
+        if (!x || x.n < 2 || !el) return;
+        el.innerHTML = `<a class="card sa-aviso" href="#/aluno/${alunoId}/energia" style="color:inherit"><span class="sa-ic">${ENERGIA_IC}</span><span class="sa-txt"><b>${x.n} sinais de baixa energia</b><span>Veja em Saúde da atleta o que apareceu e o que fazer</span></span>${I.chev}</a>`;
+      })
+      .catch(() => {});
   const tm = document.getElementById('treino-modelo');
   if (tm)
     tm.onclick = () =>
@@ -1595,16 +1616,14 @@ function salvarComoModelo(t) {
     (r) => {
       r.querySelector('#f-sm').onsubmit = async (e) => {
         e.preventDefault();
-        const { error } = await sb
-          .from('nx_modelos_treino')
-          .insert({
-            org_id: S.org.id,
-            nome: e.target.nome.value.trim(),
-            foco: t.foco.trim() || null,
-            observacoes: t.observacoes.trim() || null,
-            itens: itensLimpos(t.itens),
-            criado_por: S.user.id,
-          });
+        const { error } = await sb.from('nx_modelos_treino').insert({
+          org_id: S.org.id,
+          nome: e.target.nome.value.trim(),
+          foco: t.foco.trim() || null,
+          observacoes: t.observacoes.trim() || null,
+          itens: itensLimpos(t.itens),
+          criado_por: S.user.id,
+        });
         if (error) return toast('Não foi possível salvar o modelo.', true);
         closeSheet();
         toast('Modelo salvo na biblioteca!');

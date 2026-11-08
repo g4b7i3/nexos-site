@@ -478,6 +478,7 @@ async function staffHoje() {
     <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
     <div id="cic-term"></div>
     <div id="testes-eq"></div>
+    <div id="energia-eq"></div>
     <div id="faltas-eq"></div>
     ${
       pendentes.length
@@ -572,6 +573,7 @@ async function staffHoje() {
     () => {},
   );
   faltasEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m])));
+  energiaEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m]))).catch((e) => console.error(e));
   testesPendentesEquipe([...vis])
     .then((ts) => {
       const box = document.getElementById('testes-eq');
