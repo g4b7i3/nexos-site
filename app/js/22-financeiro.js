@@ -197,18 +197,28 @@ async function gerarCobrancas(comp, base, soAluno) {
   return novas.length;
 }
 
+/* transparência entre os treinadores: só os totais do mês de cada um, sem nomes de alunos */
+function transparenciaEquipeHTML(equipe, comp) {
+  const ts = (equipe || []).filter((t) => t && t.nome);
+  if (ts.length < 2) return '';
+  const linha = (t) =>
+    `<div class="fin-eq-l"><div class="row between"><b>${esc(t.treinador_id === S.user.id ? 'Você' : t.nome.split(' ')[0])}</b><span class="small muted">${t.alunos} aluno${t.alunos === 1 ? '' : 's'} com mensalidade</span></div>
+    <div class="fin-tot mini"><div class="ok"><span>Recebido</span><b>${brl(+t.recebido)}</b></div><div><span>A receber</span><b>${brl(+t.a_receber)}</b></div><div class="${+t.atrasado ? 'err' : ''}"><span>Atrasado</span><b>${brl(+t.atrasado)}</b></div></div></div>`;
+  return `<div class="card fin-eq"><p class="eyebrow">Transparência da equipe · ${esc(nomeMes(comp))}</p>
+    <p class="small muted">Os totais de cada treinador no mês. Os nomes dos alunos ficam só com o treinador de cada um.</p>
+    ${ts.map(linha).join('')}</div>`;
+}
+
 /* ---------- tela Financeiro (treinador) ---------- */
 async function staffFinanceiro() {
   loading();
   const st = S.cache.fin || (S.cache.fin = { comp: compDe(), filtro: 'todas' });
   const base = await carregarFinanceiroBase();
   await gerarCobrancas(st.comp, base);
-  const { data: cobsT } = await sb
-    .from('nx_cobrancas')
-    .select('*')
-    .eq('org_id', S.org.id)
-    .eq('competencia', st.comp)
-    .order('vencimento');
+  const [{ data: cobsT }, { data: equipe }] = await Promise.all([
+    sb.from('nx_cobrancas').select('*').eq('org_id', S.org.id).eq('competencia', st.comp).order('vencimento'),
+    sb.rpc('nx_fin_resumo_equipe', { p_org: S.org.id, p_comp: st.comp }),
+  ]);
   const nome = Object.fromEntries(base.alunos.map((a) => [a.user_id, a]));
   const lista = (cobsT || []).filter((c) => c.status !== 'cancelada' && nome[c.aluno_id]);
   const tot = { pago: 0, aberto: 0, atraso: 0 };
@@ -257,7 +267,8 @@ async function staffFinanceiro() {
         })
         .join('') ||
       `<div class="empty"><div class="h3">${lista.length ? 'Nada neste filtro' : 'Nenhuma mensalidade neste mês'}</div><p class="small">${lista.length ? '' : base.planos.length ? 'Defina o plano dos alunos para as mensalidades aparecerem aqui.' : 'Comece criando os planos da Nexos.'}</p></div>`
-    }</div>`;
+    }</div>
+    ${transparenciaEquipeHTML(equipe, st.comp)}`;
   const ir = (n) => {
     st.comp = somaMes(st.comp, n);
     staffFinanceiro();

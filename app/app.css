@@ -610,6 +610,12 @@ body.arrastando #dock{display:none}
 .fin-tot b{font-family:var(--f-h);font-size:1.15rem}
 .fin-tot .ok b{color:var(--ok)} .fin-tot .err b{color:var(--err)}
 @media(max-width:420px){.fin-tot b{font-size:.98rem}}
+.fin-eq{margin-top:26px;display:flex;flex-direction:column;gap:12px}
+.fin-eq-l{border-top:1px solid var(--line);padding-top:12px}
+.fin-tot.mini{margin-top:8px;gap:8px}
+.fin-tot.mini div{padding:9px 8px;border-radius:12px;min-width:0}
+.fin-tot.mini b{font-size:clamp(.78rem,3.4vw,1rem);white-space:nowrap}
+.fin-tot.mini span{font-size:.7rem}
 .aviso-linha{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-top:12px;padding:12px 14px;border-radius:14px;background:rgba(var(--accCr),.08);border:1px solid rgba(var(--accCr),.25);color:var(--ink);font-size:.9rem}
 .aviso-linha svg{width:20px;height:20px;flex:none;color:var(--acc)}
 .aviso-linha span{flex:1}
