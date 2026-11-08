@@ -559,6 +559,7 @@ async function viewExecucao(treinoId, preview) {
   st.ser = st.ser || {};
   st.repsf = st.repsf || {};
   st.rir = st.rir || {};
+  st.pre = st.pre || {}; // cargas que vieram preenchidas pela sugestão (ainda não mexidas pelo aluno)
   if (!preview && !st.ini) {
     st.ini = new Date().toISOString();
     store.set(key, st);
@@ -577,6 +578,12 @@ async function viewExecucao(treinoId, preview) {
   const cargaHTML = (it) => {
     const prev = prevs[it.exercicio_id];
     const sg = (sug[it.id] = sugerirCarga(prev, numCarga(it.carga), fase, it, st.psr));
+    // o campo já vem com a carga sugerida; o aluno só mexe se quiser outra
+    if (!preview && sg && (st.cargas[it.id] == null || st.pre[it.id])) {
+      st.cargas[it.id] = String(sg.kg).replace('.', ',');
+      st.pre[it.id] = true;
+      store.set(key, st);
+    }
     const comCarga = !semCarga(it);
     // depois da carga: quantas repetições fez e quantas ainda conseguiria (é isso que ajusta as próximas cargas)
     const rirH = comCarga
@@ -712,6 +719,7 @@ async function viewExecucao(treinoId, preview) {
     const inp = e.target.closest('[data-carga]');
     if (!inp || preview) return;
     st.cargas[inp.dataset.carga] = inp.value;
+    delete st.pre[inp.dataset.carga];
     store.set(key, st);
   };
   $app.onclick = (e) => {
@@ -1266,7 +1274,8 @@ function abrirCheckin(t, itens, st, key, fase) {
             treino_item_id: it.id,
             exercicio_id: it.exercicio_id,
             exercicio_nome: (it.nx_exercicios || {}).nome || null,
-            carga_kg: numCarga(st.cargas[it.id]),
+            // carga só preenchida pela sugestão, num exercício que ele não fez, não vira registro
+            carga_kg: st.pre[it.id] && !st.feitos.includes(it.id) ? null : numCarga(st.cargas[it.id]),
             reps: (it._presc && it._presc.reps) || it.repeticoes || null,
             reps_feitas: parseInt(st.repsf[it.id], 10) > 0 ? Math.min(100, parseInt(st.repsf[it.id], 10)) : null,
             rir: st.rir[it.id] ?? null,
