@@ -485,10 +485,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saiuEm = Date.now();
   else if (versaoNova && saiuEm && Date.now() - saiuEm > 15000 && podeRecarregar()) location.reload();
 });
-function notificar(acao, id) {
+function notificar(acao, id, extra) {
   if (!id) return;
   try {
-    sb.functions.invoke('nx-push', { body: { acao, id } }).catch(() => {});
+    sb.functions.invoke('nx-push', { body: { acao, id, ...(extra || {}) } }).catch(() => {});
   } catch {}
 }
 const b64u = (s) => {

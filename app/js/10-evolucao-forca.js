@@ -436,7 +436,25 @@ const alvoDaFase = (fase, it, psr) => {
 };
 const cargaDoAlvo = (rm, a) => (a.pct ? rm * a.pct : (rm / (1 + (a.reps + a.rir) / 30)) * (a.fator || 1));
 /** sugestão: pelo RM estimado e pela fase; sem RM, usa a última carga, o esforço e a dor do último treino */
+/** recuperação baixa (PSR 4 ou menos): carga do dia ~10% mais leve (15% com 2 ou menos).
+   Na fase flexível e no deload a carga já vem mais leve, então não reduz de novo. */
+const PSR_BAIXA = 4;
+const psrReduz = (psr) => (psr == null || psr > PSR_BAIXA ? 0 : psr <= 2 ? 0.15 : 0.1);
 function sugerirCarga(prev, presc, fase, it, psr) {
+  const r = sugerirCargaBase(prev, presc, fase, it, psr);
+  const red = psrReduz(psr);
+  if (!r || !red || !(r.kg > 0) || fase === 'flexivel' || fase === 'deload') return r;
+  const p = passoCarga(r.kg);
+  const kg = Math.min(r.kg - p, arred(r.kg * (1 - red), p));
+  if (!(kg > 0)) return r;
+  return {
+    kg,
+    normal: r.kg,
+    leve: true,
+    motivo: `você chegou cansado (recuperação ${psr}/10): hoje cerca de ${Math.round(red * 100)}% mais leve. Num dia normal seria ${fmtKg(r.kg)}`,
+  };
+}
+function sugerirCargaBase(prev, presc, fase, it, psr) {
   const doTeste = !(prev && prev.rm) && it && +it.rm_est > 0;
   const rm = (prev && prev.rm) || (doTeste ? +it.rm_est : null);
   const last = prev && prev.carga_kg != null ? +prev.carga_kg : null;
@@ -602,7 +620,7 @@ async function viewExecucao(treinoId, preview) {
       <div class="load-info">
         ${prev ? `<span class="tiny muted">Última vez: <b>${fmtKg(prev.carga_kg)}</b>${prev.reps_feitas ? ` × ${prev.reps_feitas}` : ''} · ${quando(prev.criado_em)}</span>` : '<span class="tiny muted">Primeira vez registrando</span>'}
         ${fase && prevsFase[it.exercicio_id] ? `<span class="tiny fase-prev" style="--fc:${FASES_F[fase].cor}">Última semana de ${FASES_F[fase].n.toLowerCase()}: <b>${fmtKg(prevsFase[it.exercicio_id].carga_kg)}</b> · ${quando(prevsFase[it.exercicio_id].criado_em)}</span>` : ''}
-        ${sg ? `<button type="button" class="sug" data-sug="${it.id}" data-kg="${sg.kg}" title="${esc(sg.motivo)}">Sugerida <b>${fmtKg(sg.kg)}</b></button><span class="tiny dim">${esc(sg.motivo)}</span>` : ''}
+        ${sg ? `<button type="button" class="sug${sg.leve ? ' leve' : ''}" data-sug="${it.id}" data-kg="${sg.kg}" title="${esc(sg.motivo)}">Sugerida <b>${fmtKg(sg.kg)}</b></button><span class="tiny dim">${esc(sg.motivo)}</span>` : ''}
         ${rmV ? `<span class="tiny dim">Máximo estimado: ${fmtKg(rmV)}</span>` : ''}
       </div></div>${rirH}`;
   };
@@ -619,6 +637,7 @@ async function viewExecucao(treinoId, preview) {
         </div>
         <div class="progress"><i style="width:${pct}%"></i></div>
       </div>
+      ${!preview && st.psr != null && st.psr <= PSR_BAIXA ? `<div class="psr-leve"><b>Você chegou cansado hoje (recuperação ${st.psr}/10)</b><span>${fase === 'flexivel' || fase === 'deload' ? 'O treino de hoje já está na versão mais leve.' : `As cargas sugeridas já vieram cerca de ${Math.round(psrReduz(st.psr) * 100)}% mais leves.`} Capriche na técnica e pare se sentir dor. Seu treinador já foi avisado e pode ajustar o seu treino.</span></div>` : ''}
       ${t._pausados && t._pausados.length ? `<div class="aj-pausa">${I.alerta || ''}<span><b>Pausado pelo treinador nesta semana:</b> ${esc(t._pausados.join(', '))}. Pule ${t._pausados.length > 1 ? 'esses exercícios' : 'esse exercício'}.</span></div>` : ''}
       ${fase && S.staff ? faseCardHTML(fase, (FASES_F[fInfo.fase] && fInfo.n > 1 ? `<span class="tiny fase-sem">Semana ${fInfo.k} de ${fInfo.n} deste bloco${PRESC_F[fase] && PRESC_F[fase].reps ? `: ${prescTxt(prescSemana(fase, fInfo.k, { series: 3 }, st.psr) || {})}` : ''}</span>` : '') + (st.psr != null ? `<span class="tiny" style="display:block;margin-top:6px">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></span>` : '')) : st.psr != null ? `<p class="small muted">Recuperação hoje: <b style="color:${psrCor(st.psr)}">${st.psr}/10 · ${PSR_TXT(st.psr)}</b></p>` : ''}
       ${t.observacoes ? `<div class="card" style="border-color:rgba(70,214,255,.3)"><span class="eyebrow">Recado do treinador</span><p style="margin-top:6px">${esc(t.observacoes)}</p></div>` : ''}
@@ -695,6 +714,11 @@ async function viewExecucao(treinoId, preview) {
         r.querySelector('#psr-ok').onclick = () => {
           if (psr == null) return toast('Escolha de 0 a 10.', true);
           st.psr = psr;
+          // recuperação baixa: avisa o treinador uma vez por treino
+          if (psr <= PSR_BAIXA && !st.psrAvisado) {
+            st.psrAvisado = true;
+            notificar('recuperacao', t.id, { psr });
+          }
           store.set(key, st);
           closeSheet();
           const y = window.scrollY;

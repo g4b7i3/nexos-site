@@ -3294,3 +3294,6 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .ct-h em{font-size:.66rem;font-weight:800;color:var(--ink);border-bottom:3px solid var(--cf);border-radius:0;padding-bottom:6px}
 .card.sa-aviso{display:flex;align-items:center;gap:12px;margin-top:14px;border:1px solid color-mix(in srgb,var(--err,#e5484d) 50%,var(--line))}
 .sa-aviso .sa-ic{background:color-mix(in srgb,var(--err,#e5484d) 16%,transparent);color:var(--err,#e5484d)}
+.psr-leve{display:flex;flex-direction:column;gap:4px;margin:12px 0;padding:12px 14px;border-radius:12px;background:rgba(255,159,67,.14);border:1px solid rgba(255,159,67,.35);font-size:.88rem}
+.psr-leve b{color:#f08a32}
+.sug.leve{border-color:rgba(255,159,67,.5)}
