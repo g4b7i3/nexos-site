@@ -678,6 +678,8 @@ async function staffAluno(alunoId, aba, extra) {
       : null;
   let grupos = [];
   const u = sess[0];
+  // último treino: musculação ou corrida, o que for mais recente (aluno só de corrida não tem sessão de força)
+  const ultT = [u && u.iniciado_em, ...(corrRec || []).map((x) => x.data)].filter(Boolean).sort().pop() || null;
   let corpo = '';
   const fM = faz('musculacao', m),
     fC = faz('corrida', m);
@@ -886,9 +888,9 @@ async function staffAluno(alunoId, aba, extra) {
   const secAtual = SECOES.find((x) => x[0] === aba);
   const cabecalho = `
     <a class="back" href="#/alunos">${I.back} Meus Atletas</a>
-    <div class="row" style="gap:16px">${avAluno(m, 'lg ' + (u && diasDesde(u.iniciado_em) <= 3 ? 'st-ok' : u && diasDesde(u.iniciado_em) <= 7 ? 'st-warn' : ''))}
+    <div class="row" style="gap:16px">${avAluno(m, 'lg ' + (ultT && diasDesde(ultT) <= 3 ? 'st-ok' : ultT && diasDesde(ultT) <= 7 ? 'st-warn' : ''))}
       <div class="grow"><h1 class="h2">${esc(m.nome)}</h1><div class="small muted">${m.objetivo ? esc(m.objetivo) : 'Sem objetivo cadastrado'}</div>
-      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${u ? `<span class="tag">Último treino ${quando(u.iniciado_em)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</div></div></div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${ultT ? `<span class="tag">Último treino ${quando(ultT)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</div></div></div>
     ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">${icT(I.alerta, 'warn')}PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
 `;
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
