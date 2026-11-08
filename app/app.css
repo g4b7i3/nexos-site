@@ -3297,3 +3297,8 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .psr-leve{display:flex;flex-direction:column;gap:4px;margin:12px 0;padding:12px 14px;border-radius:12px;background:rgba(255,159,67,.14);border:1px solid rgba(255,159,67,.35);font-size:.88rem}
 .psr-leve b{color:#f08a32}
 .sug.leve{border-color:rgba(255,159,67,.5)}
+details.guia-niv>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.guia-niv>summary::-webkit-details-marker{display:none}
+details.guia-niv>summary::after{content:'ver dicas';font-size:.72rem;letter-spacing:0;text-transform:none;color:var(--acc,#1a8fe0);font-weight:700}
+details.guia-niv[open]>summary::after{content:'fechar'}
+details.guia-niv:not([open]){padding-top:12px;padding-bottom:12px}

@@ -89,9 +89,7 @@ const gpsDist = (a, b) => {
 // lista: os treinos da semana para escolher e fazer pelo celular
 function viewGpsLista() {
   const sv = gpsSalvo();
-  location.replace(
-    location.pathname + location.search + (sv ? `#/gps/${sv.id}${sv.est ? '/esteira' : ''}` : '#/gps/livre'),
-  );
+  trocarRota(location.pathname + location.search + (sv ? `#/gps/${sv.id}${sv.est ? '/esteira' : ''}` : '#/gps/livre'));
 }
 
 // tela do treino

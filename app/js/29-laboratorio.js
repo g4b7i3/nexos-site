@@ -1834,22 +1834,27 @@ function staffMais() {
       );
   const it = (href, ic, t, d) =>
     `<a class="list-item" href="${href}" style="color:inherit"><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
+  // agrupado pelo que o treinador quer fazer: acompanhar os alunos, falar com a equipe, cuidar da assessoria
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Gestão da assessoria</h1>
-    <div class="stack" style="margin-top:16px">
-      ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
-      ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
-      ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
-      ${it('#/checkup', I.check, 'Check-up do Corredor', 'Avaliação de entrada e saída: Pré-temporada, aluno novo, ciclo de prova')}
-      ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
-      ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
+    <p class="sec-lbl">Acompanhar os alunos</p><div class="stack">
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}
+      ${it('#/checkup', I.check, 'Check-up do Corredor', 'Avaliação de entrada e saída: pré-temporada, aluno novo, ciclo de prova')}
       ${it('#/relogios', I.watch, 'Relógios dos alunos', 'Quem está conectado, por onde e qual o modelo do relógio')}
-      ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
+    </div>
+    <p class="sec-lbl">Equipe e comunicação</p><div class="stack">
+      ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
+      ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
+      ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
+      ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
+    </div>
+    <p class="sec-lbl">Assessoria</p><div class="stack">
+      ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}
-      ${it('/treinador/ajuda/', I.ficha, 'Central de ajuda', 'Tutoriais passo a passo da área do treinador')}
+      ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
     </div>
     <p class="sec-lbl">Ajuda</p><div class="stack">
+      ${it('/treinador/ajuda/', I.ficha, 'Central de ajuda', 'Tutoriais passo a passo da área do treinador')}
       <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo painel</b><div class="small muted">Um passeio rápido por tudo o que o painel do treinador faz</div></div>${I.chev}</button>
     </div>`;
   document.getElementById('mais-tour').onclick = () => iniciarTour();
@@ -1923,11 +1928,12 @@ async function staffBiblioteca(aba) {
       $app.innerHTML = `<p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('musculacao')}
         <p class="muted small">Biblioteca de força da Nexos por nível e objetivo, montada com as recomendações mais recentes (posição do ACSM de 2026 e meta-análises de 2021 a 2026). Aplique o programa inteiro a um aluno ou salve nos seus modelos para ajustar.</p>
         <a class="card tap cic-cta" href="#/treinos/ciclos-forca" style="color:inherit"><span class="ativ-ic">${I.cal}</span><div class="grow"><b>Ciclos de força (periodização)</b><div class="small muted">Linear, linear reverso, ondulatório semanal e diário, blocos e macrociclo de 6 meses. Aplica as fases semana a semana no aluno.</div></div>${I.chev}</a>
+        <button type="button" class="card tap cic-cta" id="bib-prog" style="color:inherit;width:100%;text-align:left"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>Programas prontos (treinos + ciclo)</b><div class="small muted">Glúteo em Foco, Hipertrofia Estética, Push/Pull/Legs e mais, de 4 ou 12 semanas. Escolha o aluno e aplique tudo de uma vez.</div></div>${I.chev}</button>
         <div class="niv-tabs niv-f" id="fniv">${[...NIVEIS_FORCA, ['meus', 'Meus modelos']].map(([k, l]) => `<button type="button" class="${sel === k ? 'on' : ''}" data-fniv="${k}"><b>${l}</b><span>${cont(k)} ${k === 'meus' ? 'modelos' : 'programas'}</span></button>`).join('')}</div>
         ${
           meus
             ? `<div class="cols" style="margin-top:16px" id="mods">${mods.map(cardMeu).join('') || '<div class="empty" style="grid-column:1/-1"><div class="h3">Nenhum modelo ainda</div><p class="small">Crie no + ou salve um programa da biblioteca para ajustar do seu jeito.</p></div>'}</div>`
-            : `<div class="card guia-niv"><span class="eyebrow">Como montar · ${nomeNiv[sel]}</span><ul>${GUIA_FORCA[sel].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
+            : `<details class="card guia-niv"><summary class="eyebrow">Como montar · ${nomeNiv[sel]}</summary><ul>${GUIA_FORCA[sel].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></details>
         <div class="chips" id="fcat" style="margin-top:14px">${[['todos', 'Todos os objetivos'], ...CATS_FORCA].map(([k, l]) => `<button class="chip ${st.cat === k ? 'on' : ''}" data-fcat="${k}">${l}</button>`).join('')}</div>
         <div class="cols" style="margin-top:16px">${lista.map(cardProg).join('')}</div>
         <p class="tiny dim" style="margin-top:18px">Bases: ACSM 2026 (Currier et al., Med Sci Sports Exerc); Robinson 2024 e Pelland 2026 (Sports Med); Singer 2024; Wolf 2023; Maeo 2021 e 2022; Plotkin 2023; Wewege 2021; Llanos-Lagos 2024; Lauersen 2014; Rønnestad 2011; Iversen 2021; Sødal 2023; van Dyk 2019; Harøy 2019; Watson 2018 (LIFTMOR); Su 2023; Hayden 2021 (Cochrane).</p>`
@@ -1936,6 +1942,7 @@ async function staffBiblioteca(aba) {
     };
     desenhar();
     $app.onclick = async (e) => {
+      if (e.target.closest('#bib-prog')) return bibliotecaForca({ aba: 'programas' });
       const nv = e.target.closest('[data-fniv]');
       if (nv) {
         st.niv = nv.dataset.fniv;

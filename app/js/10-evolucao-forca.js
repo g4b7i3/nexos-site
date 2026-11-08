@@ -254,7 +254,7 @@ async function alunoHistorico(aba) {
     $app.innerHTML = head + '<div id="corr"></div>';
     bindTabs();
     if (/\/(garmin-ok|garmin-erro|ok|erro)$/.test(location.hash)) {
-      location.replace(location.pathname + '#/conexoes/' + location.hash.split('/').pop());
+      trocarRota(location.pathname + '#/conexoes/' + location.hash.split('/').pop());
       return;
     }
     if (/\/garmin-(ok|erro)$/.test(location.hash)) {

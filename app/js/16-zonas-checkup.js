@@ -1016,7 +1016,7 @@ async function ckResponder(id) {
     return;
   }
   if (r.status === 'confirmado') {
-    location.replace('#/checkup');
+    trocarRota('#/checkup');
     return;
   }
   const p = r.pedido || {},

@@ -436,6 +436,8 @@ window.addEventListener('popstate', () => {
     return;
   }
   if (!$sheet.hidden) closeSheet(true);
+  // passo de um painel que já foi fechado (ex.: saiu da tela pelo painel): o voltar pula direto para a tela anterior
+  else if (history.state && history.state.nxPainel) history.back();
 });
 // arrastar o painel para baixo fecha (quando ele está no topo)
 (() => {
@@ -914,7 +916,146 @@ function loading() {
   $app.innerHTML = `<div class="sk-pag" aria-busy="true" aria-label="Carregando">${sk('sk-ey')}${sk('sk-h1')}<div class="sk-tiles">${sk('sk-tile')}${sk('sk-tile')}${sk('sk-tile')}</div>${skLinha(4)}</div>`;
 }
 
+/* ---------- navegação: o "voltar" leva para a tela de onde a pessoa veio ----------
+   Cada passo do histórico recebe um id (history.state.nxId) e o app guarda a pilha das telas abertas.
+   - Trocar de aba dentro da mesma tela não soma passo: o voltar sai da tela.
+   - Voltar para uma tela que já estava aberta (ex.: salvar o treino e cair no aluno) corta o que veio depois.
+   - O botão de voltar do app faz o mesmo que o voltar do celular e mostra o nome da tela anterior. */
+const NAV_RAIZ = {
+  '': 'Hoje',
+  sistema: 'Sistema',
+  alunos: 'Meus Atletas',
+  mensagens: 'Mensagens',
+  treinos: 'Treinos',
+  laboratorio: 'Laboratório',
+  aprimoramento: 'Aprimoramento',
+  mais: 'Mais',
+  historico: 'Evolução',
+  planilha: 'Planilha',
+  conversa: 'Treinador',
+  eventos: 'Eventos',
+  conexoes: 'Conexões',
+};
+const NAV_NOME = {
+  ...NAV_RAIZ,
+  feed: 'Feedbacks',
+  financeiro: 'Financeiro',
+  perfil: 'Perfil',
+  notificacoes: 'Notificações',
+};
+const navLer = (k, v) => {
+  try {
+    return JSON.parse(sessionStorage.getItem(k)) || v;
+  } catch {
+    return v;
+  }
+};
+let navPilha = navLer('nx-nav', []);
+const navFora = new Set(navLer('nx-nav-fora', []));
+let navTroca = false;
+let navMostrada = null;
+const navGuardar = () => {
+  try {
+    sessionStorage.setItem('nx-nav', JSON.stringify(navPilha.slice(-40)));
+    sessionStorage.setItem('nx-nav-fora', JSON.stringify([...navFora].slice(-200)));
+  } catch {}
+};
+const navHash = () => location.hash.replace(/^#\/?/, '').replace(/\/+$/, '');
+// a planilha (corrida e força) e a ficha do aluno são a mesma tela para o voltar
+const navFamilia = (h) => {
+  const m = h.match(/^aluno\/([^/]+)(?:\/(inicio|corrida|forca))?$/);
+  return m ? 'aluno/' + m[1] : h;
+};
+/** troca a tela atual sem criar um passo no histórico (funciona também na Área do treinador, que usa <base>) */
+function trocarRota(h) {
+  const i = String(h).indexOf('#');
+  const alvo = i >= 0 ? String(h).slice(i) : '#/';
+  if (alvo !== location.hash) navTroca = true;
+  location.replace(location.pathname + location.search + alvo);
+}
+function navTitulo(h) {
+  if (NAV_NOME[h] != null) return NAV_NOME[h];
+  const el = $app.querySelector('h1, .h1, .h2');
+  const t = el ? el.textContent.trim().replace(/\s+/g, ' ') : '';
+  return t.length > 28 ? t.slice(0, 27) + '…' : t;
+}
+// devolve false quando o passo deve ser pulado (já foi deixado para trás)
+function navRegistrar() {
+  const h = navHash();
+  const st = history.state || {};
+  const troca = navTroca;
+  navTroca = false;
+  const topo = navPilha[navPilha.length - 1];
+  if (topo && topo.h === navMostrada && $app.firstElementChild && !$app.querySelector('.sk-pag'))
+    topo.t = navTitulo(navMostrada) || topo.t;
+  if (st.nxId) {
+    if (navFora.has(st.nxId) && navPilha.length) {
+      history.back();
+      return false;
+    }
+    const i = navPilha.findIndex((x) => x.id === st.nxId);
+    if (i >= 0) {
+      navPilha = navPilha.slice(0, i + 1);
+      navPilha[i].h = h;
+    } else navPilha = [{ id: st.nxId, h }];
+  } else {
+    const id = Math.random().toString(36).slice(2, 10);
+    try {
+      history.replaceState({ ...st, nxId: id }, '');
+    } catch {}
+    const novo = { id, h };
+    const fam = navFamilia(h);
+    let j = -1;
+    for (let k = navPilha.length - 2; k >= 0; k--)
+      if (navFamilia(navPilha[k].h) === fam) {
+        j = k;
+        break;
+      }
+    if (NAV_RAIZ[h] != null) navPilha = [novo];
+    else if (troca && navPilha.length) {
+      navFora.add(navPilha.pop().id);
+      navPilha.push(novo);
+    } else if (j >= 0) {
+      navPilha.splice(j).forEach((x) => navFora.add(x.id));
+      navPilha.push(novo);
+    } else navPilha.push(novo);
+  }
+  navMostrada = h;
+  navGuardar();
+  return true;
+}
+// o botão de voltar mostra o nome da tela de onde a pessoa veio
+function navRotulo() {
+  const a = $app.querySelector('a.back');
+  if (!a || a.dataset.nxRot) return;
+  const prev = navPilha.length >= 2 && navPilha[navPilha.length - 2];
+  if (!prev) return;
+  const t = prev.t || NAV_NOME[prev.h] || (/^mensagens\//.test(prev.h) ? 'Conversa' : 'Voltar');
+  a.dataset.nxRot = '1';
+  a.innerHTML = `${I.back} ${esc(t)}`;
+}
+new MutationObserver(navRotulo).observe($app, { childList: true });
+// abas dentro da mesma tela não viram passo do histórico
+document.addEventListener(
+  'click',
+  (e) => {
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || e.metaKey || e.ctrlKey || a.target) return;
+    if (a.matches('a.back, a[aria-label="Voltar"]')) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      // passo de painel já fechado por cima da tela: volta dois passos
+      if (navPilha.length >= 2) history.go(history.state && history.state.nxPainel && $sheet.hidden ? -2 : -1);
+      else trocarRota(a.getAttribute('href'));
+      return;
+    }
+    if (a.closest('.subtabs, .tabs, .seg') && a.getAttribute('href') !== location.hash) navTroca = true;
+  },
+  true,
+);
+
 async function router() {
+  if (!navRegistrar()) return;
   closeSheet(true);
   stopRest();
   $app.onclick = null;
@@ -940,13 +1081,13 @@ async function router() {
       // computador: ao abrir a área do treinador, primeiro a tela do Sistema Nexos (uma vez por sessão)
       if (!a && ehDesk() && !sessionStorage.getItem('nx-hub')) {
         sessionStorage.setItem('nx-hub', '1');
-        location.replace(location.pathname + '#/sistema');
+        trocarRota(location.pathname + '#/sistema');
         return;
       }
       if (a === 'sistema') {
         sessionStorage.setItem('nx-hub', '1');
         if (!ehDesk()) {
-          location.replace(location.pathname + '#/');
+          trocarRota(location.pathname + '#/');
           return;
         }
         return staffSistema();
@@ -1029,7 +1170,7 @@ async function router() {
     if (a === 'conversa') return await viewConversa(S.user.id, $app, false);
     if (a === 'conexoes') return await viewConexoes(b);
     if (a === 'previsoes') {
-      location.replace('#/historico/previsoes');
+      trocarRota('#/historico/previsoes');
       return;
     }
     if (a === 'gps' && faz('corrida')) return b ? await viewGps(b, c) : await viewGpsLista();

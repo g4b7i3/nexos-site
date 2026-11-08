@@ -537,7 +537,7 @@ async function staffHoje() {
     })()}
     <div id="sug-hoje"></div>
     ${ehSeg ? '' : resumoHTML}
-    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Ver retornos</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center">${recentes.filter((x) => x.novo).length > 1 ? `<button type="button" class="link-btn" id="visto-todos">Visto em todos (${recentes.filter((x) => x.novo).length})</button>` : `<a class="link-btn" href="#/feed">Ver retornos</a>`}<button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
       <div id="ativ-corpo" ${store.get('nx_ativ_oculta', false) ? 'hidden' : ''}>${
         recentes.length
           ? `<div class="card ativ">${recentes
@@ -593,6 +593,31 @@ async function staffHoje() {
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
   atualizarSino();
+  // um toque marca todas as atividades novas como vistas (cada aluno recebe o aviso de que você analisou)
+  const vt = document.getElementById('visto-todos');
+  if (vt)
+    vt.onclick = async () => {
+      const novos = recentes.filter((x) => x.novo);
+      vt.disabled = true;
+      let ok = 0;
+      for (const x of novos) {
+        vt.textContent = `Marcando ${ok + 1} de ${novos.length}…`;
+        const { data, error } = await sb.functions
+          .invoke('nx-push', { body: { acao: 'visto', tipo: x.tp, id: x.id } })
+          .catch((er) => ({ error: er }));
+        if (!error && !(data && data.erro)) ok++;
+      }
+      toast(
+        ok === novos.length
+          ? `${ok} atividades marcadas como vistas.`
+          : `${ok} de ${novos.length} marcadas. Tente de novo nas que faltaram.`,
+        ok < novos.length,
+      );
+      contarNaoVistos()
+        .then(dockStaff)
+        .catch(() => {});
+      silencioso(() => staffHoje());
+    };
   $app.querySelectorAll('[data-visto]').forEach(
     (b) =>
       (b.onclick = (e) => {

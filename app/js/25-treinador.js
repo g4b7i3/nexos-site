@@ -715,6 +715,13 @@ async function staffAluno(alunoId, aba, extra) {
   let corpo = '';
   const fM = faz('musculacao', m),
     fC = faz('corrida', m);
+  // a ficha do aluno em grupos: o que prescrever, como ele está indo, saúde e contato
+  const GRUPOS_FICHA = [
+    ['Treinos', ['corrida', 'forca', 'historico', 'cargas']],
+    ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'fotos']],
+    ['Saúde', ['saude', 'energia']],
+    ['Contato e cadastro', ['conversa', 'dados']],
+  ];
   const SECOES = [
     ['forca', 'Força', I.lib, 'Planilha de musculação', fM],
     ['corrida', 'Corrida', icCorr(m), 'Planilha e evolução', fC],
@@ -773,7 +780,12 @@ async function staffAluno(alunoId, aba, extra) {
       ${diasSem != null && diasSem >= RESGATE_DIAS ? `<button class="list-item resg-item" id="al-resg" data-dias="${diasSem}" style="width:100%;text-align:left"><span class="ativ-ic wa">${I.wa}</span><div class="grow"><b>Mandar mensagem de resgate</b><div class="small muted">Sem treinar há ${diasSem} dias · texto pronto para o WhatsApp</div></div>${I.chev}</button>` : ''}
       <div id="energia-al"></div>
       <div id="meta-al" style="margin-top:14px"></div>
-      <div class="sec-grid">${SECOES.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`;
+      ${GRUPOS_FICHA.map(([tit, ks]) => {
+        const xs = ks.map((k) => SECOES.find((x) => x[0] === k)).filter(Boolean);
+        return xs.length
+          ? `<p class="sec-lbl">${tit}</p><div class="sec-grid">${xs.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`
+          : '';
+      }).join('')}`;
   } else if (aba === 'relmes') {
     corpo = '<div id="relm"></div>';
   } else if (aba === 'forca') {
@@ -1274,19 +1286,17 @@ async function staffAluno(alunoId, aba, extra) {
                               if (!q) return;
                               closeSheet();
                               if (q.dataset.qd === 'dia') {
-                                const { error } = await sb
-                                  .from('nx_forca_avulsos')
-                                  .upsert(
-                                    {
-                                      org_id: S.org.id,
-                                      aluno_id: alunoId,
-                                      semana: segF,
-                                      dia: d,
-                                      treino_id: t.id,
-                                      criado_por: S.user.id,
-                                    },
-                                    { onConflict: 'aluno_id,semana,dia,treino_id' },
-                                  );
+                                const { error } = await sb.from('nx_forca_avulsos').upsert(
+                                  {
+                                    org_id: S.org.id,
+                                    aluno_id: alunoId,
+                                    semana: segF,
+                                    dia: d,
+                                    treino_id: t.id,
+                                    criado_por: S.user.id,
+                                  },
+                                  { onConflict: 'aluno_id,semana,dia,treino_id' },
+                                );
                                 if (error) return toast('Não foi possível salvar.', true);
                                 toast(`${t.titulo} só em ${diaMes(dataDia)}.`);
                                 return re();

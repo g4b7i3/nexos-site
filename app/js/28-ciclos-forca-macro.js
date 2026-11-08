@@ -237,7 +237,7 @@ async function viewCiclosForca(id) {
 function viewCicloForca(id) {
   const c = CICLOS_FORCA.find((x) => x.id === id);
   if (!c) {
-    location.replace('#/treinos/ciclos-forca');
+    trocarRota('#/treinos/ciclos-forca');
     return;
   }
   const fs = cfFases(c);
@@ -1605,7 +1605,7 @@ function linhasCiclo(c, alunoId, perfil, ini, dL) {
 function viewTrilha(id, forca) {
   const t = (forca ? TRILHAS_FORCA : TRILHAS_CORR).find((x) => x.id === id);
   if (!t) {
-    location.replace(forca ? '#/treinos/ciclos-forca' : '#/treinos/ciclos');
+    trocarRota(forca ? '#/treinos/ciclos-forca' : '#/treinos/ciclos');
     return;
   }
   const cs = t.seq.map((x) => (forca ? CICLOS_FORCA : CICLOS_CORR).find((c) => c.id === x)).filter(Boolean);

@@ -1919,7 +1919,7 @@ const cicBarra = (S2) =>
 function viewCiclo(id) {
   const c = CICLOS_CORR.find((x) => x.id === id);
   if (!c) {
-    location.replace('#/treinos/ciclos');
+    trocarRota('#/treinos/ciclos');
     return;
   }
   const ehMod = !!c.mod;
