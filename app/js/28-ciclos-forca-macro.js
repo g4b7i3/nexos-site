@@ -279,6 +279,23 @@ function viewCicloForca(id) {
       .join('')}</div>`;
   document.getElementById('cf-apl').onclick = () => cfAplicar(c, fs);
 }
+/** grava as fases de força de um ciclo novo: tudo o que havia do início em diante sai (senão as semanas de um ciclo
+    aplicado antes continuavam depois do fim do novo), e a tela do aluno abre na semana em que o ciclo começa */
+async function gravarFasesForca(alunoId, rows) {
+  if (!rows.length) return;
+  const ini = rows.map((r) => r.semana).sort()[0];
+  const { error: e1 } = await sb.from('nx_forca_fases').delete().eq('aluno_id', alunoId).gte('semana', ini);
+  if (e1) throw e1;
+  const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' });
+  if (error) throw error;
+  abrirNaSemana(alunoId, ini);
+}
+/** a planilha (força e corrida) daquele aluno abre na semana indicada */
+function abrirNaSemana(alunoId, iniISO) {
+  const off = Math.round((dia(iniISO) - inicioSemana()) / 6048e5);
+  S.cache.fsem = { off: Math.max(0, off), aluno: alunoId };
+  S.cache.semCorr = { ...(S.cache.semCorr || { sub: 'planilha' }), aluno: alunoId, off: Math.max(0, off) };
+}
 /* ---------- treinos de força na semana ----------
    Os ciclos de força definem a fase de cada semana (faixa de repetições e carga). Os exercícios vêm dos treinos do
    aluno, que ficam em dias fixos. Quando o aluno ainda não tem treino de força em nenhum dia, o app monta os treinos
@@ -776,8 +793,9 @@ async function cfAplicar(c, fs) {
           d.setDate(d.getDate() + 7 * i);
           return { org_id: S.org.id, aluno_id: alunoId, semana: isoDia(d), fase, criado_por: S.user.id };
         });
-        const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' });
-        if (error) {
+        try {
+          await gravarFasesForca(alunoId, rows);
+        } catch (error) {
           console.error(error);
           b.disabled = false;
           return toast('Não foi possível aplicar. Tente de novo.', true);
@@ -1275,7 +1293,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
       <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${preT.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
       <p class="small" id="trl-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
-      ${forca ? escTreinosFHTML() : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>'}
+      ${forca ? escTreinosFHTML() : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>'}
       <button class="btn block" type="submit" style="margin-top:12px">Aplicar ${tot} semanas</button></form>`,
     (r) => {
       const f = r.querySelector('#f-trl');
@@ -1315,8 +1333,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
               registrarCiclo(alunoId, 'forca', c, ini, cicSem(c), t.id);
               ini.setDate(ini.getDate() + 7 * cicSem(c));
             });
-            const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' });
-            if (error) throw error;
+            await gravarFasesForca(alunoId, rows);
             extraF = await garantirTreinosForca(alunoId, ntf && ntf.valor());
           } else {
             const perfil = perfilCorrida(m || {}),
@@ -1332,8 +1349,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
                 .delete()
                 .eq('aluno_id', alunoId)
                 .eq('liberado', false)
-                .gte('data', isoDia(ini0))
-                .lte('data', isoDia(fimT));
+                .gte('data', isoDia(ini0));
               if (e1) throw e1;
             }
             for (let k = 0; k < rows.length; k += 150) {
@@ -1349,6 +1365,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
         }
         closeSheet(true);
         toast(`Trilha aplicada para ${firstName(m && m.nome)}: ${tot} semanas.${extraF ? ' ' + extraF : ''}`);
+        abrirNaSemana(alunoId, isoDia(ini0));
         location.hash = `#/aluno/${alunoId}/${forca ? 'forca' : 'corrida'}`;
       };
     },
@@ -1790,7 +1807,7 @@ async function viewMacro() {
           return `<a class="card tap mac-seg" href="#/treinos/ciclos/${s.c.id}" style="color:inherit;--fc:${MAC_COR[s.tipo]}"><div class="grow" style="min-width:0"><span class="eyebrow">${MAC_TIPO[s.tipo]} · semana${s.n > 1 ? 's' : ''} ${s.w0 + 1}${s.n > 1 ? '–' + (s.w0 + s.n) : ''}</span><b style="display:block;margin-top:2px">${esc(s.c.nome)}</b><span class="small muted">${fmtCurto(dataSem(s.w0))} a ${fmtCurto(somaDias(dataSem(s.w0 + s.n - 1), 6))} · ${s.n} semana${s.n > 1 ? 's' : ''}${s.from ? ` (a partir da ${s.from + 1}ª)` : ''}</span>${s.prova ? `<div class="mac-prova A">Prova A · ${esc(s.prova.nome || MAC_NOMED[s.prova.dist])} · ${fmtCurto(s.prova.data)}</div>` : ''}${bs.map((p) => `<div class="mac-prova">Prova ${p.pri} · ${esc(p.nome || MAC_NOMED[p.dist])} · ${fmtCurto(p.data)}</div>`).join('')}</div>${I.chev}</a>`;
         })
         .join('')}</div>
-      <label class="ck-check" style="margin-top:14px"><input type="checkbox" id="mac-limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>
+      <label class="ck-check" style="margin-top:14px"><input type="checkbox" id="mac-limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>
       <button class="btn block" id="mac-apl" style="margin-top:12px" ${st.aluno ? '' : 'disabled'}>${I.users} ${st.aluno ? `Aplicar as ${pl.total} semanas` : 'Escolha o aluno para aplicar'}</button>
       <p class="tiny dim" style="margin-top:8px">Nada é liberado para o aluno. Os treinos já liberados nunca são apagados. Os ritmos saem do perfil de corrida do aluno.</p>`
           : ''
@@ -1942,8 +1959,7 @@ async function viewMacro() {
           .delete()
           .eq('aluno_id', st.aluno)
           .eq('liberado', false)
-          .gte('data', isoDia(ini0))
-          .lte('data', isoDia(fim));
+          .gte('data', isoDia(ini0));
         if (e1) throw e1;
       }
       for (let k = 0; k < rows.length; k += 150) {
@@ -1961,8 +1977,7 @@ async function viewMacro() {
           d.setDate(d.getDate() + 7 * i);
           return { org_id: S.org.id, aluno_id: st.aluno, semana: isoDia(d), fase, criado_por: S.user.id };
         });
-        const { error: e3 } = await sb.from('nx_forca_fases').upsert(fs, { onConflict: 'aluno_id,semana' });
-        if (e3) throw e3;
+        await gravarFasesForca(st.aluno, fs);
         extraF = await garantirTreinosForca(st.aluno, st.ntf && st.ntf.valor());
         registrarCiclo(
           st.aluno,
@@ -1982,6 +1997,7 @@ async function viewMacro() {
     toast(
       `${rows.length} treinos montados para ${firstName(m && m.nome)} em ${pl.total} semanas. Libere semana a semana.${extraF ? ' Força: ' + extraF : ''}`,
     );
+    abrirNaSemana(st.aluno, isoDia(ini0));
     location.hash = `#/aluno/${st.aluno}/corrida`;
   }
   tela();

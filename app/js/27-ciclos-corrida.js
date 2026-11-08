@@ -1994,7 +1994,7 @@ async function cicAplicar(c, S2) {
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${pre.ini || prox}" required></label>
       <p class="small" id="cic-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
       <label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como no ciclo</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label>
-      <label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>
+      <label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>
       <p class="tiny dim" style="margin:8px 0 12px">Nada é liberado para o aluno. Os treinos já liberados nunca são apagados.</p>
       <button class="btn block" type="submit">Montar ${c.sem} semana${c.sem > 1 ? 's' : ''} na planilha</button></form>`,
     (r) => {
@@ -2034,8 +2034,7 @@ async function cicAplicar(c, S2) {
               .delete()
               .eq('aluno_id', alunoId)
               .eq('liberado', false)
-              .gte('data', isoDia(ini))
-              .lte('data', isoDia(fim));
+              .gte('data', isoDia(ini));
             if (e1) throw e1;
           }
           for (let k = 0; k < rows.length; k += 150) {
@@ -2051,6 +2050,7 @@ async function cicAplicar(c, S2) {
         registrarCiclo(alunoId, 'corrida', c, ini, c.sem);
         closeSheet(true);
         toast(`${rows.length} treinos montados para ${firstName(m && m.nome)}. Libere semana a semana.`);
+        abrirNaSemana(alunoId, isoDia(ini));
         location.hash = `#/aluno/${alunoId}/corrida`;
       };
     },

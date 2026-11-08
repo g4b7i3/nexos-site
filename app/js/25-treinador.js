@@ -778,7 +778,9 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = '<div id="relm"></div>';
   } else if (aba === 'forca') {
     const ultData = (t) => sess.filter((x) => x.treino_id === t.id);
-    const fst = S.cache.fsem || (S.cache.fsem = { off: 0 });
+    // a semana que está na tela é de cada aluno: trocar de aluno volta para esta semana
+    if (!S.cache.fsem || S.cache.fsem.aluno !== alunoId) S.cache.fsem = { off: 0, aluno: alunoId };
+    const fst = S.cache.fsem;
     const ini = inicioSemana();
     ini.setDate(ini.getDate() + fst.off * 7);
     const diasF = Array.from({ length: 7 }, (_, i) => {
