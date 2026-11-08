@@ -222,14 +222,46 @@ async function processarTestes(m) {
     .gte('data', isoDia(Date.now() - 45 * 864e5));
   const testes = (pl || []).map((p) => ({ p, tipo: tipoDoTeste(p) })).filter((x) => x.tipo);
   if (!testes.length) return [];
-  const { data: cs } = await sb
+  const COLS = 'id,data,tipo,titulo,distancia_m,duracao_s,fc_max,plano_id,analise';
+  const { data: ligadas } = await sb
     .from('nx_corridas')
-    .select('id,data,distancia_m,duracao_s,fc_max,plano_id,analise')
+    .select(COLS)
     .in(
       'plano_id',
       testes.map((x) => x.p.id),
     );
-  const novos = (cs || []).filter((c) => !feitos.has(c.id)).sort((a, b) => (a.data < b.data ? -1 : 1));
+  // caminhada nunca vale como teste (um aquecimento andando não pode ocupar o lugar dele)
+  const corre = (c) => ehCorr(c) && c.tipo !== 'caminhada';
+  const cs = (ligadas || []).filter(corre);
+  // teste feito em outro dia (até 3 dias depois), com "teste" no nome e sem treino ligado: liga ao teste
+  const semCorrida = testes.filter((x) => !cs.some((c) => c.plano_id === x.p.id));
+  if (semCorrida.length) {
+    const ini = semCorrida.reduce((m, x) => (x.p.data < m ? x.p.data : m), semCorrida[0].p.data);
+    const { data: soltas } = await sb
+      .from('nx_corridas')
+      .select(COLS)
+      .eq('aluno_id', alunoId)
+      .is('plano_id', null)
+      .gte('data', ini + 'T00:00:00')
+      .order('data');
+    for (const x of semCorrida) {
+      const ate = isoDia(Date.parse(x.p.data + 'T12:00:00') + 3 * 864e5);
+      const c = (soltas || []).find(
+        (c) =>
+          corre(c) &&
+          !c.plano_id &&
+          /teste/i.test(c.titulo || '') &&
+          isoDia(c.data) >= x.p.data &&
+          isoDia(c.data) <= ate,
+      );
+      if (!c) continue;
+      const { error } = await sb.from('nx_corridas').update({ plano_id: x.p.id }).eq('id', c.id);
+      if (error) continue;
+      c.plano_id = x.p.id;
+      cs.push(c);
+    }
+  }
+  const novos = cs.filter((c) => !feitos.has(c.id)).sort((a, b) => (a.data < b.data ? -1 : 1));
   const aplicados = [];
   for (const c of novos) {
     const t = testes.find((x) => x.p.id === c.plano_id);
@@ -847,21 +879,19 @@ function ckEnviar(m, fase, ciclo, entrada, depois) {
           return toast('Escolha pelo menos um teste.', true);
         const b = f.querySelector('button[type=submit]');
         b.disabled = true;
-        const { error } = await sb
-          .from('nx_checkups')
-          .upsert(
-            {
-              org_id: S.org.id,
-              aluno_id: m.user_id,
-              avaliador_id: S.user.id,
-              ciclo,
-              fase,
-              status: 'pedido',
-              pedido,
-              data: null,
-            },
-            { onConflict: 'aluno_id,ciclo,fase' },
-          );
+        const { error } = await sb.from('nx_checkups').upsert(
+          {
+            org_id: S.org.id,
+            aluno_id: m.user_id,
+            avaliador_id: S.user.id,
+            ciclo,
+            fase,
+            status: 'pedido',
+            pedido,
+            data: null,
+          },
+          { onConflict: 'aluno_id,ciclo,fase' },
+        );
         if (error) {
           console.error(error);
           b.disabled = false;
