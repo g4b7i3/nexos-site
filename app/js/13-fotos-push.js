@@ -466,17 +466,25 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     .catch(() => {}); // sempre procura versão nova do service worker
   navigator.serviceWorker.addEventListener('message', (e) => {
     if (e.data && e.data.nav) location.href = e.data.nav;
-    if (e.data && e.data.atualizado && !document.getElementById('nx-atual')) {
-      // versão nova baixada em segundo plano
-      const b = document.createElement('button');
-      b.id = 'nx-atual';
-      b.className = 'nx-atual';
-      b.innerHTML = 'Nova versão do app pronta · <b>Atualizar</b>';
-      b.onclick = () => location.reload();
-      document.body.append(b);
-    }
+    if (e.data && e.data.atualizado) versaoNova = true; // aplicada sozinha na próxima volta ao app
   });
 }
+// versão nova sem botão de atualizar: quem fecha e abre o app já recebe a versão nova; quem só deixou o app em
+// segundo plano recebe ao voltar depois de um tempo, desde que não esteja no meio de algo (treino pelo GPS,
+// formulário aberto, vídeo gravando ou digitando)
+let versaoNova = false,
+  saiuEm = 0;
+const podeRecarregar = () => {
+  const gps = store.get('nx-gps', null);
+  if (gps && (gps.estado === 'correndo' || gps.estado === 'pausado')) return false;
+  if (!$sheet.hidden || document.querySelector('.replay, .retro')) return false;
+  const a = document.activeElement;
+  return !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saiuEm = Date.now();
+  else if (versaoNova && saiuEm && Date.now() - saiuEm > 15000 && podeRecarregar()) location.reload();
+});
 function notificar(acao, id) {
   if (!id) return;
   try {

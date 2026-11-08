@@ -1,5 +1,6 @@
 /* Nexos App — service worker: notificações push (v3: só a logo na bolinha, sem imagem à direita) */
 // v4: guarda os arquivos do app no aparelho para abrir rápido mesmo com internet ruim
+// v5: o código do app vem sempre da internet primeiro (fechar e abrir já atualiza)
 const CACHE = 'nx-app-v1';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
@@ -29,15 +30,34 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (!ESTATICO.test(url.pathname)) return;
-  // arquivos (js, css, fontes, ícones): usa a cópia guardada na hora e atualiza por trás
+  // código do app (app/js e app.css): busca a versão nova primeiro, assim basta fechar e abrir o app para atualizar;
+  // se a internet demorar mais de 2,5 s ou faltar, abre com a cópia guardada
+  if (/\/app\/(app\.css|js\/[^/]+\.js)$/.test(url.pathname)) {
+    e.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const rede = fetch(req, { cache: 'no-cache' }).then(async (r) => {
+        if (r.ok && r.type === 'basic') {
+          const guardada = await cache.match(req, { ignoreSearch: true });
+          const mudou = guardada && guardada.headers.get('etag') && r.headers.get('etag') !== guardada.headers.get('etag');
+          await cache.put(req, r.clone());
+          if (mudou) avisar({ atualizado: true });
+        }
+        return r;
+      });
+      const guardada = await cache.match(req, { ignoreSearch: true });
+      if (!guardada) return rede;
+      const lento = new Promise((ok) => setTimeout(() => ok(guardada), 2500));
+      return Promise.race([rede.catch(() => guardada), lento]);
+    })());
+    return;
+  }
+  // demais arquivos (fontes, ícones, bibliotecas): usa a cópia guardada na hora e atualiza por trás
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const guardada = await cache.match(req, { ignoreSearch: true });
     const rede = fetch(req).then(async (r) => {
       if (r.ok && r.type === 'basic') {
-        const mudou = guardada && /\/app\/(app\.css|js\/[^/]+\.js)$/.test(url.pathname) && guardada.headers.get('etag') && r.headers.get('etag') !== guardada.headers.get('etag');
         await cache.put(req, r.clone());
-        if (mudou) avisar({ atualizado: true });
       }
       return r;
     });
