@@ -1177,14 +1177,33 @@ const registrarCiclo = (alunoId, tipo, c, ini, semanas, trilha) => {
     );
 };
 // linhas da planilha de corrida de um ciclo
-function linhasCiclo(c, alunoId, perfil, ini, dL) {
-  const rows = [];
-  cicSemanas(c).forEach((s, i) =>
-    s.sess.forEach(([d, t]) => {
+/** o ciclo do jeito que vai para este aluno: o dia do longão que o treinador escolheu e todas as conferências
+    (intensidade, longão, volume, sessão mais longa, dias seguidos) feitas de novo com o ritmo do próprio aluno.
+    Sem teste (treina por percepção de esforço), usa o ritmo médio do nível. */
+function ciclParaAluno(c, perfil, dL = 'pad') {
+  const pNiv = perfilNiv(c.niv),
+    proprio = perfil && perfil.paces && !perfil.pse,
+    pf = proprio ? perfil : pNiv;
+  const W = cicSemanas(c).map((s) => ({
+    ...s,
+    sess: s.sess.map(([d, t]) => {
       let dd = d;
       if (dL !== 'pad' && t.tipo === 'longao') dd = +dL;
       else if (dL !== 'pad' && t.tipo !== 'prova' && d === +dL && s.sess.some(([, x]) => x.tipo === 'longao'))
         dd = dL === '5' ? 6 : 5;
+      return [dd, t];
+    }),
+  }));
+  W.forEach((w) => w.sess.sort((a, b) => a[0] - b[0]));
+  const trail = ['trail', 'ultra'].includes(c.obj) || c.modo === 'trail';
+  if (proprio) ajustarCiencia(W, pf, c);
+  separarFortes(W, pf, trail);
+  return limitarCargas(W, pf);
+}
+function linhasCiclo(c, alunoId, perfil, ini, dL) {
+  const rows = [];
+  ciclParaAluno(c, perfil, dL).forEach((s, i) =>
+    s.sess.forEach(([dd, t]) => {
       const data = new Date(ini);
       data.setDate(data.getDate() + i * 7 + dd);
       const rs = resumoEstrutura(t.estrutura, perfil);
@@ -1618,8 +1637,12 @@ function semanasMacro(pl) {
   if (!pl.segs.length) return W;
   // depois de juntar os ciclos e encaixar as provas, revisa de novo: sessões-chave, longão e polimento de cada
   // prova principal, dias separados, volume e sessão mais longa
-  const niv = pl.niv || pl.segs[0].c.niv,
-    pf = perfilNiv(niv);
+  const niv = pl.niv || pl.segs[0].c.niv;
+  return revisarMacro(W, perfilNiv(niv), niv, pl);
+}
+// revisão do macrociclo (com o ritmo do nível, ou com o do aluno na hora de aplicar)
+function revisarMacro(W, pf, niv, pl) {
+  limitarZonas(W, pf);
   limitarFortes(W, pf, niv);
   limitarCargas(W, pf);
   revisarProvas(W, pf, { niv, asfalto: true, principais: pl.segs.filter((x) => x.prova).map((x) => x.prova.w) });
@@ -1872,9 +1895,19 @@ async function viewMacro() {
     const ini0 = inicioSemana(dia(st.ini)),
       pl = planoMacro(ini0, st.niv, st.provas);
     if (!pl.segs.length || !st.aluno) return;
-    const W = semanasMacro(pl),
-      m = alunos.find((x) => x.user_id === st.aluno),
+    const m = alunos.find((x) => x.user_id === st.aluno),
       perfil = perfilCorrida(m || {});
+    // com o ritmo do próprio aluno (quando ele tem teste), a revisão é refeita para ele
+    const W0 = semanasMacro(pl),
+      W =
+        perfil && perfil.paces && !perfil.pse
+          ? revisarMacro(
+              W0.map((w) => ({ ...w, sess: w.sess.map((x) => [...x]) })),
+              perfil,
+              st.niv,
+              pl,
+            )
+          : W0;
     b.disabled = true;
     b.textContent = 'Montando…';
     const rows = [];
