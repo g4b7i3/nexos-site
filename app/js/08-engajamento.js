@@ -1352,11 +1352,14 @@ function abrirReplay(c, perfil) {
       j = ser.t.findIndex((t) => t >= tk);
       if (j < 0) j = ser.t.length - 1;
     }
-    if (j >= 0 && ser.vel) {
+    // na chegada o vídeo para nos números do treino todo: pace médio (e não o do último trecho)
+    const final = k >= 0.999;
+    if (final) pc = dist > 50 ? dur / (dist / 1000) : pc;
+    else if (j >= 0 && ser.vel) {
       const vs = ser.vel.slice(Math.max(0, j - 3), j + 3).filter((v) => v > 0.8);
       if (vs.length) pc = 1000 / (vs.reduce((a, b) => a + b, 0) / vs.length);
     }
-    return { dk, tk, pc, j };
+    return { dk, tk, pc, j, final };
   };
   // ---------- detalhes: o aluno escolhe até 3 números para aparecer no vídeo ----------
   const temS = (k) => !!(ser && Array.isArray(ser[k]) && ser[k].some((v) => v != null && v > 0));
@@ -1447,7 +1450,13 @@ function abrirReplay(c, perfil) {
   // colunas na ordem da lista: [rótulo, valor, unidade]
   const colunas = (k) => {
     const q = vivo(k);
-    return DETALHES.filter((m) => det.includes(m.id)).map((m) => [m.n, ...m.v(q).map(String)]);
+    const MEDIA = { pace: 'Pace médio', vel: 'Vel. média', fc: 'FC média', cad: 'Cadência média' };
+    return DETALHES.filter((m) => det.includes(m.id)).map((m) => {
+      let v = m.v(q);
+      if (q.final && m.id === 'fc' && c.fc_media) v = [Math.round(c.fc_media), 'bpm'];
+      if (q.final && m.id === 'cad' && c.cadencia) v = [Math.round(c.cadencia), 'ppm'];
+      return [q.final && MEDIA[m.id] ? MEDIA[m.id] : m.n, ...v.map(String)];
+    });
   };
   // modo satélite (estilo dos vídeos de prova): mapa na tela inteira, números em cima, câmera de drone
   const desenhaSat = (k) => {
@@ -1762,8 +1771,21 @@ function abrirReplay(c, perfil) {
         x.drawImage(logo, ehSat() && d3 ? (W - w) / 2 : 90, 110, w, h);
       }
       if (k < 1) raf = requestAnimationFrame(f);
-      else if (d3 && ehSat()) fimSat(aoFim);
-      else if (aoFim) setTimeout(aoFim, 1500);
+      else if (d3 && ehSat()) {
+        // para um instante na chegada com o pace médio na tela, e só depois a câmera sobe para o final
+        const tP = performance.now();
+        const parado = (t2) => {
+          desenhaSat(1);
+          if (logo) {
+            const h = 48,
+              w = (logo.width / logo.height) * h;
+            x.drawImage(logo, (W - w) / 2, 110, w, h);
+          }
+          if (t2 - tP < 1800) raf = requestAnimationFrame(parado);
+          else fimSat(aoFim);
+        };
+        raf = requestAnimationFrame(parado);
+      } else if (aoFim) setTimeout(aoFim, 1500);
     };
     raf = requestAnimationFrame(f);
   };
