@@ -151,16 +151,27 @@ async function meuPix(forcar) {
 }
 /* ---------- geração das mensalidades do mês ---------- */
 async function carregarFinanceiroBase() {
-  const [{ data: planos }, { data: alunos }] = await Promise.all([
+  const [{ data: planos }, { data: alunos }, { data: fins }] = await Promise.all([
     sb.from('nx_planos').select('*').eq('org_id', S.org.id).eq('dono', S.user.id).order('valor'), // cada treinador com os próprios planos
     sb
       .from('nx_membros')
-      .select('user_id,nome,ativo,telefone,financeiro,treinador_id')
+      .select('user_id,nome,ativo,telefone,treinador_id')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .order('nome'),
+    sb.from('nx_alunos_fin').select('aluno_id,financeiro').eq('org_id', S.org.id), // o banco só entrega os dos próprios alunos
   ]);
-  return { planos: planos || [], alunos: (alunos || []).filter(ehMeuAluno) }; // financeiro de cada treinador: só os próprios alunos
+  const fin = Object.fromEntries((fins || []).map((f) => [f.aluno_id, f.financeiro]));
+  return {
+    planos: planos || [],
+    alunos: (alunos || []).filter(ehMeuAluno).map((a) => ({ ...a, financeiro: fin[a.user_id] || {} })),
+  }; // financeiro de cada treinador: só os próprios alunos
+}
+/** grava o plano do aluno (só o treinador dele consegue) */
+function salvarFinAluno(alunoId, financeiro) {
+  return sb
+    .from('nx_alunos_fin')
+    .upsert({ aluno_id: alunoId, org_id: S.org.id, financeiro, atualizado_em: new Date().toISOString() });
 }
 async function gerarCobrancas(comp, base, soAluno) {
   if (mesesEntre(compDe(), comp) > 1) return 0;
@@ -366,15 +377,10 @@ function bindLote(r, semPlano, base) {
     ok.textContent = 'Salvando…';
     const res = await Promise.all(
       ids.map((id) =>
-        sb
-          .from('nx_membros')
-          .update({ financeiro })
-          .eq('org_id', S.org.id)
-          .eq('user_id', id)
-          .then(
-            (x) => !x.error,
-            () => false,
-          ),
+        salvarFinAluno(id, financeiro).then(
+          (x) => !x.error,
+          () => false,
+        ),
       ),
     );
     const feitos = ids.filter((_, i) => res[i]);
@@ -649,7 +655,19 @@ function ajustesFinanceiro(base) {
 }
 /** cartão “Plano e pagamento” na aba Dados do aluno */
 async function planoDoAlunoHTML(m) {
+  // plano e mensalidades ficam só com o treinador do aluno
+  if (!ehMeuAluno(m))
+    return {
+      base: { planos: [], alunos: [] },
+      cobs: [],
+      auto: null,
+      valorPlano: 0,
+      mesesPlano: 1,
+      descPlano: '',
+      html: '',
+    };
   const base = await carregarFinanceiroBase();
+  m.financeiro = (base.alunos.find((a) => a.user_id === m.user_id) || {}).financeiro || {};
   const { data: cobs } = await sb
     .from('nx_cobrancas')
     .select('*')
@@ -709,11 +727,7 @@ function bindPlanoDoAluno(m, info, recarregar) {
         dia: dd,
         inicio: f.inicio.value || compDe(),
       };
-      const { error } = await sb
-        .from('nx_membros')
-        .update({ financeiro })
-        .eq('org_id', S.org.id)
-        .eq('user_id', m.user_id);
+      const { error } = await salvarFinAluno(m.user_id, financeiro);
       if (error) return toast('Não foi possível salvar.', true);
       m.financeiro = financeiro;
       const base = { ...info.base, alunos: [{ ...m, ativo: m.ativo }] };
