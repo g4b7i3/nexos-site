@@ -948,7 +948,7 @@ async function viewAguaAluno() {
     <div id="agua-box" class="agua-box" style="margin-top:16px"></div><div style="margin-top:14px">${h}</div>`;
   montarAgua(document.getElementById('agua-box'), 0).catch((e) => console.error(e));
 }
-async function viewProntAluno() {
+async function viewProntAluno(abrir) {
   loading();
   const [h, hoje] = await Promise.all([
     prontStaffHTML(S.me),
@@ -967,4 +967,6 @@ async function viewProntAluno() {
     ${hoje ? '' : `<button class="btn block" id="pr-agora" style="margin-top:16px">${PRONT_IC} Fazer o check-in de hoje</button>`}<div style="margin-top:16px">${h}</div>`;
   const b = document.getElementById('pr-agora');
   if (b) b.onclick = () => abrirProntidao(() => viewProntAluno());
+  // veio do lembrete do check-in: já abre as perguntas
+  if (b && abrir) b.click();
 }

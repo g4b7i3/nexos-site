@@ -1046,7 +1046,7 @@ async function router() {
     if (a === 'recordes') return await viewRecordes();
     if (a === 'agua') return await viewAguaAluno();
     if (a === 'ciclo') return await viewCicloAluna(b);
-    if (a === 'prontidao') return await viewProntAluno();
+    if (a === 'prontidao') return await viewProntAluno(b === 'agora');
     if (a === 'meta') return await viewMeta();
     if (a === 'notificacoes') return await viewNotificacoes();
     if (a === 'dicas') return await viewDicas(b);
