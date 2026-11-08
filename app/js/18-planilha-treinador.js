@@ -1167,6 +1167,65 @@ function forcaDiaHTML(fc, k, semana, staff) {
     })
     .join('');
 }
+/** antes de liberar uma semana à frente: mostra qual semana é e avisa se uma semana anterior ainda está em rascunho */
+async function confirmarLiberacao(alunoId, de, ate, dist) {
+  let antes = [];
+  if (dist >= 1) {
+    const { data } = await sb
+      .from('nx_plano_corrida')
+      .select('data')
+      .eq('org_id', S.org.id)
+      .eq('aluno_id', alunoId)
+      .eq('liberado', false)
+      .gte('data', hojeISO())
+      .lt('data', de)
+      .then(
+        (r) => r,
+        () => ({ data: [] }),
+      );
+    antes = [...new Set((data || []).map((p) => isoDia(inicioSemana(new Date(p.data + 'T12:00:00')))))].sort();
+  }
+  if (dist < 2 && !antes.length) return true;
+  const fmt = (iso) => diaMes(new Date(iso + 'T12:00:00'));
+  const fimDe = (iso) => {
+    const d = new Date(iso + 'T12:00:00');
+    d.setDate(d.getDate() + 6);
+    return diaMes(d);
+  };
+  return new Promise((ok) => {
+    let resp = false;
+    openSheet(
+      `<p class="eyebrow">Liberar semana</p><div class="h2" style="margin-top:4px">${semRel(dist)}</div>
+      <p class="muted" style="margin-top:4px">${fmt(de)} a ${fmt(ate)}</p>
+      ${
+        antes.length
+          ? `<div class="lib-aviso"><b>Atenção: ${antes.length > 1 ? 'há semanas anteriores ainda em rascunho' : 'a semana anterior ainda está em rascunho'}</b>${antes.map((s0) => `<span>${semRel(semDist(new Date(s0 + 'T12:00:00')))} · ${fmt(s0)} a ${fimDe(s0)}</span>`).join('')}<p>O normal é liberar uma semana de cada vez, na ordem. Confira se é esta mesmo que o aluno deve ver agora.</p></div>`
+          : `<div class="lib-aviso"><b>Esta semana ainda não chegou</b><p>Ela começa daqui a ${dist} semanas. Confira se é esta mesmo que o aluno deve ver agora.</p></div>`
+      }
+      <div class="grid2" style="margin-top:16px"><button class="btn ghost" data-close>Cancelar</button><button class="btn" id="lib-ok">Liberar mesmo assim</button></div>`,
+      (r) => {
+        document.addEventListener('nx:painel-fechado', () => ok(resp), { once: true });
+        r.querySelector('#lib-ok').onclick = () => {
+          resp = true;
+          closeSheet();
+        };
+      },
+    );
+  });
+}
+/** quantas semanas a semana que começa em s0 está de distância desta semana (0 = esta, 1 = próxima, -1 = passada) */
+const semDist = (s0) => Math.round((new Date(s0).setHours(12, 0, 0, 0) - inicioSemana().getTime()) / (7 * 864e5));
+const semRel = (n) =>
+  n === 0
+    ? 'Esta semana'
+    : n === 1
+      ? 'Próxima semana'
+      : n === -1
+        ? 'Semana passada'
+        : n > 1
+          ? `Daqui a ${n} semanas`
+          : `Há ${-n} semanas`;
+const diaMes = (d) => `${d.getDate()}/${d.getMonth() + 1}`;
 function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null, fc = null, ciclo = null) {
   const corridas = ativs.filter(ehCorr),
     outras = ativs.filter((c) => !ehCorr(c));
@@ -1189,7 +1248,11 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
       })
       .reduce((a, c) => a + c.distancia_m / 1000, 0);
     const prSem = provas.filter((p) => p.data >= isoDia(dias[0]) && p.data <= isoDia(dias[6]));
-    h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''}">${prSem.length ? `<div class="sem-prova-l">${icT(I.flag)}Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div>${
+    const dist = semDist(dias[0]);
+    const selo = staff
+      ? `<span class="sem-rel ${dist === 0 ? 'atual' : dist === 1 ? 'prox' : dist > 1 ? 'futura' : 'passada'}">${dist === 0 ? '<i></i>' : ''}${semRel(dist)}</span>`
+      : '';
+    h += `<div class="cal-sem ${prSem.length ? 'sem-prova' : ''} ${staff && dist === 0 ? 'sem-atual' : ''}">${prSem.length ? `<div class="sem-prova-l">${icT(I.flag)}Semana da prova: ${prSem.map((p) => esc(p.titulo)).join(', ')}</div>` : ''}<div class="cal-sem-h"><div class="sem-tit">${selo}<b>${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}</b></div><span>${km ? `previsto ${f1(km)} km` : 'sem treinos'}${feitoKm ? ` · feito ${f1(feitoKm)} km` : ''}</span></div>${
       staff && doPlano.length
         ? (() => {
             const nLib = doPlano.filter((p) => p.liberado !== false).length;
@@ -1210,7 +1273,7 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
                       })()
                     : ''
                 }`
-              : `<div class="lib-bar"><span>${nLib ? `${doPlano.length - nLib} treino${doPlano.length - nLib > 1 ? 's' : ''} ainda não liberado${doPlano.length - nLib > 1 ? 's' : ''}` : 'Rascunho: o aluno ainda não vê esta semana'}</span><button type="button" class="btn sm lib-btn" data-liberar="${de}|${ate}">Liberar semana</button></div>`;
+              : `<div class="lib-bar"><span>${nLib ? `${doPlano.length - nLib} treino${doPlano.length - nLib > 1 ? 's' : ''} ainda não liberado${doPlano.length - nLib > 1 ? 's' : ''}` : 'Rascunho: o aluno ainda não vê esta semana'}</span><button type="button" class="btn sm lib-btn" data-liberar="${de}|${ate}" data-dist="${dist}">Liberar ${dist === 0 ? 'esta semana' : dist === 1 ? 'a próxima semana' : 'semana'}</button></div>`;
           })()
         : ''
     }<div class="cal-dias">`;
@@ -1382,21 +1445,21 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     .filter(([k]) => SUBS.includes(k))
     .map(([k, l]) => `<button class="${sub === k ? 'on' : ''}" data-sub="${k}">${l}</button>`)
     .join('')}</div>`;
+  // o que está na tela, em relação a esta semana (para o treinador não liberar a semana errada)
   const rotulo =
-    st.off === 0
-      ? semanas > 1
+    semanas > 1
+      ? st.off === 0
         ? 'Esta semana e a próxima'
-        : 'Esta semana'
-      : st.off === 1
-        ? 'Próxima semana'
         : st.off === -1
-          ? 'Semana passada'
-          : `${ini.getDate()}/${ini.getMonth() + 1} a ${fim.getDate()}/${fim.getMonth() + 1}`;
+          ? 'Semana passada e esta'
+          : `${semRel(st.off)} e a seguinte`
+      : semRel(st.off);
+  const navSem = `<div class="sem-nav ${st.off === 0 ? '' : 'fora'}"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><div class="sem-nav-t"><b>${rotulo}</b><span>${diaMes(ini)} a ${diaMes(fim)}</span></div><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button>${st.off !== 0 ? `<button class="btn sm sem-volta" id="sem-h"><i></i>Voltar para esta semana</button>` : ''}</div>`;
   let corpo = '';
   if (sub === 'planilha') {
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
     corpo = `${staff ? '<div id="sug-ficha"></div>' : ''}${provasBannerHTML(provasProx, staff, !!(m.corrida && m.corrida.sem_polimento))}${staff ? cargaHTML3(cargaCorrida(corridas, perfil)).replace('class="card carga3"', 'class="card carga3 compacto"') : ''}
-      <div class="pl-top"><div class="row" style="gap:6px"><button class="icon-btn sm" id="sem-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="sem-h">${rotulo}</button><button class="icon-btn sm" id="sem-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
+      <div class="pl-top">${navSem}
         ${
           staff
             ? (() => {
@@ -1789,17 +1852,18 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         }),
     );
     q('#sem-a').onclick = () => {
-      st.off -= semanas;
+      st.off -= 1; // uma semana por vez, para não pular a próxima sem ver
       recarregar();
     };
     q('#sem-p').onclick = () => {
-      st.off += semanas;
+      st.off += 1;
       recarregar();
     };
-    q('#sem-h').onclick = () => {
-      st.off = 0;
-      recarregar();
-    };
+    if (q('#sem-h'))
+      q('#sem-h').onclick = () => {
+        st.off = 0;
+        recarregar();
+      };
     const modelos = [...MODELOS_PADRAO, ...modelosOrg];
     const bt = q('#bib-tog');
     if (bt)
@@ -1826,6 +1890,10 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         const lib = !!lb.dataset.liberar;
         const [de, ate] = (lb.dataset.liberar || lb.dataset.desliberar).split('|');
         lb.disabled = true;
+        if (lib && !(await confirmarLiberacao(alunoId, de, ate, +lb.dataset.dist || 0))) {
+          lb.disabled = false;
+          return;
+        }
         if (!lib && !confirm('Cancelar a liberação? O aluno deixa de ver os treinos desta semana.')) {
           lb.disabled = false;
           return;
