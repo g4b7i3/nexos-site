@@ -1327,6 +1327,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
               <label><span class="tiny dim">Desc. (s)</span><input class="input c" data-mask="num" inputmode="numeric" data-f="descanso_seg" value="${esc(it.descanso_seg ?? '')}" placeholder="60"></label>
             </div><button type="button" class="link-btn small sd-on" data-sdon>Séries com carga ou reps diferentes (pirâmide, aquecimento)</button>`
             }
+            ${semCarga({ ...it, nx_exercicios: ex }) ? '' : `<div class="rm-linha">${+it.rm_est > 0 ? `<span class="tag ok">Máximo estimado ${fmtKg(+it.rm_est)}</span><span class="tiny dim">a carga de cada fase sai daqui</span>` : ''}<button type="button" class="link-btn small" data-rmteste>${+it.rm_est > 0 ? 'Refazer o cálculo' : 'Não sabe a carga do aluno?'}</button></div>`}
             <input class="input" data-f="observacao" value="${esc(it.observacao ?? '')}" placeholder="Observação (opcional): ex. cadência 3-1-1" style="margin-top:8px"></div>`;
             })
             .join('') ||
@@ -1383,6 +1384,10 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
       const el = document.querySelector(`[data-i="${card.dataset.i}"]`);
       if (el && it._aberto) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return;
+    }
+    if (card && e.target.closest('[data-rmteste]')) {
+      syncCampos();
+      return testeCargaSheet(t.itens[+card.dataset.i], exMap[t.itens[+card.dataset.i].exercicio_id], !ehModelo, draw);
     }
     if (card && e.target.closest('[data-sdon]')) {
       syncCampos();
@@ -1551,6 +1556,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
               carga: String(it.carga || '').trim() || null,
               descanso_seg: num(it.descanso_seg),
               observacao: String(it.observacao || '').trim() || null,
+              rm_est: +it.rm_est > 0 ? +it.rm_est : null,
             })),
           );
           if (error) throw error;
@@ -1612,6 +1618,76 @@ const itensLimpos = (itens) =>
 async function buscarModelosTreino() {
   const { data } = await sb.from('nx_modelos_treino').select('*').eq('org_id', S.org.id).order('nome');
   return data || [];
+}
+/** "Não sabe a carga do aluno?": explica a calibração no primeiro treino e calcula o RM a partir de um teste rápido */
+function testeCargaSheet(it, ex, podeTeste, depois) {
+  let rir = 2;
+  const fases = [
+    ['resistencia', 'Resistência', '15 repetições'],
+    ['hipertrofia', 'Hipertrofia', '10 repetições'],
+    ['forca', 'Força', '5 repetições'],
+    ['potencia', 'Potência', 'rápido, 4 a 6 repetições'],
+  ];
+  openSheet(
+    `<p class="eyebrow">${esc((ex && ex.nome) || 'Exercício')}</p><div class="h2" style="margin-top:4px">Não sabe a carga do aluno?</div>
+    <p class="small muted" style="margin-top:6px">Sem problema. O teste de carga máxima (1RM) não é indicado para quem está começando. O app estima a carga máxima com uma série mais leve, que é o método usado hoje.</p>
+    <div class="rmt-op"><b>1. Deixe a carga em branco</b><p>No primeiro treino, o app guia o aluno: aquecer, subir o peso aos poucos e fazer uma série de 6 a 10 repetições bem feitas. Ele anota o peso, as repetições e quantas ainda conseguiria fazer. A partir daí o app calcula as cargas sozinho, de acordo com a fase da semana, e reajusta a cada treino.</p></div>
+    ${
+      podeTeste
+        ? `<div class="rmt-op"><b>2. Já fez um teste com ele? Calcule aqui</b><p>Use uma série de 3 a 10 repetições perto da falha.</p>
+      <div class="grid2" style="margin-top:8px"><label class="field"><span>Peso (kg)</span><input class="input" id="rmt-kg" inputmode="decimal" data-mask="dec" data-int="3" data-casas="1" placeholder="ex. 40"></label><label class="field"><span>Repetições feitas</span><input class="input" id="rmt-reps" inputmode="numeric" data-mask="num" data-max="2" placeholder="ex. 8"></label></div>
+      <div class="rir-q"><span>Quantas ainda conseguiria fazer?</span><div class="rir-ch" id="rmt-rir">${[0, 1, 2, 3, 4].map((n) => `<button type="button" data-v="${n}" class="${n === rir ? 'on' : ''}">${n === 4 ? '4+' : n}</button>`).join('')}</div></div>
+      <div id="rmt-res" class="rmt-res"></div>
+      <button class="btn block" id="rmt-ok" style="margin-top:12px" disabled>Usar este teste</button></div>`
+        : '<p class="tiny dim" style="margin-top:10px">No modelo, deixe a carga em branco. O cálculo por teste é feito no treino de cada aluno.</p>'
+    }
+    ${+it.rm_est > 0 && podeTeste ? '<button class="link-btn small" id="rmt-tirar" style="margin-top:10px">Tirar o teste e deixar o aluno descobrir no primeiro treino</button>' : ''}
+    <p class="tiny dim" style="margin-top:12px">Carga máxima estimada pela fórmula de Epley, com as repetições até a falha (feitas + as que sobravam). Fica precisa até umas 10 a 12 repetições somadas. Depois, a carga se ajusta pelo desempenho de cada treino (Larsen et al. 2021; Refalo et al. 2023).</p>`,
+    (r) => {
+      if (!podeTeste) return;
+      let rm = null;
+      const conta = () => {
+        const kg = numCarga(r.querySelector('#rmt-kg').value),
+          reps = parseInt(r.querySelector('#rmt-reps').value, 10);
+        rm = rmEstimado(kg, reps, rir);
+        const box = r.querySelector('#rmt-res');
+        r.querySelector('#rmt-ok').disabled = !rm;
+        if (!kg || !reps) return (box.innerHTML = '');
+        if (!rm)
+          return (box.innerHTML =
+            '<p class="small" style="color:var(--warn)">Repetições demais para estimar bem. Use uma série de até 10 repetições, somando as que sobravam.</p>');
+        box.innerHTML = `<p class="small">Máximo estimado: <b>${fmtKg(rm)}</b></p><div class="rmt-tab">${fases
+          .map(([f, n, d]) => {
+            const v = cargaDoAlvo(rm, ALVO_F[f]);
+            return `<div><b>${n}</b><span>${d}</span><em>${fmtKg(Math.max(passoCarga(v), arred(v, passoCarga(v))))}</em></div>`;
+          })
+          .join('')}</div>`;
+      };
+      r.querySelector('#rmt-kg').oninput = conta;
+      r.querySelector('#rmt-reps').oninput = conta;
+      r.querySelector('#rmt-rir').onclick = (e) => {
+        const b = e.target.closest('[data-v]');
+        if (!b) return;
+        rir = +b.dataset.v;
+        r.querySelectorAll('#rmt-rir [data-v]').forEach((x) => x.classList.toggle('on', x === b));
+        conta();
+      };
+      r.querySelector('#rmt-ok').onclick = () => {
+        if (!rm) return;
+        it.rm_est = rm;
+        closeSheet();
+        toast('Teste guardado. Salve o treino para valer.');
+        depois();
+      };
+      const tirar = r.querySelector('#rmt-tirar');
+      if (tirar)
+        tirar.onclick = () => {
+          it.rm_est = null;
+          closeSheet();
+          depois();
+        };
+    },
+  );
 }
 async function escolherModeloTreino(aoEscolher) {
   const mods = await buscarModelosTreino();

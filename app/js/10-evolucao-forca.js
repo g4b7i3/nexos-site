@@ -396,12 +396,69 @@ function passoCarga(kg) {
 function arred(kg, passo) {
   return Math.round(kg / passo) * passo;
 }
-/** sugestão: usa a última carga, o esforço e a dor do último treino e a carga prescrita */
-function sugerirCarga(prev, presc) {
+/* ---------- carga sem saber o RM do aluno ----------
+   Teste de 1RM não é indicado para iniciante. O app estima o RM com uma série de 6 a 10 repetições perto da falha:
+   repetições até a falha = feitas + as que ainda sobravam (RIR), e RM = carga × (1 + repetições até a falha / 30)
+   (Epley). A estimativa é boa até umas 10 a 12 repetições até a falha. Depois, a carga de cada treino sai da fase da
+   semana e se reajusta pelo desempenho do último treino (autorregulação: Larsen et al. 2021; Hickmott et al. 2022).
+   Terminar a série com 1 a 3 repetições sobrando dá praticamente o mesmo ganho que ir à falha, com menos cansaço
+   (Refalo et al. 2023 e 2024; Robinson et al. 2024). Iniciante erra mais a conta de quantas sobravam, e erra menos
+   quanto mais perto da falha (Halperin et al. 2022): por isso a calibração usa uma série quase até a falha. */
+const SEM_CARGA_G = ['Core', 'Pliometria', 'Alongamento', 'Cardio', 'Mobilidade', 'Corrida/Educativo', 'Funcional'];
+const semCarga = (it) => {
+  const ex = it.nx_exercicios || {};
+  return (
+    SEM_CARGA_G.includes(ex.grupo) ||
+    /\d\s*(s|seg|min)\b/i.test(String(it.repeticoes || '')) ||
+    /peso do corpo|peso corporal|nenhum/i.test(ex.equipamento || '')
+  );
+};
+const rmEstimado = (kg, reps, rir) => {
+  if (!(kg > 0) || !(reps > 0)) return null;
+  const r = reps + (rir || 0);
+  return r > 12 ? null : Math.round(kg * (1 + r / 30) * 10) / 10;
+};
+// repetições e quantas devem sobrar em cada fase; potência usa cerca de 60% do máximo, movido rápido
+const ALVO_F = {
+  resistencia: { reps: 15, rir: 2 },
+  hipertrofia: { reps: 10, rir: 2 },
+  forca: { reps: 5, rir: 2 },
+  potencia: { pct: 0.6 },
+  deload: { reps: 10, rir: 3, fator: 0.9 },
+};
+const alvoDaFase = (fase, it, psr) => {
+  let f = fase;
+  if (f === 'flexivel') f = psr == null ? 'hipertrofia' : psr >= 8 ? 'forca' : psr >= 5 ? 'hipertrofia' : 'resistencia';
+  if (ALVO_F[f]) return ALVO_F[f];
+  // sem fase (ou autorregulada): as repetições do treino, terminando com 2 sobrando
+  const ns = (String((it && it.repeticoes) || '').match(/\d+/g) || []).map(Number).filter((n) => n > 0 && n <= 30);
+  return { reps: ns.length ? Math.round(ns.reduce((a, b) => a + b, 0) / ns.length) : 10, rir: 2 };
+};
+const cargaDoAlvo = (rm, a) => (a.pct ? rm * a.pct : (rm / (1 + (a.reps + a.rir) / 30)) * (a.fator || 1));
+/** sugestão: pelo RM estimado e pela fase; sem RM, usa a última carga, o esforço e a dor do último treino */
+function sugerirCarga(prev, presc, fase, it, psr) {
+  const doTeste = !(prev && prev.rm) && it && +it.rm_est > 0;
+  const rm = (prev && prev.rm) || (doTeste ? +it.rm_est : null);
+  const last = prev && prev.carga_kg != null ? +prev.carga_kg : null;
+  const novaPresc = presc != null && (last == null || presc > last);
+  if (rm && !novaPresc) {
+    const a = alvoDaFase(fase, it, psr);
+    const bruto = cargaDoAlvo(rm, a);
+    const kg = Math.max(passoCarga(bruto), arred(bruto, passoCarga(bruto)));
+    const s = (prev && prev.sessao) || {};
+    if (last != null && kg > last && s.dor) return { kg: last, motivo: 'você relatou dor no último treino: mantenha' };
+    if (last != null && kg > last && s.esforco != null && s.esforco >= 9)
+      return { kg: last, motivo: 'último treino foi muito intenso: mantenha' };
+    return {
+      kg,
+      motivo: a.pct
+        ? 'cerca de 60% do seu máximo: mova o mais rápido possível'
+        : `para ${a.reps} repetições sobrando ${a.rir} ${doTeste ? '(pelo teste do treinador)' : '(pelo seu último treino)'}`,
+    };
+  }
   if (!prev || prev.carga_kg == null)
     return presc != null ? { kg: presc, motivo: 'carga prescrita pelo treinador' } : null;
-  const last = +prev.carga_kg,
-    s = prev.sessao || {};
+  const s = prev.sessao || {};
   if (presc != null && presc > last) return { kg: presc, motivo: 'nova carga definida pelo treinador' };
   if (s.dor) return { kg: last, motivo: 'você relatou dor no último treino: mantenha' };
   if (s.esforco != null && s.esforco >= 9) return { kg: last, motivo: 'último treino foi muito intenso: mantenha' };
@@ -415,7 +472,7 @@ async function ultimasCargas(alunoId, exIds) {
   if (!exIds.length) return {};
   const { data } = await sb
     .from('nx_registros')
-    .select('exercicio_id,carga_kg,reps,feito,criado_em,sessao_id,nx_sessoes(esforco,dor)')
+    .select('exercicio_id,carga_kg,reps,reps_feitas,rir,rm_est,feito,criado_em,sessao_id,nx_sessoes(esforco,dor)')
     .eq('aluno_id', alunoId)
     .in('exercicio_id', exIds)
     .not('carga_kg', 'is', null)
@@ -423,7 +480,10 @@ async function ultimasCargas(alunoId, exIds) {
     .limit(400);
   const out = {};
   (data || []).forEach((r) => {
-    if (!out[r.exercicio_id]) out[r.exercicio_id] = { ...r, sessao: r.nx_sessoes };
+    if (!out[r.exercicio_id]) out[r.exercicio_id] = { ...r, sessao: r.nx_sessoes, rm: null };
+    // RM estimado mais recente (dos últimos 120 dias: sem treinar, a força cai)
+    const o = out[r.exercicio_id];
+    if (o.rm == null && r.rm_est > 0 && Date.now() - Date.parse(r.criado_em) < 120 * 864e5) o.rm = +r.rm_est;
   });
   return out;
 }
@@ -480,6 +540,8 @@ async function viewExecucao(treinoId, preview) {
     : store.get(key, { feitos: [], ini: null, cargas: {}, ser: {} });
   st.cargas = st.cargas || {};
   st.ser = st.ser || {};
+  st.repsf = st.repsf || {};
+  st.rir = st.rir || {};
   if (!preview && !st.ini) {
     st.ini = new Date().toISOString();
     store.set(key, st);
@@ -487,21 +549,33 @@ async function viewExecucao(treinoId, preview) {
   const feitos = new Set(st.feitos);
   const sug = {};
   itens.forEach((it) => {
-    sug[it.id] = sugerirCarga(prevs[it.exercicio_id], numCarga(it.carga));
+    sug[it.id] = sugerirCarga(prevs[it.exercicio_id], numCarga(it.carga), fase, it, st.psr);
   });
 
   const cargaHTML = (it) => {
     const prev = prevs[it.exercicio_id];
-    const sg = sug[it.id];
+    const sg = (sug[it.id] = sugerirCarga(prev, numCarga(it.carga), fase, it, st.psr));
+    const comCarga = !semCarga(it);
+    // depois da carga: quantas repetições fez e quantas ainda conseguiria (é isso que ajusta as próximas cargas)
+    const rirH = comCarga
+      ? `<div class="rir-box"><label class="load-in reps-in"><span>Repetições na última série</span><input data-mask="num" data-max="2" inputmode="numeric" data-repsf="${it.id}" value="${esc(st.repsf[it.id] ?? '')}" placeholder="ex. 8" ${preview ? 'disabled' : ''}></label>
+        <div class="rir-q"><span>Quantas ainda conseguiria fazer?</span><div class="rir-ch" role="group" aria-label="Repetições que sobravam">${[0, 1, 2, 3, 4].map((n) => `<button type="button" data-rir="${it.id}" data-v="${n}" class="${st.rir[it.id] === n ? 'on' : ''}" ${preview ? 'disabled' : ''}>${n === 4 ? '4+' : n}</button>`).join('')}</div><small>0 = não conseguiria mais nenhuma</small></div></div>`
+      : '';
+    const primeira = comCarga && !prev && !sg && !numCarga(it.carga);
+    const calib = primeira
+      ? `<div class="calib"><b>Primeira vez neste exercício: descubra a sua carga</b><ol><li>Aqueça com um peso leve, 8 a 10 repetições.</li><li>Suba o peso aos poucos, descansando um pouco entre as tentativas.</li><li>Na série para valer, use um peso que você consiga levantar de 6 a 10 vezes com boa técnica. Pare quando a técnica começar a piorar.</li><li>Anote o peso, quantas repetições fez e quantas ainda conseguiria fazer. Com isso o app calcula as suas próximas cargas.</li></ol></div>`
+      : '';
     if (!prev && !sg && !numCarga(it.carga) && !(fase && prevsFase[it.exercicio_id]))
-      return `<div class="load"><label class="load-in"><span>Carga hoje</span><input data-mask="dec" data-int="3" data-casas="1" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="kg" ${preview ? 'disabled' : ''}></label><span class="tiny dim">Sem carga? Deixe em branco.</span></div>`;
+      return `${calib}<div class="load"><label class="load-in"><span>Carga hoje</span><input data-mask="dec" data-int="3" data-casas="1" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="kg" ${preview ? 'disabled' : ''}></label><span class="tiny dim">Sem carga? Deixe em branco.</span></div>${rirH}`;
+    const rmV = (prev && prev.rm) || (+it.rm_est > 0 ? +it.rm_est : null);
     return `<div class="load">
       <label class="load-in"><span>Carga hoje</span><input data-mask="dec" data-int="3" data-casas="1" inputmode="decimal" data-carga="${it.id}" value="${esc(st.cargas[it.id] ?? '')}" placeholder="${sg ? String(sg.kg).replace('.', ',') : 'kg'}" ${preview ? 'disabled' : ''}><em>kg</em></label>
       <div class="load-info">
-        ${prev ? `<span class="tiny muted">Última vez: <b>${fmtKg(prev.carga_kg)}</b> · ${quando(prev.criado_em)}</span>` : '<span class="tiny muted">Primeira vez registrando</span>'}
+        ${prev ? `<span class="tiny muted">Última vez: <b>${fmtKg(prev.carga_kg)}</b>${prev.reps_feitas ? ` × ${prev.reps_feitas}` : ''} · ${quando(prev.criado_em)}</span>` : '<span class="tiny muted">Primeira vez registrando</span>'}
         ${fase && prevsFase[it.exercicio_id] ? `<span class="tiny fase-prev" style="--fc:${FASES_F[fase].cor}">Última semana de ${FASES_F[fase].n.toLowerCase()}: <b>${fmtKg(prevsFase[it.exercicio_id].carga_kg)}</b> · ${quando(prevsFase[it.exercicio_id].criado_em)}</span>` : ''}
         ${sg ? `<button type="button" class="sug" data-sug="${it.id}" data-kg="${sg.kg}" title="${esc(sg.motivo)}">Sugerida <b>${fmtKg(sg.kg)}</b></button><span class="tiny dim">${esc(sg.motivo)}</span>` : ''}
-      </div></div>`;
+        ${rmV ? `<span class="tiny dim">Máximo estimado: ${fmtKg(rmV)}</span>` : ''}
+      </div></div>${rirH}`;
   };
 
   const render = () => {
@@ -602,6 +676,12 @@ async function viewExecucao(treinoId, preview) {
     );
   }
   $app.oninput = (e) => {
+    const rp = e.target.closest('[data-repsf]');
+    if (rp && !preview) {
+      st.repsf[rp.dataset.repsf] = rp.value;
+      store.set(key, st);
+      return;
+    }
     const inp = e.target.closest('[data-carga]');
     if (!inp || preview) return;
     st.cargas[inp.dataset.carga] = inp.value;
@@ -620,6 +700,19 @@ async function viewExecucao(treinoId, preview) {
           v.play().catch(() => {});
         }
       }
+      return;
+    }
+    const rirB = e.target.closest('[data-rir]');
+    if (rirB) {
+      e.stopPropagation();
+      if (preview) return;
+      const id = rirB.dataset.rir,
+        v = +rirB.dataset.v;
+      st.rir[id] = st.rir[id] === v ? null : v;
+      store.set(key, st);
+      rirB.parentElement
+        .querySelectorAll('[data-rir]')
+        .forEach((x) => x.classList.toggle('on', +x.dataset.v === st.rir[id]));
       return;
     }
     const restB = e.target.closest('[data-rest]');
@@ -654,7 +747,7 @@ async function viewExecucao(treinoId, preview) {
       if (feitos.size === itens.length && itens.length) toast('Tudo feito! Finalize e conte como foi.');
       return;
     }
-    if (e.target.closest('a') || e.target.closest('input') || e.target.closest('.load-in')) return;
+    if (e.target.closest('a') || e.target.closest('input') || e.target.closest('.load-in,.rir-box,.calib')) return;
     const sb_ = e.target.closest('[data-sug]');
     if (sb_) {
       if (preview) return;
@@ -1036,8 +1129,18 @@ function abrirCheckin(t, itens, st, key, fase) {
             exercicio_nome: (it.nx_exercicios || {}).nome || null,
             carga_kg: numCarga(st.cargas[it.id]),
             reps: it.repeticoes || null,
+            reps_feitas: parseInt(st.repsf[it.id], 10) > 0 ? Math.min(100, parseInt(st.repsf[it.id], 10)) : null,
+            rir: st.rir[it.id] ?? null,
             feito: st.feitos.includes(it.id),
             fase: fase || null,
+          }))
+          .map((r) => ({
+            ...r,
+            // RM só sai de série perto da falha (não da potência nem da semana leve, que param bem antes)
+            rm_est:
+              r.rir != null && !['potencia', 'deload'].includes(fase)
+                ? rmEstimado(r.carga_kg, r.reps_feitas, r.rir)
+                : null,
           }))
           .filter((r) => r.feito || r.carga_kg != null);
         if (regs.length) await sb.from('nx_registros').insert(regs);

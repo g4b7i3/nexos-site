@@ -267,6 +267,27 @@ img{display:block;max-width:100%}
 .load-in span{font-size:.72rem;font-weight:800;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
 .load-in input{width:64px;background:none;border:0;outline:none;font-family:var(--f-h);font-size:1.15rem;font-weight:700;text-align:right;padding:6px 0}
 .load-in input::placeholder{color:var(--dim)}
+/* carga sem RM: calibração no primeiro treino e repetições que sobraram (RIR) */
+.calib{margin-top:12px;padding:12px 14px;border-radius:14px;border:1px dashed color-mix(in srgb,var(--acc) 55%,transparent);background:color-mix(in srgb,var(--acc) 7%,transparent)}
+.calib b{display:block;font-size:.88rem}
+.calib ol{margin:8px 0 0;padding-left:18px;display:grid;gap:4px;font-size:.82rem;color:var(--mute)}
+.rir-box{margin-top:8px;display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap}
+.reps-in input{width:44px}
+.rir-q{display:flex;flex-direction:column;gap:4px}
+.rir-q>span{font-size:.72rem;font-weight:800;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.rir-q small{font-size:.7rem;color:var(--dim)}
+.rir-ch{display:flex;gap:6px}
+.rir-ch button{min-width:40px;height:36px;border-radius:10px;border:1px solid var(--line2);background:var(--bg2);color:inherit;font-weight:800;font-family:var(--f-h);cursor:pointer}
+.rir-ch button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.rir-ch button:disabled{opacity:.6;cursor:default}
+.rm-linha{margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rmt-op{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:14px}
+.rmt-op>b{display:block}
+.rmt-op>p{margin:6px 0 0;font-size:.84rem;color:var(--mute)}
+.rmt-res{margin-top:10px}
+.rmt-tab{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+.rmt-tab div{padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--acc) 7%,transparent);display:flex;flex-direction:column}
+.rmt-tab b{font-size:.84rem}.rmt-tab span{font-size:.72rem;color:var(--mute)}.rmt-tab em{font-style:normal;font-family:var(--f-h);font-weight:800;font-size:1.05rem;margin-top:2px}
 .load-in em{font-style:normal;color:var(--mute);font-size:.82rem}
 .load-in:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px rgba(var(--p1r),.15)}
 .load-info{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
