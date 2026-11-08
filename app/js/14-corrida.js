@@ -783,7 +783,24 @@ const cardCarregarImg = (src) =>
   });
 const CARD_IMGS = {};
 const DIAS_LONGOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-const cardImg = async (src) => CARD_IMGS[src] || (CARD_IMGS[src] = await cardCarregarImg(src));
+// SVG sem largura e altura vira uma imagem pequena (300 × 150) em alguns celulares e sai borrada e acinzentada no card:
+// aqui ele ganha um tamanho grande antes de ir para o card, para o traço ficar branco e nítido
+const cardSvgGrande = async (src) => {
+  try {
+    const t = await (await fetch(src)).text();
+    const vb = (t.match(/viewBox="([^"]+)"/) || [])[1];
+    if (!vb) return null;
+    const [, , w, h] = vb.split(/[\s,]+/).map(Number);
+    const L = 4000;
+    const svg = t.replace(/<svg\b/, `<svg width="${L}" height="${Math.round((L * h) / w)}"`);
+    return await cardCarregarImg(URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })));
+  } catch {
+    return null;
+  }
+};
+const cardImg = async (src) =>
+  CARD_IMGS[src] ||
+  (CARD_IMGS[src] = (/\.svg$/.test(src) && (await cardSvgGrande(src))) || (await cardCarregarImg(src)));
 function cardValores(c) {
   const pace = paceDe(c);
   const E = { ...(c.resumo_rel || {}), ...((c.analise && c.analise.extras) || {}) };
