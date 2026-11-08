@@ -149,7 +149,7 @@ const CICLOS_FORCA = [
     obj: 'corr',
     niv: 'int',
     nome: 'Força para corredores (economia de corrida)',
-    seq: 'RHFLFPFP',
+    seq: 'HFFLFPFP',
     modelo: 'Ondulatório semanal',
     desc: 'Força com carga alta, pliometria e a combinação das duas melhoram a economia de corrida; carga leve e isometria, não (Llanos-Lagos et al. 2024, Sports Med; Blagrove et al. 2018). Faça em outro dia ou com pelo menos 3 h de intervalo da corrida, para não perder ganho de explosão (Schumann et al. 2022).',
   },
@@ -294,37 +294,55 @@ const TREINOS_BASE_F = [
       ['Levantamento terra romeno', 3],
       ['Avanço para trás com halteres', 3],
       ['Panturrilha em pé com halteres', 3],
+      ['Panturrilha sentado', 3],
       ['Prancha', 3, '30 s'],
-      ['Dead bug', 3, '10 cada lado'],
     ],
   },
   {
     titulo: 'Treino B',
-    foco: 'Superiores, glúteos e core',
+    foco: 'Posteriores, glúteos, superiores e core',
     itens: [
       ['Elevação pélvica com barra', 3],
+      ['Mesa flexora', 3],
       ['Puxada frontal pegada aberta', 3],
       ['Supino reto com halteres', 3],
       ['Remada unilateral com halter (serrote)', 3],
-      ['Desenvolvimento com halteres', 3],
-      ['Prancha lateral', 3, '30 s cada lado'],
+      ['Monster walk (caminhada com elástico)', 2, '12 passos cada lado'],
+      ['Prancha lateral', 2, '30 s cada lado'],
     ],
   },
   {
     titulo: 'Treino C',
-    foco: 'Unilateral e potência',
+    foco: 'Unilateral e pliometria',
     itens: [
       [
-        'Salto na caixa (múltiplas repetições)',
+        'Saltos sobre barreiras',
         3,
         '5',
-        'Saltos de qualidade: suba leve e desça controlado. Descanso completo.',
+        'Saltos reativos: contato curto com o chão, como uma mola. Descanso completo.',
+      ],
+      [
+        'Progressão de saltos unilaterais sobre cones',
+        3,
+        '5 cada perna',
+        'Aterrisse estável e já salte de novo. Pare se a técnica cair.',
       ],
       ['Subida no banco com halteres', 3],
       ['Levantamento terra unilateral com kettlebell', 3],
-      ['Ponte de glúteos unilateral', 3],
-      ['Panturrilha sentado', 3],
-      ['Pallof press', 3, '10 cada lado'],
+      ['Prancha de Copenhague curta (joelho apoiado)', 2, '20 s cada lado'],
+      ['Pallof press', 2, '10 cada lado'],
+    ],
+  },
+  {
+    titulo: 'Treino D',
+    foco: 'Prevenção: panturrilha, quadril e core',
+    itens: [
+      ['Panturrilha em pé com halteres', 3, '12 a 15', 'Desça devagar, em 3 segundos.'],
+      ['Panturrilha sentado', 3, '12 a 15', 'Trabalha o sóleo, muito exigido na corrida.'],
+      ['Monster walk (caminhada com elástico)', 3, '12 passos cada lado'],
+      ['Ponte de glúteos unilateral', 3, '10 cada lado'],
+      ['Prancha de Copenhague curta (joelho apoiado)', 3, '20 s cada lado'],
+      ['Bird dog', 3, '8 cada lado'],
     ],
   },
 ];
@@ -344,20 +362,7 @@ const TREINOS_NEXOS = [
   { id: 'cor-a', cat: 'corredor', nome: 'Corredor A', ...TREINOS_BASE_F[0] },
   { id: 'cor-b', cat: 'corredor', nome: 'Corredor B', ...TREINOS_BASE_F[1] },
   { id: 'cor-c', cat: 'corredor', nome: 'Corredor C', ...TREINOS_BASE_F[2] },
-  {
-    id: 'prev-a',
-    cat: 'prev',
-    nome: 'Prevenção do corredor',
-    foco: 'Panturrilha, quadril e core',
-    itens: [
-      ['Panturrilha em pé com halteres', 3, '12 a 15', 'Desça devagar, em 3 segundos.'],
-      ['Panturrilha sentado', 3, '12 a 15', 'Trabalha o sóleo, muito exigido na corrida.'],
-      ['Monster walk (caminhada com elástico)', 3, '12 passos cada lado'],
-      ['Ponte de glúteos unilateral', 3, '10 cada lado'],
-      ['Prancha de Copenhague curta (joelho apoiado)', 3, '20 s cada lado'],
-      ['Bird dog', 3, '8 cada lado'],
-    ],
-  },
+  { id: 'prev-a', cat: 'prev', nome: 'Prevenção do corredor', ...TREINOS_BASE_F[3] },
   {
     id: 'prev-p',
     cat: 'prev',
@@ -367,7 +372,7 @@ const TREINOS_NEXOS = [
       ['Skipping rápido', 3, '20 s', 'Contato curto com o chão.'],
       ['Agachamento com salto sem peso', 3, '6', 'Aterrisse macio e já salte de novo.'],
       ['Salto com afundo alternado', 3, '6 cada lado'],
-      ['Salto na caixa (múltiplas repetições)', 3, '5', 'Suba leve e desça controlado. Descanso completo.'],
+      ['Saltos sobre barreiras', 3, '5', 'Saltos reativos: contato curto com o chão. Descanso completo.'],
       ['Prancha', 3, '30 s'],
     ],
   },
@@ -609,8 +614,9 @@ async function garantirTreinosForca(alunoId, s) {
     }
     return `Os treinos de força dele foram para ${nomesDias(dias)}.`;
   }
-  // 2) não tem treino nenhum: monta os treinos base (4 por semana = A e B duas vezes cada, inferiores e superiores)
-  const base = s === 4 ? TREINOS_BASE_F.slice(0, 2) : TREINOS_BASE_F.slice(0, s);
+  // 2) não tem treino nenhum: monta os treinos base
+  // 4 por semana: A, B, C e o D de prevenção (força pesada + pliometria + prevenção: Llanos-Lagos et al. 2024)
+  const base = TREINOS_BASE_F.slice(0, s);
   const nomes = [...new Set(base.flatMap((t) => t.itens.map((x) => x[0])))];
   const { data: exs } = await sb.from('nx_exercicios').select('id,nome,org_id').in('nome', nomes);
   const idDe = {};
@@ -681,10 +687,10 @@ function ligarTreinosF(r, alunos) {
     marca();
     info.textContent =
       n === 4
-        ? '4 por semana: A (inferiores) e B (superiores) duas vezes cada.'
+        ? '4 por semana: A (inferiores), B (posteriores e superiores), C (unilateral e pliometria) e D (prevenção).'
         : n === 3
-          ? '3 por semana: A (inferiores), B (superiores) e C (unilateral e potência).'
-          : '2 por semana: A (inferiores) e B (superiores).';
+          ? '3 por semana: A (inferiores), B (posteriores e superiores) e C (unilateral e pliometria).'
+          : '2 por semana: A (inferiores) e B (posteriores e superiores).';
   };
   const atualizar = async (alunoId) => {
     n = null;
@@ -1122,8 +1128,8 @@ const TRILHAS_FORCA = [
     id: 'tf-ini',
     nome: 'Do iniciante ao intermediário',
     niv: 'ini',
-    seq: ['cf-adapt', 'cf-hip-ini', 'cf-deload', 'cf-lin'],
-    desc: 'Adaptação, hipertrofia, semana leve e força linear.',
+    seq: ['cf-adapt', 'cf-hip-ini', 'cf-lin'],
+    desc: 'Adaptação, hipertrofia e força linear, com as semanas leves de cada ciclo.',
   },
   {
     id: 'tf-hip',
@@ -1428,12 +1434,26 @@ function planoMacro(ini, niv, provas) {
   );
   let A = todas.filter((p) => p.pri === 'A' && p.w >= 0 && p.w <= 60).sort((a, b) => a.w - b.w);
   const outras = todas.filter((p) => p.pri !== 'A' && p.w >= 0 && p.w <= 60);
-  if (!A.length) return { segs, avisos: [], semA: true, total: 0, outras: [] };
+  // iniciante: maratona e ultra não entram como prova principal (ver aviso)
+  const longasIni = niv === 'ini' ? A.filter((p) => ['42', 'u50', 'u80'].includes(p.dist)) : [];
+  if (longasIni.length) A = A.filter((p) => !longasIni.includes(p));
+  if (!A.length)
+    return {
+      segs,
+      avisos: longasIni.length
+        ? [
+            'Maratona ou ultra no nível iniciante: o app não monta. Para a primeira maratona, o aluno precisa de uns 6 meses de base, uma meia maratona completa e 30 km ou mais por semana. Escolha o nível intermediário só se ele já tiver isso; senão, use a meia como prova A.',
+          ]
+        : [],
+      semA: true,
+      total: 0,
+      outras: [],
+    };
   if (A.length > 3)
     avisos.push('Mais de 3 provas A no ano: cada pico exige polimento e recuperação. Considere deixar algumas como B.');
-  if (niv === 'ini' && A.some((p) => ['42', 'u50', 'u80'].includes(p.dist)))
+  if (longasIni.length)
     avisos.push(
-      'Maratona ou ultra para iniciante: o ideal é ter completado uma meia maratona antes. O plano usa o ciclo de primeira maratona, que pede base prévia.',
+      'Maratona ou ultra no nível iniciante: o app não monta. Para a primeira maratona, o aluno precisa de uns 6 meses de base, uma meia maratona completa e 30 km ou mais por semana. Escolha o nível intermediário só se ele já tiver isso; senão, use a meia como prova A.',
     );
   const add = (id, w0, from, n, tipo, extra) => {
     const c = cicPor(id);
@@ -1538,7 +1558,13 @@ function planoMacro(ini, niv, provas) {
     }
     vistas.push(p);
   });
-  return { segs: segs.sort((a, b) => a.w0 - b.w0), avisos, total: cur, outras: vistas.sort((a, b) => a.w - b.w) };
+  return {
+    segs: segs.sort((a, b) => a.w0 - b.w0),
+    avisos,
+    total: cur,
+    outras: vistas.sort((a, b) => a.w - b.w),
+    niv,
+  };
 }
 // semanas com os treinos, já com as provas A, B e C nos dias certos
 function semanasMacro(pl) {
@@ -1590,19 +1616,37 @@ function semanasMacro(pl) {
   });
   // a junção dos ciclos também passa pelos limites de volume e de sessão mais longa
   if (!pl.segs.length) return W;
-  const pf = perfilNiv(pl.segs[0].c.niv);
-  return limitarCargas(limitarFortes(W, pf, pl.segs[0].c.niv), pf);
+  // depois de juntar os ciclos e encaixar as provas, revisa de novo: sessões-chave, longão e polimento de cada
+  // prova principal, dias separados, volume e sessão mais longa
+  const niv = pl.niv || pl.segs[0].c.niv,
+    pf = perfilNiv(niv);
+  limitarFortes(W, pf, niv);
+  limitarCargas(W, pf);
+  revisarProvas(W, pf, { niv, asfalto: true, principais: pl.segs.filter((x) => x.prova).map((x) => x.prova.w) });
+  separarFortes(W, pf, false);
+  return limitarZonas(limitarCargas(W, pf), pf);
 }
 // força acompanhando a corrida semana a semana
-function forcaMacro(W) {
-  let pp = 0;
+function forcaMacro(W, niv = 'int') {
+  // base: resistência no começo (iniciante 4 semanas, os outros 2) e depois hipertrofia; construção: força
+  // (iniciante: hipertrofia); específica: força e potência alternadas (iniciante: só força); polimento: a 1ª semana
+  // mantém força curta e pesada e as outras são leves; prova, recuperação e semanas de recuperação: semana leve
+  let pp = 0,
+    nBase = 0,
+    nPol = 0,
+    ant = '';
   return fasesComLeve(
-    W.map((w, i) => {
-      if (w.rec || ['Polimento', 'Prova', 'Recuperação'].includes(w.fase)) return 'deload';
-      if (w.fase === 'Transição' || w.fase === 'Adaptação' || w.fase === 'Teste') return 'resistencia';
-      if (w.fase === 'Base') return i < 2 ? 'resistencia' : w.k % 4 === 2 ? 'forca' : 'hipertrofia';
-      if (w.fase === 'Construção') return 'forca';
-      return pp++ % 2 ? 'potencia' : 'forca';
+    W.map((w) => {
+      const f = w.fase;
+      nBase = f === 'Base' ? (ant === 'Base' ? nBase + 1 : 1) : 0;
+      nPol = f === 'Polimento' ? (ant === 'Polimento' ? nPol + 1 : 1) : 0;
+      ant = f;
+      if (f === 'Polimento') return nPol === 1 && niv !== 'ini' ? 'forca' : 'deload';
+      if (w.rec || ['Prova', 'Recuperação'].includes(f)) return 'deload';
+      if (['Transição', 'Adaptação', 'Teste'].includes(f)) return 'resistencia';
+      if (f === 'Base') return nBase <= (niv === 'ini' ? 4 : 2) ? 'resistencia' : 'hipertrofia';
+      if (f === 'Construção') return niv === 'ini' ? 'hipertrofia' : 'forca';
+      return niv === 'ini' ? 'forca' : pp++ % 2 ? 'potencia' : 'forca';
     }),
   );
 }
@@ -1708,7 +1752,7 @@ async function viewMacro() {
     const fimISO = pl.total ? somaDias(isoDia(inicioSemana(dia(st.ini))), 7 * pl.total - 1) : null;
     const dataSem = (w) => isoDia(new Date(inicioSemana(dia(st.ini)).getTime() + w * 6048e5));
     if (pl.semA)
-      return `<div class="card mac-vazio" style="margin-top:12px"><b>${st.provas.length ? 'Falta escolher a prova principal' : 'Adicione as provas do ano'}</b><p class="small muted" style="margin-top:4px">${st.provas.length ? 'Toque em A na prova mais importante. O ano é montado de trás para frente a partir dela.' : 'Coloque pelo menos a prova principal do ano e marque como A.'}</p></div>`;
+      return `${pl.avisos.length ? `<div class="stack" style="margin-top:12px">${pl.avisos.map((a) => `<p class="aviso-dup" style="margin:0">${esc(a)}</p>`).join('')}</div>` : ''}<div class="card mac-vazio" style="margin-top:12px"><b>${st.provas.length ? 'Falta escolher a prova principal' : 'Adicione as provas do ano'}</b><p class="small muted" style="margin-top:4px">${st.provas.length ? 'Toque em A na prova mais importante. O ano é montado de trás para frente a partir dela.' : 'Coloque pelo menos a prova principal do ano e marque como A.'}</p></div>`;
     return `${pl.avisos.length ? `<div class="stack" style="margin-top:12px">${pl.avisos.map((a) => `<p class="aviso-dup" style="margin:0">${esc(a)}</p>`).join('')}</div>` : ''}
       ${
         pl.segs.length
@@ -1879,7 +1923,7 @@ async function viewMacro() {
         registrarCiclo(st.aluno, 'corrida', { id: s.c.id, nome: s.c.nome }, d, s.n, 'anual');
       });
       if (st.forca) {
-        const fs = forcaMacro(W).map((fase, i) => {
+        const fs = forcaMacro(W, st.niv).map((fase, i) => {
           const d = new Date(ini0);
           d.setDate(d.getDate() + 7 * i);
           return { org_id: S.org.id, aluno_id: st.aluno, semana: isoDia(d), fase, criado_por: S.user.id };

@@ -424,11 +424,11 @@ const ALVO_F = {
   hipertrofia: { reps: 10, rir: 2 },
   forca: { reps: 5, rir: 2 },
   potencia: { pct: 0.6 },
-  deload: { reps: 10, rir: 3, fator: 0.9 },
+  deload: { reps: 10, rir: 4, fator: 0.9 },
 };
 const alvoDaFase = (fase, it, psr) => {
   let f = fase;
-  if (f === 'flexivel') f = psr == null ? 'hipertrofia' : psr >= 8 ? 'forca' : psr >= 5 ? 'hipertrofia' : 'resistencia';
+  if (f === 'flexivel') f = psr != null && psr >= 8 ? 'forca' : psr != null && psr < 5 ? 'deload' : 'hipertrofia';
   if (ALVO_F[f]) return ALVO_F[f];
   // sem fase (ou autorregulada): as repetições do treino, terminando com 2 sobrando
   const ns = (String((it && it.repeticoes) || '').match(/\d+/g) || []).map(Number).filter((n) => n > 0 && n <= 30);
@@ -531,7 +531,7 @@ async function viewExecucao(treinoId, preview) {
   t._pausados = pausados.map((i) => (i.nx_exercicios && i.nx_exercicios.nome) || 'Exercício');
   const exIdsT = [...new Set(itens.map((i) => i.exercicio_id))];
   const fInfo = await faseInfo(t.aluno_id, isoDia(inicioSemana()));
-  const fase = faseDoTreino(fInfo.fase, t);
+  const fase = faseDoTreino(fInfo.fase, t, fInfo.k);
   const [prevs, prevsFase] = await Promise.all([
     ultimasCargas(t.aluno_id, exIdsT),
     ultimasCargasFase(t.aluno_id, exIdsT, fase),
@@ -872,11 +872,14 @@ const FASES_F = {
 // as 4 fases de carga (as outras duas são formas de organizar a semana)
 const FASES_BASE = ['resistencia', 'hipertrofia', 'forca', 'potencia'];
 // no ondulatório diário, a fase de cada treino sai da letra (A força, B hipertrofia, C resistência)
-const faseDoTreino = (fase, t) => {
+// a faixa de cada treino sai da letra dele e gira a cada semana do bloco: assim os mesmos músculos passam por todas as
+// faixas (no ondulatório de Rhea et al. 2002 a faixa muda para os mesmos músculos), mesmo com treinos divididos
+const faseDoTreino = (fase, t, k = 1) => {
   if (fase !== 'ondulatorio' && fase !== 'conjugada') return fase;
   const l = (String((t && t.titulo) || '').match(/\b([A-Z])\b/) || [])[1] || 'B';
-  if (fase === 'conjugada') return l === 'A' ? 'forca' : l === 'B' ? 'potencia' : 'hipertrofia'; // esforço máximo, dinâmico e repetições
-  return l === 'A' ? 'forca' : l === 'C' ? 'resistencia' : 'hipertrofia';
+  const idx = (Math.max(0, 'ABCD'.indexOf(l)) + (k || 1) - 1) % 3;
+  // conjugada: esforço máximo, dinâmico e repetições; ondulatório: força, hipertrofia e resistência
+  return (fase === 'conjugada' ? ['forca', 'potencia', 'hipertrofia'] : ['forca', 'hipertrofia', 'resistencia'])[idx];
 };
 /* ---------- progressão dentro do bloco ----------
    Num bloco da mesma fase, o volume sobe semana a semana (mais séries) e a série termina cada vez mais perto da falha
@@ -884,12 +887,14 @@ const faseDoTreino = (fase, t) => {
    autorregulação (Helms et al. 2016; Zourdos et al. 2016). O volume semanal é o que mais pesa para ganhar músculo, até
    umas 10 a 20 séries por grupo na semana (Schoenfeld et al. 2017; Pelland et al. 2024). A carga de cada semana sai do
    máximo estimado do aluno e das repetições que devem sobrar (ver sugerirCarga). */
+// séries: as do treino, com no máximo +1 ao longo do bloco (a progressão não pode passar da faixa de ganho
+// decrescente: Pelland et al. 2024; corredor, 2 a 4 séries: Blagrove et al. 2018)
 const PRESC_F = {
-  resistencia: { reps: '15 a 20', alvo: 15, series: [2, 3, 3, 3], rir: [3, 2, 2, 2] },
-  hipertrofia: { reps: '8 a 12', alvo: 10, series: [3, 3, 4, 4], rir: [3, 2, 2, 1] },
-  forca: { reps: '4 a 6', alvo: 5, series: [3, 4, 4, 5], rir: [3, 2, 2, 2] },
-  potencia: { reps: '3 a 5', alvo: 4, series: [3, 3, 4, 4], rir: [4, 4, 4, 4], rapido: true },
-  autorregulada: { reps: null, alvo: null, series: [3, 3, 3, 3], rir: [2, 2, 2, 2] },
+  resistencia: { reps: '15 a 20', alvo: 15, mais: [-1, 0, 0, 0], rir: [3, 2, 2, 2] },
+  hipertrofia: { reps: '8 a 12', alvo: 10, mais: [0, 0, 1, 1], rir: [3, 2, 2, 1] },
+  forca: { reps: '4 a 6', alvo: 5, mais: [0, 0, 1, 1], rir: [3, 2, 2, 2] },
+  potencia: { reps: '3 a 5', alvo: 4, mais: [0, 0, 1, 1], rir: [4, 4, 4, 4], rapido: true },
+  autorregulada: { reps: null, alvo: null, mais: [0, 0, 0, 0], rir: [2, 2, 2, 2] },
 };
 /** fase da semana e em que semana do bloco ela está (k de n) */
 async function faseInfo(alunoId, semana) {
@@ -906,11 +911,14 @@ async function faseInfo(alunoId, semana) {
   const map = Object.fromEntries((data || []).map((r) => [r.semana, r.fase]));
   const f = map[semana];
   if (!f) return { fase: null, k: 1, n: 1 };
+  // a semana do bloco conta desde a última semana leve (nos ciclos ondulatórios a fase muda, mas o bloco continua)
+  if (f === 'deload') return { fase: f, k: 1, n: 1 };
+  const carga = (x) => x && x !== 'deload';
   let k = 1,
     n = 1;
-  for (let w = somaDias(semana, -7); map[w] === f; w = somaDias(w, -7)) k++;
+  for (let w = somaDias(semana, -7); carga(map[w]); w = somaDias(w, -7)) k++;
   n = k;
-  for (let w = somaDias(semana, 7); map[w] === f; w = somaDias(w, 7)) n++;
+  for (let w = somaDias(semana, 7); carga(map[w]); w = somaDias(w, 7)) n++;
   return { fase: f, k, n };
 }
 /** séries, repetições e quantas devem sobrar para um exercício naquela semana (null = segue o que o treinador escreveu) */
@@ -918,14 +926,26 @@ function prescSemana(fase, k, it, psr) {
   if (!fase || !it || semCarga(it)) return null;
   if (String(it.repeticoes || '').trim()) return null; // o treinador escreveu as repetições: vale o que ele escreveu
   let f = fase;
-  if (f === 'flexivel') f = psr == null ? 'hipertrofia' : psr >= 8 ? 'forca' : psr >= 5 ? 'hipertrofia' : 'resistencia';
-  const base = numInt(it.series) || 3;
+  const base = Math.min(5, numInt(it.series) || 3);
+  // flexível: bem recuperado, força; normal, hipertrofia; cansado, hipertrofia mais leve (menos séries, 3 a 4 sobrando)
+  if (f === 'flexivel') {
+    if (psr != null && psr < 5)
+      return { series: Math.max(2, base - 1), reps: '8 a 12', alvo: 10, rir: 4, leve: true, f: 'hipertrofia' };
+    f = psr != null && psr >= 8 ? 'forca' : 'hipertrofia';
+  }
   if (f === 'deload')
     return { series: Math.max(2, Math.round(base / 2)), reps: '8 a 12', alvo: 10, rir: 4, leve: true, f };
   const P = PRESC_F[f];
   if (!P || !P.reps) return null;
   const i = Math.min(3, Math.max(0, (k || 1) - 1));
-  return { series: P.series[i], reps: P.reps, alvo: P.alvo, rir: P.rir[i], rapido: !!P.rapido, f };
+  return {
+    series: Math.max(2, Math.min(5, base + P.mais[i])),
+    reps: P.reps,
+    alvo: P.alvo,
+    rir: P.rir[i],
+    rapido: !!P.rapido,
+    f,
+  };
 }
 const prescTxt = (p) =>
   p.rapido
