@@ -769,6 +769,7 @@ const CARD_LAYOUTS = [
   ['lateral', 'Diagonal'],
   ['pilulas', 'Número de peito'],
   ['parciais', 'Parciais'],
+  ['parciais_total', 'Parciais + total'],
   ['recibo', 'Medalha'],
   ['destaque', 'Destaque'],
   ['linha', 'Na foto'],
@@ -1652,6 +1653,62 @@ async function desenharCard(cv, c, o) {
     if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
     ctx.fillText(`${dt.getDate()} ${MESES[dt.getMonth()]} ${dt.getFullYear()}`, x + 60, y + bh - 50);
     ctx.restore();
+  } else if (L === 'parciais_total') {
+    // parciais em cima e o total (Nexos + distância, pace e tempo) embaixo: dá para copiar cada parte separada
+    const cima = o.parte !== 'baixo',
+      baixo = o.parte !== 'cima';
+    const parc = (c.parciais || []).filter((p) => !p.parcial || p.km % 1 > 0.3).slice(0, post ? 14 : 24);
+    const pk = (p) => p.seg / (p.parcial ? p.km % 1 || 1 : 1);
+    const vs = parc.map(pk),
+      mn = Math.min(...vs),
+      mx = Math.max(...vs);
+    if (cima) {
+      const lh = Math.min(post ? 72 : 92, ((post ? 0.52 : 0.58) * H - 160) / Math.max(1, parc.length));
+      let y = post ? 60 : 90;
+      txt('Parciais por km', 80, y + 56, `800 58px ${FH}`, tx, 'left', -1);
+      y += 110;
+      parc.forEach((p, i) => {
+        const v = vs[i],
+          w = mx > mn ? 200 + (420 * (mx - v)) / (mx - mn) : 560,
+          yy = y + i * lh;
+        txt(
+          p.parcial ? String(p.km).replace('.', ',') : String(p.km),
+          80,
+          yy + lh * 0.62,
+          `700 ${Math.round(lh * 0.48)}px ${FB}`,
+          sub,
+          'left',
+        );
+        ctx.save();
+        ctx.fillStyle = v === mn ? AC : branco ? 'rgba(255,255,255,.88)' : 'rgba(11,24,52,.85)';
+        if (sombra) {
+          ctx.shadowColor = 'rgba(0,0,0,.22)';
+          ctx.shadowBlur = 10;
+        }
+        ret(ctx, 160, yy + lh * 0.2, w, lh * 0.56, lh * 0.28);
+        ctx.fill();
+        ctx.restore();
+        txt(
+          fmtPace(v).replace('/km', ''),
+          W - 80,
+          yy + lh * 0.62,
+          `800 ${Math.round(lh * 0.48)}px ${FB}`,
+          v === mn ? AC : tx,
+          'right',
+        );
+      });
+    }
+    if (baixo) {
+      const tot = ['dist', 'pace', 'tempo'].filter((k) => V[k]).map((k) => V[k]);
+      const px = post ? 72 : 80;
+      const yS = H - (post ? 80 : 120) - px * 1.4;
+      if (comLogo) {
+        const yL = yS - (post ? 150 : 170);
+        simbolo(W / 2 - 150, yL, 190, 'center');
+        logoTexto(W / 2 + 70, yL + 16, 300, 'center');
+      }
+      grade(tot, yS, px, 50, W - 50, 3, 'center');
+    }
   } else if (L === 'parciais') {
     // barras dos km (o mais rápido em destaque)
     const parc = (c.parciais || []).filter((p) => !p.parcial || p.km % 1 > 0.3).slice(0, post ? 16 : 24);
@@ -1830,7 +1887,7 @@ async function desenharCard(cv, c, o) {
     txt(t, x0 + ic + 12, yb, fl, tx, 'left', 1);
   }
   ctx.restore();
-  assinatura();
+  if (o.parte !== 'baixo') assinatura();
 }
 // localização do card: busca no OpenStreetMap (só quando o atleta pede; nada é enviado sozinho)
 const locCurto = (r) => {
@@ -1908,7 +1965,7 @@ async function abrirCardCorrida(c, plano) {
     k === 'tiros' ? c._serie.titulo : k === 'nome' ? c._serie.nome : l,
   ]).filter(
     ([k]) =>
-      (k !== 'parciais' || temParc) &&
+      ((k !== 'parciais' && k !== 'parciais_total') || temParc) &&
       (k !== 'tiros' || temTiros) &&
       (k !== 'nome' || !!c._serie.nome) &&
       (!k.startsWith('clima') || temClima) &&
@@ -1959,6 +2016,7 @@ async function abrirCardCorrida(c, plano) {
       .join('')}</div></div>
     <div class="field"><span>Localização</span><div id="cd-loc"></div></div>
     <div class="row" style="gap:8px;margin-top:6px"><button class="btn grow" id="cd-share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> Compartilhar</button></div><div class="row" style="gap:8px;margin-top:8px"><button class="btn ghost grow" id="cd-copy"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg> Copiar</button><button class="btn ghost grow" id="cd-down">Baixar</button></div>
+    <div class="cd-partes" id="cd-partes" hidden><span class="tiny dim">Copiar em duas figurinhas, para mover e aumentar cada uma no story:</span><div class="row" style="gap:8px;margin-top:6px"><button class="btn ghost grow sm" data-parte="cima">Copiar as parciais</button><button class="btn ghost grow sm" data-parte="baixo">Copiar o total</button></div></div>
     <p class="tiny dim" style="margin-top:8px" id="cd-dica"></p>`,
     (r) => {
       const cv = r.querySelector('#cd-cv'),
@@ -1980,6 +2038,7 @@ async function abrirCardCorrida(c, plano) {
         } catch {}
       };
       const pinta = async () => {
+        r.querySelector('#cd-partes').hidden = !(o.layout === 'parciais_total' && o.fundo === 'transparente');
         prev.classList.toggle('xadrez', o.fundo === 'transparente');
         prev.classList.toggle('post', o.formato === 'post');
         dica.textContent =
@@ -2017,6 +2076,7 @@ async function abrirCardCorrida(c, plano) {
         if (!b) return;
         o.layout = b.dataset.lay;
         r.querySelectorAll('#cd-gal [data-lay]').forEach((x) => x.classList.toggle('on', x === b));
+        r.querySelector('#cd-partes').hidden = !(o.layout === 'parciais_total' && o.fundo === 'transparente');
         salvar();
         desenharCard(cv, c, o);
       };
@@ -2274,9 +2334,9 @@ async function abrirCardCorrida(c, plano) {
         toast('Imagem salva!');
       };
       // copiar para colar como figurinha no story (sem fundo: corta o espaço vazio em volta)
-      const blobCopia = async () => {
+      const blobCopia = async (parte) => {
         const hd = document.createElement('canvas');
-        await desenharCard(hd, c, { ...o, escala: 2 });
+        await desenharCard(hd, c, { ...o, escala: 2, parte: parte || null });
         let saida = hd;
         if (o.fundo === 'transparente') {
           const W = hd.width,
@@ -2322,6 +2382,24 @@ async function abrirCardCorrida(c, plano) {
           toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true);
         }
       };
+      r.querySelectorAll('[data-parte]').forEach(
+        (bt) =>
+          (bt.onclick = async () => {
+            if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem))
+              return toast('Este celular não deixa copiar imagem. Use “Compartilhar” ou “Baixar”.', true);
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobCopia(bt.dataset.parte) })]);
+              marcar();
+              toast(
+                bt.dataset.parte === 'cima'
+                  ? 'Parciais copiadas! Cole no story, ajuste com dois dedos e volte para copiar o total.'
+                  : 'Total copiado! Cole no story e ajuste com dois dedos.',
+              );
+            } catch (e) {
+              toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true);
+            }
+          }),
+      );
       r.querySelector('#cd-share').onclick = async () => {
         const b = await blob();
         const file = new File([b], nomeArq, { type: 'image/png' });

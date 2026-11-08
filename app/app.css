@@ -3184,3 +3184,4 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .sug-lista{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:8px;font-size:.88rem;line-height:1.45}
 .sug-lista li{position:relative;padding-left:16px}
 .sug-lista li::before{content:'';position:absolute;left:2px;top:.6em;width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.cd-partes{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:14px}
