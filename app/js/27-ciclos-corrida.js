@@ -1429,14 +1429,247 @@ function limitarSaltos(W, perfil) {
   });
   return W;
 }
+/* ---------- revisão científica de todo ciclo gerado (vale para ciclos prontos, trilhas, macrociclo, São Luís, trail e volta) ----------
+   1) intensidade por sessão nos limites de Daniels (Daniels' Running Formula): limiar até 10% do km da semana (mínimo
+      4 km, uns 20 min), intervalado (VO2) até 8% (mínimo 3 km, máximo 10 km), tiros até 5% (mínimo 2 km, máximo 8 km),
+      ritmo de maratona até 20% (mínimo 8 km, máximo 29 km);
+   2) longão de asfalto com no máximo 3 h no intermediário (2 h 30 no iniciante, 3 h 30 no avançado) e 32 km, porque
+      acima disso o desgaste cresce mais que o ganho (prática consolidada; Daniels; Pfitzinger);
+   3) semana de recuperação: depois de 4 semanas de carga seguidas, a 5ª cai uns 25% (iniciante: depois de 3);
+   4) polimento de prova: a penúltima semana antes da prova fica em até ~85% do pico (polimento de 8 a 14 dias,
+      Bosquet et al. 2007);
+   5) por último, nenhum treino passa de 10% do mais longo dos 30 dias anteriores (Frandsen et al. 2025): limitarSaltos. */
+const ZONA_LIM = { limiar: [0.1, 4, 99], intervalado: [0.08, 3, 10], tiros: [0.05, 2, 8], maratona: [0.2, 8, 29] };
+const kmZona = (t, z, perfil) =>
+  achatar(t.estrutura, perfil)
+    .filter((x) => x.z === z && x.k !== 'aq' && x.k !== 'dq')
+    .reduce((a, x) => a + x.metros, 0) / 1000;
+// diminui o trabalho de uma zona (repetições ou o trecho contínuo) pelo fator f
+function reduzZona(t, z, f) {
+  let mudou = false;
+  const est = t.estrutura.map((p) => {
+    if (p.k === 'rep' && (p.passos || []).some((x) => x.z === z)) {
+      const n = Math.max(2, Math.floor(p.n * f));
+      if (n !== p.n) {
+        mudou = true;
+        return { ...p, n };
+      }
+      // já está em 2 repetições: encurta cada trecho daquela zona
+      const f2 = f * (p.n / n);
+      if (f2 >= 0.97) return p;
+      mudou = true;
+      return {
+        ...p,
+        passos: p.passos.map((x) =>
+          x.z !== z
+            ? x
+            : x.med === 'min'
+              ? { ...x, v: Math.max(3, Math.round(x.v * f2)) }
+              : x.med === 'm'
+                ? { ...x, v: Math.max(400, Math.round((x.v * f2) / 100) * 100) }
+                : { ...x, v: Math.max(1, Math.round(x.v * f2 * 2) / 2) },
+        ),
+      };
+    }
+    if (p.k === 'co' && p.z === z) {
+      mudou = true;
+      return p.med === 'min'
+        ? { ...p, v: Math.max(10, Math.floor((p.v * f) / 5) * 5) }
+        : p.med === 'm'
+          ? { ...p, v: Math.max(400, Math.floor((p.v * f) / 100) * 100) }
+          : { ...p, v: Math.max(1, Math.floor(p.v * f * 2) / 2) };
+    }
+    return p;
+  });
+  if (!mudou) return t;
+  let titulo = t.titulo;
+  const r0 = t.estrutura.find((p) => p.k === 'rep'),
+    r1 = est.find((p) => p.k === 'rep');
+  if (r0 && r1 && r0.n !== r1.n) titulo = titulo.replace(`${r0.n} ×`, `${r1.n} ×`);
+  if (r0 && r1 && r0.n === r1.n && r0.passos && r1.passos) {
+    // trecho encurtado: atualiza a distância ou o tempo do título (ex.: 2 × 5 km → 2 × 4 km)
+    const a = r0.passos.find((x) => x.z === z),
+      b = r1.passos.find((x) => x.z === z);
+    if (a && b && a.v !== b.v) titulo = titulo.replace(`${r0.n} × ${fmtN(a.v)}`, `${r1.n} × ${fmtN(b.v)}`);
+  }
+  const c0 = t.estrutura.filter((p) => p.k === 'co'),
+    c1 = est.filter((p) => p.k === 'co');
+  if (t.tipo === 'longao' && c1.length > 1 && c1[c1.length - 1].v !== c0[c0.length - 1].v)
+    titulo = titulo.replace(/com [\d,]+ km em ritmo/, `com ${fmtN(c1[c1.length - 1].v)} km em ritmo`);
+  return { ...t, estrutura: est, titulo };
+}
+function ajustarCiencia(W, perfil, c) {
+  const asfalto = !['trail', 'ultra'].includes(c.obj) && c.modo !== 'trail';
+  const kmSem = (w) => w.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
+  limitarZonas(W, perfil);
+  // 1b) na semana, o volume em limiar ou mais forte fica em até 20% (profissional 25%, no duplo limiar)
+  // (Seiler 2010; Stöggl & Sperlich 2014; Casado et al. 2023)
+  const capDuro = c.niv === 'pro' ? 0.25 : 0.2;
+  W.forEach((w) => {
+    if (['Polimento', 'Prova'].includes(w.fase) || w.sess.some(([, t]) => t.tipo === 'prova')) return;
+    for (let k = 0; k < 3; k++) {
+      const tot = kmSem(w),
+        duro = w.sess.reduce(
+          (a, [, t]) => a + ['limiar', 'intervalado', 'tiros'].reduce((b, z) => b + kmZona(t, z, perfil), 0),
+          0,
+        );
+      if (!tot || duro <= capDuro * tot * 1.02) break;
+      // tirar volume duro também tira volume total: a conta resolve a fração certa
+      const f = Math.max(0.5, (capDuro * tot - capDuro * duro) / (duro * (1 - capDuro)));
+      w.sess = w.sess.map(([d, t]) => {
+        if (t.tipo === 'teste') return [d, t];
+        let t2 = t;
+        ['limiar', 'intervalado', 'tiros'].forEach((z) => {
+          if (kmZona(t2, z, perfil) > 0) t2 = reduzZona(t2, z, f);
+        });
+        return [d, t2];
+      });
+    }
+  });
+  // 1c) sessões fortes por semana (limiar ou mais forte, teste e prova forte): até 2 no iniciante e no intermediário,
+  // 3 no avançado e 5 no profissional (duplo limiar). As que passam do limite viram rodagem leve com a mesma distância.
+  limitarFortes(W, perfil, c.niv);
+  // 2) longão de asfalto: até 3 h (iniciante 2 h 30, avançado e profissional 3 h 30) e 32 km
+  if (asfalto) {
+    const capMin = { ini: 150, int: 180, ava: 210, pro: 210 }[c.niv] || 180;
+    W.forEach((w) => {
+      w.sess = w.sess.map(([d, t]) => {
+        if (t.tipo !== 'longao') return [d, t];
+        const r = resumoEstrutura(t.estrutura, perfil);
+        const f = Math.min(1, (capMin * 60) / r.seg, 32 / r.km);
+        return [d, f < 0.98 ? encurtar(t, f) : t];
+      });
+    });
+  }
+  // antes de marcar as semanas de recuperação, a subida de volume já precisa estar dentro do limite
+  limitarVolume(W, perfil);
+  // 3a) semana de recuperação que o próprio ciclo já marcou: garante que caia pelo menos ~15%
+  W.forEach((w, i) => {
+    if (!w.rec || i === 0) return;
+    const ref = Math.max(...W.slice(Math.max(0, i - 3), i).map(kmSem)),
+      v = kmSem(w);
+    const prova = w.sess.filter(([, t]) => t.tipo === 'prova').reduce((a, x) => a + kmDe(x[1], perfil), 0);
+    if (v > 0.83 * ref)
+      w.sess = w.sess.map(([d, t]) => [
+        d,
+        t.tipo === 'prova' ? t : encurtar(t, Math.max(0.4, (0.8 * ref - prova) / Math.max(1, v - prova))),
+      ]);
+  });
+  // 3) semana de recuperação depois de 4 semanas de carga (iniciante: 3)
+  const maxCarga = c.niv === 'ini' ? 3 : 4;
+  let seq = 0;
+  const vols = W.map(kmSem);
+  W.forEach((w, i) => {
+    const caiu = i > 0 && vols[i] <= 0.85 * Math.max(...vols.slice(Math.max(0, i - 3), i));
+    const final = i >= W.length - 2 || ['Polimento', 'Prova', 'Recuperação', 'Transição', 'Teste'].includes(w.fase);
+    if (w.rec || caiu) {
+      seq = 0;
+      return;
+    }
+    seq++;
+    if (final) return; // não alivia aqui, mas a conta continua: a próxima semana possível alivia
+    if (seq > maxCarga) {
+      // fica em ~80% da maior das 3 semanas anteriores; semana com prova também alivia (a prova fica, o resto encolhe)
+      const ref = Math.max(...vols.slice(Math.max(0, i - 3), i)),
+        prova = w.sess.filter(([, t]) => t.tipo === 'prova').reduce((a, x) => a + kmDe(x[1], perfil), 0),
+        f = Math.min(0.85, Math.max(0.4, (0.8 * ref - prova) / Math.max(1, vols[i] - prova)));
+      w.sess = w.sess.map(([d, t]) => [d, t.tipo === 'prova' ? t : encurtar(t, f)]);
+      w.rec = true;
+      vols[i] = kmSem(w);
+      seq = 0;
+    }
+  });
+  // 4) polimento: penúltima semana antes da prova em até ~85% do pico
+  const ult = W[W.length - 1];
+  if (W.length >= 4 && ult && ult.sess.some(([, t]) => t.tipo === 'prova')) {
+    const pico = Math.max(...W.slice(0, -2).map(kmSem)),
+      pen = W[W.length - 2];
+    const v = kmSem(pen);
+    if (v > 0.88 * pico) pen.sess = pen.sess.map(([d, t]) => [d, encurtar(t, (0.85 * pico) / v)]);
+    // e a semana da prova, fora a prova, fica em até 60% do pico (polimento de 41 a 60%)
+    const semProva = ult.sess.filter(([, t]) => t.tipo !== 'prova').reduce((a, x) => a + kmDe(x[1], perfil), 0);
+    if (semProva > 0.62 * pico)
+      ult.sess = ult.sess.map(([d, t]) => [d, t.tipo === 'prova' ? t : encurtar(t, (0.6 * pico) / semProva)]);
+  }
+  // 5) volume da semana sobe no máximo 25% sobre a maior das 4 semanas anteriores (Nielsen et al. 2014)
+  // e, com o volume final de cada semana, confere de novo a intensidade por sessão
+  return limitarZonas(limitarVolume(W, perfil), perfil);
+}
+function limitarZonas(W, perfil) {
+  const kmSem = (w) => w.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
+  // intensidade por sessão (limites de Daniels), sobre o km final da semana
+  W.forEach((w) => {
+    const tot = kmSem(w);
+    w.sess = w.sess.map(([d, t]) => {
+      if (t.tipo === 'prova' || t.tipo === 'teste') return [d, t];
+      let t2 = t;
+      Object.entries(ZONA_LIM).forEach(([z, [pct, mn, mx]]) => {
+        const lim = Math.min(Math.max(pct * tot, mn), mx);
+        for (let k = 0; k < 3; k++) {
+          const v = kmZona(t2, z, perfil);
+          if (v <= lim + 0.05) break;
+          const t3 = reduzZona(t2, z, lim / v);
+          if (t3 === t2) break;
+          t2 = t3;
+        }
+      });
+      return [d, t2];
+    });
+  });
+  return W;
+}
+function limitarFortes(W, perfil, niv) {
+  const limQ = { ini: 2, int: 2, ava: 3, pro: 5 }[niv] || 2;
+  const duroKm = (t) => ['limiar', 'intervalado', 'tiros'].reduce((b, z) => b + kmZona(t, z, perfil), 0);
+  const ehTeste = (t) => t.tipo === 'teste' || /^Teste/.test(t.titulo || '');
+  W.forEach((w) => {
+    const fortes = w.sess.filter(([, t]) => duroKm(t) >= 1 || ehTeste(t) || (t.tipo === 'prova' && duroKm(t) >= 1));
+    let sobra = fortes.length - limQ;
+    if (sobra <= 0) return;
+    const troca = fortes
+      .filter(([, t]) => t.tipo !== 'prova' && !ehTeste(t) && t.tipo !== 'longao')
+      .sort((a, b) => duroKm(a[1]) - duroKm(b[1]));
+    troca.forEach((x) => {
+      if (sobra <= 0) return;
+      const i = w.sess.indexOf(x);
+      w.sess[i] = [x[0], sRod(Math.max(3, kmDe(x[1], perfil)))];
+      sobra--;
+    });
+  });
+  return W;
+}
+function limitarVolume(W, perfil) {
+  const kmSem = (w) => w.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);
+  W.forEach((w, i) => {
+    if (!i) return;
+    const ref = Math.max(...W.slice(Math.max(0, i - 4), i).map(kmSem));
+    for (let k = 0; k < 3 && ref > 0; k++) {
+      const v = kmSem(w);
+      if (v <= ref * 1.25 + 0.5) break;
+      const prova = w.sess.filter(([, t]) => t.tipo === 'prova').reduce((a, x) => a + kmDe(x[1], perfil), 0);
+      const f = Math.max(0.4, (ref * 1.25 - prova) / Math.max(1, v - prova));
+      w.sess = w.sess.map(([d, t]) => [d, t.tipo === 'prova' ? t : encurtar(t, f)]);
+    }
+  });
+  return W;
+}
+// sessão mais longa e volume da semana se influenciam: duas passadas deixam os dois dentro do limite
+const limitarCargas = (W, perfil) => {
+  for (let k = 0; k < 2; k++) limitarVolume(limitarSaltos(W, perfil), perfil);
+  return limitarSaltos(W, perfil);
+};
 const cicCache = {};
 const cicSemanas = (c) =>
   cicCache[c.id] ||
-  (cicCache[c.id] = limitarSaltos(
-    (c.gen ? c.gen(c) : c.modo === 'modelo' ? gerarModelo(c) : gerarCiclo(c)).map((w) => ({
-      ...w,
-      sess: w.sess.map((x) => [...x]),
-    })),
+  (cicCache[c.id] = limitarCargas(
+    ajustarCiencia(
+      (c.gen ? c.gen(c) : c.modo === 'modelo' ? gerarModelo(c) : gerarCiclo(c)).map((w) => ({
+        ...w,
+        sess: w.sess.map((x) => [...x]),
+      })),
+      perfilNiv(c.niv),
+      c,
+    ),
     perfilNiv(c.niv),
   ));
 const cicKm = (sem, perfil) => sem.sess.reduce((a, x) => a + kmDe(x[1], perfil), 0);

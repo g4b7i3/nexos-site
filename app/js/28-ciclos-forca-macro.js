@@ -150,7 +150,7 @@ const CICLOS_FORCA = [
     niv: 'int',
     nome: 'Força para corredores (economia de corrida)',
     seq: 'RHFLFPFP',
-    modelo: 'Linear',
+    modelo: 'Ondulatório semanal',
     desc: 'Força com carga alta, pliometria e a combinação das duas melhoram a economia de corrida; carga leve e isometria, não (Llanos-Lagos et al. 2024, Sports Med; Blagrove et al. 2018). Faça em outro dia ou com pelo menos 3 h de intervalo da corrida, para não perder ganho de explosão (Schumann et al. 2022).',
   },
   {
@@ -193,6 +193,22 @@ const CICLOS_FORCA = [
 const CF_REFS =
   'Williams et al. 2017 e Moesgaard et al. 2022 (Sports Med); Harries et al. 2015, Rhea et al. 2002 e 2003 e McNamara & Stearne 2010 (J Strength Cond Res); Issurin 2010 e Greig et al. 2020 (Sports Med); Helms et al. 2016 (Strength Cond J); Bell et al. 2023 (Sports Med Open); Llanos-Lagos et al. 2024 (Sports Med); Blagrove et al. 2018 (Sports Med); Schoenfeld et al. 2021 (Sports); Robinson et al. 2024 (Sports Med); Singer et al. 2024 (Front Sports Act Living); Hickmott et al. 2022 (Sports Med Open); Schumann et al. 2022 (Sports Med); Coleman et al. 2024 (PeerJ).';
 const cfFases = (c) => [...c.seq].map((x) => CF_COD[x]);
+/** no máximo 6 semanas de carga seguidas: a 7ª vira semana leve (Bell et al. 2023: semana leve a cada 4 a 8,
+    mais comum a cada 5 ou 6). Usado na junção dos ciclos das trilhas e na força do macrociclo. */
+const fasesComLeve = (fs, max = 6) => {
+  let run = 0;
+  return fs.map((f) => {
+    if (f === 'deload') {
+      run = 0;
+      return f;
+    }
+    if (++run > max) {
+      run = 0;
+      return 'deload';
+    }
+    return f;
+  });
+};
 const cfBarra = (fs) =>
   `<div class="cic-barra">${fs.map((f) => `<i style="background:${FASES_F[f].cor}" title="${esc(FASES_F[f].n)}"></i>`).join('')}</div><div class="cic-leg">${[...new Set(fs)].map((f) => `<span><i style="background:${FASES_F[f].cor}"></i>${FASES_F[f].n}</span>`).join('')}</div>`;
 async function viewCiclosForca(id) {
@@ -1264,13 +1280,13 @@ async function aplicarTrilha(t, cs, forca, tot) {
         try {
           let ini = new Date(ini0);
           if (forca) {
-            const rows = [];
+            const todas = fasesComLeve(cs.flatMap((c) => cfFases(c)));
+            const rows = todas.map((fase, i) => {
+              const d = new Date(ini0);
+              d.setDate(d.getDate() + 7 * i);
+              return { org_id: S.org.id, aluno_id: alunoId, semana: isoDia(d), fase, criado_por: S.user.id };
+            });
             cs.forEach((c) => {
-              cfFases(c).forEach((fase, i) => {
-                const d = new Date(ini);
-                d.setDate(d.getDate() + 7 * i);
-                rows.push({ org_id: S.org.id, aluno_id: alunoId, semana: isoDia(d), fase, criado_por: S.user.id });
-              });
               registrarCiclo(alunoId, 'forca', c, ini, cicSem(c), t.id);
               ini.setDate(ini.getDate() + 7 * cicSem(c));
             });
@@ -1572,18 +1588,23 @@ function semanasMacro(pl) {
     ]);
     w.sess.sort((a, b) => a[0] - b[0]);
   });
-  return pl.segs.length ? limitarSaltos(W, perfilNiv(pl.segs[0].c.niv)) : W;
+  // a junção dos ciclos também passa pelos limites de volume e de sessão mais longa
+  if (!pl.segs.length) return W;
+  const pf = perfilNiv(pl.segs[0].c.niv);
+  return limitarCargas(limitarFortes(W, pf, pl.segs[0].c.niv), pf);
 }
 // força acompanhando a corrida semana a semana
 function forcaMacro(W) {
   let pp = 0;
-  return W.map((w, i) => {
-    if (w.rec || ['Polimento', 'Prova', 'Recuperação'].includes(w.fase)) return 'deload';
-    if (w.fase === 'Transição' || w.fase === 'Adaptação' || w.fase === 'Teste') return 'resistencia';
-    if (w.fase === 'Base') return i < 2 ? 'resistencia' : w.k % 4 === 2 ? 'forca' : 'hipertrofia';
-    if (w.fase === 'Construção') return 'forca';
-    return pp++ % 2 ? 'potencia' : 'forca';
-  });
+  return fasesComLeve(
+    W.map((w, i) => {
+      if (w.rec || ['Polimento', 'Prova', 'Recuperação'].includes(w.fase)) return 'deload';
+      if (w.fase === 'Transição' || w.fase === 'Adaptação' || w.fase === 'Teste') return 'resistencia';
+      if (w.fase === 'Base') return i < 2 ? 'resistencia' : w.k % 4 === 2 ? 'forca' : 'hipertrofia';
+      if (w.fase === 'Construção') return 'forca';
+      return pp++ % 2 ? 'potencia' : 'forca';
+    }),
+  );
 }
 const MAC_GUIA = [
   [
