@@ -156,10 +156,19 @@ function viewPerfil() {
     <button class="btn danger block" id="sair" style="margin-top:16px">Sair da conta</button>
     <p class="tiny dim center" style="margin-top:16px">Nexos Performance e Saúde · app v1.9 · <a href="../privacidade.html" target="_blank" rel="noopener" class="dim">Política de Privacidade</a></p>
     </div></div>`;
-  document.getElementById('sair').onclick = async () => {
-    await sb.auth.signOut();
-    location.hash = '#/';
-  };
+  // confirma antes de sair, para ninguém sair da conta sem querer
+  document.getElementById('sair').onclick = () =>
+    openSheet(
+      `<div class="h2">Sair da conta?</div><p class="muted" style="margin:10px 0 18px">Tem certeza que deseja sair? Para voltar, você vai precisar entrar de novo com o seu e-mail e a sua senha.</p>
+      <button class="btn danger block" id="sair-sim">Sim, sair da conta</button><button class="btn ghost block" data-close style="margin-top:8px">Cancelar</button>`,
+      (r) => {
+        r.querySelector('#sair-sim').onclick = async () => {
+          closeSheet();
+          await sb.auth.signOut();
+          location.hash = '#/';
+        };
+      },
+    );
   const tf = document.getElementById('trocar-foto');
   if (tf) tf.onclick = trocarFoto;
   const tf2 = document.getElementById('trocar-foto2');
