@@ -893,6 +893,7 @@ function alunoMais() {
       ${it('#/pagamentos', I.money, 'Pagamentos e plano', 'Mensalidades e formas de pagamento')}
       <div id="mais-notif"></div>
       ${it('#/perfil', I.user, 'Meu perfil', 'Foto, dados, cores do app e sair')}
+      ${it('/ajuda/', I.ficha, 'Central de ajuda', 'Tutoriais passo a passo de tudo do app')}
     </div>
     <p class="sec-lbl">Ajuda</p><div class="stack">
       <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo app</b><div class="small muted">Um passeio rápido por tudo o que o app faz</div></div>${I.chev}</button>

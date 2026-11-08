@@ -1847,6 +1847,7 @@ function staffMais() {
       ${it('#/relogios', I.watch, 'Relógios dos alunos', 'Quem está conectado, por onde e qual o modelo do relógio')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}
+      ${it('/ajuda/#treinador', I.ficha, 'Central de ajuda', 'Tutoriais do treinador e dos alunos')}
     </div>
     <p class="sec-lbl">Ajuda</p><div class="stack">
       <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo painel</b><div class="small muted">Um passeio rápido por tudo o que o painel do treinador faz</div></div>${I.chev}</button>

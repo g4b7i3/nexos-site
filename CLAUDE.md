@@ -7,3 +7,4 @@
   - Código que roda na carga do arquivo só pode usar o que foi declarado no próprio arquivo ou nos anteriores; funções chamadas depois (eventos, rotas) podem estar em qualquer arquivo.
   - Formatação: Prettier 3.6 (`singleQuote`, `printWidth: 120`, `trailingComma: all`).
 - Estilos em `app/app.css`. Service worker em `app/sw.js`.
+- Central de ajuda em `ajuda/index.html` (página estática, tutoriais de aluno e treinador) com os PDFs em `ajuda/pdf/`. Quando uma função do app mudar, atualize o tutorial correspondente e os PDFs.
