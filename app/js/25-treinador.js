@@ -866,7 +866,7 @@ async function staffAluno(alunoId, aba, extra) {
             })
             .join('')
         : '<div class="empty"><div class="h3">Nenhum treino ainda</div><p class="small">Monte o primeiro treino deste aluno.</p></div>') +
-      `<div class="grid2" style="margin-top:16px"><a class="btn" href="#/aluno/${alunoId}/treino/novo">${I.plus} Novo treino</a><button class="btn ghost" id="treino-modelo">${I.lib} Usar modelo</button></div></div></div>`;
+      `<div class="grid3 tr-novos" style="margin-top:16px"><a class="btn" href="#/aluno/${alunoId}/treino/novo">${I.plus} Novo treino</a><button class="btn ghost" id="treino-modelo">${I.lib} Usar modelo</button><button class="btn ghost" id="treino-bib">${I.hist} Biblioteca</button></div></div></div>`;
   } else if (aba === 'historico') {
     corpo = sess.length
       ? sess
@@ -959,26 +959,26 @@ async function staffAluno(alunoId, aba, extra) {
         el.innerHTML = `<a class="card sa-aviso" href="#/aluno/${alunoId}/energia" style="color:inherit"><span class="sa-ic">${ENERGIA_IC}</span><span class="sa-txt"><b>${x.n} sinais de baixa energia</b><span>Veja em Saúde da atleta o que apareceu e o que fazer</span></span>${I.chev}</a>`;
       })
       .catch(() => {});
-  const tm = document.getElementById('treino-modelo');
-  if (tm)
-    tm.onclick = () =>
-      escolherModeloTreino(async (md) => {
-        try {
-          const ex = treinos.length;
-          const t0 = {
-            titulo: 'Treino ' + String.fromCharCode(65 + ex),
-            foco: md.foco || '',
-            observacoes: md.observacoes || '',
-            itens: md.itens || [],
-          };
-          await aplicarTreinoAlunos(t0, [alunoId], true);
-          toast(`“${md.nome}” aplicado como ${t0.titulo}.`);
-          staffAluno(alunoId, 'treinos');
-        } catch (err) {
-          console.error(err);
-          toast('Não foi possível aplicar o modelo.', true);
-        }
-      });
+  const tm = document.getElementById('treino-modelo'),
+    tb = document.getElementById('treino-bib');
+  const usarNoAluno = async (md) => {
+    try {
+      const t0 = {
+        titulo: 'Treino ' + String.fromCharCode(65 + treinos.length),
+        foco: md.foco || '',
+        observacoes: md.observacoes || '',
+        itens: md.itens || [],
+      };
+      await aplicarTreinoAlunos(t0, [alunoId], true);
+      toast(`“${md.nome}” entrou como ${t0.titulo}. Toque no + de um dia para pôr na semana.`);
+      silencioso(() => staffAluno(alunoId, 'forca'));
+    } catch (err) {
+      console.error(err);
+      toast('Não foi possível usar o treino.', true);
+    }
+  };
+  if (tb) tb.onclick = () => bibliotecaForca({ alunoId, aoTreino: usarNoAluno });
+  if (tm) tm.onclick = () => escolherModeloTreino(usarNoAluno);
   if (aba === 'conversa') await viewConversa(alunoId, document.getElementById('conv'), true, extra);
   if (aba === 'fotos') await viewFotos(alunoId, document.getElementById('fotos'), true);
   const dispEd = document.getElementById('disp-ed');
@@ -1827,26 +1827,7 @@ function testeCargaSheet(it, ex, podeTeste, depois) {
   );
 }
 async function escolherModeloTreino(aoEscolher) {
-  const mods = await buscarModelosTreino();
-  openSheet(
-    `<p class="eyebrow">Modelos de treino</p><div class="h2" style="margin-top:4px">Escolha um modelo</div>
-    ${
-      mods.length
-        ? `<div class="stack" style="margin-top:16px" id="ml">${mods.map((m) => `<button class="list-item" data-m="${m.id}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(m.nome)}</b><div class="small muted">${m.foco ? esc(m.foco) + ' · ' : ''}${(m.itens || []).length} exercícios</div></div>${I.chev}</button>`).join('')}</div>`
-        : '<div class="empty" style="margin-top:16px"><div class="h3">Nenhum modelo ainda</div><p class="small">Monte um treino e toque em “Salvar como modelo”, ou crie em Exercícios → Modelos.</p></div>'
-    }`,
-    (r) => {
-      const l = r.querySelector('#ml');
-      if (l)
-        l.onclick = (e) => {
-          const b = e.target.closest('[data-m]');
-          if (b) {
-            closeSheet();
-            aoEscolher(mods.find((m) => m.id === b.dataset.m));
-          }
-        };
-    },
-  );
+  return bibliotecaForca({ aoTreino: aoEscolher, ciclos: false });
 }
 function salvarComoModelo(t) {
   openSheet(

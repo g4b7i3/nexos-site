@@ -312,6 +312,223 @@ const TREINOS_BASE_F = [
     ],
   },
 ];
+/* ---------- Biblioteca Nexos: treinos de força prontos ----------
+   Montados com os exercícios da biblioteca do app. Séries e repetições seguem a fase da semana do aluno.
+   Corredor: força pesada, unilateral e pliometria melhoram a economia de corrida (Llanos-Lagos et al. 2024; Blagrove et
+   al. 2018). Prevenção: panturrilha (gastrocnêmio e sóleo), glúteo médio, adutores e core, regiões mais ligadas às lesões
+   do corredor. Iniciante: corpo inteiro 2 a 3 vezes por semana, com máquinas e halteres para aprender os movimentos.
+   Hipertrofia: divisão superiores e inferiores, cada grupo 2 vezes por semana (Schoenfeld et al. 2016). */
+const CAT_TN = [
+  ['corredor', 'Para corredores'],
+  ['prev', 'Prevenção de lesão do corredor'],
+  ['ini', 'Iniciante: corpo inteiro'],
+  ['hip', 'Hipertrofia: superiores e inferiores'],
+];
+const TREINOS_NEXOS = [
+  { id: 'cor-a', cat: 'corredor', nome: 'Corredor A', ...TREINOS_BASE_F[0] },
+  { id: 'cor-b', cat: 'corredor', nome: 'Corredor B', ...TREINOS_BASE_F[1] },
+  { id: 'cor-c', cat: 'corredor', nome: 'Corredor C', ...TREINOS_BASE_F[2] },
+  {
+    id: 'prev-a',
+    cat: 'prev',
+    nome: 'Prevenção do corredor',
+    foco: 'Panturrilha, quadril e core',
+    itens: [
+      ['Panturrilha em pé com halteres', 3, '12 a 15', 'Desça devagar, em 3 segundos.'],
+      ['Panturrilha sentado', 3, '12 a 15', 'Trabalha o sóleo, muito exigido na corrida.'],
+      ['Monster walk (caminhada com elástico)', 3, '12 passos cada lado'],
+      ['Ponte de glúteos unilateral', 3, '10 cada lado'],
+      ['Prancha de Copenhague curta (joelho apoiado)', 3, '20 s cada lado'],
+      ['Bird dog', 3, '8 cada lado'],
+    ],
+  },
+  {
+    id: 'prev-p',
+    cat: 'prev',
+    nome: 'Pliometria do corredor',
+    foco: 'Saltos e elasticidade',
+    itens: [
+      ['Skipping rápido', 3, '20 s', 'Contato curto com o chão.'],
+      ['Agachamento com salto sem peso', 3, '6', 'Aterrisse macio e já salte de novo.'],
+      ['Salto com afundo alternado', 3, '6 cada lado'],
+      ['Salto na caixa (múltiplas repetições)', 3, '5', 'Suba leve e desça controlado. Descanso completo.'],
+      ['Prancha', 3, '30 s'],
+    ],
+  },
+  {
+    id: 'ini-a',
+    cat: 'ini',
+    nome: 'Corpo inteiro A',
+    foco: 'Iniciante, máquinas',
+    itens: [
+      ['Leg press', 3],
+      ['Supino reto na máquina', 3],
+      ['Puxada frontal pegada aberta', 3],
+      ['Mesa flexora sentada', 3],
+      ['Elevação lateral com halteres', 2],
+      ['Prancha', 3, '20 a 30 s'],
+    ],
+  },
+  {
+    id: 'ini-b',
+    cat: 'ini',
+    nome: 'Corpo inteiro B',
+    foco: 'Iniciante, halteres e cabo',
+    itens: [
+      ['Agachamento goblet', 3],
+      ['Remada baixa no cabo', 3],
+      ['Desenvolvimento de ombros na máquina', 3],
+      ['Ponte de glúteos', 3],
+      ['Panturrilha em pé na máquina', 3],
+      ['Dead bug', 3, '8 cada lado'],
+    ],
+  },
+  {
+    id: 'hip-s',
+    cat: 'hip',
+    nome: 'Superiores',
+    foco: 'Peito, costas, ombros e braços',
+    itens: [
+      ['Supino reto com barra (pegada média)', 4],
+      ['Remada curvada com barra', 4],
+      ['Desenvolvimento com halteres', 3],
+      ['Puxada frontal com pegada supinada', 3],
+      ['Rosca direta com barra', 3],
+      ['Tríceps corda', 3],
+    ],
+  },
+  {
+    id: 'hip-i',
+    cat: 'hip',
+    nome: 'Inferiores',
+    foco: 'Quadríceps, posteriores, glúteos e panturrilha',
+    itens: [
+      ['Agachamento livre com barra', 4],
+      ['Levantamento terra romeno', 3],
+      ['Leg press', 3],
+      ['Cadeira extensora', 3],
+      ['Mesa flexora', 3],
+      ['Panturrilha em pé na máquina', 3],
+    ],
+  },
+];
+/** os treinos prontos no formato de modelo (com o id de cada exercício da biblioteca) */
+async function modelosNexos() {
+  if (S.cache.mdNx) return S.cache.mdNx;
+  const nomes = [...new Set(TREINOS_NEXOS.flatMap((t) => t.itens.map((x) => x[0])))];
+  const { data } = await sb.from('nx_exercicios').select('id,nome,org_id').in('nome', nomes);
+  const idDe = {};
+  (data || []).forEach((e) => {
+    if (!idDe[e.nome] || e.org_id === S.org.id) idDe[e.nome] = e.id;
+  });
+  S.cache.mdNx = TREINOS_NEXOS.map((t) => ({
+    id: 'nx:' + t.id,
+    cat: t.cat,
+    nome: t.nome,
+    foco: t.foco,
+    observacoes: 'Séries e repetições seguem a fase da semana, que aparece no topo do treino.',
+    nexos: true,
+    itens: t.itens
+      .filter(([n]) => idDe[n])
+      .map(([n, series, reps, obs]) => ({
+        exercicio_id: idDe[n],
+        _nome: n,
+        series,
+        repeticoes: reps || '',
+        carga: '',
+        descanso_seg: reps === '5' || reps === '6' ? 120 : 90,
+        observacao: obs || '',
+      })),
+  }));
+  return S.cache.mdNx;
+}
+/** Biblioteca: treinos prontos (Nexos e os seus modelos) e, para o aluno, os ciclos de força prontos */
+async function bibliotecaForca({ alunoId = null, aoTreino, aba = 'treinos', ciclos = true }) {
+  const [nx, seus] = await Promise.all([modelosNexos(), buscarModelosTreino()]);
+  const exNome = (md, it) => it._nome || (S.cache.ex || []).find((e) => e.id === it.exercicio_id)?.nome || 'Exercício';
+  const cartao = (md) =>
+    `<div class="bib-t" data-md="${md.id}"><button type="button" class="list-item bib-tb" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.lib}</span><div class="grow"><b>${esc(md.nome)}</b><div class="small muted">${md.foco ? esc(md.foco) + ' · ' : ''}${(md.itens || []).length} exercícios</div></div>${I.chev}</button>
+    <div class="bib-prev" hidden><ol>${(md.itens || []).map((it) => `<li>${esc(exNome(md, it))}${it.repeticoes ? ` <span class="dim">· ${esc(it.series || 3)} × ${esc(it.repeticoes)}</span>` : ''}</li>`).join('')}</ol><button type="button" class="btn sm block" data-usar="${md.id}">${I.plus} Usar este treino</button></div></div>`;
+  const treinosH = () =>
+    `${seus.length ? `<p class="sec-lbl">Seus modelos</p><div class="stack">${seus.map(cartao).join('')}</div>` : ''}
+    ${CAT_TN.map(
+      ([k, n]) =>
+        `<p class="sec-lbl">${n}</p><div class="stack">${nx
+          .filter((m) => m.cat === k)
+          .map(cartao)
+          .join('')}</div>`,
+    ).join('')}`;
+  const ciclosH = () =>
+    `<p class="small muted" style="margin:8px 0 0">Cada semana recebe a sua fase (repetições e carga). Se o aluno ainda não tiver treino com dia, o app monta os treinos na hora de aplicar.</p>${CF_OBJ.map(
+      ([k, n]) => {
+        const l = CICLOS_FORCA.filter((c) => c.obj === k);
+        return l.length
+          ? `<p class="sec-lbl">${esc(n)}</p><div class="stack">${l.map((c) => `<button type="button" class="list-item" data-cic="${c.id}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>${esc(c.nome)}</b><div class="small muted">${CIC_NIV[c.niv] || ''} · ${cfFases(c).length} semanas · ${esc(c.modelo)}</div></div>${I.chev}</button>`).join('')}</div>`
+          : '';
+      },
+    ).join('')}
+    <p class="sec-lbl">Trilhas: ciclos em sequência</p><div class="stack">${TRILHAS_FORCA.map((t) => {
+      const cs = t.seq.map((x) => CICLOS_FORCA.find((c) => c.id === x)).filter(Boolean);
+      return `<button type="button" class="list-item" data-trl="${t.id}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>${esc(t.nome)}</b><div class="small muted">${CIC_NIV[t.niv] || ''} · ${cs.length} ciclos · ${cs.reduce((a, c) => a + cicSem(c), 0)} semanas</div></div>${I.chev}</button>`;
+    }).join('')}</div>
+    <p class="sec-lbl">Ano inteiro</p><a class="list-item" href="#/treinos/ciclos/anual" style="color:inherit"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Macrociclo anual</b><div class="small muted">Corrida do ano pelas provas, com a musculação acompanhando</div></div>${I.chev}</a>`;
+  openSheet(
+    `<p class="eyebrow">Biblioteca Nexos</p><div class="h2" style="margin-top:4px">${ciclos ? 'Treinos e ciclos prontos' : 'Escolha um treino pronto'}</div>
+    ${ciclos ? `<div class="seg bib-abas" style="margin-top:12px"><button type="button" data-ba="treinos">Treinos prontos</button><button type="button" data-ba="ciclos">Ciclos prontos</button></div>` : ''}
+    <div id="bib-c"></div>`,
+    (r) => {
+      const pinta = (a) => {
+        aba = a;
+        r.querySelectorAll('[data-ba]').forEach((b) => b.classList.toggle('on', b.dataset.ba === a));
+        r.querySelector('#bib-c').innerHTML = a === 'ciclos' ? ciclosH() : treinosH();
+      };
+      pinta(ciclos ? aba : 'treinos');
+      r.onclick = (e) => {
+        const ba = e.target.closest('[data-ba]');
+        if (ba) return pinta(ba.dataset.ba);
+        const us = e.target.closest('[data-usar]');
+        if (us) {
+          const md = [...seus, ...nx].find((m) => m.id === us.dataset.usar);
+          closeSheet();
+          return md && aoTreino(md);
+        }
+        const tb = e.target.closest('.bib-tb');
+        if (tb) {
+          const pv = tb.parentElement.querySelector('.bib-prev');
+          pv.hidden = !pv.hidden;
+          tb.classList.toggle('aberto', !pv.hidden);
+          return;
+        }
+        const tr = e.target.closest('[data-trl]');
+        if (tr) {
+          const t = TRILHAS_FORCA.find((x) => x.id === tr.dataset.trl);
+          const cs = t.seq.map((x) => CICLOS_FORCA.find((c) => c.id === x)).filter(Boolean);
+          closeSheet();
+          if (alunoId) S.cache.cicPre = { aluno: alunoId };
+          setTimeout(
+            () =>
+              aplicarTrilha(
+                t,
+                cs,
+                true,
+                cs.reduce((a, c) => a + cicSem(c), 0),
+              ),
+            250,
+          );
+          return;
+        }
+        if (e.target.closest('a[href]')) return closeSheet();
+        const ci = e.target.closest('[data-cic]');
+        if (ci) {
+          const c = CICLOS_FORCA.find((x) => x.id === ci.dataset.cic);
+          closeSheet();
+          if (alunoId) S.cache.cicPre = { aluno: alunoId };
+          setTimeout(() => cfAplicar(c, cfFases(c)), 250);
+        }
+      };
+    },
+  );
+}
 // dias padrão quando o aluno não marcou os dias de força (0 = segunda)
 const DIAS_BASE_F = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4] };
 /** quantos treinos de força por semana sugerir: os dias de força que o aluno marcou; sem marcação, 2 para quem
@@ -1009,10 +1226,12 @@ async function aplicarTrilha(t, cs, forca, tot) {
     d.setDate(d.getDate() + 7);
     return isoDia(d);
   })();
+  const preT = S.cache.cicPre || {};
+  S.cache.cicPre = null;
   openSheet(
     `<p class="eyebrow">Aplicar trilha</p><div class="h2" style="margin-top:4px">${esc(t.nome)}</div>
     <form id="f-trl" style="margin-top:14px">
-      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}">${esc(m.nome)}</option>`).join('')}</select></label>
+      <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${preT.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
       <p class="small" id="trl-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
       ${forca ? escTreinosFHTML() : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>'}
@@ -1021,6 +1240,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
       const f = r.querySelector('#f-trl');
       const ntf = forca ? ligarTreinosF(r, alunos) : null;
       if (ntf) f.aluno.addEventListener('change', () => ntf.atualizar(f.aluno.value));
+      if (ntf && f.aluno.value) ntf.atualizar(f.aluno.value);
       const atual = () => {
         const ini = inicioSemana(dia(f.ini.value || prox));
         const fim = new Date(ini);

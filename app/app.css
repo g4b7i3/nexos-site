@@ -946,6 +946,11 @@ html[data-tema="escuro"] .pt.plan i,html[data-tema="escuro"] .pt-l.plan{backgrou
 .btn.tr-del-todos{color:var(--err,#e5484d);display:inline-flex;align-items:center;gap:6px}
 .btn.perigo{background:var(--err,#e5484d);border-color:var(--err,#e5484d);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .seg.ntf{grid-template-columns:repeat(3,1fr);margin-top:6px}.ntf button:disabled{opacity:.45;cursor:not-allowed}
+.bib-prev{padding:4px 12px 12px}
+.bib-prev ol{margin:6px 0 10px;padding-left:20px;display:grid;gap:3px;font-size:.86rem}
+.bib-tb.aberto svg{transform:rotate(90deg)}
+.tr-novos .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+@media (max-width:420px){.tr-novos{grid-template-columns:1fr}}
 .dias-mv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
 @media (max-width:520px){.fdia{grid-template-columns:1fr}.fdia-h{border-right:0;border-bottom:1px dashed var(--line);padding:8px 10px}}
 /* trava a rolagem enquanto arrasta um treino */
