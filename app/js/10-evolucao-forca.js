@@ -904,12 +904,14 @@ const faseDoTreino = (fase, t, k = 1) => {
    máximo estimado do aluno e das repetições que devem sobrar (ver sugerirCarga). */
 // séries: as do treino, com no máximo +1 ao longo do bloco (a progressão não pode passar da faixa de ganho
 // decrescente: Pelland et al. 2024; corredor, 2 a 4 séries: Blagrove et al. 2018)
+// dentro da faixa da fase, as repetições descem semana a semana e a carga sobe junto (progressão linear dentro do
+// bloco; para ganhar músculo, linear e ondulatória dão resultado parecido: Grgic et al. 2017; Moesgaard et al. 2022)
 const PRESC_F = {
-  resistencia: { reps: '15 a 20', alvo: 15, mais: [-1, 0, 0, 0], rir: [3, 2, 2, 2] },
-  hipertrofia: { reps: '8 a 12', alvo: 10, mais: [0, 0, 1, 1], rir: [3, 2, 2, 1] },
-  forca: { reps: '4 a 6', alvo: 5, mais: [0, 0, 1, 1], rir: [3, 2, 2, 2] },
-  potencia: { reps: '3 a 5', alvo: 4, mais: [0, 0, 1, 1], rir: [4, 4, 4, 4], rapido: true },
-  autorregulada: { reps: null, alvo: null, mais: [0, 0, 0, 0], rir: [2, 2, 2, 2] },
+  resistencia: { reps: '15 a 20', semR: [20, 18, 15, 15], mais: [-1, 0, 0, 0], rir: [3, 2, 2, 2] },
+  hipertrofia: { reps: '8 a 12', semR: [12, 10, 10, 8], mais: [0, 0, 1, 1], rir: [3, 2, 2, 1] },
+  forca: { reps: '4 a 6', semR: [6, 5, 5, 4], mais: [0, 0, 1, 1], rir: [3, 2, 2, 2] },
+  potencia: { reps: '3 a 5', semR: [5, 4, 4, 3], mais: [0, 0, 1, 1], rir: [4, 4, 4, 4], rapido: true },
+  autorregulada: { reps: null, semR: null, mais: [0, 0, 0, 0], rir: [2, 2, 2, 2] },
 };
 /** fase da semana e em que semana do bloco ela está (k de n) */
 async function faseInfo(alunoId, semana) {
@@ -955,8 +957,8 @@ function prescSemana(fase, k, it, psr) {
   const i = Math.min(3, Math.max(0, (k || 1) - 1));
   return {
     series: Math.max(2, Math.min(5, base + P.mais[i])),
-    reps: P.reps,
-    alvo: P.alvo,
+    reps: String(P.semR[i]),
+    alvo: P.semR[i],
     rir: P.rir[i],
     rapido: !!P.rapido,
     f,
