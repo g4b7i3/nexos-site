@@ -698,7 +698,7 @@ async function planilhaForcaAluno(box, soLista) {
     const semanaF = `<div class="pl-top" style="margin-top:4px"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fa-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fa-h">${fs.off === 0 ? 'Esta semana' : fs.off === -1 ? 'Semana passada' : fs.off === 1 ? 'Próxima semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fa-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         <span class="small muted">${sessoes.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos</span></div>
       ${temDias && !libA ? '<div class="lib-bar"><span>Seu treinador ainda não liberou esta semana de força.</span></div>' : ''}
-      ${faseA && (libA || !temDias) ? faseCardHTML(faseA) : ''}
+      ${faseA && (libA || !temDias) && FASES_F[faseA] ? `<p class="small muted" style="margin:6px 0 0">Semana de <b>${FASES_F[faseA].n.toLowerCase()}</b>: as séries e repetições estão em cada exercício.</p>` : ''}
       <div class="fsem">${diasF
         .map((k, i) => {
           const doDia = libA ? ativos.filter((t) => treinoNoDia(t, i, movA, diasF[0], avulA)) : [];
