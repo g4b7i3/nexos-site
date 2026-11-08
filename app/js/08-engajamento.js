@@ -1235,6 +1235,7 @@ async function mapaDoPercurso(R, w, h) {
 const REPLAY_MODOS = [
   ['classico', 'Clássico'],
   ['sat', 'Satélite 3D Nexos'],
+  ['sat-segue', 'Satélite seguindo'],
   ['3d', '3D noturno'],
   ['3d-real', '3D realista'],
 ];
@@ -1300,6 +1301,7 @@ function abrirReplay(c, perfil) {
   let zoomCam = store.get('nx-replay-zoom', 'medio'); // nos modos 3D: câmera perto, média ou longe
   let modo = 'classico',
     m3 = null; // mapa 3D ao vivo (só nos modos 3D)
+  const ehSat = () => modo === 'sat' || modo === 'sat-segue';
   const bv = ov.querySelector('#rp-video');
   const fecha = () => {
     cancelAnimationFrame(raf);
@@ -1478,43 +1480,71 @@ function abrirReplay(c, perfil) {
     x.clip();
     x.lineCap = 'round';
     x.lineJoin = 'round';
-    // o percurso todo bem leve; a parte já corrida grossa, com contorno escuro para destacar no satélite
-    x.strokeStyle = 'rgba(255,255,255,.28)';
-    x.lineWidth = 6;
-    x.beginPath();
-    P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b)));
-    x.stroke();
-    const feito = (larg, cor) => {
-      x.lineWidth = larg;
-      for (let j = 1; j <= n; j++) {
-        x.strokeStyle = cor || (cores ? cores[j - 1] : corP().p1);
+    const segue = modo === 'sat-segue';
+    if (segue) {
+      // estilo perseguição: o percurso inteiro em vermelho forte, com contorno escuro, e o ponto branco por cima
+      const linha = (larg, cor) => {
+        x.strokeStyle = cor;
+        x.lineWidth = larg;
         x.beginPath();
-        x.moveTo(P[j - 1][0], P[j - 1][1]);
-        x.lineTo(j === n ? px : P[j][0], j === n ? py : P[j][1]);
+        P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b)));
         x.stroke();
-      }
-    };
-    feito(24, 'rgba(0,0,0,.4)');
-    x.shadowColor = corP().p1;
-    x.shadowBlur = 18;
-    feito(15);
-    x.shadowBlur = 0;
-    const gl = x.createRadialGradient(px, py, 2, px, py, 46);
-    gl.addColorStop(0, 'rgba(255,255,255,.9)');
-    gl.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = gl;
-    x.beginPath();
-    x.arc(px, py, 46, 0, 7);
-    x.fill();
-    x.fillStyle = corP().p1;
-    x.beginPath();
-    x.arc(px, py, 19, 0, 7);
-    x.fill();
-    x.fillStyle = '#fff';
-    x.beginPath();
-    x.arc(px, py, 12, 0, 7);
-    x.fill();
-    x.restore();
+      };
+      linha(30, 'rgba(60,8,0,.55)');
+      linha(20, '#ff3b1f');
+      x.fillStyle = '#ff3b1f';
+      x.beginPath();
+      x.arc(px, py, 24, 0, 7);
+      x.fill();
+      x.fillStyle = '#fff';
+      x.beginPath();
+      x.arc(px, py, 16, 0, 7);
+      x.fill();
+      x.fillStyle = '#ff3b1f';
+      x.beginPath();
+      x.arc(px, py, 7, 0, 7);
+      x.fill();
+      x.restore();
+    }
+    // o percurso todo bem leve; a parte já corrida grossa, com contorno escuro para destacar no satélite
+    if (!segue) {
+      x.strokeStyle = 'rgba(255,255,255,.28)';
+      x.lineWidth = 6;
+      x.beginPath();
+      P.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b)));
+      x.stroke();
+      const feito = (larg, cor) => {
+        x.lineWidth = larg;
+        for (let j = 1; j <= n; j++) {
+          x.strokeStyle = cor || (cores ? cores[j - 1] : corP().p1);
+          x.beginPath();
+          x.moveTo(P[j - 1][0], P[j - 1][1]);
+          x.lineTo(j === n ? px : P[j][0], j === n ? py : P[j][1]);
+          x.stroke();
+        }
+      };
+      feito(24, 'rgba(0,0,0,.4)');
+      x.shadowColor = corP().p1;
+      x.shadowBlur = 18;
+      feito(15);
+      x.shadowBlur = 0;
+      const gl = x.createRadialGradient(px, py, 2, px, py, 46);
+      gl.addColorStop(0, 'rgba(255,255,255,.9)');
+      gl.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gl;
+      x.beginPath();
+      x.arc(px, py, 46, 0, 7);
+      x.fill();
+      x.fillStyle = corP().p1;
+      x.beginPath();
+      x.arc(px, py, 19, 0, 7);
+      x.fill();
+      x.fillStyle = '#fff';
+      x.beginPath();
+      x.arc(px, py, 12, 0, 7);
+      x.fill();
+      x.restore();
+    }
     // título e data
     x.textAlign = 'center';
     x.fillStyle = '#fff';
@@ -1577,7 +1607,7 @@ function abrirReplay(c, perfil) {
     x.restore();
   };
   const desenha = (k) => {
-    if (modo === 'sat' && m3 && m3.pronto) return desenhaSat(k);
+    if (ehSat() && m3 && m3.pronto) return desenhaSat(k);
     fundoStory(x, W, H);
     if (m3 && m3.pronto) {
       // mapa 3D: a câmera já foi posicionada; copia o quadro e apaga as bordas de cima e de baixo
@@ -1724,22 +1754,28 @@ function abrirReplay(c, perfil) {
         : k < 0.5
           ? 2 * k * k
           : 1 - Math.pow(-2 * k + 2, 2) / 2;
-      if (d3) (modo === 'sat' ? cameraSat : camera3D)(e);
+      if (d3) (modo === 'sat-segue' ? cameraSegue : modo === 'sat' ? cameraSat : camera3D)(e);
       desenha(e);
       if (logo) {
         const h = 48,
           w = (logo.width / logo.height) * h;
-        x.drawImage(logo, modo === 'sat' && d3 ? (W - w) / 2 : 90, 110, w, h);
+        x.drawImage(logo, ehSat() && d3 ? (W - w) / 2 : 90, 110, w, h);
       }
       if (k < 1) raf = requestAnimationFrame(f);
-      else if (d3 && modo === 'sat') fimSat(aoFim);
+      else if (d3 && ehSat()) fimSat(aoFim);
       else if (aoFim) setTimeout(aoFim, 1500);
     };
     raf = requestAnimationFrame(f);
   };
   function fimSat(aoFim) {
     const t0 = performance.now(),
-      de = { c: m3.map.getCenter(), z: m3.map.getZoom(), b: m3.map.getBearing(), p: m3.map.getPitch() },
+      de = {
+        c: m3.map.getCenter(),
+        z: m3.map.getZoom(),
+        b: m3.map.getBearing(),
+        p: m3.map.getPitch(),
+        pad: (m3.map.getPadding() || {}).top || 0,
+      },
       ate = m3.vista;
     const f = (t) => {
       const q = Math.min(1, (t - t0) / 4200),
@@ -1750,6 +1786,7 @@ function abrirReplay(c, perfil) {
         zoom: de.z + (ate.z - de.z) * e,
         bearing: de.b + 25 * e,
         pitch: de.p + (45 - de.p) * e,
+        padding: { top: de.pad * (1 - e), bottom: 0, left: 0, right: 0 },
       });
       desenhaSat(1);
       if (logo) {
@@ -1766,6 +1803,24 @@ function abrirReplay(c, perfil) {
   // câmera de drone: alta, inclinada, girando devagar em volta do ponto que corre
   function cameraSat(e) {
     m3.map.jumpTo({ center: pontoEm(e), bearing: m3.rumo0 + e * 80, pitch: 60, zoom: m3.zoom });
+  }
+  // câmera de perseguição (como os vídeos do Strava): atrás do corredor, virada para onde ele vai,
+  // com o ponto mais embaixo na tela para mostrar o caminho à frente
+  function cameraSegue(e) {
+    const c0 = pontoEm(e),
+      adiante = pontoEm(Math.min(1, e + 0.05));
+    const alvo = Math.hypot(adiante[0] - c0[0], adiante[1] - c0[1]) > 1e-6 ? rumoEntre(c0, adiante) : (m3.rumo ?? 0);
+    if (m3.rumo == null) m3.rumo = alvo;
+    const d = ((alvo - m3.rumo + 540) % 360) - 180; // gira pelo lado mais curto, devagar
+    m3.rumo += d * 0.04;
+    const h = m3.map.getContainer().clientHeight || H;
+    m3.map.jumpTo({
+      center: c0,
+      bearing: m3.rumo,
+      pitch: 56,
+      zoom: m3.zoom - 0.35,
+      padding: { top: Math.round(h * 0.42), bottom: 0, left: 0, right: 0 },
+    });
   }
   // ---------- modos 3D: câmera inclinada que segue o corredor, com prédios em 3D ----------
   const pontoEm = (e) => {
@@ -1979,7 +2034,7 @@ function abrirReplay(c, perfil) {
     const N = 6;
     for (let i = 0; i <= N + 1; i++) {
       if (m3 !== meu || !ov.isConnected) return false;
-      if (i <= N) cameraSat(i / N);
+      if (i <= N) (modo === 'sat-segue' ? cameraSegue : cameraSat)(i / N);
       else map.jumpTo({ center: meu.vista.c, zoom: meu.vista.z, bearing: meu.rumo0 + 105, pitch: 45 });
       bv.textContent = `Preparando o satélite… ${80 + Math.round((i / (N + 1)) * 20)}%`;
       await espera(1500);
@@ -2003,8 +2058,8 @@ function abrirReplay(c, perfil) {
         return tocar();
       }
       bv.disabled = true;
-      bv.textContent = modo === 'sat' ? 'Preparando o satélite…' : 'Preparando o 3D…';
-      const ok = await preparar3D(modo).catch(() => false);
+      bv.textContent = ehSat() ? 'Preparando o satélite…' : 'Preparando o 3D…';
+      const ok = await preparar3D(ehSat() ? 'sat' : modo).catch(() => false);
       if (!ov.isConnected || modo !== bt.dataset.rpm) return;
       bv.disabled = false;
       bv.textContent = 'Salvar vídeo';
@@ -2123,7 +2178,7 @@ function abrirReplay(c, perfil) {
     b.dataset.gravando = '1';
     const rec = new MediaRecorder(cv.captureStream(30), {
       mimeType: tipo,
-      videoBitsPerSecond: modo === 'sat' ? 9000000 : 6000000,
+      videoBitsPerSecond: ehSat() ? 9000000 : 6000000,
     });
     const partes = [];
     rec.ondataavailable = (ev) => ev.data.size && partes.push(ev.data);
