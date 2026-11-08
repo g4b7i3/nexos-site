@@ -1235,7 +1235,7 @@ async function mapaDoPercurso(R, w, h) {
 const REPLAY_MODOS = [
   ['classico', 'Clássico'],
   ['sat', 'Satélite 3D'],
-  ['3d', '3D noturno'],
+  ['3d', 'Mapa 3D Nexos'],
   ['3d-real', '3D realista'],
 ];
 // chave do mapa de satélite (Esri): fica no banco, só para quem está logado, e só funciona no domínio da Nexos
@@ -1280,6 +1280,7 @@ function abrirReplay(c, perfil) {
   document.body.style.overflow = 'hidden';
   ov.innerHTML = `<button class="retro-x" aria-label="Fechar">${I.x}</button><canvas id="rp-cv"></canvas>
     <div class="replay-modos" role="radiogroup" aria-label="Estilo do vídeo">${REPLAY_MODOS.map(([k, n]) => `<button type="button" data-rpm="${k}" class="${k === 'classico' ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <div class="replay-vel" role="radiogroup" aria-label="Velocidade do vídeo"><span>Velocidade</span>${[0.5, 1, 2].map((v) => `<button type="button" data-rpv="${v}" class="${v === 1 ? 'on' : ''}">${String(v).replace('.', ',')}x</button>`).join('')}</div>
     <div class="replay-bts"><button class="btn ghost sm" id="rp-de-novo">Ver de novo</button><button class="btn sm" id="rp-video">Salvar vídeo</button></div>`;
   const cv = ov.querySelector('#rp-cv'),
     W = 1080,
@@ -1288,6 +1289,7 @@ function abrirReplay(c, perfil) {
   cv.height = H;
   const x = cv.getContext('2d');
   let raf = 0;
+  let vel = 1; // velocidade do vídeo: 0,5x, 1x ou 2x
   let modo = 'classico',
     m3 = null; // mapa 3D ao vivo (só nos modos 3D)
   const bv = ov.querySelector('#rp-video');
@@ -1624,7 +1626,7 @@ function abrirReplay(c, perfil) {
     cancelAnimationFrame(raf);
     const t0 = performance.now();
     const d3 = m3 && m3.pronto,
-      dur = d3 ? Math.min(24000, Math.max(13000, (dist / 1000) * 2600)) : DUR;
+      dur = (d3 ? Math.min(24000, Math.max(13000, (dist / 1000) * 2600)) : DUR) / vel;
     if (d3) m3.rumo = null;
     const f = (t) => {
       const k = Math.min(1, (t - t0) / dur);
@@ -1714,8 +1716,9 @@ function abrirReplay(c, perfil) {
     await carregarMapaLib();
     const sat = estilo === 'sat';
     let estiloMapa = `https://tiles.openfreemap.org/styles/${estilo === '3d' ? 'dark' : 'liberty'}`;
+    let fonteSat = null;
     if (sat) {
-      const fonte = await fonteSatelite(R[0][1], R[0][0]);
+      const fonte = (fonteSat = await fonteSatelite(R[0][1], R[0][0]));
       if (!fonte) return 'sem-satelite';
       estiloMapa = {
         version: 8,
@@ -1769,7 +1772,10 @@ function abrirReplay(c, perfil) {
       });
     });
     if (m3 !== meu) return false;
-    if (sat) return prepararSat(meu);
+    if (sat) {
+      meu.fonte = fonteSat;
+      return prepararSat(meu);
+    }
     // prédios em 3D (o estilo escuro não traz; no realista reforça a altura)
     const camadas = map.getStyle().layers || [];
     if (!camadas.some((l) => l.type === 'fill-extrusion')) {
@@ -1842,13 +1848,57 @@ function abrirReplay(c, perfil) {
           ok();
         });
       });
-    const N = 12;
+    // 1) baixa em paralelo os pedaços de satélite e de relevo ao longo do percurso (o navegador guarda e o mapa usa na hora)
+    const urls = new Set(),
+      zS = Math.floor(meu.zoom) + (meu.fonte.tam === 256 ? 1 : 0),
+      peca = (z, lo, la) => {
+        const n = 2 ** z,
+          r = (la * Math.PI) / 180;
+        return [
+          Math.floor(((lo + 180) / 360) * n),
+          Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n),
+        ];
+      };
+    const passo = Math.max(1, Math.floor(R.length / 160));
+    for (let i = 0; i < R.length; i += passo) {
+      const [la, lo] = R[i];
+      for (let z = zS - 2; z <= zS; z++) {
+        const [tx, ty] = peca(z, lo, la),
+          raio = z === zS ? 1 : 0;
+        for (let dx = -raio; dx <= raio; dx++)
+          for (let dy = -raio; dy <= raio; dy++)
+            urls.add(
+              meu.fonte.url
+                .replace('{z}', z)
+                .replace('{y}', ty + dy)
+                .replace('{x}', tx + dx),
+            );
+      }
+      const zd = Math.min(15, zS - 2),
+        [dx, dy] = peca(zd, lo, la);
+      urls.add(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${zd}/${dx}/${dy}.png`);
+    }
+    const fila = [...urls];
+    let feitos = 0;
+    const baixar = async () => {
+      while (fila.length && m3 === meu) {
+        const u = fila.pop();
+        try {
+          await fetch(u, { mode: 'cors', credentials: 'omit' });
+        } catch {}
+        feitos++;
+        bv.textContent = `Preparando o satélite… ${Math.round((feitos / urls.size) * 80)}%`;
+      }
+    };
+    await Promise.all(Array.from({ length: 16 }, baixar));
+    // 2) passa a câmera por alguns pontos para o mapa montar o relevo
+    const N = 6;
     for (let i = 0; i <= N + 1; i++) {
       if (m3 !== meu || !ov.isConnected) return false;
       if (i <= N) cameraSat(i / N);
       else map.jumpTo({ center: meu.vista.c, zoom: meu.vista.z, bearing: meu.rumo0 + 105, pitch: 45 });
-      bv.textContent = `Preparando o satélite… ${Math.round((i / (N + 1)) * 100)}%`;
-      await espera(3000);
+      bv.textContent = `Preparando o satélite… ${80 + Math.round((i / (N + 1)) * 20)}%`;
+      await espera(1500);
       if (erros > 6) return 'sem-satelite';
     }
     meu.pronto = true;
@@ -1918,6 +1968,14 @@ function abrirReplay(c, perfil) {
     tocar();
   });
   ov.querySelector('#rp-de-novo').onclick = () => tocar();
+  ov.querySelectorAll('[data-rpv]').forEach((bt) => {
+    bt.onclick = () => {
+      if (bv.dataset.gravando) return;
+      vel = +bt.dataset.rpv;
+      ov.querySelectorAll('[data-rpv]').forEach((o) => o.classList.toggle('on', o === bt));
+      tocar();
+    };
+  });
   ov.querySelector('#rp-video').onclick = async (e) => {
     const b = e.currentTarget;
     const tipo = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(
@@ -1928,7 +1986,10 @@ function abrirReplay(c, perfil) {
     b.disabled = true;
     b.textContent = 'Gravando…';
     b.dataset.gravando = '1';
-    const rec = new MediaRecorder(cv.captureStream(30), { mimeType: tipo, videoBitsPerSecond: 6000000 });
+    const rec = new MediaRecorder(cv.captureStream(30), {
+      mimeType: tipo,
+      videoBitsPerSecond: modo === 'sat' ? 9000000 : 6000000,
+    });
     const partes = [];
     rec.ondataavailable = (ev) => ev.data.size && partes.push(ev.data);
     rec.onstop = async () => {

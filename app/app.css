@@ -2332,6 +2332,10 @@ html[data-tema="escuro"] .cp-lin{stroke:rgba(190,210,245,.35)}
 .replay-modos{display:flex;gap:6px;justify-content:center;padding:10px 16px 0;flex-wrap:wrap}
 .replay-modos button{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;font:700 .8rem var(--f-b);padding:8px 14px;border-radius:999px;cursor:pointer}
 .replay-modos button.on{background:var(--p1);border-color:var(--p1);color:#04122e}
+.replay-vel{display:flex;gap:6px;justify-content:center;align-items:center;padding:8px 16px 0;font:700 .75rem var(--f-b);color:rgba(255,255,255,.6)}
+.replay-vel span{margin-right:4px;letter-spacing:.04em;text-transform:uppercase}
+.replay-vel button{border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;font:700 .78rem var(--f-b);padding:6px 12px;border-radius:999px;cursor:pointer}
+.replay-vel button.on{background:#fff;color:#04122e;border-color:#fff}
 .replay-bts{display:flex;gap:10px;justify-content:center;padding:12px 16px calc(16px + var(--safe-b))}
 .replay-bts .btn.ghost{color:#fff!important;border-color:rgba(255,255,255,.3)!important;background:rgba(255,255,255,.08)!important}
 /* você contra você */
