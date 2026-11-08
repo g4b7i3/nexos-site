@@ -1065,14 +1065,15 @@ async function desenharCard(cv, c, o) {
   const comLogo = o.stats.logo;
   const wm = comLogo ? await cardImg(branco ? 'icons/wordmark.svg' : 'icons/wordmark-escuro.svg') : null;
   const sim = comLogo ? await cardImg(branco ? 'icons/simbolo.svg' : 'icons/simbolo-escuro.svg') : null;
-  const desenha = (im, ar, x, y, w, al = 'left') => {
+  const desenha = (im, ar, x, y, w, al = 'left', leve = false) => {
     if (!im) return 0;
     const h = w * ar;
     const xx = al === 'center' ? x - w / 2 : al === 'right' ? x - w : x;
     ctx.save();
     if (sombra) {
-      ctx.shadowColor = 'rgba(0,0,0,.28)';
-      ctx.shadowBlur = 12;
+      ctx.shadowColor = leve ? 'rgba(0,0,0,.22)' : 'rgba(0,0,0,.28)';
+      ctx.shadowBlur = leve ? 5 : 12;
+      if (leve) ctx.shadowOffsetY = 1;
     }
     ctx.drawImage(im, xx, y, w, h);
     ctx.restore();
@@ -1662,53 +1663,72 @@ async function desenharCard(cv, c, o) {
     const vs = parc.map(pk),
       mn = Math.min(...vs),
       mx = Math.max(...vs);
-    if (cima) {
-      const lh = Math.min(post ? 72 : 92, ((post ? 0.52 : 0.58) * H - 160) / Math.max(1, parc.length));
-      let y = post ? 60 : 90;
-      txt('Parciais por km', 80, y + 56, `800 58px ${FH}`, tx, 'left', -1);
-      y += 110;
-      parc.forEach((p, i) => {
-        const v = vs[i],
-          w = mx > mn ? 200 + (420 * (mx - v)) / (mx - mn) : 560,
-          yy = y + i * lh;
-        txt(
-          p.parcial ? String(p.km).replace('.', ',') : String(p.km),
-          80,
-          yy + lh * 0.62,
-          `700 ${Math.round(lh * 0.48)}px ${FB}`,
-          sub,
-          'left',
-        );
-        ctx.save();
-        ctx.fillStyle = v === mn ? AC : branco ? 'rgba(255,255,255,.88)' : 'rgba(11,24,52,.85)';
-        if (sombra) {
-          ctx.shadowColor = 'rgba(0,0,0,.22)';
-          ctx.shadowBlur = 10;
-        }
-        ret(ctx, 160, yy + lh * 0.2, w, lh * 0.56, lh * 0.28);
-        ctx.fill();
-        ctx.restore();
-        txt(
-          fmtPace(v).replace('/km', ''),
-          W - 80,
-          yy + lh * 0.62,
-          `800 ${Math.round(lh * 0.48)}px ${FB}`,
-          v === mn ? AC : tx,
-          'right',
-        );
+    // cada parte mexe sozinha (dois dedos em cima de uma parte aumenta e move só ela)
+    const pc = o.pc || { z: 1, dx: 0, dy: 0 },
+      pb = o.pb || { z: 1, dx: 0, dy: 0 };
+    const lhC = Math.min(post ? 72 : 92, ((post ? 0.52 : 0.58) * H - 160) / Math.max(1, parc.length));
+    const topoC = post ? 60 : 90,
+      cyC = topoC + (110 + parc.length * lhC) / 2;
+    const pxB = post ? 72 : 80,
+      yS = H - (post ? 80 : 120) - pxB * 1.4,
+      cyB = (yS - (post ? 150 : 170) + yS + pxB * 1.5) / 2;
+    o._cy = { pc: cyC + pc.dy, pb: cyB + pb.dy };
+    const parte = (t, cy, fn) => {
+      ctx.save();
+      ctx.translate(W / 2 + t.dx, cy + t.dy);
+      ctx.scale(t.z, t.z);
+      ctx.translate(-W / 2, -cy);
+      fn();
+      ctx.restore();
+    };
+    if (cima)
+      parte(pc, cyC, () => {
+        const lh = lhC;
+        let y = topoC;
+        txt('Parciais por km', 80, y + 56, `800 58px ${FH}`, tx, 'left', -1);
+        y += 110;
+        parc.forEach((p, i) => {
+          const v = vs[i],
+            w = mx > mn ? 200 + (420 * (mx - v)) / (mx - mn) : 560,
+            yy = y + i * lh;
+          txt(
+            p.parcial ? String(p.km).replace('.', ',') : String(p.km),
+            80,
+            yy + lh * 0.62,
+            `700 ${Math.round(lh * 0.48)}px ${FB}`,
+            sub,
+            'left',
+          );
+          ctx.save();
+          ctx.fillStyle = v === mn ? AC : branco ? 'rgba(255,255,255,.88)' : 'rgba(11,24,52,.85)';
+          if (sombra) {
+            ctx.shadowColor = 'rgba(0,0,0,.22)';
+            ctx.shadowBlur = 10;
+          }
+          ret(ctx, 160, yy + lh * 0.2, w, lh * 0.56, lh * 0.28);
+          ctx.fill();
+          ctx.restore();
+          txt(
+            fmtPace(v).replace('/km', ''),
+            W - 80,
+            yy + lh * 0.62,
+            `800 ${Math.round(lh * 0.48)}px ${FB}`,
+            v === mn ? AC : tx,
+            'right',
+          );
+        });
       });
-    }
-    if (baixo) {
-      const tot = ['dist', 'pace', 'tempo'].filter((k) => V[k]).map((k) => V[k]);
-      const px = post ? 72 : 80;
-      const yS = H - (post ? 80 : 120) - px * 1.4;
-      if (comLogo) {
-        const yL = yS - (post ? 150 : 170);
-        simbolo(W / 2 - 150, yL, 190, 'center');
-        logoTexto(W / 2 + 70, yL + 16, 300, 'center');
-      }
-      grade(tot, yS, px, 50, W - 50, 3, 'center');
-    }
+    if (baixo)
+      parte(pb, cyB, () => {
+        const tot = ['dist', 'pace', 'tempo'].filter((k) => V[k]).map((k) => V[k]);
+        if (comLogo) {
+          // a marca branca e nítida como os números (sombra curta, para não acinzentar o traço fino)
+          const yL = yS - (post ? 160 : 185);
+          desenha(sim, 2333.5 / 5528.6, W / 2 - 165, yL, 220, 'center', true);
+          desenha(wm, 937.1 / 5645, W / 2 + 80, yL + 22, 340, 'center', true);
+        }
+        grade(tot, yS, pxB, 50, W - 50, 3, 'center');
+      });
   } else if (L === 'parciais') {
     // barras dos km (o mais rápido em destaque)
     const parc = (c.parciais || []).filter((p) => !p.parcial || p.km % 1 > 0.3).slice(0, post ? 16 : 24);
@@ -2042,11 +2062,13 @@ async function abrirCardCorrida(c, plano) {
         prev.classList.toggle('xadrez', o.fundo === 'transparente');
         prev.classList.toggle('post', o.formato === 'post');
         dica.textContent =
-          o.fundo === 'transparente'
-            ? 'Sem fundo: toque em “Copiar” e cole no story do Instagram por cima da sua foto. Dá para voltar, trocar o modelo e copiar outro para colar junto.'
-            : o.fundo === 'foto' && !o.img
-              ? 'Toque em “Foto” para escolher a imagem de fundo.'
-              : '';
+          o.layout === 'parciais_total'
+            ? 'As parciais e o total mexem separados: toque em uma parte e arraste, ou pince com dois dedos para aumentar só ela.'
+            : o.fundo === 'transparente'
+              ? 'Sem fundo: toque em “Copiar” e cole no story do Instagram por cima da sua foto. Dá para voltar, trocar o modelo e copiar outro para colar junto.'
+              : o.fundo === 'foto' && !o.img
+                ? 'Toque em “Foto” para escolher a imagem de fundo.'
+                : '';
         await desenharCard(cv, c, o);
         miniaturas();
       };
@@ -2061,7 +2083,7 @@ async function abrirCardCorrida(c, plano) {
           gal.classList.toggle('post', o.formato === 'post');
           const tmp = document.createElement('canvas');
           for (const b of gal.querySelectorAll('[data-lay]')) {
-            await desenharCard(tmp, c, { ...o, layout: b.dataset.lay, zoom: 1, dx: 0, dy: 0 });
+            await desenharCard(tmp, c, { ...o, layout: b.dataset.lay, zoom: 1, dx: 0, dy: 0, pc: null, pb: null });
             const mc = b.querySelector('canvas');
             mc.width = 216;
             mc.height = Math.round((216 * tmp.height) / tmp.width);
@@ -2078,7 +2100,7 @@ async function abrirCardCorrida(c, plano) {
         r.querySelectorAll('#cd-gal [data-lay]').forEach((x) => x.classList.toggle('on', x === b));
         r.querySelector('#cd-partes').hidden = !(o.layout === 'parciais_total' && o.fundo === 'transparente');
         salvar();
-        desenharCard(cv, c, o);
+        pinta();
       };
       r.querySelectorAll('.card-seg').forEach(
         (sg) =>
@@ -2127,11 +2149,34 @@ async function abrirCardCorrida(c, plano) {
           await desenharCard(cv, c, o);
         });
       };
-      const limita = () => {
-        o.zoom = Math.min(1.8, Math.max(0.35, o.zoom));
+      // no modelo Parciais + total, o dedo mexe só na parte que tocou (parciais ou total); nos outros, no card todo
+      o.pc = { z: 1, dx: 0, dy: 0 };
+      o.pb = { z: 1, dx: 0, dy: 0 };
+      let alvo = null;
+      const doisPartes = () => o.layout === 'parciais_total';
+      const T = () => (doisPartes() ? o[alvo || 'pc'] : null);
+      const getT = () => {
+        const t = T();
+        return t ? { z: t.z, dx: t.dx, dy: t.dy } : { z: o.zoom, dx: o.dx, dy: o.dy };
+      };
+      const setT = (z, dx, dy) => {
+        const t = T();
         const lim = 700;
-        o.dx = Math.max(-lim, Math.min(lim, o.dx));
-        o.dy = Math.max(-lim * 1.4, Math.min(lim * 1.4, o.dy));
+        z = Math.min(t ? 2.4 : 1.8, Math.max(0.35, z));
+        dx = Math.max(-lim, Math.min(lim, dx));
+        dy = Math.max(-lim * 1.4, Math.min(lim * 1.4, dy));
+        if (t) Object.assign(t, { z, dx, dy });
+        else Object.assign(o, { zoom: z, dx, dy });
+      };
+      const escolheAlvo = (clientY) => {
+        if (!doisPartes() || !o._cy) return;
+        const rc = cv.getBoundingClientRect(),
+          y = ((clientY - rc.top) / rc.height) * (o.formato === 'post' ? 1350 : 1920);
+        alvo = Math.abs(y - o._cy.pc) <= Math.abs(y - o._cy.pb) ? 'pc' : 'pb';
+      };
+      const limita = () => {
+        const t = getT();
+        setT(t.z, t.dx, t.dy);
       };
       const escala = () => cv.width / cv.getBoundingClientRect().width;
       const toques = new Map();
@@ -2147,24 +2192,26 @@ async function abrirCardCorrida(c, plano) {
       };
       cv.addEventListener('pointerdown', (e) => {
         cv.setPointerCapture(e.pointerId);
+        if (!toques.size) escolheAlvo(e.clientY);
         toques.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        ini = { ...estado(), z: o.zoom, dx: o.dx, dy: o.dy };
+        ini = { ...estado(), ...getT() };
       });
       cv.addEventListener('pointermove', (e) => {
         if (!toques.has(e.pointerId) || !ini) return;
         toques.set(e.pointerId, { x: e.clientX, y: e.clientY });
         const agora = estado(),
           k = escala();
-        if (agora.d && ini.d) o.zoom = ini.z * (agora.d / ini.d);
-        o.dx = ini.dx + (agora.cx - ini.cx) * k;
-        o.dy = ini.dy + (agora.cy - ini.cy) * k;
-        limita();
+        setT(
+          agora.d && ini.d ? ini.z * (agora.d / ini.d) : getT().z,
+          ini.dx + (agora.cx - ini.cx) * k,
+          ini.dy + (agora.cy - ini.cy) * k,
+        );
         redesenha();
       });
       const solta = (e) => {
         toques.delete(e.pointerId);
         const st0 = estado();
-        ini = st0 ? { ...st0, z: o.zoom, dx: o.dx, dy: o.dy } : null;
+        ini = st0 ? { ...st0, ...getT() } : null;
       };
       cv.addEventListener('pointerup', solta);
       cv.addEventListener('pointercancel', solta);
@@ -2172,8 +2219,9 @@ async function abrirCardCorrida(c, plano) {
         'wheel',
         (e) => {
           e.preventDefault();
-          o.zoom *= e.deltaY < 0 ? 1.06 : 1 / 1.06;
-          limita();
+          escolheAlvo(e.clientY);
+          const t = getT();
+          setT(t.z * (e.deltaY < 0 ? 1.06 : 1 / 1.06), t.dx, t.dy);
           redesenha();
         },
         { passive: false },
@@ -2181,8 +2229,8 @@ async function abrirCardCorrida(c, plano) {
       r.querySelectorAll('[data-z]').forEach(
         (b) =>
           (b.onclick = () => {
-            o.zoom *= Number(b.dataset.z) > 0 ? 1.12 : 1 / 1.12;
-            limita();
+            const t = getT();
+            setT(t.z * (Number(b.dataset.z) > 0 ? 1.12 : 1 / 1.12), t.dx, t.dy);
             redesenha();
           }),
       );
@@ -2190,6 +2238,8 @@ async function abrirCardCorrida(c, plano) {
         o.zoom = 1;
         o.dx = 0;
         o.dy = 0;
+        o.pc = { z: 1, dx: 0, dy: 0 };
+        o.pb = { z: 1, dx: 0, dy: 0 };
         redesenha();
       };
       // localização: só aparece se o atleta escolher
@@ -2336,7 +2386,13 @@ async function abrirCardCorrida(c, plano) {
       // copiar para colar como figurinha no story (sem fundo: corta o espaço vazio em volta)
       const blobCopia = async (parte) => {
         const hd = document.createElement('canvas');
-        await desenharCard(hd, c, { ...o, escala: 2, parte: parte || null });
+        // a parte copiada sai inteira e no tamanho original (no story ela é ajustada com os dedos)
+        await desenharCard(hd, c, {
+          ...o,
+          escala: 2,
+          parte: parte || null,
+          ...(parte ? { pc: null, pb: null, zoom: 1, dx: 0, dy: 0 } : {}),
+        });
         let saida = hd;
         if (o.fundo === 'transparente') {
           const W = hd.width,
