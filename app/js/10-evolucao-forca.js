@@ -866,6 +866,25 @@ const faseDoTreino = (fase, t) => {
   if (fase === 'conjugada') return l === 'A' ? 'forca' : l === 'B' ? 'potencia' : 'hipertrofia'; // esforço máximo, dinâmico e repetições
   return l === 'A' ? 'forca' : l === 'C' ? 'resistencia' : 'hipertrofia';
 };
+/* treino de força trocado de dia só numa semana (o dia fixo continua valendo nas outras) */
+const buscarMovidos = (alunoId, de, ate) =>
+  sb
+    .from('nx_forca_movidos')
+    .select('semana,treino_id,de,para')
+    .eq('aluno_id', alunoId)
+    .gte('semana', de)
+    .lte('semana', ate || de)
+    .then(
+      (r) => r.data || [],
+      () => [],
+    );
+/** onde o treino cai naquela semana: [{ orig: dia fixo, dia: dia daquela semana }] (0 = segunda) */
+const diasNaSemana = (t, mov, semana) =>
+  (t.dias || []).map((d) => {
+    const m = (mov || []).find((x) => x.treino_id === t.id && x.de === d && (!semana || x.semana === semana));
+    return { orig: d, dia: m ? m.para : d };
+  });
+const treinoNoDia = (t, i, mov, semana) => diasNaSemana(t, mov, semana).some((x) => x.dia === i);
 const faseDaSemana = (alunoId, semana) =>
   sb
     .from('nx_forca_fases')

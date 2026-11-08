@@ -820,7 +820,8 @@ async function alunoHoje() {
     .maybeSingle()
     .then((r) => !!r.data)
     .catch(() => false);
-  const doDiaM = forcaLib ? ativos.filter((t) => (t.dias || []).includes(dsemIdx(hoje))) : [];
+  const movHj = forcaLib ? await buscarMovidos(S.user.id, isoDia(inicioSemana())) : [];
+  const doDiaM = forcaLib ? ativos.filter((t) => treinoNoDia(t, dsemIdx(hoje), movHj, isoDia(inicioSemana()))) : [];
   let fixoHoje = false;
   if (doDiaM.length) {
     prox =
