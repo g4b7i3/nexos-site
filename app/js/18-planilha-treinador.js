@@ -336,6 +336,12 @@ function guiaPlanilha() {
 }
 
 /* ---------- arrastar e soltar (mouse e dedo) ---------- */
+// se a tela mudar no meio de um arrasto, não deixa a cópia do item presa
+addEventListener('hashchange', () => {
+  document.querySelectorAll('.fantasma').forEach((g) => g.remove());
+  document.body.classList.remove('arrastando');
+  document.documentElement.classList.remove('trava-scroll');
+});
 function arrastar(root, { item, alvo, soltar, handle }) {
   let st = null;
   let bloqueiaClique = false;
@@ -436,11 +442,19 @@ function arrastar(root, { item, alvo, soltar, handle }) {
     const up = () => {
       document.removeEventListener('pointermove', mv);
       document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', up);
       terminar();
     };
     document.addEventListener('pointermove', mv);
     document.addEventListener('pointerup', up);
+    // o navegador pode cancelar o ponteiro (arrasto nativo de link, gesto do sistema): sem isso a cópia ficava presa na tela
+    document.addEventListener('pointercancel', up);
   });
+  // links e imagens dentro do item não podem iniciar o arrasto nativo do navegador
+  root.addEventListener('dragstart', (e) => {
+    if (e.target.closest && e.target.closest(item)) e.preventDefault();
+  });
+
   root.addEventListener(
     'touchstart',
     (e) => {
