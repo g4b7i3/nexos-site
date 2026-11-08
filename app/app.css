@@ -3205,3 +3205,7 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 .lib-aviso span{font-family:var(--f-m);font-size:.82rem}
 .lib-aviso p{margin-top:4px;color:var(--mute);font-size:.84rem}
 @media (prefers-reduced-motion:reduce){.sem-volta i,.sem-rel.atual i{animation:none}}
+/* botão trabalhando (baixar, copiar, compartilhar) */
+.btn.carregando{opacity:.85;cursor:progress}
+.btn-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;display:inline-block;flex:0 0 auto;margin-right:8px;vertical-align:-3px;animation:btnGira .7s linear infinite}
+@keyframes btnGira{to{transform:rotate(360deg)}}

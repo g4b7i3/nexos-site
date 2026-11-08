@@ -2396,7 +2396,25 @@ async function abrirCardCorrida(c, plano) {
           localStorage.setItem('nx-card-' + c.id, '1');
         } catch {}
       };
-      r.querySelector('#cd-down').onclick = async () => {
+      // enquanto a imagem é preparada, o botão mostra que está trabalhando (leva alguns segundos em alta definição)
+      const ocupado = async (bt, txt, fn) => {
+        if (!bt || bt.dataset.ocupado) return;
+        bt.dataset.ocupado = '1';
+        const antes = bt.innerHTML;
+        bt.disabled = true;
+        bt.classList.add('carregando');
+        bt.innerHTML = `<span class="btn-spin" aria-hidden="true"></span>${txt}`;
+        try {
+          await fn();
+        } finally {
+          bt.innerHTML = antes;
+          bt.disabled = false;
+          bt.classList.remove('carregando');
+          delete bt.dataset.ocupado;
+        }
+      };
+      r.querySelector('#cd-down').onclick = (e) => ocupado(e.currentTarget, 'Baixando…', baixar);
+      const baixar = async () => {
         const b = await blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(b);
@@ -2448,50 +2466,55 @@ async function abrirCardCorrida(c, plano) {
         }
         return await new Promise((res) => saida.toBlob(res, 'image/png'));
       };
-      r.querySelector('#cd-copy').onclick = async () => {
+      r.querySelector('#cd-copy').onclick = (ev) => {
         if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem))
           return toast('Este celular não deixa copiar imagem. Use “Compartilhar” ou “Baixar”.', true);
-        try {
-          // o ClipboardItem precisa nascer na hora do toque (exigência do iPhone); a imagem fica pronta logo depois
-          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobCopia() })]);
-          marcar();
-          toast(
-            'Card copiado! No story do Instagram, toque na tela e escolha “Colar”. Depois volte aqui para copiar outro.',
-          );
-        } catch (e) {
-          toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true);
-        }
+        ocupado(ev.currentTarget, 'Copiando…', async () => {
+          try {
+            // o ClipboardItem precisa nascer na hora do toque (exigência do iPhone); a imagem fica pronta logo depois
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobCopia() })]);
+            marcar();
+            toast(
+              'Card copiado! No story do Instagram, toque na tela e escolha “Colar”. Depois volte aqui para copiar outro.',
+            );
+          } catch (e) {
+            toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true);
+          }
+        });
       };
       r.querySelectorAll('[data-parte]').forEach(
         (bt) =>
-          (bt.onclick = async () => {
+          (bt.onclick = () => {
             if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem))
               return toast('Este celular não deixa copiar imagem. Use “Compartilhar” ou “Baixar”.', true);
-            try {
-              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobCopia(bt.dataset.parte) })]);
-              marcar();
-              toast(
-                bt.dataset.parte === 'cima'
-                  ? 'Parciais copiadas! Cole no story, ajuste com dois dedos e volte para copiar o total.'
-                  : 'Total copiado! Cole no story e ajuste com dois dedos.',
-              );
-            } catch (e) {
-              toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true);
-            }
+            ocupado(bt, 'Copiando…', async () => {
+              try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobCopia(bt.dataset.parte) })]);
+                marcar();
+                toast(
+                  bt.dataset.parte === 'cima'
+                    ? 'Parciais copiadas! Cole no story, ajuste com dois dedos e volte para copiar o total.'
+                    : 'Total copiado! Cole no story e ajuste com dois dedos.',
+                );
+              } catch (e) {
+                toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true);
+              }
+            });
           }),
       );
-      r.querySelector('#cd-share').onclick = async () => {
-        const b = await blob();
-        const file = new File([b], nomeArq, { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file] });
-            marcar();
-          } catch (e) {
-            if (e.name !== 'AbortError') toast('Não foi possível compartilhar. Use “Baixar”.', true);
-          }
-        } else r.querySelector('#cd-down').click();
-      };
+      r.querySelector('#cd-share').onclick = (ev) =>
+        ocupado(ev.currentTarget, 'Preparando…', async () => {
+          const b = await blob();
+          const file = new File([b], nomeArq, { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({ files: [file] });
+              marcar();
+            } catch (e) {
+              if (e.name !== 'AbortError') toast('Não foi possível compartilhar. Use “Baixar”.', true);
+            }
+          } else await baixar();
+        });
       if (temClima)
         climaDe(c).then((cl) => {
           o.clima = cl;
