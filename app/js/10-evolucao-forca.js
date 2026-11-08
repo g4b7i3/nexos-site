@@ -978,13 +978,31 @@ const buscarMovidos = (alunoId, de, ate) =>
       (r) => r.data || [],
       () => [],
     );
-/** onde o treino cai naquela semana: [{ orig: dia fixo, dia: dia daquela semana }] (0 = segunda) */
-const diasNaSemana = (t, mov, semana) =>
-  (t.dias || []).map((d) => {
+/** treino colocado só num dia (não toda semana) */
+const buscarAvulsos = (alunoId, de, ate) =>
+  sb
+    .from('nx_forca_avulsos')
+    .select('semana,dia,treino_id')
+    .eq('aluno_id', alunoId)
+    .gte('semana', de)
+    .lte('semana', ate || de)
+    .then(
+      (r) => r.data || [],
+      () => [],
+    );
+// o treino só aparece nos dias fixos a partir da semana em que começa (nada de "não fez" em semanas anteriores)
+const treinoVale = (t, semana) => !semana || !t.inicio || semana >= t.inicio;
+/** onde o treino cai naquela semana: [{ orig: dia fixo, dia: dia daquela semana, avulso }] (0 = segunda) */
+const diasNaSemana = (t, mov, semana, avul) => [
+  ...(treinoVale(t, semana) ? t.dias || [] : []).map((d) => {
     const m = (mov || []).find((x) => x.treino_id === t.id && x.de === d && (!semana || x.semana === semana));
     return { orig: d, dia: m ? m.para : d };
-  });
-const treinoNoDia = (t, i, mov, semana) => diasNaSemana(t, mov, semana).some((x) => x.dia === i);
+  }),
+  ...(avul || [])
+    .filter((a) => a.treino_id === t.id && (!semana || a.semana === semana))
+    .map((a) => ({ orig: a.dia, dia: a.dia, avulso: true })),
+];
+const treinoNoDia = (t, i, mov, semana, avul) => diasNaSemana(t, mov, semana, avul).some((x) => x.dia === i);
 const faseDaSemana = (alunoId, semana) =>
   sb
     .from('nx_forca_fases')

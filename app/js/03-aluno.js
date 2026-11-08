@@ -6,7 +6,7 @@
 async function buscarTreinosDoAluno(alunoId) {
   const { data, error } = await sb
     .from('nx_treinos')
-    .select('id,titulo,foco,observacoes,ordem,ativo,atualizado_em,dias,nx_treino_itens(id)')
+    .select('id,titulo,foco,observacoes,ordem,ativo,atualizado_em,dias,inicio,nx_treino_itens(id)')
     .eq('aluno_id', alunoId)
     .eq('org_id', S.org.id)
     .order('ordem')

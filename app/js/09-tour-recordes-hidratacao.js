@@ -820,8 +820,15 @@ async function alunoHoje() {
     .maybeSingle()
     .then((r) => !!r.data)
     .catch(() => false);
-  const movHj = forcaLib ? await buscarMovidos(S.user.id, isoDia(inicioSemana())) : [];
-  const doDiaM = forcaLib ? ativos.filter((t) => treinoNoDia(t, dsemIdx(hoje), movHj, isoDia(inicioSemana()))) : [];
+  const [movHj, avulHj] = forcaLib
+    ? await Promise.all([
+        buscarMovidos(S.user.id, isoDia(inicioSemana())),
+        buscarAvulsos(S.user.id, isoDia(inicioSemana())),
+      ])
+    : [[], []];
+  const doDiaM = forcaLib
+    ? ativos.filter((t) => treinoNoDia(t, dsemIdx(hoje), movHj, isoDia(inicioSemana()), avulHj))
+    : [];
   let fixoHoje = false;
   if (doDiaM.length) {
     prox =

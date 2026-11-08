@@ -1165,7 +1165,8 @@ function forcaDiaHTML(fc, k, semana, staff) {
   const i = dsemIdx(k),
     lib = fc.lib.includes(semana),
     feitos = fc.se.filter((x) => isoDia(x.iniciado_em) === k);
-  const prev = (lib || staff) && !fc.off.includes(i) ? fc.tr.filter((t) => treinoNoDia(t, i, fc.mov, semana)) : [];
+  const prev =
+    (lib || staff) && !fc.off.includes(i) ? fc.tr.filter((t) => treinoNoDia(t, i, fc.mov, semana, fc.avul)) : [];
   const itens = [
     ...prev.map((t) => ({ t: t.titulo, id: t.id, ok: feitos.some((x) => x.treino_id === t.id), rasc: !lib })),
     ...feitos
@@ -1397,7 +1398,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       comForca
         ? sb
             .from('nx_treinos')
-            .select('id,titulo,dias')
+            .select('id,titulo,dias,inicio')
             .eq('aluno_id', alunoId)
             .eq('ativo', true)
             .then(
@@ -1432,9 +1433,14 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         : Promise.resolve([]),
       comCiclo ? buscarCiclo(alunoId).catch(() => null) : Promise.resolve(null), // fase do ciclo em cada dia da planilha
     ]);
-  const forcaMov = comForca ? await buscarMovidos(alunoId, isoDia(inicioSemana(ini)), isoDia(fim)) : [];
+  const [forcaMov, forcaAvul] = comForca
+    ? await Promise.all([
+        buscarMovidos(alunoId, isoDia(inicioSemana(ini)), isoDia(fim)),
+        buscarAvulsos(alunoId, isoDia(inicioSemana(ini)), isoDia(fim)),
+      ])
+    : [[], []];
   const forcaCal = comForca
-    ? { tr: forcaTr, se: forcaSe, lib: forcaLib, off: dispDe(m).off_forca || [], mov: forcaMov }
+    ? { tr: forcaTr, se: forcaSe, lib: forcaLib, off: dispDe(m).off_forca || [], mov: forcaMov, avul: forcaAvul }
     : null;
   const corridas = ativsTodas.filter(ehCorr); // força, pedal etc. do relógio aparecem na planilha e na lista, mas não entram nos km
   const integ = integs.find((x) => x.provedor === 'intervals') || null,

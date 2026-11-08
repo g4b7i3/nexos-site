@@ -679,7 +679,7 @@ async function planilhaForcaAluno(box, soLista) {
     const hojeF = hojeISO();
     const temDias = ativos.some((t) => t.dias && t.dias.length);
     const semHj = isoDia(inicioSemana());
-    const [libA, faseA, movA] = await Promise.all([
+    const [libA, faseA, movA, avulA] = await Promise.all([
       sb
         .from('nx_forca_semanas')
         .select('id')
@@ -690,9 +690,10 @@ async function planilhaForcaAluno(box, soLista) {
         .catch(() => false),
       faseDaSemana(S.user.id, diasF[0]),
       buscarMovidos(S.user.id, diasF[0] < semHj ? diasF[0] : semHj, diasF[0] > semHj ? diasF[0] : semHj),
+      buscarAvulsos(S.user.id, diasF[0] < semHj ? diasF[0] : semHj, diasF[0] > semHj ? diasF[0] : semHj),
     ]);
     // treino de hoje considerando as trocas de dia desta semana
-    prox = ativos.find((t) => treinoNoDia(t, hj, movA, semHj)) || null;
+    prox = ativos.find((t) => treinoNoDia(t, hj, movA, semHj, avulA)) || null;
     const offF = libA ? dispDe(S.me).off_forca || [] : [];
     const semanaF = `<div class="pl-top" style="margin-top:4px"><div class="row" style="gap:6px"><button class="icon-btn sm" id="fa-a" aria-label="Semana anterior">${I.back}</button><button class="btn ghost sm" id="fa-h">${fs.off === 0 ? 'Esta semana' : fs.off === -1 ? 'Semana passada' : fs.off === 1 ? 'Próxima semana' : `${dia(diasF[0]).getDate()}/${dia(diasF[0]).getMonth() + 1} a ${dia(diasF[6]).getDate()}/${dia(diasF[6]).getMonth() + 1}`}</button><button class="icon-btn sm" id="fa-p" aria-label="Próxima semana" style="transform:scaleX(-1)">${I.back}</button></div>
         <span class="small muted">${sessoes.filter((x) => isoDia(x.iniciado_em) >= diasF[0] && isoDia(x.iniciado_em) <= diasF[6]).length} treino(s) feitos</span></div>
@@ -700,7 +701,7 @@ async function planilhaForcaAluno(box, soLista) {
       ${faseA && (libA || !temDias) ? faseCardHTML(faseA) : ''}
       <div class="fsem">${diasF
         .map((k, i) => {
-          const doDia = libA ? ativos.filter((t) => treinoNoDia(t, i, movA, diasF[0])) : [];
+          const doDia = libA ? ativos.filter((t) => treinoNoDia(t, i, movA, diasF[0], avulA)) : [];
           const feitos = sessoes.filter((x) => isoDia(x.iniciado_em) === k);
           return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span>${DSEM[i]}</span></div>
           <div class="fdia-c">${doDia
@@ -727,7 +728,7 @@ async function planilhaForcaAluno(box, soLista) {
           .map((t, i) => {
             const ex = sessoes.filter((s) => s.treino_id === t.id);
             return `<div class="card tr-card ${prox && prox.id === t.id ? 'prox' : ''}"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
-      <div class="grow">${prox && prox.id === t.id ? `<span class="eyebrow">${treinoNoDia(t, hj, movA, semHj) ? 'Treino de hoje' : 'Próximo da sequência'}</span>` : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:4px">${diasTxt(t.dias)}</span>` : ''}</div></div>
+      <div class="grow">${prox && prox.id === t.id ? `<span class="eyebrow">${treinoNoDia(t, hj, movA, semHj, avulA) ? 'Treino de hoje' : 'Próximo da sequência'}</span>` : ''}<div class="h3" style="margin-top:2px">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:4px">${diasTxt(t.dias)}</span>` : ''}</div></div>
       <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Você fez ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, a última em ${fmtData(ex[0].iniciado_em)}` : 'Você ainda não fez este treino'}</p>
       <div class="grid2 tr-acoes"><a class="btn sm" href="#/treino/${t.id}">${I.play} Começar</a><a class="btn ghost sm" href="#/historico/cargas">${I.hist} Evolução</a></div></div>`;
           })

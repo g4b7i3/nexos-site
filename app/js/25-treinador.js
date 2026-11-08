@@ -792,7 +792,7 @@ async function staffAluno(alunoId, aba, extra) {
     const ativosT = treinos.filter((t) => t.ativo);
     const semDia = ativosT.filter((t) => !(t.dias && t.dias.length));
     const offF = dispDe(m).off_forca || [];
-    let [libF, faseF, metrHTML, movF] = await Promise.all([
+    let [libF, faseF, metrHTML, movF, avulF] = await Promise.all([
       sb
         .from('nx_forca_semanas')
         .select('id')
@@ -807,6 +807,7 @@ async function staffAluno(alunoId, aba, extra) {
         return '';
       }),
       buscarMovidos(alunoId, diasF[0]),
+      buscarAvulsos(alunoId, diasF[0]),
     ]);
     S.cache.fsemMov = movF;
     const infoF = faseF;
@@ -844,15 +845,17 @@ async function staffAluno(alunoId, aba, extra) {
         .map((k, i) => {
           // cada vez que o treino cai neste dia (o dia fixo dele ou trocado só nesta semana)
           const doDia = ativosT.flatMap((t) =>
-            diasNaSemana(t, movF, diasF[0])
+            diasNaSemana(t, movF, diasF[0], avulF)
               .filter((x) => x.dia === i)
-              .map((x) => ({ ...t, _orig: x.orig, _mov: x.orig !== x.dia })),
+              .map((x) => ({ ...t, _orig: x.orig, _mov: x.orig !== x.dia, _avulso: !!x.avulso })),
           );
           const feitos = sess.filter((x) => isoDia(x.iniciado_em) === k);
           return `<div class="fdia ${k === hojeF ? 'hoje' : ''} ${k < hojeF ? 'passado' : ''}" data-fdia="${i}"><div class="fdia-h"><b class="fdia-n">${dia(k).getDate()}</b><span class="fdia-d">${DSEM[i]}</span><span class="fdia-ic">${dispIcones(m, i)}</span><button class="cal-add" data-fadd="${i}" aria-label="Pôr treino na ${DSEM[i]}">${I.plus}</button></div>
           <div class="fdia-c">${doDia
             .map((t) => {
               const ok = feitos.find((x) => x.treino_id === t.id);
+              if (t._avulso)
+                return `<div class="ftr movido ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''}"><a href="#/aluno/${alunoId}/treino/${t.id}" draggable="false" class="grow" style="color:inherit;min-width:0">${ok ? `<span class="ses-conc fo"><i>${I.check}</i>Treino concluído</span>` : ''}<span class="ftr-mov">Só neste dia</span><b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? '' : k < hojeF ? ' · não fez' : ''}</small></a><button class="sd-x" data-favul="${t.id}" data-d="${i}" aria-label="Tirar deste dia">${I.x}</button></div>`;
               return `<div class="ftr ${ok ? 'feito' : k < hojeF ? 'perdeu' : ''} ${t._mov ? 'movido' : ''}" data-ftr="${t.id}" data-orig="${t._orig}" data-dia="${i}" draggable="false"><span class="ftr-grip" aria-hidden="true">⋮⋮</span><a href="#/aluno/${alunoId}/treino/${t.id}" draggable="false" class="grow" style="color:inherit;min-width:0">${ok ? `<span class="ses-conc fo"><i>${I.check}</i>Treino concluído</span>` : ''}${t._mov ? `<span class="ftr-mov">Só nesta semana · era ${DSEM[t._orig].toLowerCase()}</span>` : ''}<b class="ellip" style="display:block">${esc(t.titulo)}</b><small>${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} exercícios${ok ? (ok.esforco != null ? ' · esforço ' + ok.esforco + '/10' : '') : k < hojeF ? ' · não fez' : ''}</small></a><button class="sd-x mv" data-fmv="${t.id}" data-orig="${t._orig}" data-dia="${i}" aria-label="Mover para outro dia" title="Mover para outro dia">⇄</button><button class="sd-x" data-frm="${t.id}" data-d="${t._orig}" aria-label="Tirar deste dia">${I.x}</button></div>`;
             })
             .join('')}
@@ -1211,6 +1214,20 @@ async function staffAluno(alunoId, aba, extra) {
     $app
       .querySelectorAll('[data-froff]')
       .forEach((b) => (b.onclick = () => salvarOff((dispDe(m).off_forca || []).filter((d) => d !== +b.dataset.froff))));
+    $app.querySelectorAll('[data-favul]').forEach(
+      (b) =>
+        (b.onclick = async (e) => {
+          e.preventDefault();
+          await sb
+            .from('nx_forca_avulsos')
+            .delete()
+            .eq('aluno_id', alunoId)
+            .eq('semana', segF)
+            .eq('dia', +b.dataset.d)
+            .eq('treino_id', b.dataset.favul);
+          re();
+        }),
+    );
     $app.querySelectorAll('[data-frm]').forEach(
       (b) =>
         (b.onclick = (e) => {
@@ -1242,8 +1259,49 @@ async function staffAluno(alunoId, aba, extra) {
                   (x.onclick = () => {
                     const t = treinos.find((y) => y.id === x.dataset.esc);
                     closeSheet();
-                    if ((t.dias || []).includes(d)) return;
-                    salvarDias(t, [...(t.dias || []), d]);
+                    if ((t.dias || []).includes(d) && treinoVale(t, segF)) return;
+                    const dataDia = dia(segF);
+                    dataDia.setDate(dataDia.getDate() + d);
+                    setTimeout(
+                      () =>
+                        openSheet(
+                          `<p class="eyebrow">${esc(t.titulo)}</p><div class="h2" style="margin-top:4px">Só neste dia ou toda semana?</div>
+                <div class="stack" style="margin-top:14px"><button class="list-item" data-qd="dia" style="width:100%;text-align:left"><div class="grow"><b>Só ${DSEM[d].toLowerCase()} ${diaMes(dataDia)}</b><div class="small muted">Aparece só nesse dia. As outras semanas não mudam.</div></div></button>
+                <button class="list-item" data-qd="sempre" style="width:100%;text-align:left"><div class="grow"><b>Toda ${DSEM[d].toLowerCase()}, a partir desta semana</b><div class="small muted">Fica no dia fixo do treino de ${diaMes(dia(segF))} em diante. Semanas anteriores não mudam.</div></div></button></div>`,
+                          (r2) => {
+                            r2.querySelector('.stack').onclick = async (ev) => {
+                              const q = ev.target.closest('[data-qd]');
+                              if (!q) return;
+                              closeSheet();
+                              if (q.dataset.qd === 'dia') {
+                                const { error } = await sb
+                                  .from('nx_forca_avulsos')
+                                  .upsert(
+                                    {
+                                      org_id: S.org.id,
+                                      aluno_id: alunoId,
+                                      semana: segF,
+                                      dia: d,
+                                      treino_id: t.id,
+                                      criado_por: S.user.id,
+                                    },
+                                    { onConflict: 'aluno_id,semana,dia,treino_id' },
+                                  );
+                                if (error) return toast('Não foi possível salvar.', true);
+                                toast(`${t.titulo} só em ${diaMes(dataDia)}.`);
+                                return re();
+                              }
+                              // toda semana: entra no dia fixo e passa a valer desta semana em diante
+                              const upd = { dias: [...new Set([...(t.dias || []), d])].sort() };
+                              if (!t.inicio || segF < t.inicio || !(t.dias || []).length) upd.inicio = segF;
+                              const { error } = await sb.from('nx_treinos').update(upd).eq('id', t.id);
+                              if (error) return toast('Não foi possível salvar.', true);
+                              re();
+                            };
+                          },
+                        ),
+                      250,
+                    );
                   }),
               );
             },

@@ -595,7 +595,7 @@ const escolherDiasF = (m, s) => {
 };
 /** garante que a semana de força do aluno tenha treinos nos dias. s = treinos por semana (2 a 4).
     Devolve um texto curto para o aviso, ou '' quando o aluno já tem treinos com dia (o ciclo só troca a fase) */
-async function garantirTreinosForca(alunoId, s) {
+async function garantirTreinosForca(alunoId, s, inicio) {
   const [m, treinos] = await Promise.all([
     sb
       .from('nx_membros')
@@ -626,7 +626,10 @@ async function garantirTreinosForca(alunoId, s) {
     });
     for (const t of ativos) {
       if (!map[t.id]) continue;
-      const { error } = await sb.from('nx_treinos').update({ dias: map[t.id] }).eq('id', t.id);
+      const { error } = await sb
+        .from('nx_treinos')
+        .update({ dias: map[t.id], ...(inicio ? { inicio } : {}) })
+        .eq('id', t.id);
       if (error) throw error;
     }
     return `Os treinos de força dele foram para ${nomesDias(dias)}.`;
@@ -655,6 +658,7 @@ async function garantirTreinosForca(alunoId, s) {
         ativo: true,
         ordem: treinos.length + i,
         dias: diasDe[i].length ? diasDe[i] : null,
+        ...(inicio ? { inicio } : {}),
         criado_por: S.user.id,
         atualizado_em: agora,
       })),
@@ -802,7 +806,7 @@ async function cfAplicar(c, fs) {
         }
         const m = alunos.find((x) => x.user_id === alunoId);
         registrarCiclo(alunoId, 'forca', c, ini, fs.length);
-        const extra = await garantirTreinosForca(alunoId, ntf.valor()).catch((er) => {
+        const extra = await garantirTreinosForca(alunoId, ntf.valor(), isoDia(ini)).catch((er) => {
           console.error(er);
           return 'Atenção: não foi possível montar os treinos da semana. Monte em Força.';
         });
@@ -1334,7 +1338,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
               ini.setDate(ini.getDate() + 7 * cicSem(c));
             });
             await gravarFasesForca(alunoId, rows);
-            extraF = await garantirTreinosForca(alunoId, ntf && ntf.valor());
+            extraF = await garantirTreinosForca(alunoId, ntf && ntf.valor(), isoDia(ini0));
           } else {
             const perfil = perfilCorrida(m || {}),
               rows = [];
@@ -1978,7 +1982,7 @@ async function viewMacro() {
           return { org_id: S.org.id, aluno_id: st.aluno, semana: isoDia(d), fase, criado_por: S.user.id };
         });
         await gravarFasesForca(st.aluno, fs);
-        extraF = await garantirTreinosForca(st.aluno, st.ntf && st.ntf.valor());
+        extraF = await garantirTreinosForca(st.aluno, st.ntf && st.ntf.valor(), isoDia(ini0));
         registrarCiclo(
           st.aluno,
           'forca',
