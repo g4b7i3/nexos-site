@@ -529,6 +529,21 @@ async function viewExecucao(treinoId, preview) {
           : i;
       });
   t._pausados = pausados.map((i) => (i.nx_exercicios && i.nx_exercicios.nome) || 'Exercício');
+  // exercício mudado só nesta semana pelo treinador
+  const daSemana = await sb
+    .from('nx_forca_item_semana')
+    .select('exercicio_id,dados')
+    .eq('treino_id', t.id)
+    .eq('semana', isoDia(inicioSemana()))
+    .then(
+      (r) => r.data || [],
+      () => [],
+    );
+  if (daSemana.length)
+    itens = itens.map((i) => {
+      const m = daSemana.find((x) => x.exercicio_id === i.exercicio_id);
+      return m ? { ...i, ...m.dados, _semana: true } : i;
+    });
   const exIdsT = [...new Set(itens.map((i) => i.exercicio_id))];
   const fInfo = await faseInfo(t.aluno_id, isoDia(inicioSemana()));
   const fase = faseDoTreino(fInfo.fase, t, fInfo.k);
