@@ -165,7 +165,10 @@ const ehAniversario = (nasc, dias = 0) => {
 /* Previsões de desempenho (5K, 10K, meia e maratona), no estilo do Strava e calculadas pela Nexos.
    1) Para cada corrida dos 42 dias anteriores à data: VO2 pela velocidade (Jack Daniels) e o quanto do VO2máx ela
       exigiu, pela frequência cardíaca média (relação de Swain: %FCmáx = 0,64 × %VO2máx + 37) ou, sem FC, pelo esforço (0–10).
-   2) Junta com o VDOT direto das corridas e do teste do perfil (desempenho real é piso).
+      Só entram treinos fortes (80% da FCmáx ou mais, ou esforço 7+): em treino leve a FC varia muito de um dia para o outro
+      e com o calor, e um erro pequeno nela vira uma previsão bem acima do real.
+   2) Junta com o VDOT direto das corridas e do teste do perfil (desempenho real é piso). Com teste recente, ele é a
+      referência: a FC só ajusta até 5% acima dele (o quanto alguém melhora em poucas semanas).
    3) Converte o VDOT no tempo de cada prova (inverso da fórmula de Daniels) e ajusta meia e maratona pela
       corrida mais longa e pelo volume semanal recentes (sem base de longão, a previsão fica mais conservadora). */
 const PROVAS_PREV = [
@@ -207,14 +210,17 @@ function previsaoEm(corridas, perfil, ate) {
     let pct = null;
     if (c.fc_media && perfil.fcMax) {
       const f = (c.fc_media / perfil.fcMax) * 100;
-      if (f >= 62 && f <= 102) pct = Math.min(1, (f - 37) / 64);
-    } else if (c.rpe != null && c.rpe > 0) pct = Math.min(1, 0.55 + c.rpe * 0.045);
-    if (pct && pct >= 0.4)
-      ests.push({ v: (-4.6 + 0.182258 * v + 0.000104 * v * v) / pct, p: Math.min(2, c.duracao_s / 1800) });
+      if (f >= 80 && f <= 102) pct = Math.min(1, (f - 37) / 64);
+    } else if (c.rpe != null && c.rpe >= 7) pct = Math.min(1, 0.55 + c.rpe * 0.045);
+    if (pct) ests.push({ v: (-4.6 + 0.182258 * v + 0.000104 * v * v) / pct, p: Math.min(2, c.duracao_s / 1800) });
   });
+  let teste = 0;
   if (perfil.vdot && perfil.teste_data) {
     const tt = Date.parse(perfil.teste_data + 'T12:00:00');
-    if (tt <= t1 && tt > t1 - 90 * 864e5) diretos.push(perfil.vdot);
+    if (tt <= t1 && tt > t1 - 90 * 864e5) {
+      diretos.push(perfil.vdot);
+      teste = perfil.vdot;
+    }
   }
   if (!diretos.length && !ests.length) return null;
   const dir = diretos.length ? Math.max(...diretos) : 0;
@@ -225,7 +231,8 @@ function previsaoEm(corridas, perfil, ate) {
     const top = ests.slice(0, Math.ceil(ests.length / 2));
     fis = top.reduce((a, x) => a + x.v * x.p, 0) / top.reduce((a, x) => a + x.p, 0);
   }
-  let vdot = dir ? Math.max(dir, Math.min(fis, dir * 1.2)) : fis;
+  // treino comum não é feito no máximo, por isso sem teste a FC pode puxar até 20% acima; com teste, até 5%
+  let vdot = dir ? Math.max(dir, Math.min(fis, teste ? Math.max(teste * 1.05, dir) : dir * 1.2)) : fis;
   vdot = Math.max(20, Math.min(80, vdot));
   const semana = km42 / 6;
   const tempos = PROVAS_PREV.map(([d]) => {
@@ -289,7 +296,7 @@ function previsoesCard(box, corridas, perfil, { titulo = true } = {}) {
       <div class="seg pv-per">${PV_PER.map(([k, l]) => `<button type="button" data-pv="${k}" class="${k === per ? 'on' : ''}">${l}</button>`).join('')}</div>
       ${hist.length > 2 ? `<div style="margin-top:14px"><span class="small muted" style="font-weight:700">Previsão dos 10 km nos últimos 6 meses · menor é melhor</span>${grafico(hist, { fmt: (v) => fmtDurLongo(v * 60) })}</div>` : ''}
       <p class="pv-cred">Baseado nas equações de Jack Daniels e em estudos de fisiologia do exercício.</p>
-      <details class="ajuda" style="margin-top:6px"><summary>Como a Nexos calcula?</summary><p>Usamos as suas corridas das últimas 6 semanas: o ritmo de cada uma e quanto ela exigiu de você (pela frequência cardíaca do relógio ou pelo esforço que você marcou). Isso estima o seu condicionamento (VDOT) e vira o tempo de cada prova. Meia e maratona também dependem do seu longão e do seu volume semanal. É uma estimativa para prova em percurso plano, com o treino específico; quanto mais corridas com relógio, mais precisa.</p></details>
+      <details class="ajuda" style="margin-top:6px"><summary>Como a Nexos calcula?</summary><p>Usamos as suas corridas das últimas 6 semanas: o ritmo de cada uma e quanto ela exigiu de você (pela frequência cardíaca do relógio ou pelo esforço que você marcou). Só os treinos fortes entram nessa conta, e o seu último teste é a referência principal. Isso estima o seu condicionamento (VDOT) e vira o tempo de cada prova. Meia e maratona também dependem do seu longão e do seu volume semanal. É uma estimativa para prova em percurso plano, com o treino específico; quanto mais corridas com relógio, mais precisa.</p></details>
     </div>`;
     box.querySelector('.pv-per').onclick = (e) => {
       const b = e.target.closest('[data-pv]');
