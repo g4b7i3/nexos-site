@@ -313,9 +313,34 @@ const TREINOS_BASE_F = [
   },
 ];
 // dias padrão quando o aluno não marcou os dias de força (0 = segunda)
-const DIAS_BASE_F = { 1: [2], 2: [0, 3], 3: [0, 2, 4] };
-/** garante que a semana de força do aluno tenha treinos nos dias. Devolve um texto curto para o aviso, ou '' */
-async function garantirTreinosForca(alunoId) {
+const DIAS_BASE_F = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4] };
+/** quantos treinos de força por semana sugerir: os dias de força que o aluno marcou; sem marcação, 2 para quem
+    também corre (dose mais usada nos estudos com corredores) e 3 para quem só faz musculação */
+const sugestaoTreinosF = (m) => {
+  const dp = dispDe(m),
+    off = dp.off_forca || [];
+  const n = [...new Set(dp.forca || [])].filter((d) => !off.includes(d)).length;
+  if (n) return { n: Math.min(4, Math.max(2, n)), por: `pelos ${n} dia${n > 1 ? 's' : ''} de força que ele marcou` };
+  return faz('corrida', m)
+    ? { n: 2, por: 'ele também corre: 2 por semana é a dose mais usada para corredor' }
+    : { n: 3, por: 'só musculação: 3 por semana trabalha cada grupo duas vezes ou mais' };
+};
+// escolhe os dias: os marcados pelo aluno (espalhados na semana), completando com os dias padrão
+const escolherDiasF = (m, s) => {
+  const dp = dispDe(m),
+    off = dp.off_forca || [];
+  const marc = [...new Set(dp.forca || [])].filter((d) => !off.includes(d)).sort((x, y) => x - y);
+  if (marc.length >= s) return Array.from({ length: s }, (_, k) => marc[Math.floor((k * marc.length) / s)]);
+  const dias = [...marc];
+  for (const d of [...DIAS_BASE_F[s], 0, 1, 2, 3, 4, 5, 6]) {
+    if (dias.length >= s) break;
+    if (!dias.includes(d) && !off.includes(d)) dias.push(d);
+  }
+  return dias.sort((x, y) => x - y);
+};
+/** garante que a semana de força do aluno tenha treinos nos dias. s = treinos por semana (2 a 4).
+    Devolve um texto curto para o aviso, ou '' quando o aluno já tem treinos com dia (o ciclo só troca a fase) */
+async function garantirTreinosForca(alunoId, s) {
   const [m, treinos] = await Promise.all([
     sb
       .from('nx_membros')
@@ -333,36 +358,34 @@ async function garantirTreinosForca(alunoId) {
       .then((r) => r.data || []),
   ]);
   const ativos = treinos.filter((t) => t.ativo);
-  if (ativos.some((t) => t.dias && t.dias.length)) return ''; // já tem treino em dia fixo: o ciclo só troca a fase
-  const dp = dispDe(m),
-    off = dp.off_forca || [];
-  let dias = (dp.forca || []).filter((d) => !off.includes(d)).sort();
-  const nTreinos = ativos.length || (faz('corrida', m) ? 2 : 3);
-  if (!dias.length) dias = (DIAS_BASE_F[Math.min(3, Math.max(1, nTreinos))] || [0, 3]).filter((d) => !off.includes(d));
-  if (!dias.length) dias = [0, 3];
-  const pares = (n) => dias.slice(0, Math.max(n, 1)).map((d, i) => [d, i % n]);
-  // 1) já tem treinos, só sem dia: distribui nos dias de força
+  if (ativos.some((t) => t.dias && t.dias.length)) return '';
+  s = Math.min(4, Math.max(2, s || sugestaoTreinosF(m).n));
+  const dias = escolherDiasF(m, s);
+  const nomesDias = (l) => l.map((d) => DSEM[d].toLowerCase()).join(', ');
+  // 1) já tem treinos, só sem dia: distribui nos dias, em sequência (A, B, C, A…)
   if (ativos.length) {
     const map = {};
-    pares(ativos.length).forEach(([d, i]) => (map[ativos[i].id] = [...(map[ativos[i].id] || []), d]));
+    dias.forEach((d, k) => {
+      const t = ativos[k % ativos.length];
+      map[t.id] = [...(map[t.id] || []), d];
+    });
     for (const t of ativos) {
       if (!map[t.id]) continue;
       const { error } = await sb.from('nx_treinos').update({ dias: map[t.id] }).eq('id', t.id);
       if (error) throw error;
     }
-    return `Os treinos de força dele foram para ${dias.map((d) => DSEM[d].toLowerCase()).join(', ')}.`;
+    return `Os treinos de força dele foram para ${nomesDias(dias)}.`;
   }
-  // 2) não tem treino nenhum: monta os treinos base
-  const n = Math.min(3, Math.max(2, dias.length)),
-    base = TREINOS_BASE_F.slice(0, n);
+  // 2) não tem treino nenhum: monta os treinos base (4 por semana = A e B duas vezes cada, inferiores e superiores)
+  const base = s === 4 ? TREINOS_BASE_F.slice(0, 2) : TREINOS_BASE_F.slice(0, s);
   const nomes = [...new Set(base.flatMap((t) => t.itens.map((x) => x[0])))];
   const { data: exs } = await sb.from('nx_exercicios').select('id,nome,org_id').in('nome', nomes);
   const idDe = {};
   (exs || []).forEach((e) => {
     if (!idDe[e.nome] || e.org_id === S.org.id) idDe[e.nome] = e.id;
   });
-  const diasDe = {};
-  pares(n).forEach(([d, i]) => (diasDe[i] = [...(diasDe[i] || []), d]));
+  const diasDe = base.map(() => []);
+  dias.forEach((d, k) => diasDe[k % base.length].push(d));
   const agora = new Date().toISOString();
   const { data: novos, error } = await sb
     .from('nx_treinos')
@@ -375,7 +398,7 @@ async function garantirTreinosForca(alunoId) {
         observacoes: 'Séries e repetições seguem a fase da semana, que aparece no topo do treino.',
         ativo: true,
         ordem: treinos.length + i,
-        dias: diasDe[i] || null,
+        dias: diasDe[i].length ? diasDe[i] : null,
         criado_por: S.user.id,
         atualizado_em: agora,
       })),
@@ -403,15 +426,65 @@ async function garantirTreinosForca(alunoId) {
     const { error: e2 } = await sb.from('nx_treino_itens').insert(itens);
     if (e2) throw e2;
   }
-  return `Montamos ${base.map((t) => t.titulo.replace('Treino ', '')).join(', ')} (treinos base de força) em ${dias
-    .slice(0, n)
-    .map((d) => DSEM[d].toLowerCase())
-    .join(', ')}. Ajuste os exercícios se quiser.`;
+  return `Montamos ${s} treinos de força por semana (${base
+    .map((t, i) => `${t.titulo} na ${nomesDias(diasDe[i])}`)
+    .join('; ')}). Ajuste os exercícios se quiser.`;
+}
+/* escolha de quantos treinos de força por semana, na hora de aplicar um ciclo, trilha ou macrociclo */
+const escTreinosFHTML = () =>
+  `<div class="field ntf-box"><span>Treinos de força por semana</span><div class="seg ntf" id="ntf">${[2, 3, 4]
+    .map((n) => `<button type="button" data-ntf="${n}">${n}x</button>`)
+    .join('')}</div><p class="tiny dim" id="ntf-info">Escolha o aluno para ver a sugestão.</p></div>`;
+/** liga o seletor; devolve uma função que diz o número escolhido */
+function ligarTreinosF(r, alunos) {
+  let n = null;
+  const box = r.querySelector('.ntf-box'),
+    info = r.querySelector('#ntf-info');
+  const marca = () => box.querySelectorAll('[data-ntf]').forEach((b) => b.classList.toggle('on', +b.dataset.ntf === n));
+  box.querySelector('#ntf').onclick = (e) => {
+    const b = e.target.closest('[data-ntf]');
+    if (!b || b.disabled) return;
+    n = +b.dataset.ntf;
+    marca();
+    info.textContent =
+      n === 4
+        ? '4 por semana: A (inferiores) e B (superiores) duas vezes cada.'
+        : n === 3
+          ? '3 por semana: A (inferiores), B (superiores) e C (unilateral e potência).'
+          : '2 por semana: A (inferiores) e B (superiores).';
+  };
+  const atualizar = async (alunoId) => {
+    n = null;
+    box.querySelectorAll('[data-ntf]').forEach((b) => (b.disabled = false));
+    marca();
+    if (!alunoId) return (info.textContent = 'Escolha o aluno para ver a sugestão.');
+    const m = alunos.find((x) => x.user_id === alunoId) || {};
+    const tr = await sb
+      .from('nx_treinos')
+      .select('titulo,dias,ativo')
+      .eq('org_id', S.org.id)
+      .eq('aluno_id', alunoId)
+      .then(
+        (x) => (x.data || []).filter((t) => t.ativo),
+        () => [],
+      );
+    const comDia = tr.filter((t) => t.dias && t.dias.length);
+    if (comDia.length) {
+      box.querySelectorAll('[data-ntf]').forEach((b) => (b.disabled = true));
+      info.innerHTML = `Ele já tem treinos com dia: ${comDia.map((t) => `<b>${esc(t.titulo)}</b> (${diasTxt(t.dias)})`).join(', ')}. O ciclo mantém esses treinos e só troca a fase. Para montar de novo, apague os treinos na aba Força.`;
+      return;
+    }
+    const sg = sugestaoTreinosF(m);
+    n = sg.n;
+    marca();
+    info.textContent = `Sugestão: ${sg.n} por semana (${sg.por}).`;
+  };
+  return { atualizar, valor: () => n };
 }
 async function cfAplicar(c, fs) {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades')
+    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,disponibilidade')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -436,10 +509,14 @@ async function cfAplicar(c, fs) {
       <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${pre.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${pre.ini || prox}" required></label>
       <p class="small" id="cf-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
+      ${escTreinosFHTML()}
       <p class="tiny dim" style="margin-bottom:12px">As fases dessas semanas são trocadas pelas do ciclo. Se o aluno ainda não tiver treino de força nos dias, o app monta os treinos base e põe nos dias de força dele. Tudo fica em rascunho até você liberar a semana.</p>
       <button class="btn block" type="submit">Aplicar ${fs.length} semana${fs.length > 1 ? 's' : ''}</button></form>`,
     (r) => {
       const f = r.querySelector('#f-cf');
+      const ntf = ligarTreinosF(r, alunos);
+      f.aluno.addEventListener('change', () => ntf.atualizar(f.aluno.value));
+      if (f.aluno.value) ntf.atualizar(f.aluno.value);
       const atual = () => {
         const ini = isoDia(inicioSemana(dia(f.ini.value || prox)));
         const fim = dia(ini);
@@ -468,7 +545,7 @@ async function cfAplicar(c, fs) {
         }
         const m = alunos.find((x) => x.user_id === alunoId);
         registrarCiclo(alunoId, 'forca', c, ini, fs.length);
-        const extra = await garantirTreinosForca(alunoId).catch((er) => {
+        const extra = await garantirTreinosForca(alunoId, ntf.valor()).catch((er) => {
           console.error(er);
           return 'Atenção: não foi possível montar os treinos da semana. Monte em Força.';
         });
@@ -911,7 +988,7 @@ function viewTrilha(id, forca) {
 async function aplicarTrilha(t, cs, forca, tot) {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento')
+    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento,disponibilidade')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -938,10 +1015,12 @@ async function aplicarTrilha(t, cs, forca, tot) {
       <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}">${esc(m.nome)}</option>`).join('')}</select></label>
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
       <p class="small" id="trl-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
-      ${forca ? '' : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>'}
+      ${forca ? escTreinosFHTML() : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados que já estão nesse período</span></label>'}
       <button class="btn block" type="submit" style="margin-top:12px">Aplicar ${tot} semanas</button></form>`,
     (r) => {
       const f = r.querySelector('#f-trl');
+      const ntf = forca ? ligarTreinosF(r, alunos) : null;
+      if (ntf) f.aluno.addEventListener('change', () => ntf.atualizar(f.aluno.value));
       const atual = () => {
         const ini = inicioSemana(dia(f.ini.value || prox));
         const fim = new Date(ini);
@@ -977,7 +1056,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
             });
             const { error } = await sb.from('nx_forca_fases').upsert(rows, { onConflict: 'aluno_id,semana' });
             if (error) throw error;
-            extraF = await garantirTreinosForca(alunoId);
+            extraF = await garantirTreinosForca(alunoId, ntf && ntf.valor());
           } else {
             const perfil = perfilCorrida(m || {}),
               rows = [];
@@ -1325,7 +1404,7 @@ const MAC_REFS =
 async function viewMacro() {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento')
+    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento,disponibilidade')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -1427,7 +1506,8 @@ async function viewMacro() {
             '',
           )}</select>${st.aluno ? `<small class="tiny dim">${st.sug ? `Sugerido pelo último teste do aluno (VDOT ${st.sug.v}). Ajuste se o volume semanal dele for bem diferente.` : 'O aluno ainda não tem teste no perfil de corrida: confira o nível.'}</small>` : ''}</label>
         <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" id="mac-ini" value="${st.ini}"></label>
-        <label class="ck-check"><input type="checkbox" id="mac-forca" ${st.forca ? 'checked' : ''}><span>Montar também a musculação acompanhando a corrida</span></label></div>
+        <label class="ck-check"><input type="checkbox" id="mac-forca" ${st.forca ? 'checked' : ''}><span>Montar também a musculação acompanhando a corrida</span></label>
+        <div id="mac-ntf" ${st.forca ? '' : 'hidden'}>${escTreinosFHTML()}</div></div>
       <p class="sec-lbl">2. Provas do ano</p>
       <p class="small muted" style="margin:-4px 0 10px">Toque em <b>A</b> na prova principal do ano (até 3). As outras ficam como <b>B</b> (preparação) ou <b>C</b> (treino).</p>
       ${st.aluno && !st.provas.length ? '<p class="small muted">Nenhuma prova cadastrada para este aluno no próximo ano. Adicione abaixo.</p>' : ''}
@@ -1461,8 +1541,12 @@ async function viewMacro() {
       e.target.value = st.ini;
       res();
     };
+    const ntfM = ligarTreinosF(document.getElementById('mac-ntf'), alunos);
+    if (st.aluno) ntfM.atualizar(st.aluno);
+    st.ntf = ntfM;
     document.getElementById('mac-forca').onchange = (e) => {
       st.forca = e.target.checked;
+      document.getElementById('mac-ntf').hidden = !st.forca;
       salvar();
     };
     document.getElementById('mac-add').onclick = () => {
@@ -1561,7 +1645,7 @@ async function viewMacro() {
         });
         const { error: e3 } = await sb.from('nx_forca_fases').upsert(fs, { onConflict: 'aluno_id,semana' });
         if (e3) throw e3;
-        extraF = await garantirTreinosForca(st.aluno);
+        extraF = await garantirTreinosForca(st.aluno, st.ntf && st.ntf.valor());
         registrarCiclo(
           st.aluno,
           'forca',

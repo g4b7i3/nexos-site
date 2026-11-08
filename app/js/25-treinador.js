@@ -623,6 +623,38 @@ async function silencioso(fn) {
     scrollTo(scrollX, y);
   }
 }
+const ICO_LIXO =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>';
+/** apagar treinos de força com confirmação clara (o histórico do aluno continua guardado) */
+function apagarTreinosForca(lista, alunoId, depois) {
+  const varios = lista.length > 1;
+  openSheet(
+    `<p class="eyebrow">Apagar ${varios ? 'treinos' : 'treino'}</p><div class="h2" style="margin-top:4px">${varios ? `Apagar os ${lista.length} treinos de força?` : `Apagar ${esc(lista[0].titulo)}?`}</div>
+    <p class="small muted" style="margin-top:6px">${varios ? lista.map((t) => esc(t.titulo)).join(', ') + '. ' : ''}Some da planilha e do app do aluno. Os treinos que ele já fez e as cargas continuam no histórico.</p>
+    <div class="grid2" style="margin-top:16px"><button class="btn ghost" data-close>Cancelar</button><button class="btn perigo" id="tdel-ok">${ICO_LIXO} Apagar</button></div>`,
+    (r) => {
+      r.querySelector('#tdel-ok').onclick = async (e) => {
+        e.currentTarget.disabled = true;
+        const { error } = await sb
+          .from('nx_treinos')
+          .delete()
+          .eq('aluno_id', alunoId)
+          .in(
+            'id',
+            lista.map((t) => t.id),
+          );
+        if (error) {
+          console.error(error);
+          e.currentTarget.disabled = false;
+          return toast('Não foi possível apagar.', true);
+        }
+        closeSheet();
+        toast(varios ? 'Treinos apagados.' : 'Treino apagado.');
+        depois();
+      };
+    },
+  );
+}
 async function staffAluno(alunoId, aba, extra) {
   if (!S.silencio) loading();
   let anamnese = null,
@@ -820,7 +852,7 @@ async function staffAluno(alunoId, aba, extra) {
         .join('')}</div>
       ${semDia.length ? `<p class="small muted" style="margin-top:12px">Sem dia fixo (o aluno faz na sequência): ${semDia.map((t) => `<b>${esc(t.titulo)}</b>`).join(', ')}. Toque no + de um dia para fixar.</p>` : ''}
       ${metrHTML}
-      <div class="section"><div class="section-h"><h2 class="h2">Treinos do aluno</h2>${slashes}</div><div class="stack">` +
+      <div class="section"><div class="section-h"><h2 class="h2">Treinos do aluno</h2>${treinos.length > 1 ? `<button type="button" class="btn ghost sm tr-del-todos" id="tdel-todos">${ICO_LIXO} Apagar todos</button>` : slashes}</div><div class="stack">` +
       (treinos.length
         ? treinos
             .map((t, i) => {
@@ -828,7 +860,7 @@ async function staffAluno(alunoId, aba, extra) {
               return `
       <div class="card tr-card"><div class="row between" style="align-items:flex-start;gap:10px"><div class="row" style="gap:12px;align-items:flex-start"><div class="wletter sm">${esc(letraTreino(t, i))}</div>
         <div><div class="h3">${esc(t.titulo)}</div><div class="small muted">${t.foco ? esc(t.foco) + ' · ' : ''}${t.nx_treino_itens.length} ${t.nx_treino_itens.length === 1 ? 'exercício' : 'exercícios'}${!t.ativo ? ' · <span style="color:var(--warn)">pausado</span>' : ''}</div>${t.dias && t.dias.length ? `<span class="tag acc" style="margin-top:4px">${diasTxt(t.dias)}</span>` : ''}</div></div>
-        <a class="icon-btn sm" href="#/treino/${t.id}" aria-label="Ver como aluno" title="Ver como o aluno vê">${I.eye}</a></div>
+        <div class="row" style="gap:6px"><a class="icon-btn sm" href="#/treino/${t.id}" aria-label="Ver como aluno" title="Ver como o aluno vê">${I.eye}</a><button type="button" class="icon-btn sm tr-del" data-tdel="${t.id}" aria-label="Apagar ${esc(t.titulo)}" title="Apagar este treino">${ICO_LIXO}</button></div></div>
         <p class="small" style="margin:10px 0 0;color:var(--acc)">${ex.length ? `Executado ${ex.length} ${ex.length === 1 ? 'vez' : 'vezes'}, última execução ${fmtData(ex[0].iniciado_em)}` : 'O aluno ainda não executou este treino'}</p>
         <div class="grid3 tr-acoes"><a class="btn sm" href="#/aluno/${alunoId}/treino/${t.id}">Editar</a><a class="btn ghost sm" href="#/aluno/${alunoId}/cargas">${I.hist} Evolução</a><a class="btn ghost sm" href="#/aluno/${alunoId}/historico">${I.feed} Feedbacks</a></div></div>`;
             })
@@ -1047,6 +1079,17 @@ async function staffAluno(alunoId, aba, extra) {
         },
       );
     };
+    $app.querySelectorAll('[data-tdel]').forEach(
+      (b) =>
+        (b.onclick = () =>
+          apagarTreinosForca(
+            treinos.filter((t) => t.id === b.dataset.tdel),
+            alunoId,
+            re,
+          )),
+    );
+    const tdT = document.getElementById('tdel-todos');
+    if (tdT) tdT.onclick = () => apagarTreinosForca(treinos, alunoId, re);
     const gradeF = $app.querySelector('.fsem');
     if (gradeF)
       arrastar(gradeF, {
