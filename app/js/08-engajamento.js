@@ -1278,6 +1278,21 @@ const ZOOM_CAM = [
   ['medio', 'Médio'],
   ['longe', 'Longe'],
 ];
+// biblioteca que monta o arquivo .mp4 do vídeo salvo (mp4-muxer, código aberto); só carrega ao salvar
+let MUX_LIB = null;
+const carregarMux = () =>
+  MUX_LIB ||
+  (MUX_LIB = new Promise((ok, er) => {
+    if (window.Mp4Muxer) return ok();
+    const sc = document.createElement('script');
+    sc.src = new URL('vendor/mp4-muxer.js', document.baseURI).href;
+    sc.onload = () => ok();
+    sc.onerror = () => {
+      MUX_LIB = null;
+      er(new Error('mux'));
+    };
+    document.head.append(sc);
+  }));
 function abrirReplay(c, perfil) {
   const R = c.rota;
   if (!R || R.length < 10) return;
@@ -1745,96 +1760,188 @@ function abrirReplay(c, perfil) {
   logoNx().then((l) => {
     logo = l;
   });
-  const tocar = (aoFim) => {
-    cancelAnimationFrame(raf);
-    const t0 = performance.now();
-    const d3 = m3 && m3.pronto,
-      dur = (d3 ? Math.min(24000, Math.max(13000, (dist / 1000) * 2600)) : DUR) / vel;
-    if (d3) m3.rumo = null;
-    const f = (t) => {
-      const k = Math.min(1, (t - t0) / dur);
-      // no 3D a velocidade é quase constante (só suaviza a saída e a chegada)
-      const e = d3
-        ? k < 0.06
-          ? (k * k) / 0.12
-          : k > 0.94
-            ? 1 - ((1 - k) * (1 - k)) / 0.12
-            : k
-        : k < 0.5
-          ? 2 * k * k
-          : 1 - Math.pow(-2 * k + 2, 2) / 2;
-      if (d3) (modo === 'sat-segue' ? cameraSegue : modo === 'sat' ? cameraSat : camera3D)(e);
-      desenha(e);
-      if (logo) {
-        const h = 48,
-          w = (logo.width / logo.height) * h;
-        x.drawImage(logo, ehSat() && d3 ? (W - w) / 2 : 90, 110, w, h);
-      }
-      if (k < 1) raf = requestAnimationFrame(f);
-      else if (d3 && ehSat()) {
-        // para um instante na chegada com o pace médio na tela, e só depois a câmera sobe para o final
-        const tP = performance.now();
-        const parado = (t2) => {
-          desenhaSat(1);
-          if (logo) {
-            const h = 48,
-              w = (logo.width / logo.height) * h;
-            x.drawImage(logo, (W - w) / 2, 110, w, h);
-          }
-          if (t2 - tP < 1800) raf = requestAnimationFrame(parado);
-          else fimSat(aoFim);
-        };
-        raf = requestAnimationFrame(parado);
-      } else if (aoFim) setTimeout(aoFim, 1500);
-    };
-    raf = requestAnimationFrame(f);
+  // linha do tempo do vídeo: cada quadro sai do instante (ms), sem depender da velocidade do celular.
+  // Assim a prévia e o vídeo salvo seguem o mesmo roteiro, e o vídeo salvo pode ser gerado quadro a quadro.
+  const PARADO = 1800,
+    SUBIDA = 4200;
+  const roteiro = () => {
+    const d3 = !!(m3 && m3.pronto),
+      sat = d3 && ehSat(),
+      corre = (d3 ? Math.min(24000, Math.max(13000, (dist / 1000) * 2600)) : DUR) / vel;
+    return { d3, sat, corre, fim: corre + (sat ? PARADO + SUBIDA : 0), segura: sat ? 900 : 1500, de: null };
   };
-  function fimSat(aoFim) {
-    const t0 = performance.now(),
-      de = {
+  // no 3D a velocidade é quase constante (só suaviza a saída e a chegada)
+  const curva = (rt, k) =>
+    rt.d3
+      ? k < 0.06
+        ? (k * k) / 0.12
+        : k > 0.94
+          ? 1 - ((1 - k) * (1 - k)) / 0.12
+          : k
+      : k < 0.5
+        ? 2 * k * k
+        : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  const marcaLogo = (centro) => {
+    if (!logo) return;
+    const h = 48,
+      w = (logo.width / logo.height) * h;
+    x.drawImage(logo, centro ? (W - w) / 2 : 90, 110, w, h);
+  };
+  // posiciona a câmera do mapa no instante ms; devolve true quando ela mexeu (o mapa precisa ser redesenhado)
+  const cameraQuadro = (rt, ms, dt) => {
+    if (!rt.d3) return false;
+    if (ms <= rt.corre) {
+      const e = curva(rt, Math.min(1, ms / rt.corre));
+      (modo === 'sat-segue' ? cameraSegue : modo === 'sat' ? cameraSat : camera3D)(e, dt);
+      return true;
+    }
+    if (!rt.sat || ms <= rt.corre + PARADO) return false; // parado na chegada com o pace médio na tela
+    // a câmera sobe para mostrar o percurso inteiro
+    if (!rt.de)
+      rt.de = {
         c: m3.map.getCenter(),
         z: m3.map.getZoom(),
         b: m3.map.getBearing(),
         p: m3.map.getPitch(),
         pad: (m3.map.getPadding() || {}).top || 0,
-      },
-      ate = m3.vista;
+      };
+    const de = rt.de,
+      ate = m3.vista,
+      q = Math.min(1, (ms - rt.corre - PARADO) / SUBIDA),
+      s1 = Math.min(1, q / 0.62),
+      e = s1 < 0.5 ? 2 * s1 * s1 : 1 - Math.pow(-2 * s1 + 2, 2) / 2;
+    m3.map.jumpTo({
+      center: [de.c.lng + (ate.c[0] - de.c.lng) * e, de.c.lat + (ate.c[1] - de.c.lat) * e],
+      zoom: de.z + (ate.z - de.z) * e,
+      bearing: de.b + 25 * e,
+      pitch: de.p + (45 - de.p) * e,
+      padding: { top: de.pad * (1 - e), bottom: 0, left: 0, right: 0 },
+    });
+    return true;
+  };
+  const pintaQuadro = (rt, ms) => {
+    if (ms <= rt.corre || !rt.sat) {
+      desenha(curva(rt, Math.min(1, ms / rt.corre)));
+      marcaLogo(rt.sat);
+      return;
+    }
+    desenhaSat(1);
+    marcaLogo(true);
+    const q = (ms - rt.corre - PARADO) / SUBIDA;
+    if (q > 0.72) cartaoFinal(Math.min(1, (q - 0.72) / 0.2));
+  };
+  const tocar = (aoFim) => {
+    cancelAnimationFrame(raf);
+    const rt = roteiro();
+    if (rt.d3) m3.rumo = null;
+    let t0 = null,
+      ant = 0;
     const f = (t) => {
-      const q = Math.min(1, (t - t0) / 4200),
-        s1 = Math.min(1, q / 0.62),
-        e = s1 < 0.5 ? 2 * s1 * s1 : 1 - Math.pow(-2 * s1 + 2, 2) / 2;
-      m3.map.jumpTo({
-        center: [de.c.lng + (ate.c[0] - de.c.lng) * e, de.c.lat + (ate.c[1] - de.c.lat) * e],
-        zoom: de.z + (ate.z - de.z) * e,
-        bearing: de.b + 25 * e,
-        pitch: de.p + (45 - de.p) * e,
-        padding: { top: de.pad * (1 - e), bottom: 0, left: 0, right: 0 },
-      });
-      desenhaSat(1);
-      if (logo) {
-        const h = 48,
-          w = (logo.width / logo.height) * h;
-        x.drawImage(logo, (W - w) / 2, 110, w, h);
-      }
-      if (q > 0.72) cartaoFinal(Math.min(1, (q - 0.72) / 0.2));
-      if (q < 1) raf = requestAnimationFrame(f);
-      else if (aoFim) setTimeout(aoFim, 900);
+      if (t0 == null) t0 = t;
+      const ms = Math.min(rt.fim, t - t0);
+      // redesenha o mapa na hora, junto com a câmera: o percurso não "escorrega" em cima da imagem
+      if (cameraQuadro(rt, ms, ms - ant)) m3.map.redraw();
+      ant = ms;
+      pintaQuadro(rt, ms);
+      if (ms < rt.fim) raf = requestAnimationFrame(f);
+      else if (aoFim) setTimeout(aoFim, rt.segura);
     };
     raf = requestAnimationFrame(f);
-  }
+  };
+  // espera o mapa ter todas as imagens do quadro antes de desenhar (só no vídeo salvo)
+  const mapaPronto = async () => {
+    const map = m3.map,
+      t0 = performance.now();
+    map.redraw();
+    while (!map.areTilesLoaded() && performance.now() - t0 < 3000) {
+      await new Promise((ok) => setTimeout(ok, 40));
+      map.redraw();
+    }
+  };
+  // vídeo salvo gerado quadro a quadro, 30 por segundo, com o tempo de cada quadro marcado:
+  // fica liso mesmo em celular mais lento (ele só demora mais para ficar pronto)
+  const FPS = 30;
+  const configVideo = async () => {
+    if (!window.VideoEncoder || !window.VideoFrame) return null;
+    for (const codec of ['avc1.640028', 'avc1.64002a', 'avc1.4d0028', 'avc1.42e028', 'avc1.640033']) {
+      const cfg = {
+        codec,
+        width: W,
+        height: H,
+        bitrate: ehSat() ? 10000000 : 6000000,
+        framerate: FPS,
+        avc: { format: 'avc' },
+      };
+      try {
+        if ((await window.VideoEncoder.isConfigSupported(cfg)).supported) return cfg;
+      } catch {}
+    }
+    return null;
+  };
+  const gerarVideo = async (cfg, aoAvancar) => {
+    await carregarMux();
+    cancelAnimationFrame(raf);
+    const rt = roteiro();
+    if (rt.d3) m3.rumo = null;
+    const total = Math.ceil(((rt.fim + rt.segura) / 1000) * FPS),
+      { Muxer, ArrayBufferTarget } = window.Mp4Muxer,
+      muxer = new Muxer({
+        target: new ArrayBufferTarget(),
+        video: { codec: 'avc', width: W, height: H, frameRate: FPS },
+        fastStart: 'in-memory',
+      });
+    let erro = null;
+    const enc = new window.VideoEncoder({
+      output: (ch, meta) => muxer.addVideoChunk(ch, meta),
+      error: (er) => (erro = er),
+    });
+    enc.configure(cfg);
+    let ant = 0;
+    try {
+      for (let i = 0; i < total; i++) {
+        if (erro) throw erro;
+        if (!ov.isConnected) return null;
+        const ms = Math.min(rt.fim, (i * 1000) / FPS);
+        if (cameraQuadro(rt, ms, ms - ant)) await mapaPronto();
+        ant = ms;
+        pintaQuadro(rt, ms);
+        const fr = new window.VideoFrame(cv, {
+          timestamp: Math.round((i * 1e6) / FPS),
+          duration: Math.round(1e6 / FPS),
+        });
+        enc.encode(fr, { keyFrame: i % (FPS * 2) === 0 });
+        fr.close();
+        while (enc.encodeQueueSize > 4) await new Promise((ok) => setTimeout(ok, 5));
+        if (i % 5 === 0) {
+          aoAvancar(i / total);
+          await new Promise((ok) => setTimeout(ok, 0));
+        }
+      }
+      await enc.flush();
+      if (erro) throw erro;
+      muxer.finalize();
+      return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    } finally {
+      try {
+        enc.close();
+      } catch {}
+    }
+  };
   // câmera de drone: alta, inclinada, girando devagar em volta do ponto que corre
   function cameraSat(e) {
     m3.map.jumpTo({ center: pontoEm(e), bearing: m3.rumo0 + e * 80, pitch: 60, zoom: m3.zoom });
   }
   // câmera de perseguição (como os vídeos do Strava): atrás do corredor, virada para onde ele vai,
   // com o ponto mais embaixo na tela para mostrar o caminho à frente
-  function cameraSegue(e) {
+  // giro suave que não depende de quantos quadros por segundo o celular consegue
+  const giro = (taxa, dt) => 1 - Math.pow(1 - taxa, Math.max(0, dt || 16.7) / 16.7);
+  function cameraSegue(e, dt) {
     const c0 = pontoEm(e),
       adiante = pontoEm(Math.min(1, e + 0.05));
     const alvo = Math.hypot(adiante[0] - c0[0], adiante[1] - c0[1]) > 1e-6 ? rumoEntre(c0, adiante) : (m3.rumo ?? 0);
     if (m3.rumo == null) m3.rumo = alvo;
     const d = ((alvo - m3.rumo + 540) % 360) - 180; // gira pelo lado mais curto, devagar
-    m3.rumo += d * 0.04;
+    m3.rumo += d * giro(0.04, dt);
     const h = m3.map.getContainer().clientHeight || H;
     m3.map.jumpTo({
       center: c0,
@@ -1855,13 +1962,13 @@ function abrirReplay(c, perfil) {
     const k = Math.cos((a[1] * Math.PI) / 180);
     return (Math.atan2((b[0] - a[0]) * k, b[1] - a[1]) * 180) / Math.PI;
   };
-  function camera3D(e) {
+  function camera3D(e, dt) {
     const c0 = pontoEm(e),
       adiante = pontoEm(Math.min(1, e + 0.035));
     let alvo = Math.hypot(adiante[0] - c0[0], adiante[1] - c0[1]) > 1e-6 ? rumoEntre(c0, adiante) : (m3.rumo ?? 0);
     if (m3.rumo == null) m3.rumo = alvo;
     let d = ((alvo - m3.rumo + 540) % 360) - 180; // gira pelo lado mais curto
-    m3.rumo += d * 0.05;
+    m3.rumo += d * giro(0.05, dt);
     m3.map.jumpTo({ center: c0, bearing: m3.rumo, pitch: 58, zoom: m3.zoom });
   }
   function fechar3D() {
@@ -2190,27 +2297,9 @@ function abrirReplay(c, perfil) {
   });
   ov.querySelector('#rp-video').onclick = async (e) => {
     const b = e.currentTarget;
-    const tipo = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(
-      (t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t),
-    );
-    if (!tipo || !cv.captureStream)
-      return toast('Este navegador não grava vídeo. Grave a tela do celular enquanto o replay toca.', true);
-    b.disabled = true;
-    b.textContent = 'Gravando…';
-    b.dataset.gravando = '1';
-    const rec = new MediaRecorder(cv.captureStream(30), {
-      mimeType: tipo,
-      videoBitsPerSecond: ehSat() ? 9000000 : 6000000,
-    });
-    const partes = [];
-    rec.ondataavailable = (ev) => ev.data.size && partes.push(ev.data);
-    rec.onstop = async () => {
-      const ext = tipo.includes('mp4') ? 'mp4' : 'webm',
-        blob = new Blob(partes, { type: tipo.split(';')[0] }),
-        file = new File([blob], `replay-nexos.${ext}`, { type: blob.type });
-      b.disabled = false;
-      b.textContent = 'Salvar vídeo';
-      delete b.dataset.gravando;
+    if (b.dataset.gravando) return;
+    const entregar = async (blob, ext) => {
+      const file = new File([blob], `replay-nexos.${ext}`, { type: blob.type });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file] });
@@ -2224,6 +2313,46 @@ function abrirReplay(c, perfil) {
       a.download = file.name;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    };
+    const libera = () => {
+      b.disabled = false;
+      b.textContent = 'Salvar vídeo';
+      delete b.dataset.gravando;
+    };
+    b.disabled = true;
+    b.dataset.gravando = '1';
+    b.textContent = 'Preparando…';
+    // 1) caminho bom: gera o vídeo quadro a quadro (liso em qualquer celular)
+    const cfg = await configVideo();
+    if (cfg) {
+      try {
+        const blob = await gerarVideo(cfg, (p) => (b.textContent = `Gerando vídeo… ${Math.round(p * 100)}%`));
+        libera();
+        if (blob) await entregar(blob, 'mp4');
+        tocar();
+        return;
+      } catch (er) {
+        console.warn('[replay] gerar quadro a quadro falhou, gravando em tempo real', er);
+      }
+    }
+    // 2) navegador sem esse recurso: grava a tela do replay enquanto ele toca
+    const tipo = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(
+      (t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t),
+    );
+    if (!tipo || !cv.captureStream) {
+      libera();
+      return toast('Este navegador não grava vídeo. Grave a tela do celular enquanto o replay toca.', true);
+    }
+    b.textContent = 'Gravando…';
+    const rec = new MediaRecorder(cv.captureStream(30), {
+      mimeType: tipo,
+      videoBitsPerSecond: ehSat() ? 9000000 : 6000000,
+    });
+    const partes = [];
+    rec.ondataavailable = (ev) => ev.data.size && partes.push(ev.data);
+    rec.onstop = () => {
+      libera();
+      entregar(new Blob(partes, { type: tipo.split(';')[0] }), tipo.includes('mp4') ? 'mp4' : 'webm');
     };
     rec.start();
     tocar(() => rec.stop());
