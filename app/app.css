@@ -3313,3 +3313,6 @@ details.guia-niv:not([open]){padding-top:12px;padding-bottom:12px}
 .ativ-av{position:relative;flex:none;display:inline-flex}
 .ativ-av .ativ-tipo{position:absolute;right:-5px;bottom:-5px;width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:var(--s1);color:var(--acc);box-shadow:0 0 0 2px var(--bg,#fff)}
 .ativ-av .ativ-tipo svg{width:12px;height:12px}
+/* corrida que cumpriu o treino de outro dia: aviso pequeno no dia em que foi feita */
+.ses-outro{display:flex;align-items:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:10px;border:1px dashed color-mix(in srgb,var(--ok) 55%,transparent);color:var(--ok);font-size:.74rem;font-weight:700;text-decoration:none;line-height:1.25}
+.ses-outro svg{width:13px;height:13px;flex:none}

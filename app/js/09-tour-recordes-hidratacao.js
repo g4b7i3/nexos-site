@@ -849,9 +849,9 @@ async function alunoHoje() {
   const h = new Date().getHours();
   const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const cardCorr = (p) => {
-    const feito = corrHoje.find((c) => c.plano_id === p.id);
+    const feito = corrSem.find((c) => c.plano_id === p.id);
     const est = estruturaDe(p);
-    return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span>${feito ? '<span class="tag ok">✓ feita</span>' : ''}</div>
+    return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span>${feito ? `<span class="tag ok">✓ ${isoDia(feito.data) < p.data ? 'antecipada' : 'feita'}</span>` : ''}</div>
       <div class="h3" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
       ${
@@ -878,7 +878,7 @@ async function alunoHoje() {
   const resumoDia = (() => {
     if (descanso) return 'Dia de descanso.';
     const itens = [
-      ...corrDoDia.map((p) => ({ n: p.titulo || nomeTipo(p.tipo), ok: !!corrHoje.find((c) => c.plano_id === p.id) })),
+      ...corrDoDia.map((p) => ({ n: p.titulo || nomeTipo(p.tipo), ok: !!corrSem.find((c) => c.plano_id === p.id) })),
       ...(prox && fixoHoje ? [{ n: prox.titulo + ' (força)', ok: !!muscHoje }] : []),
       ...(forcaHoje ? [{ n: 'força', ok: false }] : []),
     ];
@@ -1134,7 +1134,7 @@ async function alunoHoje() {
       return verTreinoPlanilha(
         p,
         perfC,
-        corrHoje.find((c) => c.plano_id === p.id),
+        corrSem.find((c) => c.plano_id === p.id),
       );
     }
   };

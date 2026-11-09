@@ -1143,6 +1143,14 @@ const FORCA_IC =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>';
 const OFF_IC =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" opacity=".5"><rect x="2" y="7.6" width="3.6" height="11" rx="1.7"/><rect x="2.6" y="14.8" width="14.6" height="3.8" rx="1.7"/><rect x="3.8" y="18.2" width="2.2" height="3.2" rx=".9"/><rect x="14.4" y="18.2" width="2.2" height="3.2" rx=".9"/></g><g fill="none" stroke="currentColor" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 8.8 9.7 13.4h6.2l1.6 6.6h2.4"/><path d="M8.6 10.4l4.2 2"/></g><circle cx="8" cy="4.5" r="2.5" fill="currentColor"/></svg>'; // pessoa sentada na poltrona
+// treino feito em outro dia da semana: "Antecipado (feito na segunda)" ou "Feito depois, na quinta"
+const DIA_LONGO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+function diaFeitoTxt(c, p) {
+  const k = isoDia(c.data);
+  if (!p || k === p.data) return 'Treino concluído';
+  const dia = DIA_LONGO[new Date(k + 'T12:00:00').getDay()];
+  return k < p.data ? `Antecipado · feito na ${dia}` : `Feito depois · na ${dia}`;
+}
 function cartaoSessao(p, perfil, feito, staff) {
   if (p.tipo === 'forca')
     return `<div class="ses forca-l ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic fo">${FORCA_IC}</span><b>Força</b></div><span class="ses-m">${p.descricao ? esc(p.descricao) : 'por conta do aluno'}</span></div>`;
@@ -1153,7 +1161,7 @@ function cartaoSessao(p, perfil, feito, staff) {
   const est = estruturaDe(p);
   const rs = resumoEstrutura(est, perfil);
   return `<div class="ses ${st} ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}" ${staff ? 'draggable="false"' : ''}>
-    ${feito ? `<div class="ses-conc"><i>${I.check}</i>Treino concluído</div>` : ''}
+    ${feito ? `<div class="ses-conc"><i>${I.check}</i>${diaFeitoTxt(feito, p)}</div>` : ''}
     <div class="ses-t"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b>${!feito && st === 'perdido' ? '<span class="ses-x">!</span>' : ''}</div>
     ${perfilHTML(est, perfil)}
     ${feito ? `<div class="ses-res"><div><small>Distância</small><b>${fmtKm(feito.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(feito)).replace('/km', '')}<em>/km</em></b></div></div>` : ''}
@@ -1298,6 +1306,10 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
       const k = isoDia(d);
       const itens = plano.filter((p) => p.data === k);
       const av = corridas.filter((c) => !c.plano_id && isoDia(c.data) === k);
+      // corrida deste dia que cumpriu o treino de outro dia da semana
+      const outroDia = corridas.filter(
+        (c) => c.plano_id && isoDia(c.data) === k && !itens.some((p) => p.id === c.plano_id),
+      );
       const ou = outras.filter((c) => isoDia(c.data) === k);
       const pr = provas.filter((p) => p.data === k);
       const fTag = forcaDiaHTML(fc, k, isoDia(dias[0]), staff);
@@ -1314,9 +1326,16 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
             ),
           )
           .join('')}
+        ${outroDia
+          .map((c) => {
+            const pl = plano.find((p) => p.id === c.plano_id);
+            const dia = pl ? DIA_LONGO[new Date(pl.data + 'T12:00:00').getDay()] : '';
+            return `<a class="ses-outro" href="#/corrida/${c.id}">${I.check} ${pl && pl.data > k ? 'Treino de ' + dia + ' antecipado' : 'Treino de ' + dia + ' feito aqui'} · ${fmtKm(c.distancia_m, 1)}</a>`;
+          })
+          .join('')}
         ${av.map((c) => `<a class="ses feito avulsa" href="#/corrida/${c.id}"><div class="ses-conc"><i>${I.check}</i>Treino extra</div><div class="ses-t"><b>${c.tipo === 'caminhada' ? 'Caminhada' : 'Corrida avulsa'}</b></div><div class="ses-res"><div><small>Distância</small><b>${fmtKm(c.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(c)).replace('/km', '')}<em>/km</em></b></div></div></a>`).join('')}
         ${ou.map((c) => `<a class="ses feito ${c.tipo === 'forca' ? 'ativ-fo' : 'ativ-ou'}" href="#/corrida/${c.id}"><div class="ses-conc ${c.tipo === 'forca' ? 'fo' : ''}"><i>${I.check}</i>Do relógio</div><div class="ses-t"><b>${esc(nomeAtiv(c))}</b></div><div class="ses-res"><div><small>${comDist(c) ? 'Distância' : 'Duração'}</small><b>${comDist(c) ? fmtKm(c.distancia_m, 1) : fmtDur(c.duracao_s)}</b></div>${c.fc_media ? `<div><small>FC média</small><b>${c.fc_media}<em>bpm</em></b></div>` : ''}</div></a>`).join('')}
-        ${!itens.length && !av.length && !pr.length && !ou.length && !fTag ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
+        ${!itens.length && !av.length && !outroDia.length && !pr.length && !ou.length && !fTag ? `<span class="cal-vazio">${staff ? 'solte um treino aqui' : 'descanso'}</span>` : ''}</div></div>`;
     });
     h += '</div></div>';
   }
