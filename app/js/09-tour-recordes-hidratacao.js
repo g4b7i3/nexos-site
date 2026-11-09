@@ -1394,6 +1394,7 @@ function constanciaHTML(datas, titulo = 'Sua constância') {
    - Cidade: a que o aluno escolheu ou a do início da última corrida com GPS (o banco acha o município do IBGE);
      para o serviço de clima vai só o centro do município, nunca o ponto da corrida. Previsão do Open-Meteo. */
 const CALOR_PADRAO = { nome: 'São Luís', uf: 'MA', lat: -2.53874, lon: -44.2825, origem: 'padrao' };
+/* calor:puro:inicio (conferido pelo teste automático scripts/testes/calor.test.js antes de cada publicação) */
 const CALOR_NIVEIS = [
   { k: 'baixo', nome: 'Tranquilo' },
   { k: 'atencao', nome: 'Atenção' },
@@ -1428,6 +1429,7 @@ function wbgtDe(t, ur, sol) {
   const tg = t + Math.min(12, Math.max(0, sol || 0) * 0.0125); // globo: o sol esquenta o corpo além do ar
   return 0.7 * tw + 0.2 * tg + 0.1 * t;
 }
+/* calor:puro:fim */
 // posição do celular agora (só para achar a cidade; o ponto não é guardado)
 const posicaoCelular = (pedir) =>
   new Promise((res) => {
