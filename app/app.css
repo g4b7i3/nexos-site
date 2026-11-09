@@ -3376,3 +3376,6 @@ body.em-video{overflow:hidden}
 .cal-mais{margin-top:10px}.cal-mais summary{cursor:pointer;font-weight:700;font-size:.88rem;color:var(--cal)}
 .cal-det{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .cal-lista{margin:4px 0 0 18px;font-size:.86rem;display:grid;gap:4px}
+.cal-cidade{display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 12px;border-radius:14px;background:var(--s2)}
+.cal-op{cursor:pointer;align-items:flex-start;gap:12px}
+.cal-op input{margin-top:4px;accent-color:var(--p1);width:18px;height:18px;flex:none}

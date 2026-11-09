@@ -1403,8 +1403,11 @@ const CALOR_NIVEIS = [
 ];
 // limites (°C de WBGT) de cada nível por categoria de clima da região (1 mais fresca, 3 quente e úmida)
 const CALOR_LIMITES = { 1: [24.5, 27.3, 29, 30.1], 2: [26.5, 29.3, 31, 32.1], 3: [27.8, 30.6, 32.3, 33.4] };
-// norte e nordeste quentes e úmidos: categoria 3; o resto do país: 2; sul frio: 1
-const categoriaCalor = (lat) => (lat > -16 ? 3 : lat > -25 ? 2 : 1);
+// clima da região pela latitude (vale também fora do Brasil): tropical quente 3, intermediário 2, mais frio 1
+const categoriaCalor = (lat) => {
+  const a = Math.abs(lat);
+  return a < 16 ? 3 : a < 25 ? 2 : 1;
+};
 const nivelCalor = (w, cat) => CALOR_NIVEIS[CALOR_LIMITES[cat].findIndex((l) => w < l) + 1 || 4];
 const TIPOS_FORTES = ['ritmo', 'intervalado', 'tiros', 'fartlek', 'longao', 'prova', 'teste'];
 function bulboUmido(t, ur) {
@@ -1421,12 +1424,33 @@ function wbgtDe(t, ur, sol) {
   const tg = t + Math.min(12, Math.max(0, sol || 0) * 0.0125); // globo: o sol esquenta o corpo além do ar
   return 0.7 * tw + 0.2 * tg + 0.1 * t;
 }
+// posição do celular agora (só para achar a cidade; o ponto não é guardado)
+const posicaoCelular = (pedir) =>
+  new Promise((res) => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => res(p.coords),
+      () => res(null),
+      { maximumAge: pedir ? 0 : 30 * 60e3, timeout: pedir ? 20000 : 8000, enableHighAccuracy: false },
+    );
+  });
 async function localCalor() {
-  const { data } = await sb.rpc('nx_cidade_calor').then(
-    (r) => r,
-    () => ({ data: null }),
-  );
-  return data && data.lat != null ? data : CALOR_PADRAO;
+  const modo = (S.me && S.me.local_clima && S.me.local_clima.modo) || 'auto';
+  let data = null;
+  if (modo === 'celular') {
+    const c = await posicaoCelular(false);
+    ({ data } = await sb
+      .rpc('nx_local_clima_modo', { p_modo: 'celular', p_lat: c ? c.latitude : null, p_lon: c ? c.longitude : null })
+      .then(
+        (r) => r,
+        () => ({ data: null }),
+      ));
+  } else
+    ({ data } = await sb.rpc('nx_cidade_calor').then(
+      (r) => r,
+      () => ({ data: null }),
+    ));
+  return data && data.lat != null ? data : { ...CALOR_PADRAO, modo };
 }
 async function previsaoCalor(loc) {
   const ch = `nx-calor-${loc.lat},${loc.lon}-${new Date().toISOString().slice(0, 13)}`;
@@ -1508,8 +1532,8 @@ function calorCardHTML(loc, horas, treino) {
     <details class="cal-mais"><summary>Ver mais</summary>
       <div class="cal-det" style="margin-top:8px"><div><span>Índice de calor</span><b>${f1(agora.w)}°</b></div><div><span>Índice UV</span><b>${agora.uv != null ? f1(agora.uv) : '–'}</b></div><div><span>Vento</span><b>${agora.vento != null ? Math.round(agora.vento) + ' km/h' : '–'}</b></div></div>
       <p class="sec-lbl">No calor</p><ul class="cal-lista"><li>Beba água ao longo do dia e leve água em treinos de mais de 1 hora.</li><li>Roupa clara e leve; boné e protetor solar se houver sol.</li><li>Tontura, náusea, dor de cabeça forte ou arrepio no calor: pare, vá para a sombra e se refresque.</li><li>O corpo se adapta ao calor em cerca de 10 a 14 dias treinando nele. Se você viajou de um lugar mais frio, vá com mais calma.</li></ul>
-      <p class="sec-lbl">Como é feita esta leitura</p><p class="tiny dim">O índice de calor estima o WBGT, a medida usada no esporte, a partir da temperatura, da umidade e do sol previstos para cada hora. Os níveis levam em conta que quem mora na região já está adaptado ao clima dela (guias regionais de calor para o esporte, Grundstein e colegas, 2015). Cidade: ${loc.origem === 'escolhido' ? 'a que você escolheu' : loc.origem === 'corrida' ? 'a da sua última corrida com GPS' : 'São Luís, porque ainda não há corrida com GPS'}. Só a cidade é usada, nunca o local exato da corrida. Previsão do Open-Meteo.</p>
-      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn ghost sm" data-cal-loc="aqui">Usar minha localização atual</button>${loc.origem === 'escolhido' ? '<button type="button" class="link-btn small" data-cal-loc="auto">Voltar para a cidade da última corrida</button>' : ''}</div>
+      <p class="sec-lbl">Como é feita esta leitura</p><p class="tiny dim">O índice de calor estima o WBGT, a medida usada no esporte, a partir da temperatura, da umidade e do sol previstos para cada hora. Os níveis levam em conta que quem mora na região já está adaptado ao clima dela (guias regionais de calor para o esporte, Grundstein e colegas, 2015). Só a cidade é usada, nunca o local exato da corrida ou do celular. Previsão do Open-Meteo.</p>
+      <div class="cal-cidade"><div class="grow" style="min-width:0"><span class="tiny dim">Cidade da leitura</span><b class="ellip" style="display:block">${esc(cidade)}</b><span class="tiny dim">${loc.origem === 'celular' ? 'Pela localização do celular' : loc.origem === 'corrida' ? 'Pela sua última corrida com GPS' : 'Padrão, até a sua primeira corrida com GPS'}</span></div><button type="button" class="btn ghost sm" data-cal-loc="trocar">Trocar</button></div>
     </details></div>`;
 }
 async function calorHoje(el, treino) {
@@ -1527,26 +1551,54 @@ async function calorHoje(el, treino) {
         return;
       }
       const lb = e.target.closest('[data-cal-loc]');
-      if (!lb) return;
-      const salvar = async (lat, lon) => {
-        const { data, error } = await sb.rpc('nx_local_clima_salvar', { p_lat: lat, p_lon: lon });
-        if (error) return toast('Não foi possível salvar a localização.', true);
-        S.me.local_clima = data;
-        calorHoje(el, treino);
-      };
-      if (lb.dataset.calLoc === 'auto') return salvar(null, null);
-      if (!navigator.geolocation) return toast('Este aparelho não informa a localização.', true);
-      lb.disabled = true;
-      navigator.geolocation.getCurrentPosition(
-        (p) => salvar(p.coords.latitude, p.coords.longitude),
-        () => {
-          lb.disabled = false;
-          toast('Localização não permitida. Libere a localização para o app nas configurações do celular.', true);
-        },
-        { maximumAge: 3600e3, timeout: 15000 },
-      );
+      if (lb) trocarCidadeCalor(loc, () => calorHoje(el, treino));
     };
   } catch {
     el.innerHTML = '';
   }
+}
+
+// janela para escolher de onde vem a cidade da leitura do tempo
+function trocarCidadeCalor(loc, depois) {
+  const modo = (S.me.local_clima && S.me.local_clima.modo) || 'auto';
+  openSheet(
+    `<p class="eyebrow">Leitura do tempo</p><h2 class="h2" style="margin-top:4px">Cidade da leitura</h2>
+    <div class="stack" style="margin-top:14px">
+      <label class="list-item cal-op"><input type="radio" name="cal-modo" value="auto" ${modo !== 'celular' ? 'checked' : ''}><div class="grow"><b>Automático, pela última corrida</b><div class="small muted">Usa a cidade da corrida com GPS mais recente. Bom para quem corre sempre no mesmo lugar.</div></div></label>
+      <label class="list-item cal-op"><input type="radio" name="cal-modo" value="celular" ${modo === 'celular' ? 'checked' : ''}><div class="grow"><b>Pela localização do celular</b><div class="small muted">Usa a cidade onde você está ao abrir o app, mesmo antes de correr. Bom para quem viaja. Vale também fora do Brasil.</div></div></label>
+    </div>
+    <p class="tiny dim" style="margin-top:10px">Nos dois casos vale a informação mais recente, e só a cidade é usada, nunca o ponto exato.</p>
+    <button class="btn block" id="cal-salvar" style="margin-top:14px">Salvar</button>`,
+    () => {
+      document.getElementById('cal-salvar').onclick = async (e) => {
+        const b = e.currentTarget,
+          novo = (document.querySelector('[name="cal-modo"]:checked') || {}).value || 'auto';
+        b.disabled = true;
+        let c = null;
+        if (novo === 'celular') {
+          b.textContent = 'Pegando a localização…';
+          c = await posicaoCelular(true);
+          if (!c)
+            toast(
+              'O celular não liberou a localização. Libere para o app nas configurações; até lá vale a última corrida.',
+              true,
+            );
+        }
+        const { data, error } = await sb.rpc('nx_local_clima_modo', {
+          p_modo: novo,
+          p_lat: c ? c.latitude : null,
+          p_lon: c ? c.longitude : null,
+        });
+        if (error) {
+          b.disabled = false;
+          b.textContent = 'Salvar';
+          return toast('Não foi possível salvar. Tente de novo.', true);
+        }
+        S.me.local_clima = novo === 'celular' ? { modo: 'celular' } : null;
+        closeSheet();
+        toast(data && data.nome ? `Leitura do tempo: ${data.nome}${data.uf ? ` (${data.uf})` : ''}.` : 'Pronto.');
+        depois();
+      };
+    },
+  );
 }
