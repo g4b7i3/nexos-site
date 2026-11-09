@@ -1844,7 +1844,7 @@ function staffMais() {
       ${it('#/desativados', I.user, 'Alunos desativados', 'Quem saiu da Nexos: histórico guardado e opção de reativar')}
     </div>
     <p class="sec-lbl">Equipe e comunicação</p><div class="stack">
-      <button class="list-item" id="mais-video" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Videochamada da equipe</b><div class="small muted">Chamada de vídeo entre os professores</div><div class="tiny dim" id="mais-video-uso"></div><div id="mais-video-st"></div></div>${I.chev}</button>
+      <a class="list-item" href="#/videochamadas" style="color:inherit"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Videochamadas</b><div class="small muted">Ligar para um professor ou para um aluno</div><div class="tiny dim" id="mais-video-uso"></div><div id="mais-video-st"></div></div>${I.chev}</a>
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
@@ -1861,8 +1861,6 @@ function staffMais() {
       <button class="list-item" id="mais-tour" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.play}</span><div class="grow"><b>Tour pelo painel</b><div class="small muted">Um passeio rápido por tudo o que o painel do treinador faz</div></div>${I.chev}</button>
     </div>`;
   document.getElementById('mais-tour').onclick = () => iniciarTour();
-  const mv = document.getElementById('mais-video');
-  mv.onclick = () => videoEquipe(mv);
   statusVideoEquipe();
   usoVideoMais();
 }

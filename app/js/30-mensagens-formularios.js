@@ -1526,8 +1526,8 @@ async function viewChamada(id) {
       }
       await abrirSalaVideo(d, {
         staff: S.staff,
-        equipe: d.tipo === 'equipe',
-        titulo: d.tipo === 'equipe' ? 'Videochamada da equipe' : 'Videochamada com a Nexos',
+        equipe: d.tipo === 'equipe' || d.tipo === 'professor',
+        titulo: d.tipo === 'equipe' ? 'Videochamada da equipe' : S.staff ? 'Videochamada' : 'Videochamada com a Nexos',
       });
     } catch (e) {
       msg.textContent = e.message;
@@ -1576,43 +1576,114 @@ async function linhaUltimaChamada(alunoId) {
   el.innerHTML = `<span class="tag">Última videochamada ${fmtCurto(c.criado_em)}${min ? ` · ${min} min` : c.atendida_em ? '' : ' · não atendida'}</span>`;
 }
 
-// videochamada entre os professores (Mais): quem abre avisa os outros; quem chega depois entra na mesma sala
-async function videoEquipe(btn) {
+// videochamada com outro professor: só ele é avisado
+async function ligarProfessor(m, btn) {
   if (btn) btn.disabled = true;
   try {
-    const d = await funcaoVideo({ acao: 'equipe' });
-    if (d.nova)
-      toast(
-        d.avisados
-          ? 'Os outros professores foram avisados.'
-          : 'Ninguém da equipe está com as notificações ativas. Avise pelo WhatsApp para entrarem em Mais.',
-        !d.avisados,
-      );
-    await abrirSalaVideo(d, { staff: true, equipe: true, titulo: 'Videochamada da equipe' });
+    const d = await funcaoVideo({ acao: 'professor', para: m.user_id });
+    const tel = String(m.telefone || '').replace(/\D/g, '');
+    const link = `${location.origin}/treinador/#/chamada/${d.id}`;
+    const wa = tel
+      ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="https://wa.me/${tel.length <= 11 ? '55' + tel : tel}?text=${encodeURIComponent(`${firstName(m.nome)}, estou te esperando na videochamada: ${link}`)}">Mandar link no WhatsApp</a>`
+      : '';
+    toast(
+      d.avisados
+        ? `${firstName(m.nome)} foi avisado pelo app.`
+        : `${firstName(m.nome)} não tem as notificações ativas.${tel ? ' Mande o link pelo WhatsApp (botão no alto da chamada).' : ''}`,
+      !d.avisados,
+    );
+    await abrirSalaVideo(d, { staff: true, equipe: true, titulo: `Videochamada com ${firstName(m.nome)}`, extra: wa });
   } catch (e) {
     toast(e.message, true);
   } finally {
     if (btn) btn.disabled = false;
   }
 }
-// no Mais: mostra quando a sala da equipe está aberta
-async function statusVideoEquipe() {
-  const el = document.getElementById('mais-video-st');
-  if (!el) return;
+// chamadas abertas que envolvem a equipe (para voltar a entrar ou atender)
+async function chamadasAbertas() {
   const { data } = await sb
     .from('nx_chamadas')
-    .select('id')
+    .select('id,tipo,aluno_id,treinador_id,convidado_id,criado_em')
     .eq('org_id', S.org.id)
-    .eq('tipo', 'equipe')
     .is('encerrada_em', null)
     .gt('expira_em', new Date().toISOString())
-    .limit(1)
+    .order('criado_em', { ascending: false })
     .then(
       (r) => r,
       () => ({ data: [] }),
     );
-  if (data && data[0] && document.getElementById('mais-video-st'))
-    el.innerHTML = '<span class="tag acc">Em andamento: toque para entrar</span>';
+  return (data || []).filter(
+    (c) =>
+      c.tipo === 'equipe' ||
+      c.treinador_id === S.user.id ||
+      c.convidado_id === S.user.id ||
+      (c.tipo === 'aluno' && c.treinador_id === S.user.id),
+  );
+}
+// no Mais: avisa quando alguém está te chamando ou há chamada sua aberta
+async function statusVideoEquipe() {
+  const el = document.getElementById('mais-video-st');
+  if (!el) return;
+  const l = await chamadasAbertas();
+  if (!l.length || !document.getElementById('mais-video-st')) return;
+  el.innerHTML = l.some((c) => c.convidado_id === S.user.id)
+    ? '<span class="tag acc">Estão te chamando: toque para entrar</span>'
+    : '<span class="tag acc">Chamada em andamento</span>';
+}
+// tela de videochamadas: professores e alunos para ligar, chamadas abertas e minutos do mês
+async function staffVideochamadas() {
+  loading();
+  const [{ data: ms }, abertas, semNot] = await Promise.all([
+    sb
+      .from('nx_membros')
+      .select('user_id,nome,foto_url,papel,treinador_id,telefone,ativo')
+      .eq('org_id', S.org.id)
+      .eq('ativo', true)
+      .order('nome'),
+    chamadasAbertas(),
+    sb.rpc('nx_sem_notificacao', { p_org: S.org.id }).then(
+      (r) => r.data || [],
+      () => [],
+    ),
+  ]);
+  const todos = ms || [];
+  const nome = Object.fromEntries(todos.map((m) => [m.user_id, m]));
+  const profs = todos.filter((m) => (m.papel === 'admin' || m.papel === 'treinador') && m.user_id !== S.user.id);
+  const alunos = todos.filter((m) => m.papel === 'aluno' && ehMeuAluno(m));
+  const semPush = new Set(semNot);
+  const linha = (m, tipo) =>
+    `<div class="list-item vc-l" data-nome="${esc(semAcento(m.nome || ''))}">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome || '')}</b>${tipo === 'a' && semPush.has(m.user_id) ? `<div class="tiny dim">Sem notificação: o app mostra o botão de mandar o link no WhatsApp</div>` : ''}</div><button type="button" class="btn sm" data-lig="${tipo}:${m.user_id}">${I.cam} Ligar</button></div>`;
+  const descAberta = (c) =>
+    c.tipo === 'equipe'
+      ? 'Sala da equipe'
+      : c.tipo === 'professor'
+        ? c.convidado_id === S.user.id
+          ? `${esc(firstName((nome[c.treinador_id] || {}).nome || 'Professor'))} está te chamando`
+          : `Com ${esc(firstName((nome[c.convidado_id] || {}).nome || 'professor'))}`
+        : `Com ${esc(firstName((nome[c.aluno_id] || {}).nome || 'aluno'))}`;
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe e comunicação</p><h1 class="h1">Videochamadas</h1>
+    <p class="small muted" style="margin-top:6px">Toque em <b>Ligar</b>: a pessoa recebe a notificação e entra pelo aviso. A data e a duração das chamadas com alunos ficam na ficha.</p>
+    <p class="tiny dim" id="mais-video-uso" style="margin-top:6px"></p>
+    ${abertas.length ? `<p class="sec-lbl">Em andamento</p><div class="stack">${abertas.map((c) => `<a class="list-item" href="#/chamada/${c.id}" style="color:inherit"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>${descAberta(c)}</b><div class="small muted">Toque para entrar</div></div>${I.chev}</a>`).join('')}</div>` : ''}
+    <p class="sec-lbl">Professores</p><div class="stack" id="vc-p">${profs.map((m) => linha(m, 'p')).join('') || '<div class="empty"><p class="small">Nenhum outro professor na equipe.</p></div>'}</div>
+    <p class="sec-lbl">Alunos</p>${alunos.length > 6 ? '<input class="input" id="vc-busca" placeholder="Buscar aluno pelo nome" style="margin-bottom:10px">' : ''}<div class="stack" id="vc-a">${alunos.map((m) => linha(m, 'a')).join('') || '<div class="empty"><p class="small">Nenhum aluno ativo.</p></div>'}</div>`;
+  usoVideoMais();
+  $app.onclick = (e) => {
+    const b = e.target.closest('[data-lig]');
+    if (!b) return;
+    const [t, id] = b.dataset.lig.split(':'),
+      m = nome[id];
+    if (m) (t === 'p' ? ligarProfessor : iniciarVideochamada)(m, b);
+  };
+  const busca = document.getElementById('vc-busca');
+  if (busca)
+    busca.oninput = () => {
+      const q = semAcento(busca.value.trim());
+      document.querySelectorAll('#vc-a .vc-l').forEach((x) => (x.hidden = !!q && !x.dataset.nome.includes(q)));
+    };
+  window.addEventListener('nx:video-fim', () => location.hash === '#/videochamadas' && staffVideochamadas(), {
+    once: true,
+  });
 }
 // no Mais: minutos usados no ciclo do Daily (10.000 grátis por mês, cada pessoa na chamada conta)
 async function usoVideoMais() {
