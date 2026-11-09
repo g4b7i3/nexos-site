@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261109202927';
+const NX_BUILD = 'v20261109210047';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -825,6 +825,7 @@ const dockAluno = () =>
         '#/termo',
         '#/agua',
         '#/prontidao',
+        '#/relogio',
         '#/recordes',
       ],
       icon: I.grid,
@@ -1200,6 +1201,7 @@ async function router() {
     if (a === 'agua') return await viewAguaAluno();
     if (a === 'ciclo') return await viewCicloAluna(b);
     if (a === 'prontidao') return await viewProntAluno(b === 'agora');
+    if (a === 'relogio') return await viewRelogioAluno();
     if (a === 'meta') return await viewMeta();
     if (a === 'notificacoes') return await viewNotificacoes();
     if (a === 'dicas') return await viewDicas(b);

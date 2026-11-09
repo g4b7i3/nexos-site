@@ -719,7 +719,7 @@ async function staffAluno(alunoId, aba, extra) {
   const GRUPOS_FICHA = [
     ['Treinos', ['corrida', 'forca', 'historico', 'cargas']],
     ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'fotos']],
-    ['Saúde', ['saude', 'energia']],
+    ['Saúde', ['saude', 'energia', 'relogio']],
     ['Contato e cadastro', ['conversa', 'dados']],
   ];
   const SECOES = [
@@ -739,6 +739,7 @@ async function staffAluno(alunoId, aba, extra) {
       m.sexo === 'F' ? 'Energia, ciclo e fases da vida' : 'Sinais de baixa energia',
       true,
     ],
+    ['relogio', 'Dados do relógio', I.watch, 'Sono, VFC, FC de repouso e mais', true],
     [
       'conversa',
       'Conversa',
@@ -926,6 +927,8 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = '<div id="fotos"></div>';
   } else if (aba === 'energia') {
     corpo = '<div id="saude-at" class="stack"></div>';
+  } else if (aba === 'relogio') {
+    corpo = '<div id="rel-saude" class="stack"></div>';
   } else if (aba === 'saude') {
     termo =
       (
@@ -1016,6 +1019,10 @@ async function staffAluno(alunoId, aba, extra) {
       .catch(() => {});
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
   if (aba === 'energia') viewSaudeAtleta(document.getElementById('saude-at'), m).catch((e) => console.error(e));
+  if (aba === 'relogio')
+    viewRelogioSaude(document.getElementById('rel-saude'), alunoId, { nome: m.nome, sexo: m.sexo }).catch((e) =>
+      console.error(e),
+    );
   // aviso no início da ficha quando aparecem 2 ou mais sinais de baixa energia
   if (aba === 'inicio')
     sinaisEnergia([alunoId])
