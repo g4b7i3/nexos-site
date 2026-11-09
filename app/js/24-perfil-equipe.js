@@ -134,7 +134,7 @@ function viewPerfil() {
       <a class="list-item" href="#/pagamentos" style="color:inherit"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Pagamentos</b><div class="small muted">Mensalidades e Pix</div></div>${I.chev}</a>
       <a class="list-item" href="#/termo" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Termo e meus dados</b><div class="small muted">O que guardamos e seus direitos (LGPD)</div></div>${I.chev}</a></div>`
     }
-    ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button></div></div>` : ''}
+    ${S.me.papel === 'admin' ? `<div class="section"><div class="section-h"><h2 class="h2">Equipe</h2></div><div class="card"><p class="small muted">Adicione outro treinador da Nexos. Ele vai poder cadastrar alunos e montar treinos.</p><button class="btn ghost block" id="add-trein" style="margin-top:12px">${I.plus} Adicionar treinador</button><div id="eq-senhas" class="stack" style="margin-top:14px;gap:8px"></div></div></div>` : ''}
     </div><div>
     <div class="section"><div class="section-h"><h2 class="h2">Configurações</h2></div>
       <div id="notif"></div>
@@ -174,6 +174,58 @@ function viewPerfil() {
   const tf2 = document.getElementById('trocar-foto2');
   if (tf2) tf2.onclick = trocarFoto;
   secaoNotificacoes(document.getElementById('notif'));
+  // administrador: senha nova para um colega da equipe que perdeu o acesso (sem depender de e-mail)
+  if (S.me.papel === 'admin')
+    carregarEquipe(true)
+      .then((eq) => {
+        const box = document.getElementById('eq-senhas');
+        const outros = (eq || []).filter((p) => p.user_id !== S.user.id);
+        if (!box || !outros.length) return;
+        box.innerHTML =
+          '<p class="tiny dim">Algum colega perdeu o acesso? Gere uma senha nova e mande para ele.</p>' +
+          outros
+            .map(
+              (p) =>
+                `<div class="list-item">${fotoHTML(p, 'sm')}<b class="grow ellip">${esc(p.nome)}</b><button type="button" class="btn ghost sm" data-eqsenha="${p.user_id}">Gerar nova senha</button></div>`,
+            )
+            .join('');
+        box.onclick = (e) => {
+          const b = e.target.closest('[data-eqsenha]');
+          if (!b) return;
+          const p = outros.find((x) => x.user_id === b.dataset.eqsenha);
+          openSheet(
+            `<p class="eyebrow">Equipe</p><div class="h2" style="margin-top:4px">Gerar uma senha nova para ${esc(p.nome)}?</div>
+            <p class="small muted" style="margin-top:6px">A senha atual de ${esc(firstName(p.nome))} deixa de funcionar. Depois de entrar, ${esc(firstName(p.nome))} pode trocar em Mais › Perfil e equipe › Trocar senha.</p>
+            <button class="btn block" id="eqs-ok" style="margin-top:14px">Sim, gerar a senha</button>
+            <button class="btn ghost block" data-close style="margin-top:8px">Cancelar</button>`,
+            (r) => {
+              r.querySelector('#eqs-ok').onclick = async (ev) => {
+                ev.currentTarget.disabled = true;
+                const nova = gerarSenha();
+                try {
+                  const res = await chamarFuncao({ acao: 'senha', user_id: p.user_id, senha: nova });
+                  const url = location.origin + '/treinador/';
+                  const msg = `Oi, ${firstName(p.nome)}! Sua senha nova do app da Nexos:\n\nAcesse: ${url}\nE-mail: ${(res && res.email) || ''}\nSenha: ${nova}\n\nDepois de entrar, troque em Mais › Perfil e equipe › Trocar senha.`;
+                  r.innerHTML = `<div class="center">${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">Senha nova de ${esc(firstName(p.nome))}</div></div>
+                  <div class="cred" style="margin-top:12px">Acesso: <b>${esc(url)}</b><br>E-mail: <b>${esc((res && res.email) || '')}</b><br>Senha: <b>${esc(nova)}</b></div>
+                  <a class="btn block" style="margin-top:16px;background:#25d366;color:#04122b" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${I.wa} Enviar pelo WhatsApp</a>
+                  <button class="btn ghost block" id="eqs-copiar" style="margin-top:8px">Copiar mensagem</button>
+                  <button class="btn ghost block" data-close style="margin-top:8px">Concluir</button>`;
+                  r.querySelector('#eqs-copiar').onclick = () =>
+                    navigator.clipboard.writeText(msg).then(
+                      () => toast('Mensagem copiada.'),
+                      () => toast('Não foi possível copiar.', true),
+                    );
+                } catch (err) {
+                  ev.currentTarget.disabled = false;
+                  toast(err.message, true);
+                }
+              };
+            },
+          );
+        };
+      })
+      .catch(() => {});
   if (!S.staff)
     carregarEquipe().then(
       (eq) => {
