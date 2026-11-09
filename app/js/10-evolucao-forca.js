@@ -563,11 +563,48 @@ async function viewExecucao(treinoId, preview) {
       (r) => r.data || [],
       () => [],
     );
-  if (daSemana.length)
-    itens = itens.map((i) => {
-      const m = daSemana.find((x) => x.exercicio_id === i.exercicio_id);
-      return m ? { ...i, ...m.dados, _semana: true } : i;
-    });
+  if (daSemana.length) {
+    const dd = (x) => x.dados || {};
+    const fora = new Set(daSemana.filter((x) => dd(x).removido).map((x) => x.exercicio_id));
+    itens = itens
+      .filter((i) => !fora.has(i.exercicio_id))
+      .map((i) => {
+        const m = daSemana.find((x) => x.exercicio_id === i.exercicio_id && !dd(x).removido && !dd(x).adicionado);
+        return m ? { ...i, ...m.dados, _semana: true } : i;
+      });
+    // exercício que o treinador pôs só nesta semana
+    const novos = daSemana.filter((x) => dd(x).adicionado && !itens.some((i) => i.exercicio_id === x.exercicio_id));
+    if (novos.length) {
+      const exs = await sb
+        .from('nx_exercicios')
+        .select(
+          'id,nome,grupo,equipamento,descricao,video_url,video_credito,com_audio,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa',
+        )
+        .in(
+          'id',
+          novos.map((x) => x.exercicio_id),
+        )
+        .then(
+          (r) => r.data || [],
+          () => [],
+        );
+      novos
+        .sort((a, b) => (dd(a).ordem ?? 99) - (dd(b).ordem ?? 99))
+        .forEach((x) => {
+          const { adicionado, ordem, ...d } = dd(x);
+          const ex = exs.find((e) => e.id === x.exercicio_id);
+          if (!adicionado || !ex) return;
+          itens.splice(Math.min(itens.length, ordem ?? itens.length), 0, {
+            id: 'sem-' + x.exercicio_id,
+            treino_id: t.id,
+            exercicio_id: x.exercicio_id,
+            ...d,
+            _semana: true,
+            nx_exercicios: ex,
+          });
+        });
+    }
+  }
   const exIdsT = [...new Set(itens.map((i) => i.exercicio_id))];
   const fInfo = await faseInfo(t.aluno_id, isoDia(inicioSemana()));
   const fase = faseDoTreino(fInfo.fase, t, fInfo.k);
@@ -1301,7 +1338,7 @@ function abrirCheckin(t, itens, st, key, fase) {
             org_id: S.org.id,
             aluno_id: S.user.id,
             sessao_id: ses.id,
-            treino_item_id: it.id,
+            treino_item_id: String(it.id).startsWith('sem-') ? null : it.id,
             exercicio_id: it.exercicio_id,
             exercicio_nome: (it.nx_exercicios || {}).nome || null,
             // carga só preenchida pela sugestão, num exercício que ele não fez, não vira registro

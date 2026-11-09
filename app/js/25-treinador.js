@@ -1590,7 +1590,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
               <label><span class="tiny dim">Reps</span><input class="input c" data-f="repeticoes" value="${esc(it.repeticoes ?? '')}" placeholder="12"></label>
               <label><span class="tiny dim">Carga</span><input class="input c" data-f="carga" value="${esc(it.carga ?? '')}" placeholder="20 kg"></label>
               <label><span class="tiny dim">Desc. (s)</span><input class="input c" data-mask="num" inputmode="numeric" data-f="descanso_seg" value="${esc(it.descanso_seg ?? '')}" placeholder="60"></label>
-            </div><button type="button" class="link-btn small sd-on" data-sdon>Séries com carga ou reps diferentes (pirâmide, aquecimento)</button>`
+            </div><p class="tiny dim" style="margin-top:6px">${String(it.repeticoes ?? '').trim() ? 'Com as repetições escritas, séries e repetições ficam fixas. A carga continua subindo pelos registros do aluno.' : 'Reps em branco: séries e repetições seguem a fase de cada semana do ciclo, sozinhas, e a carga sobe pelos registros do aluno.'}</p><button type="button" class="link-btn small sd-on" data-sdon>Séries com carga ou reps diferentes (pirâmide, aquecimento)</button>`
             }
             ${semCarga({ ...it, nx_exercicios: ex }) ? '' : `<div class="rm-linha">${+it.rm_est > 0 ? `<span class="tag ok">Máximo estimado ${fmtKg(+it.rm_est)}</span><span class="tiny dim">a carga de cada fase sai daqui</span>` : ''}<button type="button" class="link-btn small" data-rmteste>${+it.rm_est > 0 ? 'Refazer o cálculo' : 'Não sabe a carga do aluno?'}</button></div>`}
             <input class="input" data-f="observacao" value="${esc(it.observacao ?? '')}" placeholder="Observação (opcional): ex. cadência 3-1-1" style="margin-top:8px"></div>`;
@@ -1792,14 +1792,25 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
                 CAMPOS_EX.some((c) => normEx(it[c]) !== normEx(o[c]))
               );
             });
-      if (mudados.length && !escopo) {
+      // exercícios postos ou tirados
+      const adicionados = ehModelo || novo ? [] : t.itens.filter((it) => !original[it.exercicio_id]);
+      const removidos =
+        ehModelo || novo
+          ? []
+          : Object.values(original).filter((o) => !t.itens.some((it) => it.exercicio_id === o.exercicio_id));
+      const nomeEx = (id) => (exMap[id] || {}).nome || 'Exercício';
+      if ((mudados.length || adicionados.length || removidos.length) && !escopo) {
         const fim = dia(semanaVista);
         fim.setDate(fim.getDate() + 6);
-        const nomes = mudados.map((it) => (exMap[it.exercicio_id] || {}).nome || 'Exercício');
+        const nomes = [
+          ...adicionados.map((it) => '+ ' + nomeEx(it.exercicio_id)),
+          ...removidos.map((o) => '− ' + nomeEx(o.exercicio_id)),
+          ...mudados.map((it) => nomeEx(it.exercicio_id)),
+        ];
         openSheet(
           `<p class="eyebrow">Salvar mudança</p><div class="h2" style="margin-top:4px">Mudar só nesta semana ou em todas?</div>
           <p class="small muted" style="margin-top:6px">${esc(nomes.slice(0, 3).join(', '))}${nomes.length > 3 ? ` e mais ${nomes.length - 3}` : ''}</p>
-          <div class="stack" style="margin-top:14px"><button class="list-item" data-esc="semana" style="width:100%;text-align:left"><div class="grow"><b>Só nesta semana</b><div class="small muted">${diaMes(dia(semanaVista))} a ${diaMes(fim)}. Nas outras semanas o exercício continua como era.</div></div></button>
+          <div class="stack" style="margin-top:14px"><button class="list-item" data-esc="semana" style="width:100%;text-align:left"><div class="grow"><b>Só nesta semana</b><div class="small muted">${diaMes(dia(semanaVista))} a ${diaMes(fim)}. Nas outras semanas o treino continua como era.</div></div></button>
           <button class="list-item" data-esc="todas" style="width:100%;text-align:left"><div class="grow"><b>Em todas as semanas</b><div class="small muted">O treino muda daqui para a frente, em todas as semanas do ciclo.</div></div></button></div>`,
           (r) => {
             r.querySelector('.stack').onclick = (ev) => {
@@ -1823,6 +1834,27 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
               return { exercicio_id: it.exercicio_id, dados };
             })
           : [];
+      if (escopo === 'semana') {
+        // posto só nesta semana: fica fora do treino e entra na semana, com a progressão da fase como os outros
+        adicionados.forEach((it) =>
+          daSemana.push({
+            exercicio_id: it.exercicio_id,
+            dados: {
+              adicionado: true,
+              ordem: t.itens.indexOf(it),
+              ...Object.fromEntries(CAMPOS_EX.map((c) => [c, normEx(it[c]) || null])),
+              series_det: detLimpo(it),
+              rm_est: +it.rm_est > 0 ? +it.rm_est : null,
+            },
+          }),
+        );
+        // tirado só nesta semana: continua no treino e some só na semana
+        removidos.forEach((o) => daSemana.push({ exercicio_id: o.exercicio_id, dados: { removido: true } }));
+        t.itens = t.itens.filter((it) => !adicionados.includes(it));
+        [...removidos]
+          .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+          .forEach((o) => t.itens.splice(Math.min(t.itens.length, o.ordem ?? t.itens.length), 0, { ...o }));
+      }
       btn.disabled = true;
       try {
         const base = {
@@ -1883,17 +1915,18 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
             { onConflict: 'aluno_id,semana,treino_id,exercicio_id' },
           );
           if (e3) throw e3;
-        } else if (escopo === 'todas' && mudados.length)
+        } else if (escopo === 'todas' && (mudados.length || adicionados.length || removidos.length))
           // em todas as semanas: tira as mudanças só-desta-semana desses exercícios a partir de agora
           await sb
             .from('nx_forca_item_semana')
             .delete()
             .eq('treino_id', id)
             .gte('semana', isoDia(inicioSemana()))
-            .in(
-              'exercicio_id',
-              mudados.map((x) => x.exercicio_id),
-            );
+            .in('exercicio_id', [
+              ...mudados.map((x) => x.exercicio_id),
+              ...adicionados.map((x) => x.exercicio_id),
+              ...removidos.map((x) => x.exercicio_id),
+            ]);
         if (t.ativo && t.itens.length) notificar('treino', id);
         toast(daSemana.length ? 'Mudança salva só nesta semana.' : 'Treino salvo!');
         location.hash = `#/aluno/${alunoId}/forca`;

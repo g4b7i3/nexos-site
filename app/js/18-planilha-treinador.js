@@ -662,7 +662,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       .map(([k, l]) => `<button type="button" class="chip" data-add="${k}">+ ${l}</button>`)
       .join('')}<button type="button" class="chip" data-add="rep">+ Série (repetir)</button></div>
     <label class="field" style="margin-top:16px"><span>Sua observação para o aluno (opcional)</span><textarea class="textarea" id="t-desc" placeholder="Ex.: terreno plano, hidrate a cada 20 min">${esc(t.descricao || '')}</textarea></label>
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn grow" id="t-salvar">Salvar treino ${I.check}</button>${sessao ? '<button class="btn ghost" id="t-dup">Duplicar</button>' : ''}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn grow" id="t-salvar">Salvar treino ${I.check}</button>${sessao ? '<button class="btn ghost" id="t-dup">Duplicar</button>' : ''}</div><div id="t-escopo" class="card" style="margin-top:10px" hidden></div>
     <div class="row between" style="margin-top:12px"><button class="link-btn small" id="t-modelo">Salvar como modelo</button>${sessao ? '<button class="link-btn small" id="t-del" style="color:var(--err)">Excluir treino</button>' : ''}</div>`,
     (r) => {
       desenhar(r);
@@ -768,22 +768,122 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
           descricao: t.descricao || null,
         };
       };
+      let escopoC = null; // 'dia' ou 'semanas'
       r.querySelector('#t-salvar').onclick = async (e) => {
         if (!t.estrutura.length) return toast('Adicione pelo menos um passo.', true);
-        e.currentTarget.disabled = true;
+        const btn = e.currentTarget;
+        btn.disabled = true;
         const row = linha();
+        const diaSem = dia(row.data).getDay();
+        const NOME_DIA = ['domingos', 'segundas', 'terças', 'quartas', 'quintas', 'sextas', 'sábados'][diaSem];
+        // onde mais isso pode valer: os próximos treinos iguais (mesmo dia da semana e mesmo tipo) ou, se for novo, toda semana até o fim da planilha
+        let proximos = [],
+          datasNovas = [];
+        if (!escopoC) {
+          if (sessao) {
+            const { data: fut } = await sb
+              .from('nx_plano_corrida')
+              .select('id,data,tipo,liberado,garmin_workout_id')
+              .eq('aluno_id', alunoId)
+              .eq('tipo', sessao.tipo)
+              .gt('data', sessao.data)
+              .gte('data', hojeISO());
+            proximos = (fut || []).filter((x) => dia(x.data).getDay() === diaSem);
+          } else {
+            const { data: ult } = await sb
+              .from('nx_plano_corrida')
+              .select('data')
+              .eq('aluno_id', alunoId)
+              .order('data', { ascending: false })
+              .limit(1);
+            const fimPlano = ult && ult[0] ? ult[0].data : null;
+            for (let k = 1; fimPlano && k <= 52; k++) {
+              const d = dia(row.data);
+              d.setDate(d.getDate() + 7 * k);
+              if (isoDia(d) > fimPlano) break;
+              datasNovas.push(isoDia(d));
+            }
+          }
+          if (proximos.length || datasNovas.length) {
+            btn.disabled = false;
+            const box = r.querySelector('#t-escopo');
+            box.hidden = false;
+            box.innerHTML = `<p class="small" style="margin:0 0 8px"><b>Aplicar onde?</b></p><div class="stack">
+              <button type="button" class="list-item" data-escc="dia" style="width:100%;text-align:left"><div class="grow"><b>Só ${sessao ? 'neste treino' : 'neste dia'}</b><div class="small muted">${fmtDia(row.data)}</div></div></button>
+              <button type="button" class="list-item" data-escc="semanas" style="width:100%;text-align:left"><div class="grow"><b>${sessao ? `Também nos próximos ${proximos.length} (${NOME_DIA} de ${esc(nomeTipo(sessao.tipo).toLowerCase())})` : `Toda semana, nas ${NOME_DIA}`}</b><div class="small muted">${
+                sessao
+                  ? `Até ${fmtDia(
+                      proximos
+                        .map((x) => x.data)
+                        .sort()
+                        .pop(),
+                    )}. Esses treinos ficam iguais a este e perdem a progressão que tinham.`
+                  : `${datasNovas.length + 1} semanas, até ${fmtDia(datasNovas[datasNovas.length - 1])}, quando termina a planilha.`
+              }</div></div></button></div>`;
+            box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            box.onclick = (ev) => {
+              const b = ev.target.closest('[data-escc]');
+              if (!b) return;
+              escopoC = b.dataset.escc;
+              r._escProx = proximos;
+              r._escDatas = datasNovas;
+              r.querySelector('#t-salvar').click();
+            };
+            return;
+          }
+          escopoC = 'dia';
+        }
+        if (escopoC === 'semanas') {
+          proximos = r._escProx || [];
+          datasNovas = r._escDatas || [];
+        } else {
+          proximos = [];
+          datasNovas = [];
+        }
         const { error } = sessao
           ? await sb.from('nx_plano_corrida').update(row).eq('id', sessao.id)
-          : await sb
-              .from('nx_plano_corrida')
-              .insert({ ...row, org_id: S.org.id, aluno_id: alunoId, criado_por: S.user.id });
-        if (error) {
-          e.currentTarget.disabled = false;
+          : await sb.from('nx_plano_corrida').insert(
+              [row.data, ...datasNovas].map((d) => ({
+                ...row,
+                data: d,
+                org_id: S.org.id,
+                aluno_id: alunoId,
+                criado_por: S.user.id,
+              })),
+            );
+        let erroProx = null;
+        if (!error && proximos.length) {
+          const { data: dt, ...igual } = row;
+          ({ error: erroProx } = await sb
+            .from('nx_plano_corrida')
+            .update(igual)
+            .in(
+              'id',
+              proximos.map((x) => x.id),
+            ));
+        }
+        if (error || erroProx) {
+          btn.disabled = false;
+          escopoC = null;
           return toast('Não foi possível salvar.', true);
         }
         closeSheet();
-        toast('Treino salvo!');
+        toast(
+          proximos.length
+            ? `Treino salvo, e também nos próximos ${proximos.length}.`
+            : datasNovas.length
+              ? `Treino salvo em ${datasNovas.length + 1} semanas.`
+              : 'Treino salvo!',
+        );
         aoSalvar();
+        // próximos treinos que já estavam no relógio: manda a versão nova
+        const noRel = proximos.filter((x) => x.liberado && x.garmin_workout_id);
+        if (noRel.length && S.cache.garmOn)
+          enviarGarmin(
+            alunoId,
+            noRel.map((x) => ({ ...row, id: x.id, data: x.data, liberado: true })),
+            perfil,
+          ).catch(() => {});
         // treino já liberado e enviado ao Garmin: manda a versão nova para o relógio
         if (sessao && sessao.liberado && S.cache.garmOn)
           enviarGarmin(alunoId, [{ ...sessao, ...row, id: sessao.id, liberado: true }], perfil)
