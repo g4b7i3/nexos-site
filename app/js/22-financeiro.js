@@ -1218,7 +1218,9 @@ async function minhaCobrancaPendente() {
     .order('vencimento')
     .limit(3);
   const lim = isoDia(Date.now() + 5 * 864e5);
-  return (data || []).find((c) => +c.valor > 0 && (c.status === 'informada' || c.vencimento <= lim)) || null;
+  // plano parceria (ou sem valor) não tem cartão de pagamento
+  const parceria = (c) => !(+c.valor > 0) || /parceri/i.test(String(c.descricao || '').normalize('NFD'));
+  return (data || []).find((c) => !parceria(c) && (c.status === 'informada' || c.vencimento <= lim)) || null;
 }
 function cartaoCobrancaHTML(c) {
   if (!c) return '';
