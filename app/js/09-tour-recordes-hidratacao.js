@@ -1408,7 +1408,11 @@ const categoriaCalor = (lat) => {
   const a = Math.abs(lat);
   return a < 16 ? 3 : a < 25 ? 2 : 1;
 };
-const nivelCalor = (w, cat) => CALOR_NIVEIS[CALOR_LIMITES[cat].findIndex((l) => w < l) + 1 || 4];
+// abaixo do 1º limite = Tranquilo, abaixo do 2º = Atenção... acima do último = Extremo
+const nivelCalor = (w, cat) => {
+  const i = CALOR_LIMITES[cat].findIndex((l) => w < l);
+  return CALOR_NIVEIS[i < 0 ? CALOR_NIVEIS.length - 1 : i];
+};
 const TIPOS_FORTES = ['ritmo', 'intervalado', 'tiros', 'fartlek', 'longao', 'prova', 'teste'];
 function bulboUmido(t, ur) {
   return (
