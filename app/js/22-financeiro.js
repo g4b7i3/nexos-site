@@ -219,24 +219,39 @@ const previstasDoMes = (comp, base) =>
     .map((a) => cobrancaDoMes(a, comp, base))
     .filter(Boolean)
     .map((c) => ({ ...c, id: 'prev-' + c.aluno_id, status: 'prevista' }));
-/** o aluno saiu: a mensalidade dele para depois do último mês pago (e as cobranças em aberto dos meses seguintes são canceladas) */
-function encerrarMensalidade(aluno, compSug, depois) {
+/** o aluno saiu ou não paga mais: ele continua no app, só fica sem mensalidade.
+    As mensalidades em aberto (inclusive as atrasadas) são canceladas; as pagas ficam no histórico. */
+function encerrarMensalidade(aluno, _comp, depois) {
   const fz = aluno.financeiro || {};
+  const nm = esc(firstName(aluno.nome));
   openSheet(
-    `<p class="eyebrow">Mensalidade</p><div class="h2" style="margin-top:4px">Encerrar a mensalidade de ${esc(firstName(aluno.nome))}</div>
-    <p class="small muted" style="margin:6px 0 14px">Use quando o aluno sair ou parar de pagar. Os meses seguintes deixam de ter mensalidade e as cobranças em aberto depois deste mês são canceladas. As já pagas ficam como estão.</p>
-    <label class="field"><span>Último mês que ${esc(firstName(aluno.nome))} paga</span><input class="input" type="month" id="enc-mes" value="${esc(compSug || compDe())}"></label>
-    <button class="btn block" id="enc-ok" style="margin-top:6px">Encerrar mensalidade</button>
+    `<p class="eyebrow">Mensalidade</p><div class="h2" style="margin-top:4px">Deixar ${nm} sem mensalidade?</div>
+    <p class="small muted" style="margin:6px 0 14px">${nm} continua no app normalmente, com treinos e tudo. Só deixa de ter mensalidade: as que estão em aberto são canceladas e não vem mais nenhuma. As já pagas ficam no histórico. Dá para voltar a cobrar depois.</p>
+    <button class="btn block" id="enc-ok" style="background:var(--err);border-color:var(--err)">Encerrar mensalidade</button>
     <button class="btn ghost block" data-close style="margin-top:8px">Voltar</button>`,
     (r) => {
       r.querySelector('#enc-ok').onclick = async () => {
-        const fim = r.querySelector('#enc-mes').value;
-        if (!fim) return toast('Escolha o mês.', true);
         const b = r.querySelector('#enc-ok');
         b.disabled = true;
+        b.textContent = 'Encerrando…';
+        // vale até o último mês pago; sem nenhum pago, fica sem mensalidade desde o início
+        const { data: pagas } = await sb
+          .from('nx_cobrancas')
+          .select('competencia')
+          .eq('org_id', S.org.id)
+          .eq('aluno_id', aluno.user_id)
+          .eq('status', 'paga')
+          .order('competencia', { ascending: false })
+          .limit(1)
+          .then(
+            (x) => x,
+            () => ({ data: [] }),
+          );
+        const fim = (pagas && pagas[0] && pagas[0].competencia) || somaMes(fz.inicio || compDe(), -1);
         const { error } = await salvarFinAluno(aluno.user_id, { ...fz, fim });
         if (error) {
           b.disabled = false;
+          b.textContent = 'Encerrar mensalidade';
           return toast('Não foi possível salvar.', true);
         }
         await sb
@@ -245,14 +260,13 @@ function encerrarMensalidade(aluno, compSug, depois) {
           .eq('org_id', S.org.id)
           .eq('aluno_id', aluno.user_id)
           .eq('status', 'aberta')
-          .gt('competencia', fim)
           .then(
             () => {},
             () => {},
           );
         aluno.financeiro = { ...fz, fim };
         closeSheet();
-        toast(`Mensalidade encerrada: ${firstName(aluno.nome)} paga até ${nomeMes(fim)}.`);
+        toast(`${firstName(aluno.nome)} está sem mensalidade agora. Continua no app normalmente.`);
         (depois || staffFinanceiro)();
       };
     },
@@ -260,12 +274,13 @@ function encerrarMensalidade(aluno, compSug, depois) {
 }
 /** volta a cobrar quem tinha a mensalidade encerrada */
 async function reativarMensalidade(aluno, depois) {
-  const fz = { ...(aluno.financeiro || {}) };
+  const fz = { ...(aluno.financeiro || {}), inicio: compDe() };
   delete fz.fim;
   const { error } = await salvarFinAluno(aluno.user_id, fz);
   if (error) return toast('Não foi possível salvar.', true);
   aluno.financeiro = fz;
-  toast(`Mensalidade de ${firstName(aluno.nome)} ativa de novo.`);
+  await gerarCobrancas(compDe(), { ...(await carregarFinanceiroBase()) }, aluno.user_id).catch(() => 0);
+  toast(`Mensalidade de ${firstName(aluno.nome)} ativa de novo, a partir deste mês.`);
   (depois || staffFinanceiro)();
 }
 function detalhePrevista(c, aluno) {
@@ -795,7 +810,7 @@ async function planoDoAlunoHTML(m) {
             .join('')}</select></label>
       <div class="grid3"><label class="field"><span>Valor</span><input class="input" name="valor" data-mask="dec" data-int="5" inputmode="decimal" value="${fz.valor != null && fz.valor !== '' ? String(fz.valor).replace('.', ',') : ''}" placeholder="do plano"></label><label class="field"><span>Vence dia</span><input class="input" name="dia" data-mask="num" data-max="2" inputmode="numeric" value="${esc(fz.dia || 10)}"></label><label class="field"><span>Início</span><input class="input" type="month" name="inicio" value="${esc(fz.inicio || compDe())}"></label></div>
       <button class="btn ghost block sm">Salvar plano do aluno</button></form>
-      ${fz.plano_id ? (fz.fim ? `<div class="fin-fim"><span>Mensalidade encerrada: paga até <b>${esc(nomeMes(fz.fim))}</b>.</span><button type="button" class="link-btn small" id="pl-reat">Voltar a cobrar</button></div>` : `<p class="tiny dim" style="margin-top:8px">A mensalidade se repete todo mês até você encerrar.</p><button type="button" class="link-btn small" id="pl-enc" style="color:var(--err)">Encerrar mensalidade (aluno saiu)</button>`) : ''}`
+      ${fz.plano_id ? (fz.fim ? `<div class="fin-fim"><span><b>Sem mensalidade.</b> A mensalidade foi encerrada${fz.fim >= (fz.inicio || '') ? ` (último mês pago: ${esc(nomeMes(fz.fim))})` : ''}. Continua no app normalmente.</span><button type="button" class="link-btn small" id="pl-reat">Voltar a cobrar</button></div>` : `<p class="tiny dim" style="margin-top:8px">A mensalidade se repete todo mês até você encerrar.</p><button type="button" class="btn ghost block sm" id="pl-enc" style="margin-top:8px;color:var(--err)">Encerrar mensalidade (aluno saiu)</button>`) : ''}`
         : '<p class="small muted" style="margin-top:6px">Crie os planos em Financeiro → Ajustes.</p>'
     }
     ${autoStaffHTML(auto, m, valorPlano, plA ? plA.meses || 1 : 1)}
