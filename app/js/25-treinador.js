@@ -734,7 +734,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? 'PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
     [
       'energia',
-      'Saúde da atleta',
+      m.sexo === 'F' ? 'Saúde da atleta' : 'Saúde do atleta',
       ENERGIA_IC,
       m.sexo === 'F' ? 'Energia, ciclo e fases da vida' : 'Sinais de baixa energia',
       true,
@@ -1016,7 +1016,7 @@ async function staffAluno(alunoId, aba, extra) {
         const x = r[alunoId],
           el = document.getElementById('energia-al');
         if (!x || x.n < 2 || !el) return;
-        el.innerHTML = `<a class="card sa-aviso" href="#/aluno/${alunoId}/energia" style="color:inherit"><span class="sa-ic">${ENERGIA_IC}</span><span class="sa-txt"><b>${x.n} sinais de baixa energia</b><span>Veja em Saúde da atleta o que apareceu e o que fazer</span></span>${I.chev}</a>`;
+        el.innerHTML = `<a class="card sa-aviso" href="#/aluno/${alunoId}/energia" style="color:inherit"><span class="sa-ic">${ENERGIA_IC}</span><span class="sa-txt"><b>${x.n} sinais de baixa energia</b><span>Veja em ${m.sexo === 'F' ? 'Saúde da atleta' : 'Saúde do atleta'} o que apareceu e o que fazer</span></span>${I.chev}</a>`;
       })
       .catch(() => {});
   const tm = document.getElementById('treino-modelo'),
