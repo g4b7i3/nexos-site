@@ -1614,3 +1614,12 @@ async function statusVideoEquipe() {
   if (data && data[0] && document.getElementById('mais-video-st'))
     el.innerHTML = '<span class="tag acc">Em andamento: toque para entrar</span>';
 }
+// no Mais: minutos usados no ciclo do Daily (10.000 grátis por mês, cada pessoa na chamada conta)
+async function usoVideoMais() {
+  const el = document.getElementById('mais-video-uso');
+  if (!el) return;
+  const u = await funcaoVideo({ acao: 'uso' }).catch(() => null);
+  if (!u || u.minutos == null || !document.getElementById('mais-video-uso')) return;
+  const pct = u.minutos / u.limite;
+  el.innerHTML = `Neste ciclo: ${u.minutos.toLocaleString('pt-BR')} de ${u.limite.toLocaleString('pt-BR')} minutos grátis${pct >= 1 ? ' <span class="tag err">Cobrando</span>' : pct >= 0.8 ? ' <span class="tag warn">Perto do limite</span>' : ''}`;
+}

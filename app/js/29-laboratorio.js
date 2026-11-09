@@ -1844,7 +1844,7 @@ function staffMais() {
       ${it('#/desativados', I.user, 'Alunos desativados', 'Quem saiu da Nexos: histórico guardado e opção de reativar')}
     </div>
     <p class="sec-lbl">Equipe e comunicação</p><div class="stack">
-      <button class="list-item" id="mais-video" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Videochamada da equipe</b><div class="small muted">Chamada de vídeo entre os professores</div><div id="mais-video-st"></div></div>${I.chev}</button>
+      <button class="list-item" id="mais-video" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Videochamada da equipe</b><div class="small muted">Chamada de vídeo entre os professores</div><div class="tiny dim" id="mais-video-uso"></div><div id="mais-video-st"></div></div>${I.chev}</button>
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
@@ -1864,6 +1864,7 @@ function staffMais() {
   const mv = document.getElementById('mais-video');
   mv.onclick = () => videoEquipe(mv);
   statusVideoEquipe();
+  usoVideoMais();
 }
 
 /* ---------- biblioteca de exercícios ---------- */
