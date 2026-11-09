@@ -1459,6 +1459,11 @@ async function abrirSalaVideo(d, { staff = false, equipe = false, titulo = 'Vide
     await call.join({ url: d.url, token: d.token });
   } catch (e) {
     await fecharSalaVideo(false);
+    const cod = String((e && (e.errorMsg || e.message)) || '');
+    if (cod.includes('payment-method'))
+      throw new Error(
+        'A videochamada ainda não está liberada: a conta do Daily precisa de um cartão cadastrado (o uso continua grátis até 10.000 minutos por mês).',
+      );
     throw new Error('Não foi possível entrar na videochamada. Confira a internet e a permissão da câmera.');
   }
 }
