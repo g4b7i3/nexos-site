@@ -3316,3 +3316,10 @@ details.guia-niv:not([open]){padding-top:12px;padding-bottom:12px}
 /* corrida que cumpriu o treino de outro dia: aviso pequeno no dia em que foi feita */
 .ses-outro{display:flex;align-items:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:10px;border:1px dashed color-mix(in srgb,var(--ok) 55%,transparent);color:var(--ok);font-size:.74rem;font-weight:700;text-decoration:none;line-height:1.25}
 .ses-outro svg{width:13px;height:13px;flex:none}
+/* videochamada: sala por cima do app inteiro */
+body.em-video{overflow:hidden}
+.video-sala{position:fixed;inset:0;z-index:10000;background:#05070d;display:flex;flex-direction:column}
+.video-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+.video-frame{flex:1;min-height:0}
+.tag-btn{cursor:pointer;border:0;font:inherit}
+.cham-ativa{display:flex;align-items:center;gap:12px;margin-top:14px;border-color:rgba(70,214,255,.5);background:rgba(70,214,255,.08);text-decoration:none;color:inherit}

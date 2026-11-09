@@ -1346,16 +1346,14 @@ async function staffFichaResposta(id) {
               .eq('aluno_id', res.user_id)
               .maybeSingle();
             if (!ja)
-              await sb
-                .from('nx_anamneses')
-                .insert({
-                  org_id: S.org.id,
-                  aluno_id: res.user_id,
-                  parq,
-                  parq_positivo: Object.values(parq).includes('sim'),
-                  respostas: resp,
-                  visto_treinador: true,
-                });
+              await sb.from('nx_anamneses').insert({
+                org_id: S.org.id,
+                aluno_id: res.user_id,
+                parq,
+                parq_positivo: Object.values(parq).includes('sim'),
+                respostas: resp,
+                visto_treinador: true,
+              });
           } catch (e2) {
             console.error(e2);
           }
@@ -1406,4 +1404,159 @@ async function staffFichaResposta(id) {
     await sb.from('nx_form_respostas').delete().eq('id', id);
     location.hash = '#/formularios';
   };
+}
+
+/* ================= VIDEOCHAMADA (Daily, sala privada criada pela função nx-video) ================= */
+const DAILY_JS = 'https://unpkg.com/@daily-co/daily-js@0.93.0/dist/daily.js';
+let dailyP = null;
+const carregarDaily = () =>
+  (dailyP =
+    dailyP ||
+    new Promise((res, rej) => {
+      if (window.DailyIframe) return res(window.DailyIframe);
+      const s = document.createElement('script');
+      s.src = DAILY_JS;
+      s.onload = () => (window.DailyIframe ? res(window.DailyIframe) : rej(new Error('vazio')));
+      s.onerror = () => {
+        dailyP = null;
+        rej(new Error('Não foi possível carregar a videochamada. Verifique a internet e tente de novo.'));
+      };
+      document.head.appendChild(s);
+    }));
+async function funcaoVideo(body) {
+  const { data, error } = await sb.functions.invoke('nx-video', { body: { org_id: S.org.id, ...body } });
+  if (error) {
+    let msg = 'Não foi possível abrir a videochamada. Tente de novo.';
+    try {
+      const j = await error.context.json();
+      if (j?.erro) msg = j.erro;
+    } catch {}
+    throw new Error(msg);
+  }
+  if (data?.erro && !data.encerrada) throw new Error(data.erro);
+  return data;
+}
+let chamadaAtual = null;
+// abre a sala por cima de tudo; quando a equipe sai, a chamada é encerrada e a duração fica registrada
+async function abrirSalaVideo(d, { staff = false, titulo = 'Videochamada', extra = '' } = {}) {
+  const Daily = await carregarDaily();
+  await fecharSalaVideo(false);
+  const box = document.createElement('div');
+  box.className = 'video-sala';
+  box.innerHTML = `<div class="video-top"><b class="grow">${esc(titulo)}</b>${extra}<button type="button" class="btn sm ghost" id="vs-sair">${staff ? 'Encerrar' : 'Sair'}</button></div><div class="video-frame"></div>`;
+  document.body.appendChild(box);
+  document.body.classList.add('em-video');
+  const call = Daily.createFrame(box.querySelector('.video-frame'), {
+    showLeaveButton: false,
+    showFullscreenButton: true,
+    lang: 'pt-BR',
+    iframeStyle: { width: '100%', height: '100%', border: '0' },
+  });
+  chamadaAtual = { id: d.id, call, box, staff };
+  call.on('left-meeting', () => fecharSalaVideo(true));
+  box.querySelector('#vs-sair').onclick = () => fecharSalaVideo(true);
+  try {
+    await call.join({ url: d.url, token: d.token });
+  } catch (e) {
+    await fecharSalaVideo(false);
+    throw new Error('Não foi possível entrar na videochamada. Confira a internet e a permissão da câmera.');
+  }
+}
+async function fecharSalaVideo(encerrar) {
+  const c = chamadaAtual;
+  if (!c) return;
+  chamadaAtual = null;
+  try {
+    await c.call.destroy();
+  } catch {}
+  c.box.remove();
+  document.body.classList.remove('em-video');
+  if (c.staff && encerrar) {
+    await funcaoVideo({ acao: 'encerrar', id: c.id }).catch(() => {});
+    window.dispatchEvent(new Event('nx:video-fim'));
+  }
+}
+// treinador: chama o aluno (ele recebe a notificação) e entra na sala
+async function iniciarVideochamada(m, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const d = await funcaoVideo({ acao: 'criar', aluno_id: m.user_id });
+    const link = `${location.origin}/app/#/chamada/${d.id}`;
+    const tel = String(m.telefone || '').replace(/\D/g, '');
+    const txt = `Oi, ${firstName(m.nome)}! Estou te esperando na videochamada da Nexos. Toque para entrar: ${link}`;
+    const wa = tel
+      ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="https://wa.me/${tel.length <= 11 ? '55' + tel : tel}?text=${encodeURIComponent(txt)}">Mandar link no WhatsApp</a>`
+      : '';
+    if (!d.avisados)
+      toast(
+        `${firstName(m.nome)} não tem as notificações ativas. ${tel ? 'Mande o link pelo WhatsApp (botão no alto da chamada).' : 'Avise por mensagem para ele abrir o app.'}`,
+        true,
+      );
+    else toast(`${firstName(m.nome)} foi avisado pelo app.`);
+    await abrirSalaVideo(d, { staff: true, titulo: `Videochamada com ${firstName(m.nome)}`, extra: wa });
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+// aluno (ou equipe) abrindo pelo aviso: #/chamada/<id>
+async function viewChamada(id) {
+  $app.innerHTML = `<section class="card" style="margin-top:24px;text-align:center"><span class="eyebrow">Videochamada</span><h1 class="h2" style="margin-top:6px">Entrando na videochamada</h1><p class="small muted" id="ch-msg" style="margin-top:8px">Quando aparecer, permita o uso da câmera e do microfone.</p><button class="btn" id="ch-entrar" style="margin-top:16px" hidden>Entrar</button><a class="btn ghost" href="#/" style="margin-top:10px">Voltar ao início</a></section>`;
+  const msg = document.getElementById('ch-msg'),
+    bt = document.getElementById('ch-entrar');
+  const tentar = async () => {
+    bt.hidden = true;
+    try {
+      const d = await funcaoVideo({ acao: 'entrar', id });
+      if (d.encerrada) {
+        msg.textContent = 'Esta videochamada já terminou. Se o treinador ainda quiser falar, ele chama de novo.';
+        return;
+      }
+      await abrirSalaVideo(d, { staff: S.staff, titulo: 'Videochamada com a Nexos' });
+    } catch (e) {
+      msg.textContent = e.message;
+      bt.hidden = false;
+    }
+  };
+  bt.onclick = tentar;
+  tentar();
+}
+// cartão na Hoje do aluno quando o treinador está chamando (para quem não viu a notificação)
+async function cartaoChamadaAtiva() {
+  const el = document.getElementById('cham-ativa');
+  if (!el || S.staff) return;
+  const { data } = await sb
+    .from('nx_chamadas')
+    .select('id,criado_em')
+    .eq('aluno_id', S.user.id)
+    .is('encerrada_em', null)
+    .gte('criado_em', new Date(Date.now() - 30 * 60e3).toISOString())
+    .order('criado_em', { ascending: false })
+    .limit(1)
+    .then(
+      (r) => r,
+      () => ({ data: [] }),
+    );
+  if (!data || !data[0] || !document.getElementById('cham-ativa')) return;
+  el.innerHTML = `<a class="card cham-ativa" href="#/chamada/${data[0].id}"><span class="go">${I.user}</span><div class="grow"><b>Seu treinador está te chamando</b><p class="small muted">Videochamada da Nexos. Toque para entrar.</p></div>${I.chev}</a>`;
+}
+// ficha do aluno: a última videochamada (data e duração)
+async function linhaUltimaChamada(alunoId) {
+  const el = document.getElementById('ficha-cham');
+  if (!el) return;
+  const { data } = await sb
+    .from('nx_chamadas')
+    .select('criado_em,atendida_em,encerrada_em')
+    .eq('aluno_id', alunoId)
+    .order('criado_em', { ascending: false })
+    .limit(1)
+    .then(
+      (r) => r,
+      () => ({ data: [] }),
+    );
+  const c = data && data[0];
+  if (!c || !document.getElementById('ficha-cham')) return;
+  const min = c.atendida_em && c.encerrada_em ? Math.max(1, minutos(c.atendida_em, c.encerrada_em)) : null;
+  el.innerHTML = `<span class="tag">Última videochamada ${fmtCurto(c.criado_em)}${min ? ` · ${min} min` : c.atendida_em ? '' : ' · não atendida'}</span>`;
 }

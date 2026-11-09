@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261109143422';
+const NX_BUILD = 'v20261109181512';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -1081,6 +1081,7 @@ async function router() {
       if (!sd.termo) return viewTermo();
       if (!sd.anamnese) return await viewAnamnese({ gate: true, anamnese: null });
     }
+    if (a === 'chamada' && b) return await viewChamada(b);
     if (S.staff) {
       fecharHub();
       // computador: ao abrir a área do treinador, primeiro a tela do Sistema Nexos (uma vez por sessão)

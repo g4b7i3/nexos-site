@@ -963,7 +963,7 @@ async function staffAluno(alunoId, aba, extra) {
     <a class="back" href="#/alunos">${I.back} Meus Atletas</a>
     <div class="row" style="gap:16px">${avAluno(m, 'lg ' + (ultT && diasDesde(ultT) <= 3 ? 'st-ok' : ultT && diasDesde(ultT) <= 7 ? 'st-warn' : ''))}
       <div class="grow"><h1 class="h2">${esc(m.nome)}</h1><div class="small muted">${m.objetivo ? esc(m.objetivo) : 'Sem objetivo cadastrado'}</div>
-      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${ultT ? `<span class="tag">Último treino ${quando(ultT)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</div></div></div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${ultT ? `<span class="tag">Último treino ${quando(ultT)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${m.ativo ? '<button type="button" class="tag acc tag-btn" id="ficha-video">Videochamada</button>' : ''}<span id="ficha-cham"></span></div></div></div>
     ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">${icT(I.alerta, 'warn')}PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
 `;
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
@@ -980,6 +980,12 @@ async function staffAluno(alunoId, aba, extra) {
         : `<a class="back" href="#/aluno/${alunoId}">${I.back} ${esc(m.nome)}</a>
       <div class="sec-tit"><span class="st-ic">${secAtual ? secAtual[2] : I.user}</span><div><p class="eyebrow">${esc(firstName(m.nome))}</p><h1 class="h2">${secAtual ? secAtual[1] : 'Aluno'}</h1></div></div>
       <div class="stack">${corpo}</div>`;
+  const fVid = document.getElementById('ficha-video');
+  if (fVid) {
+    fVid.onclick = () => iniciarVideochamada({ ...m, user_id: alunoId }, fVid);
+    linhaUltimaChamada(alunoId);
+    window.addEventListener('nx:video-fim', () => linhaUltimaChamada(alunoId), { once: true });
+  }
   const fAt = document.getElementById('ficha-ativo');
   if (fAt) fAt.onclick = () => (m.ativo ? desativarAluno : reativarAluno)(m, () => staffAluno(alunoId));
   // aluno sem notificação: o treinador vê e manda o passo a passo para ativar
