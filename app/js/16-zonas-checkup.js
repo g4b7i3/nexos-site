@@ -602,6 +602,7 @@ function ckComoHTML(ciclo) {
   } catch {}
   return `<details class="card ck-como" id="ck-como" ${aberto ? 'open' : ''} style="margin-top:12px"><summary><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Como funciona: ${esc(ciclo)}</b><div class="small muted">${t[1]} · o que tem na avaliação e sugestões</div></div></summary>
     <div class="ck-como-in">
+      <button type="button" class="btn ghost sm" data-ck-previa="${esc(ciclo)}" style="margin-top:4px">Ver o que o aluno e vocês preenchem</button>
       <p class="sec-lbl">O ciclo</p>
       <p class="small">${t[2]} <b>Quando:</b> ${t[3]} <b>Para quê:</b> ${t[4]}</p>
       <p class="sec-lbl">O que tem na avaliação</p>
@@ -623,8 +624,54 @@ function ckComoHTML(ciclo) {
       </ul>
     </div></details>`;
 }
+// prévia do ciclo: a tela que o aluno vê e preenche (envio online) e a que vocês preenchem (presencial), só para ver
+function ckPrevia(ciclo) {
+  const campo = (rot, ph, entrada) =>
+    `<label class="field"><span>${rot}</span><input class="input" disabled placeholder="${ph || ''}">${entrada ? `<small class="ck-ant">Entrada: ${entrada}</small>` : ''}</label>`;
+  const forca = (lado1, lado2, comEntrada) =>
+    CK_FORCA.map(
+      ([, n, u, bi, como]) =>
+        `<div class="ck-teste"><div class="row between" style="gap:8px;align-items:baseline"><b>${n}</b><span class="tiny dim">${u === 's' ? 'segundos' : u === 'cm' ? 'centímetros' : 'repetições'}</span></div>${comEntrada ? '' : `<p class="small muted" style="margin:4px 0 6px">${como}</p>`}${bi ? `<div class="grid2">${campo(lado1)}${campo(lado2)}</div>` : campo('Resultado')}</div>`,
+    ).join('');
+  const aluno = `<p class="small muted">Quando vocês tocam em <b>Enviar ao aluno</b>, ele recebe uma mensagem e o card <b>A preencher</b> na tela Hoje. Ao abrir, vê esta tela. Só aparecem os testes que vocês marcarem no envio.</p>
+    <div class="ck-prev-tela"><p class="eyebrow">${esc(ciclo)} · entrada</p><div class="h2" style="margin-top:2px">Check-up do Corredor</div>
+      <p class="small muted" style="margin-top:6px">Seu treinador pediu estes testes. Faça com calma, podendo ser em dias diferentes, e anote os resultados aqui. Deixe em branco o que não conseguir fazer.</p>
+      <div class="card" style="margin-top:10px;border-color:rgba(70,214,255,.3)"><span class="eyebrow">Recado do treinador</span><p class="small" style="margin-top:4px">Aparece aqui o recado que vocês escreverem no envio (opcional).</p></div>
+      <div class="card"><span class="eyebrow">Teste de corrida · 5 km no limite</span><p class="small" style="margin-top:6px">${CK_COMO['5k']}</p>${campo('Tempo dos 5 km (mm:ss)', 'Ex.: 24:30')}<p class="tiny dim">Se vocês escolherem o de 30 min, aparece: ${CK_COMO.t30}</p></div>
+      <div class="card"><span class="eyebrow">Repouso e peso</span><div class="grid2" style="margin-top:6px">${campo('FC de repouso', 'Ex.: 54')}${campo('Peso (kg)', 'Ex.: 68,5')}</div></div>
+      <div class="card"><span class="eyebrow">Força e prevenção</span><p class="tiny dim" style="margin-top:4px">Aqueça 5 min antes. Faça na ordem, com 2 a 3 min de descanso entre os testes.</p>${forca('Perna direita', 'Perna esquerda')}</div>
+      <div class="card"><label class="field" style="margin:0"><span>Comentário (opcional)</span><textarea class="input" rows="2" disabled placeholder="Como se sentiu, clima, alguma dor"></textarea></label></div>
+      <button class="btn block" disabled>${I.check} Enviar ao treinador</button></div>
+    <p class="tiny dim" style="margin-top:8px">Depois que o aluno envia, vocês recebem para conferir: os números entram na tela de vocês, vocês ajustam se precisar e confirmam.</p>`;
+  const equipe = `<p class="small muted">No presencial, vocês aplicam os testes e lançam nesta tela (aluno › Check-up › Lançar entrada ou saída). No online, é a mesma tela, já preenchida com o que o aluno respondeu, para vocês conferirem e confirmarem.</p>
+    <div class="ck-prev-tela"><p class="eyebrow">${esc(ciclo)} · saída</p><div class="h2" style="margin-top:2px">Nome do aluno</div>
+      <p class="small muted" style="margin-top:6px">Na saída, cada campo mostra embaixo o resultado da entrada, para comparar na hora.</p>
+      <div class="card"><span class="eyebrow">Dados do dia</span><div class="grid2" style="margin-top:6px">${campo('Data', 'dd/mm/aaaa')}${campo('Peso (kg)', 'Ex.: 68,5', '70,2 kg')}</div></div>
+      <div class="card"><span class="eyebrow">Frequência cardíaca</span><div class="grid2" style="margin-top:6px">${campo('FC de repouso', 'Ex.: 54', '58 bpm')}${campo('FC máxima medida', 'Opcional')}</div><p class="tiny dim">Repouso: ao acordar, ainda deitado, depois de 1 a 2 min parado. Máxima: só se foi medida num teste ou numa prova (não use fórmula).</p></div>
+      <div class="card"><span class="eyebrow">Teste de corrida</span><div class="chips" style="margin-top:6px"><span class="chip on">5 km no limite</span><span class="chip">30 min</span></div>${campo('Tempo dos 5 km (mm:ss)', 'Ex.: 24:30', '25:40')}<p class="tiny dim">Com o tempo, o app já mostra o VDOT, as zonas e as previsões de prova.</p></div>
+      <div class="card"><span class="eyebrow">Força e prevenção</span><p class="tiny dim" style="margin-top:4px">Faça na mesma ordem, com 2 a 3 min de descanso entre os testes. Deixe em branco o que não fizer.</p>${forca('Direita', 'Esquerda', true)}</div>
+      <div class="card"><label class="field" style="margin:0"><span>Observações</span><textarea class="input" rows="2" disabled placeholder="Clima, dor, sono, presencial ou online, algo que influenciou o teste"></textarea></label></div>
+      <label class="ck-check"><input type="checkbox" checked disabled><span>Atualizar o perfil de corrida do aluno com este teste (VDOT, ritmos de treino, previsões e FC)</span></label>
+      <button class="btn block" disabled>${I.check} Salvar saída</button></div>
+    <p class="tiny dim" style="margin-top:8px">Os números de entrada nesta prévia são só exemplo.</p>`;
+  openSheet(
+    `<p class="eyebrow">Prévia do ciclo</p><h2 class="h2" style="margin-top:4px">${esc(ciclo)}</h2>
+    <div class="chips" id="ckp-t" style="margin-top:12px"><button type="button" class="chip on" data-p="a">Tela do aluno</button><button type="button" class="chip" data-p="e">Tela de vocês</button></div>
+    <div id="ckp-c" style="margin-top:12px">${aluno}</div>`,
+    () => {
+      document.getElementById('ckp-t').onclick = (e) => {
+        const b = e.target.closest('[data-p]');
+        if (!b) return;
+        document.querySelectorAll('#ckp-t .chip').forEach((x) => x.classList.toggle('on', x === b));
+        document.getElementById('ckp-c').innerHTML = b.dataset.p === 'a' ? aluno : equipe;
+      };
+    },
+  );
+}
 function ckComoLembrar() {
   const d = document.getElementById('ck-como');
+  const pb = d && d.querySelector('[data-ck-previa]');
+  if (pb) pb.onclick = () => ckPrevia(pb.dataset.ckPrevia);
   if (d)
     d.ontoggle = () => {
       try {
@@ -814,6 +861,7 @@ async function ckLista() {
       st.c = x.dataset.c;
       store.set('nx-ck-ciclo', st.c);
       desenha();
+      ckPrevia(st.c);
     };
     const lt = document.getElementById('ck-lote');
     if (lt) lt.onclick = () => ckEnviarLote(semZonas(), st.c, () => ckLista());
@@ -991,6 +1039,7 @@ async function ckDetalhe(alunoId) {
         st.c = x.dataset.t;
         if (S.staff) store.set('nx-ck-ciclo', st.c);
         desenha();
+        if (S.staff) ckPrevia(st.c);
       };
     $app.querySelectorAll('[data-enviar]').forEach(
       (x) =>
