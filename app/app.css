@@ -3342,3 +3342,9 @@ body.em-video{overflow:hidden}
 @keyframes ct-pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 @keyframes ct-entra{from{opacity:0}to{opacity:1}}
 .ct-av .av::after,.ct-av .av::before{display:none}
+/* presença: online, ausente, offline */
+.pres{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.pres:empty{display:none}
+.pres i{width:8px;height:8px;border-radius:50%;background:#9aa6bd;flex:none}
+.pres-on{color:var(--ok)}.pres-on i{background:var(--ok);box-shadow:0 0 0 3px rgba(48,164,108,.18)}
+.pres-aus{color:#c98a12}.pres-aus i{background:#f5a524}

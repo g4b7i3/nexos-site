@@ -1652,7 +1652,7 @@ async function staffVideochamadas() {
   const alunos = todos.filter((m) => m.papel === 'aluno' && ehMeuAluno(m));
   const semPush = new Set(semNot);
   const linha = (m, tipo) =>
-    `<div class="list-item vc-l" data-nome="${esc(semAcento(m.nome || ''))}">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome || '')}</b>${tipo === 'a' && semPush.has(m.user_id) ? `<div class="tiny dim">Sem notificação: o app mostra o botão de mandar o link no WhatsApp</div>` : ''}</div><button type="button" class="btn sm" data-lig="${tipo}:${m.user_id}">${I.cam} Ligar</button></div>`;
+    `<div class="list-item vc-l" data-nome="${esc(semAcento(m.nome || ''))}">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome || '')}</b><span data-pres="${m.user_id}"></span>${tipo === 'a' && semPush.has(m.user_id) ? `<div class="tiny dim">Sem notificação: o app mostra o botão de mandar o link no WhatsApp</div>` : ''}</div><button type="button" class="btn sm" data-lig="${tipo}:${m.user_id}">${I.cam} Ligar</button></div>`;
   const descAberta = (c) =>
     c.tipo === 'equipe'
       ? 'Sala da equipe'
@@ -1668,6 +1668,7 @@ async function staffVideochamadas() {
     <p class="sec-lbl">Professores</p><div class="stack" id="vc-p">${profs.map((m) => linha(m, 'p')).join('') || '<div class="empty"><p class="small">Nenhum outro professor na equipe.</p></div>'}</div>
     <p class="sec-lbl">Alunos</p>${alunos.length > 6 ? '<input class="input" id="vc-busca" placeholder="Buscar aluno pelo nome" style="margin-bottom:10px">' : ''}<div class="stack" id="vc-a">${alunos.map((m) => linha(m, 'a')).join('') || '<div class="empty"><p class="small">Nenhum aluno ativo.</p></div>'}</div>`;
   usoVideoMais();
+  vigiarPresenca();
   $app.onclick = (e) => {
     const b = e.target.closest('[data-lig]');
     if (!b) return;
@@ -1813,4 +1814,63 @@ function tocarChamada(c, quem) {
     fechar();
     funcaoVideo({ acao: 'recusar', id: c.id }).catch(() => {});
   };
+}
+
+/* ---------- presença: Online (app na tela), Ausente (app minimizado ou sem sinal há pouco), Offline ---------- */
+let presT = null;
+function iniciarPresenca() {
+  if (presT || !S.user) return;
+  const marca = (e) =>
+    sb.rpc('nx_presenca_marcar', { p_estado: e }).then(
+      () => {},
+      () => {},
+    );
+  const agora = () => marca(document.visibilityState === 'visible' ? 'online' : 'ausente');
+  agora();
+  presT = setInterval(() => document.visibilityState === 'visible' && marca('online'), 30000);
+  document.addEventListener('visibilitychange', agora);
+  window.addEventListener('pagehide', () => marca('ausente'));
+}
+const PRES_ON = 75e3,
+  PRES_AUS = 20 * 60e3;
+function haTempo(d) {
+  const m = Math.max(1, Math.round((Date.now() - new Date(d).getTime()) / 60e3));
+  if (m < 60) return `há ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `há ${h} h`;
+  const dd = Math.round(h / 24);
+  return `há ${dd} dia${dd > 1 ? 's' : ''}`;
+}
+function presencaDe(p) {
+  if (!p) return { k: 'off', t: 'Offline' };
+  const dt = Date.now() - new Date(p.visto_em).getTime();
+  if (p.estado === 'online' && dt < PRES_ON) return { k: 'on', t: 'Online' };
+  if (dt < PRES_AUS) return { k: 'aus', t: 'Ausente' };
+  return { k: 'off', t: `Offline · visto ${haTempo(p.visto_em)}` };
+}
+// preenche todos os [data-pres="user_id"] da tela e atualiza a cada 20 s enquanto a tela estiver aberta
+async function vigiarPresenca() {
+  clearInterval(S.presVer);
+  const preencher = async () => {
+    const els = [...document.querySelectorAll('[data-pres]')];
+    if (!els.length) return clearInterval(S.presVer);
+    const ids = [...new Set(els.map((e) => e.dataset.pres))];
+    const { data } = await sb
+      .from('nx_presenca')
+      .select('user_id,estado,visto_em')
+      .in('user_id', ids)
+      .then(
+        (r) => r,
+        () => ({ data: null }),
+      );
+    if (!data) return;
+    const por = Object.fromEntries(data.map((p) => [p.user_id, p]));
+    els.forEach((el) => {
+      const s = presencaDe(por[el.dataset.pres]);
+      el.className = `pres pres-${s.k}`;
+      el.innerHTML = `<i></i>${(el.dataset.presPre || '') + s.t}`;
+    });
+  };
+  await preencher();
+  S.presVer = setInterval(preencher, 20000);
 }

@@ -52,7 +52,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
             .map((p) => fotoHTML(p, 'md'))
             .join('')}</div>`
         : ''
-    }<div class="grow" style="min-width:0"><h1 class="h2">${equipe.length ? esc(nomesEq.length > 1 ? nomesEq.slice(0, -1).join(', ') + ' e ' + nomesEq[nomesEq.length - 1] : nomesEq[0]) : 'Seu treinador'}</h1><p class="small muted">${equipe.length > 1 ? 'Treinadores da Nexos' : 'Seu treinador na Nexos'} · <span class="online-dot"></span> ${equipe.length > 1 ? 'respondem' : 'responde'} por aqui</p></div></div>
+    }<div class="grow" style="min-width:0"><h1 class="h2">${equipe.length ? esc(nomesEq.length > 1 ? nomesEq.slice(0, -1).join(', ') + ' e ' + nomesEq[nomesEq.length - 1] : nomesEq[0]) : 'Seu treinador'}</h1><p class="small muted">${equipe.length > 1 ? 'Treinadores da Nexos' : 'Seu treinador na Nexos'}</p><div class="row" style="gap:10px;flex-wrap:wrap;margin-top:4px">${equipe.map((p) => `<span data-pres="${p.user_id}" data-pres-pre="${equipe.length > 1 ? esc(firstName(p.nome)) + ': ' : ''}"></span>`).join('')}</div></div></div>
     <p class="small muted" style="margin-top:12px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>`
   }
     <div class="chat" id="chat">${esqBloco('chat')}</div>
@@ -62,6 +62,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
     </form>`;
   const $chat = box.querySelector('#chat'),
     f = box.querySelector('#f-msg');
+  if (!staff) vigiarPresenca();
   try {
     const rk = 'nx-rasc-' + alunoId,
       rs = sessionStorage.getItem(rk);
@@ -374,17 +375,15 @@ function viewTermo() {
       b.disabled = false;
       return toast('Confira o CPF do responsável (11 números).', true);
     }
-    const { error } = await sb
-      .from('nx_consentimentos')
-      .insert({
-        org_id: S.org.id,
-        aluno_id: S.user.id,
-        versao: TERMO_VERSAO,
-        dispositivo: navigator.userAgent.slice(0, 180),
-        termo_riscos: true,
-        responsavel_nome: menor ? f.resp_nome.value.trim() : null,
-        responsavel_cpf: menor ? cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : null,
-      });
+    const { error } = await sb.from('nx_consentimentos').insert({
+      org_id: S.org.id,
+      aluno_id: S.user.id,
+      versao: TERMO_VERSAO,
+      dispositivo: navigator.userAgent.slice(0, 180),
+      termo_riscos: true,
+      responsavel_nome: menor ? f.resp_nome.value.trim() : null,
+      responsavel_cpf: menor ? cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : null,
+    });
     if (error && !/duplicate|unique/i.test(error.message || '')) {
       b.disabled = false;
       return toast('Não foi possível registrar. Tente de novo.', true);
@@ -839,21 +838,19 @@ async function viewAnamnese(opts = {}) {
       toast('Confira a data do início da última menstruação.', true);
       return false;
     }
-    const { error } = await sb
-      .from('nx_ciclo')
-      .upsert(
-        {
-          aluno_id: S.user.id,
-          org_id: S.org.id,
-          ativo: true,
-          situacao: sit,
-          duracao_ciclo: cl,
-          duracao_menstr: dm,
-          consentimento_em: (cic && cic.consentimento_em) || new Date().toISOString(),
-          atualizado_em: new Date().toISOString(),
-        },
-        { onConflict: 'aluno_id' },
-      );
+    const { error } = await sb.from('nx_ciclo').upsert(
+      {
+        aluno_id: S.user.id,
+        org_id: S.org.id,
+        ativo: true,
+        situacao: sit,
+        duracao_ciclo: cl,
+        duracao_menstr: dm,
+        consentimento_em: (cic && cic.consentimento_em) || new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+      },
+      { onConflict: 'aluno_id' },
+    );
     if (error) {
       toast('Não foi possível salvar o ciclo.', true);
       return false;
