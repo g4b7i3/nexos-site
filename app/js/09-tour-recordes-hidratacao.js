@@ -927,6 +927,7 @@ async function alunoHoje() {
     </section>
     <div class="hoje-grid"><div class="hoje-main">
     ${S.me.sexo === 'F' ? faseVidaCardHTML(S.me, false) : ''}
+    ${fC ? '<div id="calor-hoje"></div>' : ''}
     <div id="momentos" class="stack mom-box"></div>
     <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="falta-pend"></div><div id="pront-pend"></div><div id="ck-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
     <div id="desafio-box"></div>
@@ -1024,6 +1025,7 @@ async function alunoHoje() {
       })
       .catch(() => {});
   momentosHoje(document.getElementById('momentos'), perfC, provaProx).catch((e) => console.error(e));
+  if (fC) calorHoje(document.getElementById('calor-hoje'), corrDoDia[0]);
   convidarTour();
   if (fC)
     processarTestes(S.me)
@@ -1380,4 +1382,171 @@ function constanciaHTML(datas, titulo = 'Sua constância') {
           : ['Em dia', 'ok'];
   return `<div class="card ov-card"><div class="row between"><b>${titulo}</b><span class="tag ${st[1]}">${st[0]}</span></div>
     <div class="ov-num"><div><span>Último treino</span><b>${dias == null ? '–' : dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`}</b></div><div><span>Média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x por semana</b></div></div></div>`;
+}
+
+/* ================= LEITURA DO TEMPO (aluno que corre) =================
+   Uma leitura calma do tempo, como a Leitura Nexos: mostra o calor de agora, o melhor horário e uma sugestão.
+   Só pede cuidado de verdade quando o calor está alto para a região.
+   - Índice de calor: WBGT estimado (o índice usado no esporte) = 0,7 × bulbo úmido + 0,2 × globo + 0,1 × temperatura.
+     Bulbo úmido pela fórmula de Stull (2011); o globo soma o efeito do sol pela radiação prevista da hora.
+   - Faixas pela adaptação de quem vive na região (Grundstein et al. 2015, guias regionais de WBGT usados no esporte):
+     quem mora em lugar quente e úmido, como São Luís, está adaptado e tem limites mais altos que quem mora em BH.
+   - Cidade: a que o aluno escolheu ou a do início da última corrida com GPS (o banco acha o município do IBGE);
+     para o serviço de clima vai só o centro do município, nunca o ponto da corrida. Previsão do Open-Meteo. */
+const CALOR_PADRAO = { nome: 'São Luís', uf: 'MA', lat: -2.53874, lon: -44.2825, origem: 'padrao' };
+const CALOR_NIVEIS = [
+  { k: 'baixo', nome: 'Tranquilo' },
+  { k: 'atencao', nome: 'Atenção' },
+  { k: 'moderado', nome: 'Moderado' },
+  { k: 'alto', nome: 'Alto' },
+  { k: 'extremo', nome: 'Extremo' },
+];
+// limites (°C de WBGT) de cada nível por categoria de clima da região (1 mais fresca, 3 quente e úmida)
+const CALOR_LIMITES = { 1: [24.5, 27.3, 29, 30.1], 2: [26.5, 29.3, 31, 32.1], 3: [27.8, 30.6, 32.3, 33.4] };
+// norte e nordeste quentes e úmidos: categoria 3; o resto do país: 2; sul frio: 1
+const categoriaCalor = (lat) => (lat > -16 ? 3 : lat > -25 ? 2 : 1);
+const nivelCalor = (w, cat) => CALOR_NIVEIS[CALOR_LIMITES[cat].findIndex((l) => w < l) + 1 || 4];
+const TIPOS_FORTES = ['ritmo', 'intervalado', 'tiros', 'fartlek', 'longao', 'prova', 'teste'];
+function bulboUmido(t, ur) {
+  return (
+    t * Math.atan(0.151977 * Math.sqrt(ur + 8.313659)) +
+    Math.atan(t + ur) -
+    Math.atan(ur - 1.676331) +
+    0.00391838 * Math.pow(ur, 1.5) * Math.atan(0.023101 * ur) -
+    4.686035
+  );
+}
+function wbgtDe(t, ur, sol) {
+  const tw = bulboUmido(t, Math.min(99, Math.max(5, ur)));
+  const tg = t + Math.min(12, Math.max(0, sol || 0) * 0.0125); // globo: o sol esquenta o corpo além do ar
+  return 0.7 * tw + 0.2 * tg + 0.1 * t;
+}
+async function localCalor() {
+  const { data } = await sb.rpc('nx_cidade_calor').then(
+    (r) => r,
+    () => ({ data: null }),
+  );
+  return data && data.lat != null ? data : CALOR_PADRAO;
+}
+async function previsaoCalor(loc) {
+  const ch = `nx-calor-${loc.lat},${loc.lon}-${new Date().toISOString().slice(0, 13)}`;
+  try {
+    const c = sessionStorage.getItem(ch);
+    if (c) return JSON.parse(c);
+  } catch {}
+  const r = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,uv_index,wind_speed_10m,shortwave_radiation&forecast_days=2&timezone=auto`,
+  );
+  if (!r.ok) throw new Error('clima');
+  const h = (await r.json()).hourly || {};
+  const horas = (h.time || []).map((t, i) => {
+    const temp = h.temperature_2m[i],
+      ur = h.relative_humidity_2m[i];
+    return {
+      t, // hora local da cidade, "AAAA-MM-DDTHH:00"
+      temp,
+      ur,
+      sens: h.apparent_temperature[i],
+      uv: h.uv_index[i],
+      vento: h.wind_speed_10m[i],
+      w: temp != null && ur != null ? wbgtDe(temp, ur, (h.shortwave_radiation || [])[i]) : null,
+    };
+  });
+  try {
+    sessionStorage.setItem(ch, JSON.stringify(horas));
+  } catch {}
+  return horas;
+}
+const CALOR_LEITURA = {
+  baixo: 'Tempo bom para treinar. Hidratação de sempre.',
+  atencao:
+    'Um pouco mais quente que o ideal. Corra pela zona de frequência cardíaca do seu teste: o ritmo pode sair alguns segundos mais lento, e isso é normal no calor. Em treino de mais de 1 hora, leve água.',
+  moderado:
+    'Calor moderado. Se puder, prefira o horário mais fresco e siga a frequência cardíaca da zona. Em treino longo, leve água.',
+  alto: 'Calor alto para treino forte. O ideal é treinar no horário mais fresco; se não der, mantenha a frequência cardíaca da zona, aceite o ritmo mais lento e faça pausas para beber água.',
+  extremo:
+    'Calor muito alto. Treino forte fica melhor em outro horário ou outro dia; se for correr, que seja leve e curto. Se tiver dúvida, fale com o seu treinador.',
+};
+function calorCardHTML(loc, horas, treino) {
+  const cat = categoriaCalor(loc.lat);
+  const hojeL = horas[0] ? horas[0].t.slice(0, 10) : '';
+  const agoraH = new Date().getHours();
+  const hora = (x) => +x.t.slice(11, 13);
+  const doDia = horas.filter((x) => x.t.slice(0, 10) === hojeL && x.w != null);
+  const janela = doDia.filter((x) => hora(x) >= 5 && hora(x) <= 20);
+  const agora = doDia.find((x) => hora(x) === agoraH) || janela[0];
+  if (!agora) return '';
+  const resto = janela.filter((x) => hora(x) >= agoraH);
+  const base = resto.length ? resto : janela;
+  const melhor = base.reduce((a, b) => (b.w < a.w ? b : a));
+  const nv = nivelCalor(agora.w, cat),
+    nvM = nivelCalor(melhor.w, cat);
+  const hh = (x) => `${hora(x)}h`;
+  const cidade = `${loc.nome}${loc.uf ? ` (${loc.uf})` : ''}`;
+  const forte = treino && TIPOS_FORTES.includes(treino.tipo);
+  // a leitura parte do melhor horário que ainda dá para treinar (é quando a pessoa deve correr)
+  const nvLeitura = resto.length ? nvM : nv;
+  if (store.get('nx-calor-oculto', '') === hojeL)
+    return `<div class="card calor-card calor-${nv.k} cal-mini"><div class="grow" style="min-width:0"><span class="eyebrow">Leitura do tempo · ${esc(cidade)}</span><b>${nv.nome} agora${resto.length ? ` · melhor horário ${hh(melhor)}` : ''}</b></div><button type="button" class="link-btn small" data-cal-tg="mostrar">Mostrar</button></div>`;
+  const barras = janela
+    .map((x) => {
+      const n = nivelCalor(x.w, cat),
+        h = hora(x);
+      return `<div class="cal-h${h === agoraH ? ' ag' : ''}${h < agoraH ? ' pas' : ''}"><i class="cal-${n.k}" style="height:${Math.max(16, Math.min(100, ((x.w - 18) / 17) * 100))}%"></i><span>${h % 3 === 2 ? h + 'h' : ''}</span></div>`;
+    })
+    .join('');
+  const avisoTreino =
+    forte && ['alto', 'extremo'].includes(nvLeitura.k)
+      ? ' É um treino forte num dia de calor alto: faça no horário mais fresco e siga a frequência cardíaca da zona.'
+      : '';
+  return `<div class="card calor-card calor-${nv.k}"><div class="cal-top"><span class="eyebrow">Leitura do tempo · ${esc(cidade)}</span><button type="button" class="link-btn small" data-cal-tg="ocultar">Ocultar</button></div>
+    <div class="cal-main"><div class="cal-sel cal-${nv.k}"><small>Calor agora</small><b>${nv.nome}</b></div>
+      <div class="cal-num"><div><span>Temperatura</span><b>${Math.round(agora.temp)}°</b></div><div><span>Sensação</span><b>${Math.round(agora.sens)}°</b></div><div><span>Umidade</span><b>${Math.round(agora.ur)}%</b></div></div></div>
+    ${resto.length ? `<p class="cal-melhor">Melhor horário para correr hoje: <b>${hh(melhor)}</b> (${nvM.nome.toLowerCase()})</p>` : '<p class="cal-melhor">Amanhã cedo costuma ser o horário mais fresco.</p>'}
+    <div class="cal-graf" aria-label="Calor por hora, das 5h às 20h">${barras}</div>
+    <p class="small cal-dica">${treino ? `<b>${esc(treino.titulo || 'Treino de hoje')}:</b> ` : ''}${CALOR_LEITURA[nvLeitura.k]}${avisoTreino}</p>
+    <details class="cal-mais"><summary>Ver mais</summary>
+      <div class="cal-det" style="margin-top:8px"><div><span>Índice de calor</span><b>${f1(agora.w)}°</b></div><div><span>Índice UV</span><b>${agora.uv != null ? f1(agora.uv) : '–'}</b></div><div><span>Vento</span><b>${agora.vento != null ? Math.round(agora.vento) + ' km/h' : '–'}</b></div></div>
+      <p class="sec-lbl">No calor</p><ul class="cal-lista"><li>Beba água ao longo do dia e leve água em treinos de mais de 1 hora.</li><li>Roupa clara e leve; boné e protetor solar se houver sol.</li><li>Tontura, náusea, dor de cabeça forte ou arrepio no calor: pare, vá para a sombra e se refresque.</li><li>O corpo se adapta ao calor em cerca de 10 a 14 dias treinando nele. Se você viajou de um lugar mais frio, vá com mais calma.</li></ul>
+      <p class="sec-lbl">Como é feita esta leitura</p><p class="tiny dim">O índice de calor estima o WBGT, a medida usada no esporte, a partir da temperatura, da umidade e do sol previstos para cada hora. Os níveis levam em conta que quem mora na região já está adaptado ao clima dela (guias regionais de calor para o esporte, Grundstein e colegas, 2015). Cidade: ${loc.origem === 'escolhido' ? 'a que você escolheu' : loc.origem === 'corrida' ? 'a da sua última corrida com GPS' : 'São Luís, porque ainda não há corrida com GPS'}. Só a cidade é usada, nunca o local exato da corrida. Previsão do Open-Meteo.</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn ghost sm" data-cal-loc="aqui">Usar minha localização atual</button>${loc.origem === 'escolhido' ? '<button type="button" class="link-btn small" data-cal-loc="auto">Voltar para a cidade da última corrida</button>' : ''}</div>
+    </details></div>`;
+}
+async function calorHoje(el, treino) {
+  if (!el) return;
+  try {
+    const loc = await localCalor();
+    const horas = await previsaoCalor(loc);
+    if (!document.body.contains(el)) return;
+    el.innerHTML = calorCardHTML(loc, horas, treino);
+    el.onclick = async (e) => {
+      const tg = e.target.closest('[data-cal-tg]');
+      if (tg) {
+        store.set('nx-calor-oculto', tg.dataset.calTg === 'ocultar' ? (horas[0] || { t: '' }).t.slice(0, 10) : '');
+        el.innerHTML = calorCardHTML(loc, horas, treino);
+        return;
+      }
+      const lb = e.target.closest('[data-cal-loc]');
+      if (!lb) return;
+      const salvar = async (lat, lon) => {
+        const { data, error } = await sb.rpc('nx_local_clima_salvar', { p_lat: lat, p_lon: lon });
+        if (error) return toast('Não foi possível salvar a localização.', true);
+        S.me.local_clima = data;
+        calorHoje(el, treino);
+      };
+      if (lb.dataset.calLoc === 'auto') return salvar(null, null);
+      if (!navigator.geolocation) return toast('Este aparelho não informa a localização.', true);
+      lb.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (p) => salvar(p.coords.latitude, p.coords.longitude),
+        () => {
+          lb.disabled = false;
+          toast('Localização não permitida. Libere a localização para o app nas configurações do celular.', true);
+        },
+        { maximumAge: 3600e3, timeout: 15000 },
+      );
+    };
+  } catch {
+    el.innerHTML = '';
+  }
 }
