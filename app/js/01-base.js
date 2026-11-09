@@ -2,12 +2,14 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261109014323';
+const NX_BUILD = 'v20261109020047';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiY3NodG1lc2F3cG9rdXdpYXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDg2MjYsImV4cCI6MjEwODk4NDYyNn0.ZR4vHBDAa_yMA8pSCWUriKAoh8OsEUKXO7WgZnR89Ak';
 
+// veio pelo link de "esqueci minha senha"? (o endereço traz type=recovery; o login lê e limpa o endereço logo depois)
+const NX_RECUPERACAO = /type=recovery/.test(location.hash + location.search);
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'nexos-app-auth' },
 });
@@ -1284,7 +1286,14 @@ async function iniciar() {
   }
   router();
 }
+let novaSenhaAberta = false;
 sb.auth.onAuthStateChange((ev, session) => {
+  if (ev === 'PASSWORD_RECOVERY' || (NX_RECUPERACAO && ev === 'SIGNED_IN' && session)) {
+    if (!novaSenhaAberta) {
+      novaSenhaAberta = true;
+      setTimeout(abrirNovaSenha, 1200);
+    }
+  }
   if (ev === 'SIGNED_OUT') {
     S.user = null;
     S.me = null;
@@ -1296,3 +1305,38 @@ sb.auth.onAuthStateChange((ev, session) => {
   }
   if (ev === 'TOKEN_REFRESHED' && session) S.user = session.user;
 });
+
+/** depois do link de "esqueci minha senha": a pessoa já entrou pelo link e cria a senha nova */
+function abrirNovaSenha() {
+  try {
+    if (/access_token|type=recovery/.test(location.hash)) history.replaceState(null, '', location.pathname + '#/');
+  } catch {}
+  openSheet(
+    `<p class="eyebrow">Recuperar acesso</p><div class="h2" style="margin-top:4px">Crie a sua senha nova</div>
+    <form id="f-nova" style="margin-top:14px"><label class="field"><span>Senha nova</span><input class="input" type="password" name="s1" minlength="6" required autocomplete="new-password"></label>
+    <label class="field"><span>Repita a senha</span><input class="input" type="password" name="s2" minlength="6" required autocomplete="new-password"></label>
+    <button class="btn block" type="submit">Salvar senha</button></form>`,
+    (r) => {
+      const f = r.querySelector('#f-nova');
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        if (f.s1.value.length < 6) return toast('Use pelo menos 6 caracteres.', true);
+        if (f.s1.value !== f.s2.value) return toast('As duas senhas estão diferentes.', true);
+        const b = f.querySelector('button');
+        b.disabled = true;
+        const { error } = await sb.auth.updateUser({ password: f.s1.value });
+        if (error) {
+          b.disabled = false;
+          return toast(
+            /same|different/i.test(error.message || '')
+              ? 'Use uma senha diferente da antiga.'
+              : 'Não foi possível salvar. Tente de novo.',
+            true,
+          );
+        }
+        closeSheet();
+        toast('Senha nova salva! Use ela da próxima vez que entrar.');
+      };
+    },
+  );
+}

@@ -30,11 +30,35 @@ function viewLogin() {
     const i = f.senha;
     i.type = i.type === 'password' ? 'text' : 'password';
   };
+  // esqueci a senha: manda um link para o e-mail; o link abre o app já pedindo a senha nova
   document.getElementById('esqueci').onclick = () =>
-    openSheet(`
-    <div class="h2">Esqueceu a senha?</div>
-    <p class="muted" style="margin:10px 0 18px">${AREA === 'treinador' ? 'Fale com o administrador da Nexos para gerar uma senha nova.' : 'Fale com seu treinador da Nexos. Ele gera uma senha nova pra você na hora, pelo próprio app.'}</p>
-    <button class="btn block" data-close>Entendi</button>`);
+    openSheet(
+      `<div class="h2">Esqueceu a senha?</div>
+      <p class="muted" style="margin:10px 0 14px">Digite o seu e-mail. Chega um link para você criar uma senha nova.</p>
+      <form id="f-esq"><label class="field"><span>E-mail</span><input class="input" type="email" name="email" required inputmode="email" autocomplete="username" value="${esc(f.email.value.trim())}" placeholder="seuemail@exemplo.com"></label>
+      <button class="btn block" type="submit">Mandar o link</button></form>
+      <p class="small muted" id="esq-msg" style="margin-top:12px"></p>
+      ${AREA === 'treinador' ? '' : '<p class="tiny dim" style="margin-top:6px">Não chegou? O seu treinador também gera uma senha nova pra você pelo app.</p>'}`,
+      (r) => {
+        const fe = r.querySelector('#f-esq');
+        fe.onsubmit = async (e) => {
+          e.preventDefault();
+          const b = fe.querySelector('button');
+          b.disabled = true;
+          b.textContent = 'Mandando…';
+          const { error } = await sb.auth.resetPasswordForEmail(fe.email.value.trim(), {
+            redirectTo: location.origin + location.pathname,
+          });
+          b.disabled = false;
+          b.textContent = 'Mandar de novo';
+          r.querySelector('#esq-msg').innerHTML = error
+            ? /rate|seconds|limit/i.test(error.message || '')
+              ? 'Já mandamos um link há pouco. Espere alguns minutos e tente de novo.'
+              : 'Não foi possível mandar agora. Tente de novo em instantes.'
+            : '<b>Pronto.</b> Se o e-mail estiver cadastrado, o link chega em alguns minutos. Confira também a caixa de spam. Abra o link neste aparelho.';
+        };
+      },
+    );
   f.onsubmit = async (e) => {
     e.preventDefault();
     const msg = document.getElementById('login-msg');

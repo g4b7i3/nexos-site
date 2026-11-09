@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="style.css">
 <script>try{var t=localStorage.getItem("nexos-tema");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>/* link de "esqueci minha senha" que caiu no site: abre o app com o mesmo endereço */if(/type=recovery|access_token=/.test(location.hash))location.replace("/app/"+location.hash);</script>
 </head>
 <body>
 <!-- FUNDO: logo grande animada -->
