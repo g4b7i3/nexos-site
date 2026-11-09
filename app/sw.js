@@ -1,7 +1,8 @@
 /* Nexos App — service worker: notificações push (v3: só a logo na bolinha, sem imagem à direita) */
 // v4: guarda os arquivos do app no aparelho para abrir rápido mesmo com internet ruim
 // v5: o código do app vem sempre da internet primeiro (fechar e abrir já atualiza)
-const CACHE = 'nx-app-v1';
+// v6: cache novo (apaga as cópias velhas de quem ficou preso numa versão antiga) e espera mais a internet
+const CACHE = 'nx-app-v2';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
   for (const k of await caches.keys()) if (k.startsWith('nx-app-') && k !== CACHE) await caches.delete(k);
@@ -46,7 +47,7 @@ self.addEventListener('fetch', (e) => {
       });
       const guardada = await cache.match(req, { ignoreSearch: true });
       if (!guardada) return rede;
-      const lento = new Promise((ok) => setTimeout(() => ok(guardada), 2500));
+      const lento = new Promise((ok) => setTimeout(() => ok(guardada), 6000));
       return Promise.race([rede.catch(() => guardada), lento]);
     })());
     return;

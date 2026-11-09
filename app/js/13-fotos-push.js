@@ -484,7 +484,36 @@ const podeRecarregar = () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saiuEm = Date.now();
   else if (versaoNova && saiuEm && Date.now() - saiuEm > 15000 && podeRecarregar()) location.reload();
+  else checarVersao();
 });
+/* conferência de versão: app/versao.json traz a versão publicada; se o código aberto no aparelho for outro
+   (cópia velha guardada no celular), apaga as cópias e recarrega uma vez (sem interromper treino ou formulário) */
+let versaoChecadaEm = 0;
+async function checarVersao() {
+  if (!/^v/.test(NX_BUILD) || Date.now() - versaoChecadaEm < 60000) return;
+  versaoChecadaEm = Date.now();
+  try {
+    const r = await fetch(new URL('/app/versao.json?t=' + Date.now(), location.href), { cache: 'no-store' });
+    const { v } = await r.json();
+    if (!v || v === NX_BUILD) return;
+    let tentou = '';
+    try {
+      tentou = sessionStorage.getItem('nx-versao-tentou') || '';
+    } catch {}
+    if (tentou === v) return; // já recarregou uma vez para esta versão
+    if (window.caches) for (const k of await caches.keys()) if (k.startsWith('nx-app-')) await caches.delete(k);
+    if (swReg) swReg.update().catch(() => {});
+    if (!podeRecarregar()) {
+      versaoNova = true;
+      return;
+    }
+    try {
+      sessionStorage.setItem('nx-versao-tentou', v);
+    } catch {}
+    location.reload();
+  } catch {}
+}
+setTimeout(checarVersao, 1500);
 function notificar(acao, id, extra) {
   if (!id) return;
   try {
