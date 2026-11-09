@@ -556,6 +556,82 @@ const ckDica = (ciclo, f) =>
     : f === 'entrada'
       ? 'No início do ciclo.'
       : 'No fim do ciclo, repetindo os mesmos testes.';
+// "Como funciona este ciclo": tipo do ciclo, quando fazer, o que tem na avaliação e sugestões para ampliar (só leitura)
+const CK_TIPOS = [
+  [
+    /^pré-temporada/i,
+    'Pré-temporada',
+    'Começo do ano, quando o foco é base aeróbica e força.',
+    'Entrada na semana de 1º de janeiro, saída na semana 8, no fim do bloco.',
+    'Mostrar a evolução do bloco de base e ajustar as zonas para a temporada.',
+  ],
+  [
+    /inicial/i,
+    'Avaliação inicial',
+    'Para o aluno que acabou de chegar.',
+    'Entrada na primeira semana; saída depois de 8 a 12 semanas de treino.',
+    'Definir as zonas, o ponto de partida e mostrar ao aluno o quanto ele evoluiu.',
+  ],
+  [
+    /prova/i,
+    'Ciclo de prova',
+    'Para o bloco de preparação de uma prova-alvo.',
+    'Entrada no início do bloco; saída no fim, antes do polimento.',
+    'Conferir se o ritmo-alvo está realista e acertar a estratégia de prova.',
+  ],
+  [
+    /lesão|lesao/i,
+    'Retorno de lesão',
+    'Para quem volta a correr depois de uma lesão, já liberado pelo profissional de saúde.',
+    'Entrada ao voltar a correr; saída ao fim do retorno, em geral 6 a 8 semanas.',
+    'Acompanhar a diferença entre os lados na força e liberar o volume com segurança.',
+  ],
+];
+function ckComoHTML(ciclo) {
+  if (!ciclo) return '';
+  const t = CK_TIPOS.find(([re]) => re.test(ciclo)) || [
+    null,
+    'Ciclo personalizado',
+    'Ciclo criado por vocês.',
+    'Entrada no início do ciclo; saída no fim, repetindo os mesmos testes.',
+    'Comparar entrada e saída com os mesmos testes.',
+  ];
+  let aberto = false;
+  try {
+    aberto = sessionStorage.getItem('nx-ck-como') === '1';
+  } catch {}
+  return `<details class="card ck-como" id="ck-como" ${aberto ? 'open' : ''} style="margin-top:12px"><summary><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Como funciona: ${esc(ciclo)}</b><div class="small muted">${t[1]} · o que tem na avaliação e sugestões</div></div></summary>
+    <div class="ck-como-in">
+      <p class="sec-lbl">O ciclo</p>
+      <p class="small">${t[2]} <b>Quando:</b> ${t[3]} <b>Para quê:</b> ${t[4]}</p>
+      <p class="sec-lbl">O que tem na avaliação</p>
+      <ol class="ck-como-l">
+        <li><b>Teste de corrida</b>, um dos dois: <b>5 km</b> no limite (dá o VDOT de Daniels, as zonas e as previsões de prova) ou <b>30 min</b> no maior esforço sustentável (a FC média dos últimos 20 min é a FC de limiar, pelo método de Friel).</li>
+        <li><b>Frequência cardíaca</b>: FC de repouso ao acordar e, se tiver, a FC máxima medida.</li>
+        <li><b>Força e prevenção</b>: ${CK_FORCA.map((x) => x[1].toLowerCase()).join(', ')}. Nos testes de um lado só, diferença acima de 15% entre os lados merece atenção (Bishop e colegas, 2018).</li>
+      </ol>
+      <p class="sec-lbl">Como aplicar</p>
+      <p class="small"><b>Presencial:</b> vocês aplicam os testes e lançam os resultados. <b>Online:</b> vocês enviam, o aluno faz, responde no app com as instruções de cada teste, e vocês conferem e confirmam. A saída repete os mesmos testes da entrada, e o app mostra a comparação.</p>
+      <p class="sec-lbl">Sugestões para ampliar</p>
+      <p class="tiny dim" style="margin-bottom:6px">Ainda não fazem parte do check-up. Se quiser incluir alguma, é só pedir.</p>
+      <ul class="ck-como-l">
+        <li><b>Carga recente</b>: km por semana nas últimas 4 semanas e o maior treino longo dos últimos 30 dias, para definir o volume inicial sem passar de 10% (Frandsen e colegas, 2025).</li>
+        <li><b>Lesões de corrida nos últimos 12 meses</b>: o maior fator de risco para uma lesão nova (Saragiotto e colegas, 2014).</li>
+        <li><b>Vídeo da passada</b>, de lado e de costas, junto com a cadência do relógio.</li>
+        <li><b>Taxa de suor</b>: peso antes e depois de 1 hora de corrida, para a hidratação de cada um no calor.</li>
+        <li><b>LEAF-Q</b> para as atletas: triagem de baixa disponibilidade de energia (Melin e colegas, 2014).</li>
+      </ul>
+    </div></details>`;
+}
+function ckComoLembrar() {
+  const d = document.getElementById('ck-como');
+  if (d)
+    d.ontoggle = () => {
+      try {
+        sessionStorage.setItem('nx-ck-como', d.open ? '1' : '0');
+      } catch {}
+    };
+}
 const ckLink = (alunoId, f, ciclo) => `#/checkup/${alunoId}/${f}/${encodeURIComponent(ciclo)}`;
 const ckDec = (x) => {
   try {
@@ -712,6 +788,7 @@ async function ckLista() {
     $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Avaliação de entrada e saída</p><h1 class="h1">Check-up do Corredor</h1>
       <p class="muted" style="margin-top:6px">Teste de corrida, frequência cardíaca e força no começo e no fim de um ciclo. Presencial, vocês aplicam e lançam. Online, vocês enviam os testes, o aluno faz e responde no app, e vocês conferem.</p>
       <p class="sec-lbl">Ciclo</p><div class="chips" id="ck-c">${ciclos.map((x) => `<button type="button" class="chip ${x === st.c ? 'on' : ''}" data-c="${esc(x)}">${esc(x)}</button>`).join('')}<button type="button" class="chip" id="ck-novo">${I.plus} Novo ciclo</button></div>
+      ${ckComoHTML(st.c)}
       <div class="card" style="margin-top:12px"><div class="ck-res"><div><b>${nE}<small> de ${alunos.length}</small></b><span>Entradas feitas</span></div><div><b>${nS}<small> de ${alunos.length}</small></b><span>Saídas feitas</span></div></div>${nConf ? `<p class="small" style="margin-top:10px;text-align:center;color:var(--acc)">${nConf} aluno${nConf > 1 ? 's' : ''} já ${nConf > 1 ? 'responderam' : 'respondeu'}: confira e confirme.</p>` : ''}</div>
       ${
         semZonas().length
@@ -724,6 +801,7 @@ async function ckLista() {
       }
       <div class="chips" id="ck-f" style="margin-top:14px">${FILT.map(([k, l]) => `<button type="button" class="chip ${k === st.f ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
       <div class="stack" style="margin-top:12px">${L.length ? L.map((m) => `<a class="list-item" href="#/checkup/${m.user_id}" style="color:inherit">${avAluno(m, 'sm')}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap">${tag(fase(m.user_id, 'entrada'), 'entrada')}${tag(fase(m.user_id, 'saida'), 'saída')}</div></div>${I.chev}</a>`).join('') : '<div class="empty"><div class="h3">Ninguém nesta lista</div><p class="small">Troque o filtro acima.</p></div>'}</div>`;
+    ckComoLembrar();
     document.getElementById('ck-c').onclick = (e) => {
       if (e.target.closest('#ck-novo'))
         return ckNovoCiclo((n) => {
@@ -890,7 +968,7 @@ async function ckDetalhe(alunoId) {
     $app.innerHTML = `<a class="back" href="${voltar}">${I.back} ${S.staff ? 'Check-up do Corredor' : 'Avaliações'}</a>
       <p class="eyebrow">${esc(st.c || 'Avaliação de entrada e saída')}</p><h1 class="h1">Check-up do Corredor</h1>${S.staff ? `<p class="muted" style="margin-top:4px">${esc(m.nome || '')}</p>` : ''}
       ${pend.map((r) => `<a class="card ck-pend" href="#/checkup/responder/${r.id}" style="color:inherit;display:flex;gap:12px;align-items:center;margin-top:12px"><span class="ativ-ic">${I.check}</span><div class="grow"><b>Seu treinador enviou testes para você fazer</b><div class="small muted">${esc(r.ciclo)} · ${CK_NOME_FASE[r.fase]}</div></div>${I.chev}</a>`).join('')}
-      ${ciclos.length > 1 || S.staff ? `<div class="chips" id="ck-t" style="margin-top:12px">${ciclos.map((t) => `<button type="button" class="chip ${t === st.c ? 'on' : ''}" data-t="${esc(t)}">${esc(t)}</button>`).join('')}${S.staff ? `<button type="button" class="chip" id="ck-novo">${I.plus} Novo ciclo</button>` : ''}</div>` : ''}
+      ${ciclos.length > 1 || S.staff ? `<div class="chips" id="ck-t" style="margin-top:12px">${ciclos.map((t) => `<button type="button" class="chip ${t === st.c ? 'on' : ''}" data-t="${esc(t)}">${esc(t)}</button>`).join('')}${S.staff ? `<button type="button" class="chip" id="ck-novo">${I.plus} Novo ciclo</button>` : ''}</div>` : ''}${S.staff ? ckComoHTML(st.c) : ''}
       ${nada ? (S.staff ? '' : '<div class="empty" style="margin-top:12px"><div class="h3">Seu check-up ainda não foi feito</div><p class="small">O seu treinador faz a avaliação de entrada no começo do ciclo e a de saída no fim. Os resultados aparecem aqui.</p></div>') : ''}
       ${
         st.c && (S.staff || !nada)
@@ -898,6 +976,7 @@ async function ckDetalhe(alunoId) {
       ${assim.length ? `<div class="card ck-alerta"><b>Diferença entre os lados</b>${assim.map((a) => `<p class="small">${a}.</p>`).join('')}<p class="tiny dim" style="margin-top:6px">Diferenças acima de 15% merecem atenção no treino de força.</p></div>` : ''}${ritmos}`
           : ''
       }`;
+    ckComoLembrar();
     const ct = document.getElementById('ck-t');
     if (ct)
       ct.onclick = (e) => {
@@ -981,21 +1060,19 @@ function ckEnviarLote(lista, ciclo, depois) {
         let ok = 0;
         for (const id of ids) {
           b.textContent = `Enviando ${ok + 1} de ${ids.length}…`;
-          const { error } = await sb
-            .from('nx_checkups')
-            .upsert(
-              {
-                org_id: S.org.id,
-                aluno_id: id,
-                avaliador_id: S.user.id,
-                ciclo,
-                fase: 'entrada',
-                status: 'pedido',
-                pedido,
-                data: null,
-              },
-              { onConflict: 'aluno_id,ciclo,fase' },
-            );
+          const { error } = await sb.from('nx_checkups').upsert(
+            {
+              org_id: S.org.id,
+              aluno_id: id,
+              avaliador_id: S.user.id,
+              ciclo,
+              fase: 'entrada',
+              status: 'pedido',
+              pedido,
+              data: null,
+            },
+            { onConflict: 'aluno_id,ciclo,fase' },
+          );
           if (error) {
             console.error(error);
             continue;
