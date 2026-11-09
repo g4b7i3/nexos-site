@@ -355,7 +355,11 @@ async function staffFinanceiro() {
     else if (k === 'atrasada') tot.atraso += +c.valor;
     else tot.aberto += +c.valor;
   });
-  const semPlano = base.alunos.filter((a) => a.ativo && !(a.financeiro || {}).plano_id);
+  // sem plano: nunca teve plano ou teve a mensalidade encerrada
+  const semPlano = base.alunos.filter((a) => {
+    const fz = a.financeiro || {};
+    return a.ativo && (!fz.plano_id || (fz.fim && fz.fim < compDe()));
+  });
   await meuPix();
   const pix = S.cache.meuPix || {};
   const atrasadas = lista.filter((c) => statusCob(c).k === 'atrasada');
