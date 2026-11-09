@@ -102,6 +102,28 @@ async function viewSemAcesso() {
   );
   const e = data && data[0];
   if (!e) {
+    // aluno desativado pelo treinador: acesso pausado, com o contato do treinador para voltar
+    const { data: pz } = await sb.rpc('nx_acesso_pausado').then(
+      (r) => r,
+      () => ({ data: null }),
+    );
+    const p = pz && pz[0];
+    if (p) {
+      const tr = { nome: p.tr_nome || 'Equipe Nexos', foto_url: p.tr_foto };
+      const zap = telWa(p.tr_telefone);
+      const txt = encodeURIComponent(
+        `Oi, ${firstName(p.tr_nome || '')}! Aqui é ${firstName(p.nome)}. Quero voltar a treinar com a Nexos.`,
+      );
+      $app.innerHTML = `<section class="login"><div class="ficha-top"><img src="${LOGO.s()}" alt="">${slashes}</div>
+        <p class="eyebrow">${esc(p.org_nome || 'Nexos')}</p>
+        <h1 class="h1" style="margin-top:4px">Seu acesso está pausado</h1>
+        <p class="muted" style="margin-top:8px">Oi, ${esc(firstName(p.nome))}! Seu acesso à Nexos foi pausado pelo seu treinador. Seu histórico continua guardado: treinos, avaliações e conversas. Para voltar, é só falar com ele.</p>
+        <div class="card esp-tr" style="margin-top:16px">${avAluno(tr)}<div class="grow" style="min-width:0"><span class="tiny dim">Seu treinador</span><b class="ellip" style="display:block">${esc(tr.nome)}</b></div></div>
+        ${zap ? `<a class="btn block" style="margin-top:14px;background:#25d366;color:#04122b" href="https://wa.me/${zap}?text=${txt}" target="_blank" rel="noopener">${I.wa} Falar com ${esc(firstName(tr.nome))} no WhatsApp</a>` : ''}
+        <button class="btn ghost block" id="sair" style="margin-top:8px">Sair da conta</button></section>`;
+      document.getElementById('sair').onclick = () => sb.auth.signOut();
+      return;
+    }
     $app.innerHTML = `<section class="login"><div class="empty"><div class="h3">Sua conta ainda não está ligada a uma assessoria</div><p class="small" style="margin:8px 0 16px">Peça ao seu treinador o link da ficha de entrada da Nexos.</p><button class="btn sm ghost" id="sair">Sair</button></div></section>`;
     document.getElementById('sair').onclick = () => sb.auth.signOut();
     return;
