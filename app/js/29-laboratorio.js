@@ -1841,6 +1841,7 @@ function staffMais() {
       ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}
       ${it('#/checkup', I.check, 'Check-up do Corredor', 'Avaliação de entrada e saída: pré-temporada, aluno novo, ciclo de prova')}
       ${it('#/relogios', I.watch, 'Relógios dos alunos', 'Quem está conectado, por onde e qual o modelo do relógio')}
+      ${it('#/desativados', I.user, 'Alunos desativados', 'Quem saiu da Nexos: histórico guardado e opção de reativar')}
     </div>
     <p class="sec-lbl">Equipe e comunicação</p><div class="stack">
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}

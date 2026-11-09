@@ -876,6 +876,7 @@ const dockStaff = () =>
         '#/saude-sistema',
         '#/erros',
         '#/checkup',
+        '#/desativados',
       ],
       icon: I.grid,
       label: 'Mais',
@@ -1140,6 +1141,7 @@ async function router() {
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
       if (a === 'relogios') return await staffRelogios();
+      if (a === 'desativados') return await staffDesativados();
       if (a === 'fidelizacao') return await staffFidelizacao();
       if (a === 'antes-depois' && b) return await viewAntesDepois(b);
       if (a === 'formularios') return await staffFormularios(b);

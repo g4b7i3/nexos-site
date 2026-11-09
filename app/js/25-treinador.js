@@ -785,7 +785,8 @@ async function staffAluno(alunoId, aba, extra) {
         return xs.length
           ? `<p class="sec-lbl">${tit}</p><div class="sec-grid">${xs.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`
           : '';
-      }).join('')}`;
+      }).join('')}
+      <button type="button" class="btn ghost block sm" id="ficha-ativo" style="margin-top:18px;${m.ativo ? 'color:var(--err)' : ''}">${m.ativo ? 'Desativar aluno' : 'Reativar aluno'}</button>`;
   } else if (aba === 'relmes') {
     corpo = '<div id="relm"></div>';
   } else if (aba === 'forca') {
@@ -979,6 +980,8 @@ async function staffAluno(alunoId, aba, extra) {
         : `<a class="back" href="#/aluno/${alunoId}">${I.back} ${esc(m.nome)}</a>
       <div class="sec-tit"><span class="st-ic">${secAtual ? secAtual[2] : I.user}</span><div><p class="eyebrow">${esc(firstName(m.nome))}</p><h1 class="h2">${secAtual ? secAtual[1] : 'Aluno'}</h1></div></div>
       <div class="stack">${corpo}</div>`;
+  const fAt = document.getElementById('ficha-ativo');
+  if (fAt) fAt.onclick = () => (m.ativo ? desativarAluno : reativarAluno)(m, () => staffAluno(alunoId));
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
   if (aba === 'energia') viewSaudeAtleta(document.getElementById('saude-at'), m).catch((e) => console.error(e));
   // aviso no início da ficha quando aparecem 2 ou mais sinais de baixa energia
@@ -1414,17 +1417,8 @@ async function staffAluno(alunoId, aba, extra) {
       const { error: er } = await sb.from('nx_membros').update(upd).eq('org_id', S.org.id).eq('user_id', alunoId);
       er ? toast('Não foi possível salvar.', true) : (toast('Dados salvos!'), staffAluno(alunoId, 'dados'));
     };
-    document.getElementById('ativo').onclick = async () => {
-      if (m.ativo && !confirm(`Desativar ${m.nome}? Ele deixa de acessar os treinos.`)) return;
-      const { error: er } = await sb
-        .from('nx_membros')
-        .update({ ativo: !m.ativo })
-        .eq('org_id', S.org.id)
-        .eq('user_id', alunoId);
-      er
-        ? toast('Não foi possível alterar.', true)
-        : (toast(m.ativo ? 'Aluno desativado.' : 'Aluno reativado!'), staffAluno(alunoId, 'dados'));
-    };
+    document.getElementById('ativo').onclick = () =>
+      (m.ativo ? desativarAluno : reativarAluno)(m, () => staffAluno(alunoId, 'dados'));
     document.getElementById('reset-senha').onclick = async (e) => {
       const nova = gerarSenha();
       e.currentTarget.disabled = true;
@@ -2744,4 +2738,87 @@ async function staffFeed() {
         .in('aluno_id', [...vis]);
       staffFeed();
     }; // só os check-ins dos seus alunos
+}
+
+/* ---------- desativar e reativar aluno ----------
+   Desativado: não acessa os treinos, não recebe avisos nem mensalidade nova; o histórico fica guardado.
+   Os desativados ficam em Mais › Alunos desativados (e no filtro Inativos de Meus Atletas). */
+function desativarAluno(m, depois) {
+  const nm = esc(firstName(m.nome));
+  openSheet(
+    `<p class="eyebrow">Desativar aluno</p><div class="h2" style="margin-top:4px">Tem certeza que quer desativar ${esc(m.nome)}?</div>
+    <ul class="sug-lista" style="margin-top:10px"><li>${nm} deixa de acessar os treinos no app.</li><li>Não recebe mais avisos nem mensalidades novas.</li><li>O histórico (treinos, avaliações, pagamentos) fica guardado.</li><li>${nm} vai para <b>Mais › Alunos desativados</b>, de onde dá para reativar quando quiser.</li></ul>
+    <button class="btn block" id="des-ok" style="margin-top:14px;background:var(--err);border-color:var(--err)">Sim, desativar</button>
+    <button class="btn ghost block" data-close style="margin-top:8px">Cancelar</button>`,
+    (r) => {
+      r.querySelector('#des-ok').onclick = async (e) => {
+        e.currentTarget.disabled = true;
+        const { error } = await sb
+          .from('nx_membros')
+          .update({ ativo: false })
+          .eq('org_id', S.org.id)
+          .eq('user_id', m.user_id);
+        if (error) {
+          e.currentTarget.disabled = false;
+          return toast('Não foi possível desativar.', true);
+        }
+        closeSheet();
+        toast(`${firstName(m.nome)} foi desativado. Está em Mais › Alunos desativados.`);
+        (depois || (() => router()))();
+      };
+    },
+  );
+}
+function reativarAluno(m, depois) {
+  openSheet(
+    `<p class="eyebrow">Reativar aluno</p><div class="h2" style="margin-top:4px">Reativar ${esc(m.nome)}?</div>
+    <p class="small muted" style="margin-top:6px">${esc(firstName(m.nome))} volta a acessar os treinos e a receber os avisos. Se tiver plano, a mensalidade volta a ser gerada.</p>
+    <button class="btn block" id="rea-ok" style="margin-top:14px">Sim, reativar</button>
+    <button class="btn ghost block" data-close style="margin-top:8px">Cancelar</button>`,
+    (r) => {
+      r.querySelector('#rea-ok').onclick = async (e) => {
+        e.currentTarget.disabled = true;
+        const { error } = await sb
+          .from('nx_membros')
+          .update({ ativo: true })
+          .eq('org_id', S.org.id)
+          .eq('user_id', m.user_id);
+        if (error) {
+          e.currentTarget.disabled = false;
+          return toast('Não foi possível reativar.', true);
+        }
+        closeSheet();
+        toast(`${firstName(m.nome)} foi reativado!`);
+        (depois || (() => router()))();
+      };
+    },
+  );
+}
+async function staffDesativados() {
+  loading();
+  const { data } = await sb
+    .from('nx_membros')
+    .select('user_id,nome,foto_url,treinador_id,desativado_em,criado_em,ativo,telefone')
+    .eq('org_id', S.org.id)
+    .eq('papel', 'aluno')
+    .eq('ativo', false)
+    .order('desativado_em', { ascending: false, nullsFirst: false });
+  const l = (data || []).filter(ehMeuAluno);
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Acompanhar os alunos</p><h1 class="h1">Alunos desativados</h1>
+    <p class="small muted" style="margin-top:6px">Quem saiu da Nexos. Não acessam os treinos nem recebem avisos, mas o histórico fica guardado. Toque em <b>Reativar</b> se o aluno voltar.</p>
+    <div class="stack" style="margin-top:14px" id="des-l">${
+      l
+        .map(
+          (m) =>
+            `<div class="list-item"><a class="row grow" href="#/aluno/${m.user_id}" style="gap:12px;color:inherit;min-width:0">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><span class="small muted">${m.desativado_em ? `Desativado em ${fmtCurto(m.desativado_em)}` : 'Desativado'}</span></div></a><button type="button" class="btn ghost sm" data-reat="${m.user_id}">Reativar</button></div>`,
+        )
+        .join('') ||
+      '<div class="empty"><div class="h3">Nenhum aluno desativado</div><p class="small">Para desativar, abra o aluno › Dados e plano › Desativar aluno.</p></div>'
+    }</div>`;
+  document.getElementById('des-l').onclick = (e) => {
+    const b = e.target.closest('[data-reat]');
+    if (!b) return;
+    const m = l.find((x) => x.user_id === b.dataset.reat);
+    if (m) reativarAluno(m, () => staffDesativados());
+  };
 }
