@@ -490,12 +490,14 @@ document.addEventListener('visibilitychange', () => {
    (cópia velha guardada no celular), apaga as cópias e recarrega uma vez (sem interromper treino ou formulário) */
 let versaoChecadaEm = 0;
 async function checarVersao() {
-  if (!/^v/.test(NX_BUILD) || Date.now() - versaoChecadaEm < 60000) return;
+  // arquivo de base velho junto com este novo (cópia misturada): NX_BUILD nem existe, então também conta como versão velha
+  const aberta = typeof NX_BUILD === 'string' ? NX_BUILD : '';
+  if ((aberta && !/^v/.test(aberta)) || Date.now() - versaoChecadaEm < 60000) return;
   versaoChecadaEm = Date.now();
   try {
     const r = await fetch(new URL('/app/versao.json?t=' + Date.now(), location.href), { cache: 'no-store' });
     const { v } = await r.json();
-    if (!v || v === NX_BUILD) return;
+    if (!v || v === aberta) return;
     let tentou = '';
     try {
       tentou = sessionStorage.getItem('nx-versao-tentou') || '';
