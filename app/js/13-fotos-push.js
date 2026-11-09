@@ -503,17 +503,23 @@ async function checarVersao() {
     if (tentou === v) return; // já recarregou uma vez para esta versão
     if (window.caches) for (const k of await caches.keys()) if (k.startsWith('nx-app-')) await caches.delete(k);
     if (swReg) swReg.update().catch(() => {});
+    try {
+      sessionStorage.setItem('nx-versao-tentou', v);
+    } catch {}
     if (!podeRecarregar()) {
       versaoNova = true;
       return;
     }
-    try {
-      sessionStorage.setItem('nx-versao-tentou', v);
-    } catch {}
     location.reload();
   } catch {}
 }
 setTimeout(checarVersao, 1500);
+// versão nova esperando porque havia um aviso aberto na entrada: atualiza assim que ele for fechado
+document.addEventListener('nx:painel-fechado', () =>
+  setTimeout(() => {
+    if (versaoNova && podeRecarregar()) location.reload();
+  }, 400),
+);
 function notificar(acao, id, extra) {
   if (!id) return;
   try {
