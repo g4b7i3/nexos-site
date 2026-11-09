@@ -974,7 +974,7 @@ async function staffAluno(alunoId, aba, extra) {
       ${fM && fC ? `<div class="subtabs mod-tabs" style="margin-top:12px"><a class="${aba === 'corrida' ? 'on' : ''}" href="#/aluno/${alunoId}/corrida">${I.run} Corrida</a><a class="${aba === 'forca' ? 'on' : ''}" href="#/aluno/${alunoId}/forca">${I.lib} Força</a></div>` : ''}`;
   $app.innerHTML =
     aba === 'inicio'
-      ? cabecalho + `<div class="stack" style="margin-top:16px">${corpo}</div>`
+      ? cabecalho + `<div id="sem-push"></div><div class="stack" style="margin-top:16px">${corpo}</div>`
       : aba === 'corrida' || aba === 'forca'
         ? planHead() + `<div class="stack" style="margin-top:12px">${corpo}</div>`
         : `<a class="back" href="#/aluno/${alunoId}">${I.back} ${esc(m.nome)}</a>
@@ -982,6 +982,31 @@ async function staffAluno(alunoId, aba, extra) {
       <div class="stack">${corpo}</div>`;
   const fAt = document.getElementById('ficha-ativo');
   if (fAt) fAt.onclick = () => (m.ativo ? desativarAluno : reativarAluno)(m, () => staffAluno(alunoId));
+  // aluno sem notificação: o treinador vê e manda o passo a passo para ativar
+  if (aba === 'inicio' && m.ativo)
+    sb.rpc('nx_sem_notificacao', { p_org: S.org.id })
+      .then(({ data }) => {
+        const el = document.getElementById('sem-push');
+        if (!el || !(data || []).includes(alunoId)) return;
+        el.innerHTML = `<div class="card sem-push"><b>${esc(firstName(m.nome))} ainda não ativou as notificações</b><p class="small muted" style="margin-top:4px">Não recebe o aviso do treino do dia, das suas mensagens nem da mensalidade.</p><button type="button" class="btn sm" id="sem-push-b" style="margin-top:10px">${I.feed} Mandar o passo a passo</button></div>`;
+        el.querySelector('#sem-push-b').onclick = async (e) => {
+          e.currentTarget.disabled = true;
+          const texto = `Oi, ${firstName(m.nome)}! Ative as notificações do app da Nexos para receber o treino do dia, as minhas mensagens e os avisos importantes.\n\n1. Abra o app da Nexos.\n2. Na tela Hoje, toque em "Ativar" no cartão "Ative as notificações" e permita.\n\niPhone: antes, adicione o app à tela de início (Compartilhar › Adicionar à Tela de Início) e abra por lá.\nSe aparecer "bloqueadas": Android: segure o ícone da Nexos › Informações do app › Notificações › Permitir. iPhone: Ajustes › Notificações › Nexos › Permitir.`;
+          const { data: nm, error } = await sb
+            .from('nx_mensagens')
+            .insert({ org_id: S.org.id, aluno_id: alunoId, autor_id: S.user.id, texto })
+            .select('id')
+            .single();
+          if (error) {
+            e.currentTarget.disabled = false;
+            return toast('Não foi possível mandar.', true);
+          }
+          if (nm) notificar('mensagem', nm.id);
+          toast(`Passo a passo enviado na conversa com ${firstName(m.nome)}.`);
+          el.querySelector('#sem-push-b').textContent = 'Enviado';
+        };
+      })
+      .catch(() => {});
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
   if (aba === 'energia') viewSaudeAtleta(document.getElementById('saude-at'), m).catch((e) => console.error(e));
   // aviso no início da ficha quando aparecem 2 ou mais sinais de baixa energia

@@ -638,7 +638,7 @@ async function ckLista() {
   const [ms, rs] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades')
+      .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,corrida')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .eq('ativo', true)
@@ -672,6 +672,15 @@ async function ckLista() {
     ['saida', 'Falta saída'],
     ['ok', 'Completos'],
   ];
+  // sem zonas: corredor sem teste confirmado (sem teste_km nem vdot) e sem entrada já pedida ou feita neste ciclo
+  const semZonas = () =>
+    alunos.filter((m) => {
+      const corre = !(m.modalidades || []).length || m.modalidades.includes('corrida');
+      const cz = m.corrida || {};
+      const temZona = cz.teste_km || cz.vdot;
+      const ent = rs.find((r) => r.aluno_id === m.user_id && r.ciclo === st.c && r.fase === 'entrada');
+      return corre && !temZona && !ent;
+    });
   const desenha = () => {
     const doC = rs.filter((r) => r.ciclo === st.c),
       fase = (id, f) => doC.find((r) => r.aluno_id === id && r.fase === f);
@@ -704,6 +713,15 @@ async function ckLista() {
       <p class="muted" style="margin-top:6px">Teste de corrida, frequência cardíaca e força no começo e no fim de um ciclo. Presencial, vocês aplicam e lançam. Online, vocês enviam os testes, o aluno faz e responde no app, e vocês conferem.</p>
       <p class="sec-lbl">Ciclo</p><div class="chips" id="ck-c">${ciclos.map((x) => `<button type="button" class="chip ${x === st.c ? 'on' : ''}" data-c="${esc(x)}">${esc(x)}</button>`).join('')}<button type="button" class="chip" id="ck-novo">${I.plus} Novo ciclo</button></div>
       <div class="card" style="margin-top:12px"><div class="ck-res"><div><b>${nE}<small> de ${alunos.length}</small></b><span>Entradas feitas</span></div><div><b>${nS}<small> de ${alunos.length}</small></b><span>Saídas feitas</span></div></div>${nConf ? `<p class="small" style="margin-top:10px;text-align:center;color:var(--acc)">${nConf} aluno${nConf > 1 ? 's' : ''} já ${nConf > 1 ? 'responderam' : 'respondeu'}: confira e confirme.</p>` : ''}</div>
+      ${
+        semZonas().length
+          ? `<button type="button" class="card tap ck-lote" id="ck-lote" style="width:100%;text-align:left;color:inherit;margin-top:12px"><span class="ativ-ic">${I.run}</span><div class="grow"><b>Pedir o teste a quem não tem zonas (${semZonas().length})</b><div class="small muted">${esc(
+              semZonas()
+                .map((m) => firstName(m.nome))
+                .join(', '),
+            )}. Envia o teste de corrida para todos de uma vez, como entrada de ${esc(st.c)}.</div></div>${I.chev}</button>`
+          : ''
+      }
       <div class="chips" id="ck-f" style="margin-top:14px">${FILT.map(([k, l]) => `<button type="button" class="chip ${k === st.f ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
       <div class="stack" style="margin-top:12px">${L.length ? L.map((m) => `<a class="list-item" href="#/checkup/${m.user_id}" style="color:inherit">${avAluno(m, 'sm')}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)}</b><div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap">${tag(fase(m.user_id, 'entrada'), 'entrada')}${tag(fase(m.user_id, 'saida'), 'saída')}</div></div>${I.chev}</a>`).join('') : '<div class="empty"><div class="h3">Ninguém nesta lista</div><p class="small">Troque o filtro acima.</p></div>'}</div>`;
     document.getElementById('ck-c').onclick = (e) => {
@@ -719,6 +737,8 @@ async function ckLista() {
       store.set('nx-ck-ciclo', st.c);
       desenha();
     };
+    const lt = document.getElementById('ck-lote');
+    if (lt) lt.onclick = () => ckEnviarLote(semZonas(), st.c, () => ckLista());
     document.getElementById('ck-f').onclick = (e) => {
       const x = e.target.closest('[data-f]');
       if (!x) return;
@@ -922,6 +942,89 @@ async function ckDetalhe(alunoId) {
   desenha();
 }
 // treinador escolhe os testes e envia; o aluno recebe na conversa e no card "A preencher"
+/** pedido em lote: o teste de corrida (e, se quiser, FC de repouso e peso) para vários alunos de uma vez */
+function ckEnviarLote(lista, ciclo, depois) {
+  openSheet(
+    `<p class="eyebrow">${esc(ciclo)} · entrada</p><div class="h2" style="margin-top:4px">Pedir o teste a ${lista.length} aluno${lista.length > 1 ? 's' : ''}</div>
+    <p class="small muted" style="margin-top:6px">Cada um recebe uma mensagem e o card "A preencher" no app, com o passo a passo. É o teste que define as zonas e os ritmos. Quando responderem, vocês conferem e confirmam.</p>
+    <form id="f-lote" style="margin-top:12px">
+      <div class="stack" style="gap:6px">${lista.map((m) => `<label class="ck-check"><input type="checkbox" name="al" value="${m.user_id}" checked><span>${esc(m.nome)}</span></label>`).join('')}</div>
+      <p class="sec-lbl">Teste de corrida</p>
+      <div class="chips wrap" id="lote-c"><button type="button" class="chip on" data-c="5k">5 km no limite</button><button type="button" class="chip" data-c="t30">30 min (Friel)</button></div>
+      <p class="sec-lbl">Junto</p>
+      <div class="stack" style="gap:6px"><label class="ck-check"><input type="checkbox" name="fcrep" checked><span>FC de repouso (ao acordar)</span></label><label class="ck-check"><input type="checkbox" name="peso" checked><span>Peso</span></label></div>
+      <label class="field" style="margin-top:12px"><span>Recado (opcional)</span><textarea class="input" name="recado" rows="2" placeholder="Ex.: faça num dia descansado, de preferência numa pista plana"></textarea></label>
+      <button class="btn block" type="submit">Enviar o teste</button></form>`,
+    (r) => {
+      const f = r.querySelector('#f-lote');
+      let tipo = '5k';
+      r.querySelector('#lote-c').onclick = (e) => {
+        const x = e.target.closest('[data-c]');
+        if (!x) return;
+        tipo = x.dataset.c;
+        r.querySelectorAll('#lote-c .chip').forEach((y) => y.classList.toggle('on', y === x));
+      };
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        const ids = [...f.querySelectorAll('input[name=al]:checked')].map((x) => x.value);
+        if (!ids.length) return toast('Marque pelo menos um aluno.', true);
+        const b = f.querySelector('button[type=submit]');
+        b.disabled = true;
+        const pedido = {
+          corrida: tipo,
+          forca: [],
+          fc_rep: f.fcrep.checked,
+          peso: f.peso.checked,
+          video: false,
+          recado: f.recado.value.trim() || null,
+        };
+        let ok = 0;
+        for (const id of ids) {
+          b.textContent = `Enviando ${ok + 1} de ${ids.length}…`;
+          const { error } = await sb
+            .from('nx_checkups')
+            .upsert(
+              {
+                org_id: S.org.id,
+                aluno_id: id,
+                avaliador_id: S.user.id,
+                ciclo,
+                fase: 'entrada',
+                status: 'pedido',
+                pedido,
+                data: null,
+              },
+              { onConflict: 'aluno_id,ciclo,fase' },
+            );
+          if (error) {
+            console.error(error);
+            continue;
+          }
+          ok++;
+          const texto = `Preparei o seu teste de corrida (${ciclo}). Abra o app em Hoje, no card "A preencher", e siga o passo a passo. É ele que define as suas zonas e os ritmos dos treinos.${pedido.recado ? '\n\n' + pedido.recado : ''}`;
+          const { data: nm } = await sb
+            .from('nx_mensagens')
+            .insert({ org_id: S.org.id, aluno_id: id, autor_id: S.user.id, texto })
+            .select('id')
+            .single()
+            .then(
+              (x) => x,
+              () => ({ data: null }),
+            );
+          if (nm) notificar('mensagem', nm.id);
+        }
+        closeSheet();
+        toast(
+          ok === ids.length
+            ? `Teste enviado para ${ok} aluno${ok > 1 ? 's' : ''}.`
+            : `${ok} de ${ids.length} enviados. Tente de novo os que faltaram.`,
+          ok < ids.length,
+        );
+        depois();
+      };
+    },
+  );
+}
 function ckEnviar(m, fase, ciclo, entrada, depois) {
   const pe = (entrada && entrada.pedido) || null,
     ce = (entrada && entrada.corrida) || null;

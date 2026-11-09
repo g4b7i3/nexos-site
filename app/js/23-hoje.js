@@ -120,7 +120,7 @@ async function staffHoje() {
       sb
         .from('nx_membros')
         .select(
-          'user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade',
+          'user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,foto_url,nascimento,telefone,modalidades,disponibilidade,corrida',
         )
         .eq('org_id', S.org.id)
         .eq('papel', 'aluno')
@@ -516,6 +516,7 @@ async function staffHoje() {
         : '';
     })()}
     ${ehSeg ? resumoHTML : ''}
+    <div id="lib-prox"></div>
     <div id="datas-esp"></div>
     ${(() => {
       const card = ({ m, l }) =>
@@ -595,6 +596,7 @@ async function staffHoje() {
   bindCartaoPush();
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
+  cartaoLiberarProxima(document.getElementById('lib-prox'), ativos).catch((e) => console.error(e));
   atualizarSino();
   $app.querySelectorAll('[data-visto]').forEach(
     (b) =>
@@ -805,5 +807,124 @@ async function sugestaoCicloSheet(alunoId) {
     .querySelectorAll('[data-sugini]')
     .forEach(
       (a) => (a.onclick = () => setTimeout(() => (S.cache.cicPre = { aluno: alunoId, ini: a.dataset.sugini }), 0)),
+    );
+}
+
+/* ---------- liberar a próxima semana de todos de uma vez ----------
+   Na Hoje: quem tem treinos da próxima semana prontos e ainda não liberados (corrida ou força).
+   Um toque abre a lista já marcada; confirmar libera tudo, avisa cada aluno e manda a corrida para o relógio. */
+async function cartaoLiberarProxima(el, ativos) {
+  if (!el || !ativos.length) return;
+  const seg = isoDia(new Date(inicioSemana().getTime() + 7 * 864e5)),
+    dom = somaDias(seg, 6);
+  const ids = ativos.map((m) => m.user_id);
+  const vazio = (r) => r.data || [];
+  const [pl, trs, libs] = await Promise.all([
+    sb
+      .from('nx_plano_corrida')
+      .select('aluno_id')
+      .eq('org_id', S.org.id)
+      .in('aluno_id', ids)
+      .gte('data', seg)
+      .lte('data', dom)
+      .eq('liberado', false)
+      .neq('tipo', 'folga')
+      .then(vazio, () => []),
+    sb
+      .from('nx_treinos')
+      .select('aluno_id,dias,inicio,ativo')
+      .in('aluno_id', ids)
+      .eq('ativo', true)
+      .then(vazio, () => []),
+    sb
+      .from('nx_forca_semanas')
+      .select('aluno_id')
+      .in('aluno_id', ids)
+      .eq('semana', seg)
+      .then(vazio, () => []),
+  ]);
+  const corr = new Set(pl.map((x) => x.aluno_id));
+  const jaF = new Set(libs.map((x) => x.aluno_id));
+  const forca = new Set(
+    trs.filter((t) => (t.dias || []).length && treinoVale(t, seg) && !jaF.has(t.aluno_id)).map((t) => t.aluno_id),
+  );
+  const lista = ativos
+    .filter((m) => corr.has(m.user_id) || forca.has(m.user_id))
+    .map((m) => ({ m, c: corr.has(m.user_id), f: forca.has(m.user_id) }));
+  if (!el.isConnected) return;
+  if (!lista.length) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = `<button type="button" class="card tap lib-prox" id="lib-prox-b" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.check}</span><div class="grow" style="min-width:0"><b>Liberar a próxima semana (${lista.length} aluno${lista.length > 1 ? 's' : ''})</b><div class="small muted ellip">${fmtCurto(seg + 'T12:00:00')} a ${fmtCurto(dom + 'T12:00:00')} · ${esc(lista.map((x) => firstName(x.m.nome)).join(', '))}</div></div>${I.chev}</button>`;
+  el.querySelector('#lib-prox-b').onclick = () =>
+    openSheet(
+      `<p class="eyebrow">Próxima semana · ${fmtCurto(seg + 'T12:00:00')} a ${fmtCurto(dom + 'T12:00:00')}</p><div class="h2" style="margin-top:4px">Liberar para todos de uma vez</div>
+      <p class="small muted" style="margin-top:6px">Estes alunos têm treinos prontos ainda não liberados. Desmarque quem você ainda quer revisar.</p>
+      <form id="f-libp" style="margin-top:12px"><div class="stack" style="gap:6px">${lista
+        .map(
+          (x) =>
+            `<label class="ck-check"><input type="checkbox" name="al" value="${x.m.user_id}" checked><span>${esc(x.m.nome)} ${x.c ? selo('corrida', 'sm') : ''}${x.f ? selo('forca', 'sm') : ''}</span></label>`,
+        )
+        .join('')}</div>
+      <p class="tiny dim" style="margin-top:10px">Cada aluno recebe o aviso de planilha liberada, e a corrida vai para o relógio de quem tiver conectado.</p>
+      <button class="btn block" type="submit" style="margin-top:12px">Liberar a semana</button></form>`,
+      (r) => {
+        const f = r.querySelector('#f-libp');
+        f.onsubmit = async (e) => {
+          e.preventDefault();
+          const marcados = new Set([...f.querySelectorAll('input[name=al]:checked')].map((x) => x.value));
+          const sel = lista.filter((x) => marcados.has(x.m.user_id));
+          if (!sel.length) return toast('Marque pelo menos um aluno.', true);
+          const b = f.querySelector('button[type=submit]');
+          b.disabled = true;
+          b.textContent = 'Liberando…';
+          const idsC = sel.filter((x) => x.c).map((x) => x.m.user_id),
+            idsF = sel.filter((x) => x.f).map((x) => x.m.user_id);
+          try {
+            if (idsC.length) {
+              const { error } = await sb
+                .from('nx_plano_corrida')
+                .update({ liberado: true })
+                .eq('org_id', S.org.id)
+                .in('aluno_id', idsC)
+                .gte('data', seg)
+                .lte('data', dom);
+              if (error) throw error;
+              idsC.forEach((id) => notificarAluno('planilha', id));
+              // a corrida liberada vai para o relógio de quem tiver
+              sb.from('nx_plano_corrida')
+                .select('*')
+                .eq('org_id', S.org.id)
+                .in('aluno_id', idsC)
+                .gte('data', seg)
+                .lte('data', dom)
+                .then(({ data: pls }) =>
+                  idsC.forEach((id) => {
+                    const l = (pls || []).filter((p) => p.aluno_id === id);
+                    const m = ativos.find((x) => x.user_id === id);
+                    if (l.length) enviarGarmin(id, l, perfilCorrida(m)).catch(() => {});
+                  }),
+                )
+                .catch(() => {});
+            }
+            if (idsF.length) {
+              const { error } = await sb
+                .from('nx_forca_semanas')
+                .insert(idsF.map((id) => ({ org_id: S.org.id, aluno_id: id, semana: seg, liberado_por: S.user.id })));
+              if (error && !/duplicate/i.test(error.message || '')) throw error;
+              idsF.forEach((id) => notificarAluno('planilha_forca', id));
+            }
+          } catch (er) {
+            console.error(er);
+            b.disabled = false;
+            b.textContent = 'Tentar de novo';
+            return toast('Não foi possível liberar agora.', true);
+          }
+          closeSheet();
+          toast(`Próxima semana liberada para ${sel.length} aluno${sel.length > 1 ? 's' : ''}. Eles foram avisados.`);
+          cartaoLiberarProxima(el, ativos).catch(() => {});
+        };
+      },
     );
 }

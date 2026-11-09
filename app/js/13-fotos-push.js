@@ -516,6 +516,17 @@ async function checarVersao() {
   } catch {}
 }
 setTimeout(checarVersao, 1500);
+// quem já permitiu as notificações tem a inscrição conferida uma vez por dia (se o servidor perdeu, volta sem perguntar nada)
+async function sincronizarPush() {
+  try {
+    if (!pushSuportado() || Notification.permission !== 'granted' || !S.user || !(S.org || S.esperaOrg)) return;
+    const hoje = hojeISO();
+    if (store.get('nx-push-sync') === hoje) return;
+    await ativarPushInterno(true);
+    store.set('nx-push-sync', hoje);
+  } catch {}
+}
+setTimeout(sincronizarPush, 6000);
 // versão nova esperando porque havia um aviso aberto na entrada: atualiza assim que ele for fechado
 document.addEventListener('nx:painel-fechado', () =>
   setTimeout(() => {
@@ -551,7 +562,7 @@ async function ativarPush() {
     throw e instanceof ErroPT ? e : new Error('Não foi possível ativar as notificações neste navegador.');
   }
 }
-async function ativarPushInterno() {
+async function ativarPushInterno(silencioso) {
   if (!pushSuportado()) {
     if (ehIOS() && !instalado())
       throw new ErroPT(
@@ -580,7 +591,7 @@ async function ativarPushInterno() {
     },
   });
   if (error || data?.erro) throw new ErroPT('Não foi possível ativar agora. Tente de novo.');
-  sb.functions.invoke('nx-push', { body: { acao: 'teste' } }).catch(() => {});
+  if (!silencioso) sb.functions.invoke('nx-push', { body: { acao: 'teste' } }).catch(() => {});
   store.set('nx-push-ok', 1);
 }
 async function desativarPush() {
@@ -591,8 +602,17 @@ async function desativarPush() {
   }
   store.del('nx-push-ok');
 }
+// "Agora não" esconde o cartão por 3 dias; depois ele volta até a pessoa ativar
+const pushDispensado = () => {
+  const t = +store.get('nx-push-dispensado') || 0;
+  return t > 1 && Date.now() - t < 3 * 864e5;
+};
 function cartaoPushHTML() {
-  if (store.get('nx-push-dispensado') || store.get('nx-push-ok')) return '';
+  if (pushDispensado() || store.get('nx-push-ok')) return '';
+  // bloqueou sem querer: explica como liberar nas configurações
+  if (pushSuportado() && Notification.permission === 'denied')
+    return `<div class="card push-card" id="push-card"><div class="row" style="gap:12px;align-items:flex-start"><span class="go">${I.bell}</span><div class="grow"><b>As notificações estão bloqueadas</b><p class="small muted">${S.staff ? 'Assim você não fica sabendo na hora dos treinos, dores e mensagens dos alunos.' : 'Assim você não recebe o aviso do treino do dia, das mensagens do treinador nem da mensalidade.'} Para liberar: <b>Android:</b> toque e segure o ícone da Nexos › Informações do app › Notificações › Permitir. <b>iPhone:</b> Ajustes › Notificações › Nexos › Permitir Notificações. <b>Computador:</b> clique no cadeado ao lado do endereço › Notificações › Permitir.</p>
+    <div class="row" style="gap:8px;margin-top:10px"><button class="link-btn small" id="push-x">Agora não</button></div></div></div></div>`;
   if (pushSuportado() && Notification.permission !== 'default') return '';
   if (!pushSuportado() && !(ehIOS() && !instalado())) return '';
   return `<div class="card push-card" id="push-card"><div class="row" style="gap:12px;align-items:flex-start"><span class="go">${I.bell}</span><div class="grow"><b>Ative as notificações</b><p class="small muted">${S.staff ? 'Saiba na hora quando um aluno finalizar o treino, relatar dor ou mandar mensagem.' : 'Saiba na hora quando o treinador mandar treino novo, mensagem ou relatório.'}</p>
@@ -600,18 +620,19 @@ function cartaoPushHTML() {
 }
 function bindCartaoPush() {
   const on = document.getElementById('push-on');
-  if (!on) return;
-  on.onclick = async () => {
-    try {
-      await ativarPush();
-      toast('Notificações ativadas!');
-      document.getElementById('push-card').remove();
-    } catch (e) {
-      toast(e.message, true);
-    }
-  };
+  if (!document.getElementById('push-card')) return;
+  if (on)
+    on.onclick = async () => {
+      try {
+        await ativarPush();
+        toast('Notificações ativadas!');
+        document.getElementById('push-card').remove();
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
   document.getElementById('push-x').onclick = () => {
-    store.set('nx-push-dispensado', 1);
+    store.set('nx-push-dispensado', Date.now());
     document.getElementById('push-card').remove();
   };
 }
