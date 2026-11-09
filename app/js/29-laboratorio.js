@@ -1440,8 +1440,45 @@ const MSG_SAUDE = {
   push: (n) =>
     `Oi, ${n}! Aqui é o ${firstName(S.me.nome)}, da Nexos. Ative as notificações do app para receber os lembretes, o treino do dia e as minhas mensagens: abra o app, vá em Mais e toque em Ativar, em Notificações. No iPhone, antes adicione o app à tela de início (Compartilhar > Adicionar à Tela de Início) e abra por lá.`,
 };
+// saúde do sistema + serviços de fora checados pelo agendador (ex.: previsão da Leitura do tempo)
+async function buscarSaude() {
+  const [r, sv] = await Promise.all([
+    sb.rpc('nx_saude_sistema', { p_org: S.org.id }),
+    sb
+      .from('nx_servicos')
+      .select('*')
+      .then(
+        (x) => x.data || [],
+        () => [],
+      ),
+  ]);
+  if (r.data) r.data.servicos = sv;
+  return r;
+}
 function saudeStatus(d) {
   const out = [];
+  // Leitura do tempo: o agendador confere a previsão a cada 3 horas
+  const tp = (d.servicos || []).find((x) => x.servico === 'tempo');
+  if (tp || d.servicos) {
+    const parou = tp && Date.now() - new Date(tp.verificado_em).getTime() > 7 * 3600e3;
+    out.push({
+      k: 'tempo',
+      t: 'Leitura do tempo',
+      nivel: !tp || parou ? 'warn' : tp.ok ? 'ok' : tp.falhas_seguidas >= 2 ? 'err' : 'warn',
+      res: !tp
+        ? 'Ainda não foi checada'
+        : parou
+          ? `A checagem automática parou (última em ${fmtDH(tp.verificado_em)})`
+          : tp.ok
+            ? `Previsão do tempo chegando normalmente · checada em ${fmtDH(tp.verificado_em)}`
+            : `A previsão não está chegando (${tp.falhas_seguidas} ${tp.falhas_seguidas > 1 ? 'checagens seguidas' : 'checagem'})${tp.detalhe ? ': ' + esc(tp.detalhe) : ''}`,
+      linhas: [],
+      acao:
+        tp && !tp.ok
+          ? `Enquanto isso, os alunos veem "Leitura do tempo ainda não atualizada" com a última previsão boa${tp.ultimo_ok_em ? ` (de ${fmtDH(tp.ultimo_ok_em)})` : ''}. Costuma voltar sozinho; se passar de um dia, avise.`
+          : '',
+    });
+  }
   const e = d.erros || {};
   out.push({
     k: 'erros',
@@ -1646,7 +1683,7 @@ async function copiarTexto(t) {
 async function staffSaudeSistema(dadoPronto) {
   dockStaff();
   if (!dadoPronto) loading();
-  const { data, error } = dadoPronto ? { data: dadoPronto } : await sb.rpc('nx_saude_sistema', { p_org: S.org.id });
+  const { data, error } = dadoPronto ? { data: dadoPronto } : await buscarSaude();
   if (error || !data) {
     $app.innerHTML =
       '<div class="empty" style="margin-top:40px"><div class="h3">Não foi possível checar agora</div><p class="small">Tente de novo em instantes.</p></div>';
@@ -1800,7 +1837,7 @@ async function staffSaudeSistema(dadoPronto) {
 function staffMais() {
   dockStaff();
   if (S.cache.saudeProb == null)
-    sb.rpc('nx_saude_sistema', { p_org: S.org.id })
+    buscarSaude()
       .then(({ data }) => {
         if (!data) return;
         const st = saudeStatus(data);

@@ -3382,3 +3382,5 @@ body.em-video{overflow:hidden}
 /* leitura do tempo: espaço para o card de baixo (e para o de cima, quando houver) */
 #calor-hoje:not(:empty){margin:0 0 14px}
 #calor-hoje:not(:empty):not(:first-child){margin-top:14px}
+.calor-sem{--cal:#8fa1c4}
+.cal-velho{margin-top:8px;padding:8px 12px;border-radius:12px;background:rgba(201,162,39,.14);color:var(--ink);font-size:.82rem;font-weight:600}
