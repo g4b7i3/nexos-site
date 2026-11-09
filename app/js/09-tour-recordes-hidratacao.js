@@ -1481,14 +1481,30 @@ async function previsaoCalor(loc) {
   } catch {}
   return horas;
 }
+// guia de intensidade no calor: zona de frequência cardíaca do teste (quem tem) ou percepção de esforço (quem não tem)
+function guiaCalor() {
+  const c = (S.me && S.me.corrida) || {};
+  const fc = (c.teste_km || c.vdot) && (c.lthr || c.fc_max);
+  return fc
+    ? {
+        frase: 'Corra pela frequência cardíaca da zona do seu teste',
+        acao: 'siga a frequência cardíaca da zona',
+        manter: 'a frequência cardíaca da zona',
+      }
+    : {
+        frase: 'Corra pela percepção de esforço, e não pelo ritmo (no treino leve, você deve conseguir conversar)',
+        acao: 'guie-se pela percepção de esforço, e não pelo ritmo',
+        manter: 'o esforço combinado para o treino, pela sua percepção',
+      };
+}
 const CALOR_LEITURA = {
-  baixo: 'Tempo bom para treinar. Hidratação de sempre.',
-  atencao:
-    'Um pouco mais quente que o ideal. Corra pela zona de frequência cardíaca do seu teste: o ritmo pode sair alguns segundos mais lento, e isso é normal no calor. Em treino de mais de 1 hora, leve água.',
-  moderado:
-    'Calor moderado. Se puder, prefira o horário mais fresco e siga a frequência cardíaca da zona. Em treino longo, leve água.',
-  alto: 'Calor alto para treino forte. O ideal é treinar no horário mais fresco; se não der, mantenha a frequência cardíaca da zona, aceite o ritmo mais lento e faça pausas para beber água.',
-  extremo:
+  baixo: () => 'Tempo bom para treinar. Hidratação de sempre.',
+  atencao: (g) =>
+    `Um pouco mais quente que o ideal. ${g.frase}: o ritmo pode sair alguns segundos mais lento, e isso é normal no calor. Em treino de mais de 1 hora, leve água.`,
+  moderado: (g) => `Calor moderado. Se puder, prefira o horário mais fresco e ${g.acao}. Em treino longo, leve água.`,
+  alto: (g) =>
+    `Calor alto para treino forte. O ideal é treinar no horário mais fresco; se não der, mantenha ${g.manter}, aceite o ritmo mais lento e faça pausas para beber água.`,
+  extremo: () =>
     'Calor muito alto. Treino forte fica melhor em outro horário ou outro dia; se for correr, que seja leve e curto. Se tiver dúvida, fale com o seu treinador.',
 };
 function calorCardHTML(loc, horas, treino) {
@@ -1521,17 +1537,17 @@ function calorCardHTML(loc, horas, treino) {
     .join('');
   const avisoTreino =
     forte && ['alto', 'extremo'].includes(nvLeitura.k)
-      ? ' É um treino forte num dia de calor alto: faça no horário mais fresco e siga a frequência cardíaca da zona.'
+      ? ` É um treino forte num dia de calor alto: faça no horário mais fresco e ${guiaCalor().acao}.`
       : '';
   return `<div class="card calor-card calor-${nv.k}"><div class="cal-top"><span class="eyebrow">Leitura do tempo · ${esc(cidade)}</span><button type="button" class="link-btn small" data-cal-tg="ocultar">Ocultar</button></div>
     <div class="cal-main"><div class="cal-sel cal-${nv.k}"><small>Calor agora</small><b>${nv.nome}</b></div>
       <div class="cal-num"><div><span>Temperatura</span><b>${Math.round(agora.temp)}°</b></div><div><span>Sensação</span><b>${Math.round(agora.sens)}°</b></div><div><span>Umidade</span><b>${Math.round(agora.ur)}%</b></div></div></div>
     ${resto.length ? `<p class="cal-melhor">Melhor horário para correr hoje: <b>${hh(melhor)}</b> (${nvM.nome.toLowerCase()})</p>` : '<p class="cal-melhor">Amanhã cedo costuma ser o horário mais fresco.</p>'}
     <div class="cal-graf" aria-label="Calor por hora, das 5h às 20h">${barras}</div>
-    <p class="small cal-dica">${treino ? `<b>${esc(treino.titulo || 'Treino de hoje')}:</b> ` : ''}${CALOR_LEITURA[nvLeitura.k]}${avisoTreino}</p>
+    <p class="small cal-dica">${treino ? `<b>${esc(treino.titulo || 'Treino de hoje')}:</b> ` : ''}${CALOR_LEITURA[nvLeitura.k](guiaCalor())}${avisoTreino}</p>
     <details class="cal-mais"><summary>Ver mais</summary>
       <div class="cal-det" style="margin-top:8px"><div><span>Índice de calor</span><b>${f1(agora.w)}°</b></div><div><span>Índice UV</span><b>${agora.uv != null ? f1(agora.uv) : '–'}</b></div><div><span>Vento</span><b>${agora.vento != null ? Math.round(agora.vento) + ' km/h' : '–'}</b></div></div>
-      <p class="sec-lbl">No calor</p><ul class="cal-lista"><li>Beba água ao longo do dia e leve água em treinos de mais de 1 hora.</li><li>Roupa clara e leve; boné e protetor solar se houver sol.</li><li>Tontura, náusea, dor de cabeça forte ou arrepio no calor: pare, vá para a sombra e se refresque.</li><li>O corpo se adapta ao calor em cerca de 10 a 14 dias treinando nele. Se você viajou de um lugar mais frio, vá com mais calma.</li></ul>
+      <p class="sec-lbl">No calor</p><ul class="cal-lista"><li>Beba água ao longo do dia e leve água em treinos de mais de 1 hora.</li><li>Roupa clara e leve; boné e protetor solar se houver sol.</li><li>Tontura, náusea, dor de cabeça forte ou arrepio no calor: pare, vá para a sombra e se refresque.</li><li>Teste da fala: no treino leve dá para conversar em frases inteiras. Se só sai uma palavra por vez, o esforço está alto demais para o calor.</li><li>O corpo se adapta ao calor em cerca de 10 a 14 dias treinando nele. Se você viajou de um lugar mais frio, vá com mais calma.</li></ul>
       <p class="sec-lbl">Como é feita esta leitura</p><p class="tiny dim">O índice de calor estima o WBGT, a medida usada no esporte, a partir da temperatura, da umidade e do sol previstos para cada hora. Os níveis levam em conta que quem mora na região já está adaptado ao clima dela (guias regionais de calor para o esporte, Grundstein e colegas, 2015). Só a cidade é usada, nunca o local exato da corrida ou do celular. Previsão do Open-Meteo.</p>
       <div class="cal-cidade"><div class="grow" style="min-width:0"><span class="tiny dim">Cidade da leitura</span><b class="ellip" style="display:block">${esc(cidade)}</b><span class="tiny dim">${loc.origem === 'celular' ? 'Pela localização do celular' : loc.origem === 'corrida' ? 'Pela sua última corrida com GPS' : 'Padrão, até a sua primeira corrida com GPS'}</span></div><button type="button" class="btn ghost sm" data-cal-loc="trocar">Trocar</button></div>
     </details></div>`;
