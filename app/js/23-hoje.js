@@ -325,6 +325,7 @@ async function staffHoje() {
             t: fimPl[id] ? 'Planilha acabou, sem a próxima' : 'Sem planilha de corrida',
             cls: 'err',
             ir: `#/aluno/${id}/corrida`,
+            cic: true,
           });
         else if (sp.d <= 4)
           l.push({
@@ -521,7 +522,9 @@ async function staffHoje() {
         `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l
           .slice(0, 3)
           .map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`)
-          .join('')}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div></div>${(() => {
+          .join(
+            '',
+          )}${l.length > 3 ? `<span class="tag">+${l.length - 3}</span>` : ''}</div>${l.some((x) => x.cic) ? `<button type="button" class="alerta-cic" data-cicsug="${m.user_id}">${I.run} Ver ciclo sugerido</button>` : ''}</div>${(() => {
           const rr = l.find((x) => x.resg);
           return rr
             ? `<button type="button" class="alerta-wa" data-resgate="${m.user_id}" data-dias="${rr.resg}" aria-label="Mandar mensagem de resgate">${I.wa}</button>`
@@ -537,7 +540,7 @@ async function staffHoje() {
     })()}
     <div id="sug-hoje"></div>
     ${ehSeg ? '' : resumoHTML}
-    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center">${recentes.filter((x) => x.novo).length > 1 ? `<button type="button" class="link-btn" id="visto-todos">Visto em todos (${recentes.filter((x) => x.novo).length})</button>` : `<a class="link-btn" href="#/feed">Ver retornos</a>`}<button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Ver retornos</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
       <div id="ativ-corpo" ${store.get('nx_ativ_oculta', false) ? 'hidden' : ''}>${
         recentes.length
           ? `<div class="card ativ">${recentes
@@ -593,37 +596,20 @@ async function staffHoje() {
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
   atualizarSino();
-  // um toque marca todas as atividades novas como vistas (cada aluno recebe o aviso de que você analisou)
-  const vt = document.getElementById('visto-todos');
-  if (vt)
-    vt.onclick = async () => {
-      const novos = recentes.filter((x) => x.novo);
-      vt.disabled = true;
-      let ok = 0;
-      for (const x of novos) {
-        vt.textContent = `Marcando ${ok + 1} de ${novos.length}…`;
-        const { data, error } = await sb.functions
-          .invoke('nx-push', { body: { acao: 'visto', tipo: x.tp, id: x.id } })
-          .catch((er) => ({ error: er }));
-        if (!error && !(data && data.erro)) ok++;
-      }
-      toast(
-        ok === novos.length
-          ? `${ok} atividades marcadas como vistas.`
-          : `${ok} de ${novos.length} marcadas. Tente de novo nas que faltaram.`,
-        ok < novos.length,
-      );
-      contarNaoVistos()
-        .then(dockStaff)
-        .catch(() => {});
-      silencioso(() => staffHoje());
-    };
   $app.querySelectorAll('[data-visto]').forEach(
     (b) =>
       (b.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
         marcarVisto(b);
+      }),
+  );
+  $app.querySelectorAll('[data-cicsug]').forEach(
+    (b) =>
+      (b.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sugestaoCicloSheet(b.dataset.cicsug);
       }),
   );
   $app.querySelectorAll('[data-resgate]').forEach(
@@ -721,4 +707,103 @@ async function staffHoje() {
         });
       }),
   );
+}
+
+/* ---------- ciclo sugerido para quem está sem planilha de corrida ----------
+   Abre a sugestão com o motivo; nada é aplicado sozinho: o treinador confere e aplica na tela do ciclo.
+   Ordem: o próximo do último ciclo (sequência da Nexos) > o teste (VDOT, últimos 45 dias) > a ficha de entrada. */
+async function sugestaoCicloSheet(alunoId) {
+  openSheet('<div class="sk-wrap">' + skLinha(3) + '</div>');
+  const vazio = (r) => r.data || [];
+  const [{ data: m }, ults, corridas, provas, fichas] = await Promise.all([
+    sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(),
+    sb
+      .from('nx_ciclos_aplicados')
+      .select('ciclo_id,nome,fim')
+      .eq('aluno_id', alunoId)
+      .eq('tipo', 'corrida')
+      .order('fim', { ascending: false })
+      .limit(1)
+      .then(vazio, () => []),
+    sb
+      .from('nx_corridas')
+      .select('data,distancia_m,duracao_s,tipo,titulo')
+      .eq('aluno_id', alunoId)
+      .gte('data', somaDias(hojeISO(), -60))
+      .then(vazio, () => []),
+    sb
+      .from('nx_participacoes')
+      .select('titulo,distancia,data')
+      .eq('aluno_id', alunoId)
+      .gte('data', hojeISO())
+      .order('data')
+      .then(vazio, () => []),
+    sb
+      .from('nx_form_respostas')
+      .select('dados')
+      .eq('aluno_id', alunoId)
+      .order('criado_em', { ascending: false })
+      .limit(1)
+      .then(vazio, () => []),
+  ]).catch(() => [{}, [], [], [], []]);
+  if ($sheet.hidden) return;
+  const nome = firstName((m && m.nome) || 'Aluno');
+  const proxSeg = isoDia(new Date(inicioSemana().getTime() + 7 * 864e5));
+  let ciclo = null,
+    motivos = [],
+    ini = proxSeg,
+    origem = '';
+  const ult = ults[0];
+  const cUlt = ult && CICLOS_CORR.find((c) => c.id === ult.ciclo_id);
+  if (cUlt) {
+    const nx = proximosCorr(cUlt)[0];
+    if (nx) {
+      ciclo = nx[0];
+      origem = 'pelo último ciclo';
+      motivos.push(`Último ciclo: ${cUlt.nome}, terminou em ${fmtCurto(ult.fim + 'T12:00:00')}.`);
+      if (SEQ_POR[nx[1]]) motivos.push(SEQ_POR[nx[1]]);
+      const depois = somaDias(ult.fim, 1);
+      if (depois > ini) ini = depois;
+    }
+  }
+  if (!ciclo && m) {
+    const perfil = perfilCorrida(m);
+    const recente =
+      perfil.vdot && perfil.teste_data && Date.now() - Date.parse(perfil.teste_data + 'T12:00:00') < 45 * 864e5;
+    const ds = fichas[0] && fichas[0].dados && fichas[0].dados.desemp;
+    if (recente) {
+      const s = sugerirCicloTeste({ vdot: perfil.vdot, corridas, prova: provas[0], alvoFicha: ds && ds.alvo });
+      if (s) {
+        ciclo = s.ciclo;
+        motivos = s.motivos;
+        origem = 'pelo teste';
+      }
+    }
+    if (!ciclo && ds) {
+      const A = analisarDesemp(ds);
+      if (A && A.ciclo) {
+        ciclo = A.ciclo;
+        motivos = A.motivos;
+        origem = 'pela ficha de entrada';
+      }
+    }
+  }
+  const sem = ciclo ? cicSem(ciclo) : 0;
+  $sheetBody.innerHTML = ciclo
+    ? `<p class="eyebrow">Ciclo sugerido para ${esc(nome)} · ${origem}</p><div class="h2" style="margin-top:4px">${esc(ciclo.nome)}</div>
+      <div class="sug-chips" style="margin-top:8px"><span>${sem} semanas</span><span>${CIC_NIV[ciclo.niv] || ''}</span><span>começa ${fmtCurto(ini + 'T12:00:00')}</span></div>
+      <ul class="sug-lista">${motivos.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      ${origem === 'pela ficha de entrada' ? '<p class="small" style="margin-top:8px"><b>Antes de aplicar:</b> o ideal é o aluno fazer o teste de entrada. É ele que define as zonas e os ritmos.</p>' : ''}
+      <a class="btn block" style="margin-top:14px" href="#/treinos/ciclos/${ciclo.id}" data-sugini="${ini}" data-sugal="${alunoId}">Conferir e aplicar ${I.arrow}</a>
+      <a class="btn ghost block" style="margin-top:8px" href="#/treinos/ciclos" data-sugal="${alunoId}">Escolher outro ciclo</a>
+      <p class="tiny dim" style="margin-top:10px">Nada muda na planilha até você aplicar.</p>`
+    : `<p class="eyebrow">Ciclo para ${esc(nome)}</p><div class="h2" style="margin-top:4px">Sem dados para sugerir</div>
+      <p class="small muted" style="margin-top:6px">${esc(nome)} ainda não tem ciclo anterior, teste recente nem ficha de entrada com os tempos. Peça o teste de entrada no Check-up ou escolha o ciclo na biblioteca.</p>
+      <a class="btn block" style="margin-top:14px" href="#/checkup">Pedir o teste no Check-up</a>
+      <a class="btn ghost block" style="margin-top:8px" href="#/treinos/ciclos" data-sugal="${alunoId}">Escolher o ciclo</a>`;
+  $sheetBody
+    .querySelectorAll('[data-sugini]')
+    .forEach(
+      (a) => (a.onclick = () => setTimeout(() => (S.cache.cicPre = { aluno: alunoId, ini: a.dataset.sugini }), 0)),
+    );
 }
