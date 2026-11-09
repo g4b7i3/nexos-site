@@ -1471,17 +1471,23 @@ async function fecharSalaVideo(encerrar) {
   const c = chamadaAtual;
   if (!c) return;
   chamadaAtual = null;
-  // sala da equipe: só fecha quando o último professor sai
+  // sala da equipe ou entre professores: só fecha quando o último sai
   let outros = 0;
   try {
     outros = Object.keys(c.call.participants() || {}).filter((k) => k !== 'local').length;
   } catch {}
   if (c.equipe && outros) encerrar = false;
-  try {
-    await c.call.destroy();
-  } catch {}
+  // a tela sai na hora; a chamada fecha por trás (no celular o Daily às vezes demora para responder)
   c.box.remove();
   document.body.classList.remove('em-video');
+  (async () => {
+    try {
+      await Promise.race([c.call.leave(), new Promise((r) => setTimeout(r, 3000))]);
+    } catch {}
+    try {
+      await c.call.destroy();
+    } catch {}
+  })();
   if (c.staff && encerrar) {
     await funcaoVideo({ acao: 'encerrar', id: c.id }).catch(() => {});
     window.dispatchEvent(new Event('nx:video-fim'));
