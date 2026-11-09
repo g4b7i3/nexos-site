@@ -124,6 +124,12 @@ function viewPerfil() {
       <button type="button" class="list-item" id="trocar-foto2" style="width:100%;text-align:left"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Trocar foto</b><div class="small muted">Aparece para o seu ${S.staff ? 'aluno' : 'treinador'}</div></div>${I.chev}</button>
       <details class="list-item acc-item"><summary><span class="ativ-ic">${I.user}</span><div class="grow"><b>Trocar senha</b><div class="small muted">Toque para abrir</div></div>${I.chev}</summary>
         <form id="f-senha" style="margin-top:12px"><label class="field"><span>Nova senha</span><input class="input" type="password" name="s1" minlength="6" required autocomplete="new-password"></label><label class="field"><span>Repita a nova senha</span><input class="input" type="password" name="s2" minlength="6" required autocomplete="new-password"></label><button class="btn block">Salvar nova senha</button></form></details></div>
+    ${
+      S.staff
+        ? `<form class="list-item" id="f-tel" style="display:block"><div class="row" style="gap:12px;align-items:flex-start"><span class="ativ-ic">${I.wa}</span><div class="grow"><b>Meu WhatsApp</b><div class="small muted">Aparece para os seus alunos (ex.: no botão de falar com você quando o acesso está pausado)</div>
+      <div class="row" style="gap:8px;margin-top:10px"><input class="input" name="tel" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999" value="${esc(S.me.telefone || '')}" style="flex:1;min-width:0"><button class="btn sm">Salvar</button></div></div></div></form>`
+        : ''
+    }
     ${S.staff ? '' : '<div class="section" id="meu-tr" hidden></div>'}
     ${
       S.staff
@@ -174,6 +180,17 @@ function viewPerfil() {
   const tf2 = document.getElementById('trocar-foto2');
   if (tf2) tf2.onclick = trocarFoto;
   secaoNotificacoes(document.getElementById('notif'));
+  const ft = document.getElementById('f-tel');
+  if (ft)
+    ft.onsubmit = async (e) => {
+      e.preventDefault();
+      const tel = ft.tel.value.trim();
+      if (tel && tel.replace(/\D/g, '').length < 10) return toast('Confira o número com DDD.', true);
+      const { error } = await sb.rpc('nx_meu_telefone', { p_tel: tel });
+      if (error) return toast('Não foi possível salvar.', true);
+      S.me.telefone = tel || null;
+      toast(tel ? 'WhatsApp salvo. Seus alunos já veem esse número.' : 'WhatsApp removido.');
+    };
   // administrador: senha nova para um colega da equipe que perdeu o acesso (sem depender de e-mail)
   if (S.me.papel === 'admin')
     carregarEquipe(true)
