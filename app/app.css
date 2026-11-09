@@ -3379,3 +3379,6 @@ body.em-video{overflow:hidden}
 .cal-cidade{display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 12px;border-radius:14px;background:var(--s2)}
 .cal-op{cursor:pointer;align-items:flex-start;gap:12px}
 .cal-op input{margin-top:4px;accent-color:var(--p1);width:18px;height:18px;flex:none}
+/* leitura do tempo: espaço para o card de baixo (e para o de cima, quando houver) */
+#calor-hoje:not(:empty){margin:0 0 14px}
+#calor-hoje:not(:empty):not(:first-child){margin-top:14px}
