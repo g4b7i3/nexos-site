@@ -1178,7 +1178,7 @@ async function router() {
     if (a === 'corrida' && b) return await viewCorrida(b);
     if (a === 'saude') return await viewAnamnese({});
     if (a === 'termo') return viewTermoLido();
-    if (a === 'pagamentos') return await viewPagamentos();
+    if (a === 'pagamentos') return await viewPagamentos(b);
     if (a === 'perfil') return viewPerfil();
     if (a === 'mais') return alunoMais();
     if (a === 'medalhas') return await viewMedalhas();

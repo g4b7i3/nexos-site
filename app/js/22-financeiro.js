@@ -499,7 +499,10 @@ async function marcarPaga(c, forma, depois) {
   (depois || staffFinanceiro)();
 }
 async function lembrarCobranca(c, aluno, silencioso) {
-  notificar('cobranca', c.id);
+  // notificação no celular do aluno (mesmo texto do aviso automático: vencendo, vence hoje ou atrasada)
+  try {
+    sb.functions.invoke('nx-cobrancas', { body: { acao: 'lembrar', id: c.id } }).catch(() => {});
+  } catch {}
   await sb.from('nx_cobrancas').update({ lembrete_em: new Date().toISOString() }).eq('id', c.id);
   if (silencioso) return;
   const pix = await meuPix();
@@ -1215,7 +1218,7 @@ async function minhaCobrancaPendente() {
     .order('vencimento')
     .limit(3);
   const lim = isoDia(Date.now() + 5 * 864e5);
-  return (data || []).find((c) => c.status === 'informada' || c.vencimento <= lim) || null;
+  return (data || []).find((c) => +c.valor > 0 && (c.status === 'informada' || c.vencimento <= lim)) || null;
 }
 function cartaoCobrancaHTML(c) {
   if (!c) return '';
@@ -1270,7 +1273,8 @@ async function pagarComPix(c) {
     },
   );
 }
-async function viewPagamentos() {
+/** minhas mensalidades; com o id de uma cobrança (vindo do aviso de vencimento), já abre o Pix dela */
+async function viewPagamentos(abrir) {
   loading();
   const { data } = await sb
     .from('nx_cobrancas')
@@ -1298,4 +1302,6 @@ async function viewPagamentos() {
     if (it) pagarComPix(l.find((c) => c.id === it.dataset.pagar));
   };
   bindAutoAluno(auto);
+  const doAviso = abrir && l.find((c) => c.id === abrir && ['aberta', 'atrasada'].includes(statusCob(c).k));
+  if (doAviso) pagarComPix(doAviso);
 }
