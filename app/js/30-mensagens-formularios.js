@@ -1438,12 +1438,12 @@ async function funcaoVideo(body) {
 }
 let chamadaAtual = null;
 // abre a sala por cima de tudo; quando a equipe sai, a chamada é encerrada e a duração fica registrada
-async function abrirSalaVideo(d, { staff = false, titulo = 'Videochamada', extra = '' } = {}) {
+async function abrirSalaVideo(d, { staff = false, equipe = false, titulo = 'Videochamada', extra = '' } = {}) {
   const Daily = await carregarDaily();
   await fecharSalaVideo(false);
   const box = document.createElement('div');
   box.className = 'video-sala';
-  box.innerHTML = `<div class="video-top"><b class="grow">${esc(titulo)}</b>${extra}<button type="button" class="btn sm ghost" id="vs-sair">${staff ? 'Encerrar' : 'Sair'}</button></div><div class="video-frame"></div>`;
+  box.innerHTML = `<div class="video-top"><b class="grow">${esc(titulo)}</b>${extra}<button type="button" class="btn sm ghost" id="vs-sair">${staff && !equipe ? 'Encerrar' : 'Sair'}</button></div><div class="video-frame"></div>`;
   document.body.appendChild(box);
   document.body.classList.add('em-video');
   const call = Daily.createFrame(box.querySelector('.video-frame'), {
@@ -1452,7 +1452,7 @@ async function abrirSalaVideo(d, { staff = false, titulo = 'Videochamada', extra
     lang: 'pt-BR',
     iframeStyle: { width: '100%', height: '100%', border: '0' },
   });
-  chamadaAtual = { id: d.id, call, box, staff };
+  chamadaAtual = { id: d.id, call, box, staff, equipe };
   call.on('left-meeting', () => fecharSalaVideo(true));
   box.querySelector('#vs-sair').onclick = () => fecharSalaVideo(true);
   try {
@@ -1466,6 +1466,12 @@ async function fecharSalaVideo(encerrar) {
   const c = chamadaAtual;
   if (!c) return;
   chamadaAtual = null;
+  // sala da equipe: só fecha quando o último professor sai
+  let outros = 0;
+  try {
+    outros = Object.keys(c.call.participants() || {}).filter((k) => k !== 'local').length;
+  } catch {}
+  if (c.equipe && outros) encerrar = false;
   try {
     await c.call.destroy();
   } catch {}
@@ -1513,7 +1519,11 @@ async function viewChamada(id) {
         msg.textContent = 'Esta videochamada já terminou. Se o treinador ainda quiser falar, ele chama de novo.';
         return;
       }
-      await abrirSalaVideo(d, { staff: S.staff, titulo: 'Videochamada com a Nexos' });
+      await abrirSalaVideo(d, {
+        staff: S.staff,
+        equipe: d.tipo === 'equipe',
+        titulo: d.tipo === 'equipe' ? 'Videochamada da equipe' : 'Videochamada com a Nexos',
+      });
     } catch (e) {
       msg.textContent = e.message;
       bt.hidden = false;
@@ -1559,4 +1569,43 @@ async function linhaUltimaChamada(alunoId) {
   if (!c || !document.getElementById('ficha-cham')) return;
   const min = c.atendida_em && c.encerrada_em ? Math.max(1, minutos(c.atendida_em, c.encerrada_em)) : null;
   el.innerHTML = `<span class="tag">Última videochamada ${fmtCurto(c.criado_em)}${min ? ` · ${min} min` : c.atendida_em ? '' : ' · não atendida'}</span>`;
+}
+
+// videochamada entre os professores (Mais): quem abre avisa os outros; quem chega depois entra na mesma sala
+async function videoEquipe(btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const d = await funcaoVideo({ acao: 'equipe' });
+    if (d.nova)
+      toast(
+        d.avisados
+          ? 'Os outros professores foram avisados.'
+          : 'Ninguém da equipe está com as notificações ativas. Avise pelo WhatsApp para entrarem em Mais.',
+        !d.avisados,
+      );
+    await abrirSalaVideo(d, { staff: true, equipe: true, titulo: 'Videochamada da equipe' });
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+// no Mais: mostra quando a sala da equipe está aberta
+async function statusVideoEquipe() {
+  const el = document.getElementById('mais-video-st');
+  if (!el) return;
+  const { data } = await sb
+    .from('nx_chamadas')
+    .select('id')
+    .eq('org_id', S.org.id)
+    .eq('tipo', 'equipe')
+    .is('encerrada_em', null)
+    .gt('expira_em', new Date().toISOString())
+    .limit(1)
+    .then(
+      (r) => r,
+      () => ({ data: [] }),
+    );
+  if (data && data[0] && document.getElementById('mais-video-st'))
+    el.innerHTML = '<span class="tag acc">Em andamento: toque para entrar</span>';
 }
