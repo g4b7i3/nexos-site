@@ -362,6 +362,7 @@ async function staffHoje() {
         novo: !s.visto_treinador,
         h: `#/aluno/${s.aluno_id}/historico`,
         n: nomes[s.aluno_id],
+        m: (membros || []).find((x) => x.user_id === s.aluno_id),
         d: `${esc(s.treino_titulo || 'Treino')}${s.esforco != null ? ` · esforço ${s.esforco}` : ''}`,
         dor: s.dor,
         ic: I.lib,
@@ -375,6 +376,7 @@ async function staffHoje() {
         novo: !c.visto_treinador,
         h: `#/corrida/${c.id}`,
         n: nomes[c.aluno_id],
+        m: (membros || []).find((x) => x.user_id === c.aluno_id),
         d: ehCorr(c) ? `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}` : `${nomeAtiv(c)} · ${resumoAtiv(c)}`,
         dor: c.dor,
         ic: icCorr((membros || []).find((x) => x.user_id === c.aluno_id)),
@@ -548,7 +550,7 @@ async function staffHoje() {
               .slice(0, st.tudo ? 60 : 6)
               .map(
                 (x) =>
-                  `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-ic">${x.ic}</span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`,
+                  `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-av">${avAluno(x.m || { nome: x.n }, 'sm')}<i class="ativ-tipo" title="${x.tp === 'sessao' ? 'Força' : 'Corrida'}">${x.ic}</i></span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`,
               )
               .join('')}
         ${recentes.length > 6 ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">${st.tudo ? 'Mostrar menos' : `Mostrar mais ${recentes.length - 6}`}</button>` : ''}</div>`

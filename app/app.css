@@ -3309,3 +3309,7 @@ details.guia-niv:not([open]){padding-top:12px;padding-bottom:12px}
 .fin-fim{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,107,107,.1);font-size:.86rem}
 .lib-prox{margin-top:12px;border-color:rgba(46,204,113,.4)}
 .sem-push{margin-top:14px;border-color:rgba(255,159,67,.45);background:rgba(255,159,67,.08)}
+/* atividade da semana: foto do aluno com o selinho do tipo de treino */
+.ativ-av{position:relative;flex:none;display:inline-flex}
+.ativ-av .ativ-tipo{position:absolute;right:-5px;bottom:-5px;width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:var(--s1);color:var(--acc);box-shadow:0 0 0 2px var(--bg,#fff)}
+.ativ-av .ativ-tipo svg{width:12px;height:12px}
