@@ -753,6 +753,13 @@ const CARD_STATS = [
 ];
 // modelos do card (inspirados nos stickers de corrida, com a cara da Nexos)
 const CARD_LAYOUTS = [
+  ['recorde', 'Novo recorde'],
+  ['mesmo', 'Mesmo percurso'],
+  ['gigante', 'Número gigante'],
+  ['pace_km', 'Pace km a km'],
+  ['altimetria', 'Altimetria'],
+  ['semana', 'Minha semana'],
+  ['constancia', 'Constância'],
   ['icones', 'Com ícones'],
   ['clima', 'Clima'],
   ['clima_faixa', 'Clima + números'],
@@ -1105,6 +1112,34 @@ async function desenharCard(cv, c, o) {
   const temRota = o.stats.rota && c.rota && c.rota.length > 1;
   const rota = (x, y, w, h, lw = 9, br = false) => temRota && cardRota(ctx, c.rota, x, y, w, h, AC, lw, br);
   const L = o.layout;
+  // modelos novos: dados de outras atividades (recorde, mesmo percurso, semana, constância) e tons de apoio
+  const CX = c._x || {},
+    apag = branco ? 'rgba(255,255,255,.45)' : 'rgba(11,24,52,.4)',
+    fino = branco ? 'rgba(255,255,255,.16)' : 'rgba(11,24,52,.12)',
+    meio = branco ? 'rgba(255,255,255,.38)' : 'rgba(11,24,52,.3)',
+    forte = branco ? 'rgba(255,255,255,.92)' : 'rgba(11,24,52,.85)';
+  // tamanho da fonte que cabe na largura
+  const cabe = (t, peso, px, max, fam, esp = 0) => {
+    let p = Math.round(px);
+    while (p > 40 && larg(t, `${peso} ${p}px ${fam}`, esp) > max) p -= 6;
+    return p;
+  };
+  const corta = (t, font, max) => {
+    let s = String(t || '');
+    while (s.length > 3 && larg(s, font) > max) s = s.slice(0, -2).trimEnd() + '…';
+    return s;
+  };
+  const pilula = (t, cx, y, px) => {
+    const f = `800 ${px}px ${FB}`,
+      w = larg(t, f) + 90,
+      h = px * 2.2;
+    ctx.save();
+    ret(ctx, cx - w / 2, y, w, h, h / 2);
+    ctx.fillStyle = branco ? 'rgba(70,214,255,.16)' : 'rgba(11,98,214,.12)';
+    ctx.fill();
+    ctx.restore();
+    txt(t, cx, y + h * 0.66, f, AC, 'center');
+  };
   const assinatura = () => {
     // as três faixas diagonais da Nexos no canto superior direito
     ctx.save();
@@ -1879,6 +1914,364 @@ async function desenharCard(cv, c, o) {
     y = grade(resto.slice(0, 3), y, post ? 66 : 74, 70, W - 70, 3, 'center');
     if (temRota && !post) rota(W / 2 - 160, y + 10, 320, 240, 8);
     logo(W / 2, H - (post ? 110 : 150), 250);
+  } else if (L === 'recorde' && CX.recorde) {
+    // novo recorde pessoal: tempo novo grande e o antigo riscado
+    const R = CX.recorde,
+      F = post ? 0.78 : 1;
+    let y = H * (post ? 0.17 : 0.22);
+    txt('NOVO RECORDE PESSOAL', W / 2, y, `800 30px ${FB}`, AC, 'center', 5);
+    y += 130 * F;
+    txt(R.n, W / 2, y, `800 ${Math.round(92 * F)}px ${FH}`, tx, 'center', -2);
+    const tNovo = fmtDurLongo(R.t),
+      pxT = cabe(tNovo, '800', Math.round(300 * F), W - 120, FH, -10);
+    y += pxT * 0.98;
+    txt(tNovo, W / 2, y, `800 ${pxT}px ${FH}`, tx, 'center', -10);
+    y += 150 * F;
+    const fa = `700 ${Math.round(76 * F)}px ${FH}`,
+      ta = fmtDurLongo(R.antes),
+      wa = larg(ta, fa);
+    txt(ta, W / 2, y, fa, apag, 'center');
+    ctx.save();
+    ctx.fillStyle = sub;
+    ctx.fillRect(W / 2 - wa / 2 - 10, y - 27 * F, wa + 20, 6);
+    ctx.restore();
+    y += 60 * F;
+    pilula(`${cardDifTxt(R.antes - R.t)} mais rápido`, W / 2, y, Math.round(44 * F));
+    y += 96 * F + 100 * F;
+    stat({ l: 'Pace', v: fmtPace(R.t / R.d).replace('/km', ''), u: '/km' }, W / 2 - 220, y, 70 * F, 'center');
+    stat({ l: 'Data', v: dataCurta(c.data), u: '' }, W / 2 + 220, y, 70 * F, 'center');
+    logo(W / 2, H - (post ? 150 : 270), 240);
+  } else if (L === 'mesmo' && CX.igual) {
+    // o mesmo trajeto de outro dia, com a diferença de tempo
+    const G = CX.igual;
+    let y = post ? 150 : 250;
+    txt('MESMO PERCURSO', 100, y, `800 30px ${FB}`, AC, 'left', 5);
+    const hR = post ? 330 : 560;
+    cardRota(ctx, c.rota, 140, y + 50, W - 280, hR, AC, 13, true);
+    y += 50 + hR + (post ? 80 : 120);
+    const linha = (yy, quando, d) => {
+      const dest = d === c;
+      txt(quando, 100, yy, `700 34px ${FB}`, dest ? AC : sub, 'left', 2);
+      txt(
+        fmtDurLongo(d.duracao_s),
+        100,
+        yy + (dest ? 104 : 88),
+        `800 ${dest ? 104 : 80}px ${FH}`,
+        dest ? tx : apag,
+        'left',
+        -3,
+      );
+      txt(
+        fmtPace(paceDe(d)).replace('/km', ' /km'),
+        W - 100,
+        yy + (dest ? 104 : 88),
+        `700 ${dest ? 50 : 40}px ${FB}`,
+        dest ? tx : apag,
+        'right',
+      );
+    };
+    linha(y, dataCurta(c.data).toUpperCase(), c);
+    y += post ? 150 : 160;
+    ctx.save();
+    ctx.fillStyle = fino;
+    ctx.fillRect(100, y, W - 200, 2);
+    ctx.restore();
+    y += post ? 55 : 60;
+    linha(y, 'EM ' + dataCurta(G.data).toUpperCase(), G);
+    y += post ? 135 : 160;
+    pilula(
+      G.mesmaDist
+        ? `${cardDifTxt(G.ganho)} mais rápido no mesmo trajeto`
+        : `${Math.round(G.ganho)} s/km mais rápido no mesmo trajeto`,
+      W / 2,
+      y,
+      40,
+    );
+    logo(W / 2, H - (post ? 130 : 230), 230);
+  } else if (L === 'semana' && CX.semana) {
+    // a semana da corrida: km, corridas, tempo e as barras de cada dia
+    const S0 = CX.semana,
+      F = post ? 0.78 : 1;
+    let y = post ? 140 : 280;
+    txt(`MINHA SEMANA  ·  ${S0.rotulo}`, 100, y, `800 30px ${FB}`, AC, 'left', 5);
+    const kmT = fmtNum(S0.total, S0.total >= 100 ? 0 : 1),
+      pxK = cabe(kmT, '800', Math.round(260 * F), W - 360, FH, -10);
+    y += pxK * 0.98;
+    txt(kmT, 100, y, `800 ${pxK}px ${FH}`, tx, 'left', -10);
+    txt('km', 100 + larg(kmT, `800 ${pxK}px ${FH}`, -10) + 24, y, `800 ${Math.round(80 * F)}px ${FB}`, sub, 'left');
+    y += 110 * F;
+    const tot = [
+      { l: S0.n === 1 ? 'Corrida' : 'Corridas', v: String(S0.n), u: '' },
+      S0.seg ? { l: 'Tempo', v: fmtHM(S0.seg), u: '' } : null,
+      S0.seg ? { l: 'Pace médio', v: fmtPace(S0.seg / S0.total).replace('/km', ''), u: '/km' } : null,
+    ].filter(Boolean);
+    tot.forEach((s, i) => stat(s, 100 + i * 300, y, 70 * F, 'left'));
+    const base = H - (post ? 250 : 430),
+      topo = y + 70 * F * 2 + (post ? 70 : 140),
+      alt = base - topo,
+      bw = 92,
+      gap = (W - 200 - bw * 7) / 6,
+      mx = Math.max(...S0.km);
+    S0.km.forEach((k, i) => {
+      const x = 100 + i * (bw + gap),
+        h = k ? Math.max(30, (k / mx) * alt) : 14;
+      ctx.save();
+      ret(ctx, x, base - h, bw, h, Math.min(18, h / 2));
+      ctx.fillStyle = k ? (k === mx ? AC : forte) : fino;
+      if (sombra && k) {
+        ctx.shadowColor = 'rgba(0,0,0,.22)';
+        ctx.shadowBlur = 10;
+      }
+      ctx.fill();
+      ctx.restore();
+      if (k) txt(fmtNum(k, 1), x + bw / 2, base - h - 22, `700 30px ${FB}`, k === mx ? AC : sub, 'center');
+      txt('STQQSSD'[i], x + bw / 2, base + 60, `800 34px ${FB}`, sub, 'center');
+    });
+    logo(W / 2, H - (post ? 120 : 210), 220);
+  } else if (L === 'constancia' && CX.const) {
+    // semanas seguidas treinando, com os quadrados das últimas 16 semanas
+    const K = CX.const,
+      F = post ? 0.74 : 1;
+    let y = post ? 130 : 330;
+    txt('CONSTÂNCIA', W / 2, y, `800 30px ${FB}`, AC, 'center', 5);
+    y += 360 * F;
+    txt(String(K.n), W / 2, y, `800 ${Math.round(380 * F)}px ${FH}`, tx, 'center', -14);
+    y += 100 * F;
+    txt('semanas seguidas', W / 2, y, `800 ${Math.round(64 * F)}px ${FB}`, tx, 'center');
+    y += 70 * F;
+    txt('treinando 2 vezes ou mais por semana', W / 2, y, `600 ${Math.round(40 * F)}px ${FB}`, sub, 'center');
+    y += 100 * F;
+    const cols = 8,
+      q = Math.round(92 * F),
+      g = Math.round(22 * F),
+      x0 = (W - (cols * q + (cols - 1) * g)) / 2;
+    K.sem.forEach((n, i) => {
+      const x = x0 + (i % cols) * (q + g),
+        yy = y + Math.floor(i / cols) * (q + g);
+      ctx.save();
+      ret(ctx, x, yy, q, q, 20 * F);
+      ctx.fillStyle = n >= 2 ? (i === K.sem.length - 1 ? AC : forte) : n === 1 ? meio : fino;
+      ctx.fill();
+      ctx.restore();
+    });
+    y += 2 * (q + g) + 60 * F;
+    txt(`${K.treinos} treinos nessas ${K.n} semanas`, W / 2, y, `700 ${Math.round(40 * F)}px ${FB}`, sub, 'center');
+    logo(W / 2, H - (post ? 130 : 260), 240);
+  } else if (L === 'pace_km') {
+    // linha do pace a cada km (mais rápido em cima) e o melhor km marcado
+    const parc = parcKm(c),
+      F = post ? 0.8 : 1;
+    let y = post ? 130 : 270;
+    txt('PACE KM A KM', 100, y, `800 30px ${FB}`, AC, 'left', 5);
+    y += 60;
+    const tops = ['dist', 'tempo', 'pace'].filter((k) => V[k]).map((k) => V[k]);
+    tops.forEach((s, i) => stat(s, 100 + i * 310, y, 66 * F, 'left'));
+    const vs = parc.map((p) => p.v),
+      mn = Math.floor((Math.min(...vs) - 8) / 15) * 15,
+      mx = Math.ceil((Math.max(...vs) + 8) / 15) * 15,
+      passo = mx - mn > 150 ? 60 : 30;
+    const gx0 = 160,
+      gx1 = W - 100,
+      gy0 = y + 66 * F * 2 + (post ? 120 : 200),
+      gy1 = H - (post ? 280 : 470);
+    const py = (v) => gy0 + ((v - mn) / (mx - mn)) * (gy1 - gy0);
+    for (let s = Math.ceil(mn / passo) * passo; s <= mx; s += passo) {
+      ctx.save();
+      ctx.fillStyle = fino;
+      ctx.fillRect(gx0, py(s), gx1 - gx0, 2);
+      ctx.restore();
+      txt(fmtPace(s).replace('/km', ''), gx0 - 20, py(s) + 9, `500 26px ${FM}`, sub, 'right');
+    }
+    const P = parc.map((p, i) => [gx0 + (parc.length > 1 ? (i / (parc.length - 1)) * (gx1 - gx0) : 0), py(p.v)]);
+    const caminho = () => {
+      ctx.beginPath();
+      P.forEach(([x, yy], i) => (i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy)));
+    };
+    const ga = ctx.createLinearGradient(0, gy0, 0, gy1);
+    ga.addColorStop(0, branco ? 'rgba(70,214,255,.35)' : 'rgba(11,98,214,.25)');
+    ga.addColorStop(1, branco ? 'rgba(70,214,255,0)' : 'rgba(11,98,214,0)');
+    ctx.save();
+    caminho();
+    ctx.lineTo(gx1, gy1);
+    ctx.lineTo(gx0, gy1);
+    ctx.closePath();
+    ctx.fillStyle = ga;
+    ctx.fill();
+    ctx.strokeStyle = AC;
+    ctx.lineWidth = 10;
+    ctx.lineJoin = ctx.lineCap = 'round';
+    ctx.shadowColor = AC;
+    ctx.shadowBlur = 18;
+    caminho();
+    ctx.stroke();
+    ctx.restore();
+    const iMelhor = vs.indexOf(Math.min(...vs)),
+      cada = parc.length > 14 ? 3 : parc.length > 9 ? 2 : 1;
+    P.forEach(([x, yy], i) => {
+      ctx.save();
+      ctx.fillStyle = i === iMelhor ? tx : AC;
+      ctx.beginPath();
+      ctx.arc(x, yy, i === iMelhor ? 18 : 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (i % cada === 0 || i === P.length - 1 || i === iMelhor)
+        txt(parc[i].rot, x, gy1 + 60, `700 30px ${FB}`, sub, 'center');
+    });
+    const [bx, by] = P[iMelhor],
+      rot = `km ${parc[iMelhor].rot}  ${fmtPace(vs[iMelhor]).replace('/km', '')}`,
+      fr = `800 36px ${FB}`,
+      wr = larg(rot, fr) + 60,
+      cx = Math.max(wr / 2 + 20, Math.min(W - wr / 2 - 20, bx));
+    ctx.save();
+    ret(ctx, cx - wr / 2, by - 130, wr, 88, 24);
+    ctx.fillStyle = branco ? '#ffffff' : '#0b1834';
+    ctx.fill();
+    ctx.restore();
+    txt(rot, cx, by - 73, fr, branco ? '#0b1834' : '#ffffff', 'center');
+    txt('km', (gx0 + gx1) / 2, gy1 + 115, `600 28px ${FB}`, sub, 'center');
+    logo(W / 2, H - (post ? 120 : 230), 220);
+  } else if (L === 'altimetria' && altDe(c)) {
+    // perfil de subidas e descidas do percurso
+    const A = altSuave(altDe(c)),
+      as = A.map((p) => p[1]),
+      amin = Math.min(...as),
+      amax = Math.max(...as),
+      F = post ? 0.8 : 1;
+    const E = (c.analise && c.analise.extras) || {},
+      subida = Math.round(c.elevacao_m || E.sub || 0),
+      altMax = Math.round(E.alt_max != null ? E.alt_max : amax);
+    let y = post ? 130 : 280;
+    txt('ALTIMETRIA', 100, y, `800 30px ${FB}`, AC, 'left', 5);
+    const grande = subida ? `+${subida} m` : `${Math.round(amax - amin)} m`;
+    y += 160 * F;
+    txt(grande, 100, y, `800 ${Math.round(150 * F)}px ${FH}`, tx, 'left', -6);
+    y += 70 * F;
+    txt(
+      subida ? 'de subida acumulada' : 'de diferença de altitude',
+      100,
+      y,
+      `600 ${Math.round(42 * F)}px ${FB}`,
+      sub,
+      'left',
+    );
+    y += 90 * F;
+    const tops = [V.dist, { l: 'Alt. máxima', v: String(altMax), u: 'm' }, V.pace].filter(Boolean);
+    tops.forEach((s, i) => stat(s, 100 + i * 310, y, 66 * F, 'left'));
+    const gy1 = H - (post ? 200 : 380),
+      hA = post ? 300 : 500,
+      d0 = A[0][0],
+      d1 = A[A.length - 1][0] || 1;
+    const pts = A.map(([d, a]) => [
+      ((d - d0) / (d1 - d0 || 1)) * W,
+      gy1 - ((a - amin) / (amax - amin)) * hA * 0.85 - hA * 0.08,
+    ]);
+    const ga = ctx.createLinearGradient(0, gy1 - hA, 0, gy1 + 160);
+    ga.addColorStop(0, branco ? 'rgba(70,214,255,.55)' : 'rgba(11,98,214,.4)');
+    ga.addColorStop(1, branco ? 'rgba(70,214,255,0)' : 'rgba(11,98,214,0)');
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach(([x, yy], i) => (i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy)));
+    ctx.lineTo(W, gy1 + 160);
+    ctx.lineTo(0, gy1 + 160);
+    ctx.closePath();
+    ctx.fillStyle = ga;
+    ctx.fill();
+    ctx.strokeStyle = tx;
+    ctx.lineWidth = 8;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach(([x, yy], i) => (i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy)));
+    ctx.stroke();
+    const topo = pts.reduce((a, b) => (b[1] < a[1] ? b : a));
+    ctx.fillStyle = tx;
+    ctx.beginPath();
+    ctx.arc(topo[0], topo[1], 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    txt(`${altMax} m`, Math.max(80, Math.min(W - 80, topo[0])), topo[1] - 36, `800 34px ${FB}`, tx, 'center');
+    logo(W / 2, H - (post ? 110 : 190), 220);
+  } else if (L === 'gigante' && V.dist) {
+    // só a distância enorme, para colar por cima da foto
+    const km = c.distancia_m / 1000,
+      num = fmtNum(km, km >= 10 ? 1 : 2),
+      fk = `800 ${post ? 80 : 90}px ${FB}`,
+      wk = larg('km', fk),
+      px = cabe(num, '800', post ? 290 : 330, W - 180 - wk, FH, -14),
+      fn = `800 ${px}px ${FH}`,
+      wn = larg(num, fn, -14),
+      x0 = (W - (wn + 16 + wk)) / 2,
+      yb = H * (post ? 0.7 : 0.74);
+    txt(num, x0, yb, fn, tx, 'left', -14);
+    txt('km', x0 + wn + 16, yb, fk, tx, 'left');
+    const nome = cardNomeDist(km) || (c._serie && c._serie.nome ? c._serie.nome.toUpperCase() : ''),
+      linhaS = [nome, V.tempo && V.tempo.v, !nome && V.pace ? V.pace.v + ' /KM' : ''].filter(Boolean).join('  ·  ');
+    txt(linhaS, W / 2, yb + 100, `800 36px ${FB}`, tx, 'center', 4);
+    logo(W / 2, yb + 170, 180);
+  } else if (L === 'forca' && c._forca) {
+    // treino de força: carga total levantada, números do treino e os exercícios
+    const T = c._forca,
+      F = post ? 0.8 : 1;
+    let y = post ? 120 : 260;
+    txt('TREINO DE FORÇA', 100, y, `800 30px ${FB}`, AC, 'left', 5);
+    const tit = T.titulo || 'Treino',
+      pxT = cabe(tit, '800', Math.round(66 * F), W - 200, FH, -1);
+    y += 92 * F;
+    txt(tit, 100, y, `800 ${pxT}px ${FH}`, tx, 'left', -1);
+    const big = T.volume ? Math.round(T.volume).toLocaleString('pt-BR') : String(T.min || '–'),
+      pxB = cabe(big, '800', Math.round(210 * F), W - 380, FH, -8);
+    y += pxB * 1.04;
+    txt(big, 100, y, `800 ${pxB}px ${FH}`, tx, 'left', -8);
+    txt(
+      T.volume ? 'kg' : 'min',
+      100 + larg(big, `800 ${pxB}px ${FH}`, -8) + 22,
+      y,
+      `800 ${Math.round(70 * F)}px ${FB}`,
+      sub,
+      'left',
+    );
+    y += 70 * F;
+    txt(T.volume ? 'levantados no total' : 'de treino', 100, y, `600 ${Math.round(40 * F)}px ${FB}`, sub, 'left');
+    y += 90 * F;
+    [
+      { l: 'Exercícios', v: String(T.exs), u: '' },
+      T.series ? { l: 'Séries', v: String(T.series), u: '' } : null,
+      T.volume && T.min
+        ? { l: 'Duração', v: String(T.min), u: 'min' }
+        : T.esforco != null
+          ? { l: 'Esforço', v: String(T.esforco), u: '/10' }
+          : null,
+    ]
+      .filter(Boolean)
+      .forEach((s, i) => stat(s, 100 + i * 310, y, 66 * F, 'left'));
+    y += 66 * F * 2 + (post ? 40 : 70);
+    ctx.save();
+    ctx.fillStyle = fino;
+    ctx.fillRect(100, y, W - 200, 2);
+    ctx.restore();
+    const maxL = post ? 3 : 5,
+      lista = T.lista.slice(0, maxL),
+      temTop = lista.some((e) => e.top);
+    if (temTop) txt('Maior carga do dia', W - 100, y + 44, `700 26px ${FB}`, AC, 'right');
+    y += post ? 90 : 110;
+    lista.forEach((e) => {
+      const fN = `700 ${Math.round(40 * F)}px ${FB}`,
+        fC = `800 ${Math.round(46 * F)}px ${FH}`,
+        wC = e.kg ? larg(e.kg, fC, -1) + 40 : 0;
+      txt(corta(e.n, fN, W - 200 - wC), 100, y, fN, e.top ? tx : sub, 'left');
+      if (e.sr) txt(e.sr, 100, y + 48 * F, `500 ${Math.round(30 * F)}px ${FM}`, sub, 'left');
+      if (e.kg) txt(e.kg, W - 100, y + 24 * F, fC, e.top ? AC : tx, 'right', -1);
+      y += 120 * F;
+    });
+    if (T.lista.length > maxL)
+      txt(
+        `+ ${T.lista.length - maxL} exercício${T.lista.length - maxL > 1 ? 's' : ''}`,
+        100,
+        y,
+        `700 ${Math.round(34 * F)}px ${FB}`,
+        sub,
+        'left',
+      );
+    logo(W / 2, H - (post ? 110 : 230), 220);
   } else {
     // 'linha': tudo numa faixa embaixo, a foto fica livre
     if (o.fundo === 'foto') {
@@ -1959,6 +2352,274 @@ async function locReversa(lat, lon) {
   if (!r.ok) throw 0;
   return locCurto(await r.json());
 }
+/* ---------- dados dos modelos novos do card ---------- */
+const dataCurta = (d) => {
+  const x = new Date(d);
+  return `${x.getDate()} ${MES_CURTO[x.getMonth()]}`;
+};
+const cardDifTxt = (s) => (Math.round(s) < 60 ? `${Math.round(s)} s` : fmtDurLongo(s));
+const fmtNum = (n, d = 1) => (+n).toFixed(d).replace('.', ',');
+const fmtHM = (s) => {
+  const h = Math.floor(s / 3600),
+    m = Math.round((s % 3600) / 60);
+  return h ? `${h}h${String(m).padStart(2, '0')}` : `${m} min`;
+};
+const cardNomeDist = (km) =>
+  km >= 20.9 && km <= 21.6 ? 'MEIA MARATONA' : km >= 41.9 && km <= 42.8 ? 'MARATONA' : km > 42.8 ? 'ULTRAMARATONA' : '';
+// parciais por km com o pace de cada um (o pedaço final só entra se for maior que 300 m)
+const parcKm = (c) =>
+  (c.parciais || [])
+    .filter((p) => p && p.seg > 0 && (!p.parcial || p.km % 1 > 0.3))
+    .slice(0, 42)
+    .map((p) => ({
+      v: p.seg / (p.parcial ? p.km % 1 || 1 : 1),
+      rot: p.parcial ? fmtNum(p.km, 1) : String(p.km),
+    }));
+// altitude ao longo da corrida (vem do relógio: Garmin e arquivo); null se não tiver ou se for tudo plano
+const altDe = (c) => {
+  const s = c && c.analise && c.analise.serie;
+  if (!s || !Array.isArray(s.alt) || !Array.isArray(s.d)) return null;
+  const pts = s.alt.map((a, i) => [s.d[i], a]).filter(([d, a]) => d != null && a != null && isFinite(a) && isFinite(d));
+  if (pts.length < 20) return null;
+  const as = pts.map((p) => p[1]);
+  return Math.max(...as) - Math.min(...as) >= 3 ? pts : null;
+};
+const altSuave = (pts) =>
+  pts.map(([d], i) => {
+    const j = pts.slice(Math.max(0, i - 3), i + 4);
+    return [d, j.reduce((a, p) => a + p[1], 0) / j.length];
+  });
+// dois percursos são o mesmo trajeto quando quase todos os pontos de um passam a menos de 70 m do outro (nos dois sentidos)
+function rotaIgual(a, b) {
+  if (!a || !b || a.length < 5 || b.length < 5) return false;
+  const amostra = (r, n) => {
+    const p = Math.max(1, Math.floor(r.length / n));
+    return r.filter((_, i) => i % p === 0);
+  };
+  const k = Math.cos((a[0][0] * Math.PI) / 180) * 111320;
+  const perto = (p, r) =>
+    r.some((q) => {
+      const dx = (p[1] - q[1]) * k,
+        dy = (p[0] - q[0]) * 110540;
+      return dx * dx + dy * dy < 4900;
+    });
+  const cobre = (x, y) => {
+    const s = amostra(x, 30);
+    return s.filter((p) => perto(p, y)).length >= s.length * 0.9;
+  };
+  return cobre(a, amostra(b, 400)) && cobre(b, amostra(a, 400));
+}
+async function cardContexto(c) {
+  const X = {};
+  if (!c || !c.aluno_id || !c.data || !comDist(c)) return X;
+  const dt = new Date(c.data),
+    ini = inicioSemana(dt);
+  ini.setHours(0, 0, 0, 0);
+  const fimSem = new Date(ini.getTime() + 7 * 864e5),
+    NS = 52,
+    desde = new Date(ini.getTime() - (NS - 1) * 7 * 864e5);
+  const [hist, ses] = await Promise.all([
+    sb
+      .from('nx_corridas')
+      .select('id,data,tipo,distancia_m,duracao_s,parciais')
+      .eq('aluno_id', c.aluno_id)
+      .lt('data', fimSem.toISOString())
+      .order('data', { ascending: false })
+      .limit(800)
+      .then(
+        (r) => r.data || [],
+        () => [],
+      ),
+    sb
+      .from('nx_sessoes')
+      .select('iniciado_em')
+      .eq('aluno_id', c.aluno_id)
+      .not('finalizado_em', 'is', null)
+      .gte('iniciado_em', desde.toISOString())
+      .lt('iniciado_em', fimSem.toISOString())
+      .then(
+        (r) => r.data || [],
+        () => [],
+      ),
+  ]);
+  // caminhada e outras atividades ficam fora do recorde, da semana de corrida e do mesmo percurso
+  const corre = (h) => comDist(h) && ehCorrHist(h),
+    ehCorrida = corre(c);
+  const antes = hist.filter((h) => h.id !== c.id && new Date(h.data) < dt);
+  // recorde: a maior distância em que esta corrida bateu o melhor tempo de antes
+  const m = ehCorrida ? melhoresDaCorrida(c) : {},
+    melhor = {};
+  antes.filter(corre).forEach((h) =>
+    Object.entries(melhoresDaCorrida(h)).forEach(([d, t]) => {
+      if (melhor[d] == null || t < melhor[d]) melhor[d] = t;
+    }),
+  );
+  const recs = DIST_REC.filter(([d]) => m[d] != null && melhor[d] != null && m[d] < melhor[d]);
+  if (recs.length) {
+    const [d, n] = recs[recs.length - 1];
+    X.recorde = { d, n, t: m[d], antes: melhor[d] };
+  }
+  // a semana da corrida (segunda a domingo)
+  const daSemana = hist.filter((h) => corre(h) && new Date(h.data) >= ini);
+  if (ehCorrida && daSemana.length) {
+    const km = Array(7).fill(0);
+    let seg = 0,
+      tot = 0;
+    daSemana.forEach((h) => {
+      km[(new Date(h.data).getDay() + 6) % 7] += h.distancia_m / 1000;
+      seg += h.duracao_s || 0;
+      tot += h.distancia_m / 1000;
+    });
+    const fim = new Date(ini.getTime() + 6 * 864e5),
+      mesmoMes = fim.getMonth() === ini.getMonth();
+    X.semana = {
+      km,
+      seg,
+      total: tot,
+      n: daSemana.length,
+      rotulo: (mesmoMes
+        ? `${ini.getDate()} a ${fim.getDate()} ${MES_CURTO[fim.getMonth()]}`
+        : `${dataCurta(ini)} a ${dataCurta(fim)}`
+      ).toUpperCase(),
+    };
+  }
+  // constância: semanas seguidas com 2 treinos ou mais (corridas e força); a semana em andamento não quebra a sequência
+  const cont = Array(NS).fill(0),
+    semDe = (d) => {
+      const x = inicioSemana(new Date(d));
+      x.setHours(0, 0, 0, 0);
+      return NS - 1 - Math.round((ini - x) / (7 * 864e5));
+    };
+  [...hist.map((h) => h.data), ...ses.map((s) => s.iniciado_em)].forEach((d) => {
+    const i = semDe(d);
+    if (i >= 0 && i < NS) cont[i]++;
+  });
+  let i = NS - 1;
+  if (cont[i] < 2 && fimSem > Date.now()) i--;
+  let n = 0,
+    treinos = 0;
+  while (i >= 0 && cont[i] >= 2) {
+    n++;
+    treinos += cont[i];
+    i--;
+  }
+  if (n >= 3) X.const = { n, treinos, sem: cont.slice(-16) };
+  // mesmo percurso: a corrida mais recente no mesmo trajeto em que ela foi mais devagar
+  if (c.tipo !== 'esteira' && c.rota && c.rota.length > 5 && c.duracao_s) {
+    const cand = antes
+      .filter(
+        (h) =>
+          comDist(h) &&
+          (h.tipo || 'corrida') === (c.tipo || 'corrida') &&
+          h.duracao_s &&
+          Math.abs(h.distancia_m / c.distancia_m - 1) <= 0.08,
+      )
+      .slice(0, 25);
+    if (cand.length) {
+      const { data } = await sb
+        .from('nx_corridas')
+        .select('id,rota')
+        .in(
+          'id',
+          cand.map((h) => h.id),
+        )
+        .then(
+          (r) => r,
+          () => ({ data: [] }),
+        );
+      const rot = {};
+      (data || []).forEach((r) => (rot[r.id] = r.rota));
+      for (const h of cand) {
+        if (!rotaIgual(c.rota, rot[h.id])) continue;
+        const mesmaDist = Math.abs(h.distancia_m / c.distancia_m - 1) <= 0.03,
+          ganho = mesmaDist ? h.duracao_s - c.duracao_s : paceDe(h) - paceDe(c);
+        if (ganho >= (mesmaDist ? 5 : 2)) {
+          X.igual = { ...h, ganho, mesmaDist };
+          break;
+        }
+      }
+    }
+  }
+  return X;
+}
+// card do treino de força: carga total (carga × repetições × séries), séries, duração e os exercícios
+async function abrirCardForca(sessaoId) {
+  const { data: s } = await sb
+    .from('nx_sessoes')
+    .select('id,aluno_id,treino_titulo,iniciado_em,finalizado_em,esforco')
+    .eq('id', sessaoId)
+    .maybeSingle()
+    .then(
+      (r) => r,
+      () => ({ data: null }),
+    );
+  if (!s) return toast('Não foi possível abrir o treino. Verifique a internet.', true);
+  const { data: regs } = await sb
+    .from('nx_registros')
+    .select('treino_item_id,exercicio_nome,carga_kg,reps,reps_feitas,feito')
+    .eq('sessao_id', s.id)
+    .then(
+      (r) => r,
+      () => ({ data: [] }),
+    );
+  const ids = [...new Set((regs || []).map((r) => r.treino_item_id).filter(Boolean))];
+  const { data: its } = ids.length
+    ? await sb
+        .from('nx_treino_itens')
+        .select('id,ordem,series,series_det')
+        .in('id', ids)
+        .then(
+          (r) => r,
+          () => ({ data: [] }),
+        )
+    : { data: [] };
+  const IT = {};
+  (its || []).forEach((x) => (IT[x.id] = x));
+  const repN = (r) => {
+    const t = String(r || '');
+    if (/\d\s*(s|seg|min)\b/i.test(t)) return null;
+    const n = (t.match(/\d+/g) || []).map(Number);
+    return n.length ? (n.length > 1 && /-|\ba\b/.test(t) ? (n[0] + n[1]) / 2 : n[0]) : null;
+  };
+  const feitos = (regs || [])
+    .filter((r) => r.feito)
+    .sort((a, b) => ((IT[a.treino_item_id] || {}).ordem ?? 99) - ((IT[b.treino_item_id] || {}).ordem ?? 99));
+  let volume = 0,
+    series = 0;
+  const lista = feitos.map((r) => {
+    const it = IT[r.treino_item_id] || {},
+      sr = it.series || (Array.isArray(it.series_det) ? it.series_det.length : 0) || 0,
+      rp = r.reps_feitas || repN(r.reps),
+      kg = r.carga_kg > 0 ? +r.carga_kg : 0;
+    series += sr;
+    if (kg && rp) volume += kg * rp * (sr || 1);
+    return {
+      n: r.exercicio_nome || 'Exercício',
+      sr: sr && r.reps ? `${sr} × ${r.reps}` : r.reps ? String(r.reps) : '',
+      kg: kg ? `${fmtNum(kg, kg % 1 ? 1 : 0)} kg` : '',
+      _kg: kg,
+    };
+  });
+  const top = Math.max(0, ...lista.map((e) => e._kg));
+  if (top) lista.find((e) => e._kg === top).top = true;
+  abrirCardCorrida(
+    {
+      id: s.id,
+      aluno_id: s.aluno_id,
+      data: s.iniciado_em,
+      _forca: {
+        titulo: s.treino_titulo,
+        volume,
+        series,
+        exs: feitos.length,
+        min: s.finalizado_em ? minutos(s.iniciado_em, s.finalizado_em) : null,
+        esforco: s.esforco,
+        lista,
+      },
+    },
+    null,
+  );
+}
 async function abrirCardCorrida(c, plano) {
   c._serie = serieDe(c, plano);
   try {
@@ -2001,27 +2662,41 @@ async function abrirCardCorrida(c, plano) {
   } catch {
     o.local = '';
   }
+  // dados de outras atividades para os modelos de recorde, mesmo percurso, semana e constância (no máximo 5 s de espera)
+  c._x = c._forca
+    ? {}
+    : await Promise.race([cardContexto(c).catch(() => ({})), new Promise((res) => setTimeout(() => res({}), 5000))]);
+  // corrida com recorde abre direto no card do recorde
+  if (c._x.recorde) o.layout = 'recorde';
   const temParc = (c.parciais || []).length >= 2;
   const temTiros = tirosDe(c).length >= (c._serie.qual ? 1 : 2),
     temClima = !!((c.rota && c.rota.length) || (c.analise && c.analise.extras && c.analise.extras.temp_med != null));
-  const modelos = CARD_LAYOUTS.map(([k, l]) => [
-    k,
-    k === 'tiros' ? c._serie.titulo : k === 'nome' ? c._serie.nome : l,
-  ]).filter(
-    ([k]) =>
-      ((k !== 'parciais' && k !== 'parciais_total') || temParc) &&
-      (k !== 'tiros' || temTiros) &&
-      (k !== 'nome' || !!c._serie.nome) &&
-      (!k.startsWith('clima') || temClima) &&
-      (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso'].includes(k) || (c.rota && c.rota.length > 1)),
-  );
-  if (!modelos.some(([k]) => k === o.layout)) o.layout = 'classico';
+  const modelos = c._forca
+    ? [['forca', 'Treino de força']]
+    : CARD_LAYOUTS.map(([k, l]) => [k, k === 'tiros' ? c._serie.titulo : k === 'nome' ? c._serie.nome : l]).filter(
+        ([k]) =>
+          ((k !== 'parciais' && k !== 'parciais_total') || temParc) &&
+          (k !== 'tiros' || temTiros) &&
+          (k !== 'nome' || !!c._serie.nome) &&
+          (!k.startsWith('clima') || temClima) &&
+          (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso', 'mesmo'].includes(k) ||
+            (c.rota && c.rota.length > 1)) &&
+          (k !== 'recorde' || !!c._x.recorde) &&
+          (k !== 'mesmo' || !!c._x.igual) &&
+          (k !== 'semana' || !!c._x.semana) &&
+          (k !== 'constancia' || !!c._x.const) &&
+          (k !== 'pace_km' || parcKm(c).length >= 3) &&
+          (k !== 'altimetria' || !!altDe(c)) &&
+          (k !== 'gigante' || !!V.dist),
+      );
+  if (!modelos.some(([k]) => k === o.layout))
+    o.layout = modelos.some(([k]) => k === 'classico') ? 'classico' : modelos[0][0];
   const seg = (k, ops, val) =>
     `<div class="seg card-seg" data-o="${k}">${ops.map(([v, l]) => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const disponivel0 = (k) =>
-    k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
+    c._forca ? k === 'logo' : k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
   openSheet(
-    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">Card da corrida</div>
+    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">${c._forca ? 'Card do treino' : 'Card da corrida'}</div>
     <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
     <div class="cd-zoom"><button type="button" class="icon-btn sm" data-z="-1" aria-label="Diminuir">−</button><span class="tiny dim">Pince com 2 dedos para aumentar ou diminuir e arraste para mover</span><button type="button" class="icon-btn sm" data-z="1" aria-label="Aumentar">+</button><button type="button" class="link-btn tiny" id="cd-reset">Centralizar</button></div>
     <div class="field"><span>Fundo</span>${seg(
@@ -2072,7 +2747,7 @@ async function abrirCardCorrida(c, plano) {
           localStorage.setItem(
             'nx-card',
             JSON.stringify({
-              layout: o.layout,
+              layout: c._forca ? st.layout : o.layout,
               fundo: o.fundo === 'foto' ? 'transparente' : o.fundo,
               cor: o.cor,
               formato: o.formato,
@@ -2390,7 +3065,7 @@ async function abrirCardCorrida(c, plano) {
         await desenharCard(hd, c, { ...o, escala: 2 });
         return await new Promise((res) => hd.toBlob(res, 'image/png'));
       };
-      const nomeArq = `nexos-corrida-${isoDia(c.data)}.png`;
+      const nomeArq = `nexos-${c._forca ? 'treino' : 'corrida'}-${isoDia(c.data)}.png`;
       const marcar = () => {
         try {
           localStorage.setItem('nx-card-' + c.id, '1');

@@ -40,12 +40,14 @@ function atvGrupo(x) {
   if (x.c.tipo === 'forca') return 'forca';
   return ehCorr(x.c) ? 'corrida' : 'outras';
 }
+const COMPART_IC =
+  '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
 function atvCard(x, rotas, staff) {
   if (x.k === 'ses') {
     const s = x.s,
       d = new Date(s.iniciado_em),
       min = s.finalizado_em ? minutos(s.iniciado_em, s.finalizado_em) : null;
-    return `<div class="card atv"><div class="atv-top"><span class="atv-ic fo">${HALTER_S}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(s.treino_titulo || 'Treino de força')}</b><span class="small muted">${d.getDate()} de ${MESES_N[d.getMonth()]} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · no app</span></div></div>
+    return `<div class="card atv"><div class="atv-top"><span class="atv-ic fo">${HALTER_S}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(s.treino_titulo || 'Treino de força')}</b><span class="small muted">${d.getDate()} de ${MESES_N[d.getMonth()]} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · no app</span></div>${staff || !s.finalizado_em ? '' : `<button type="button" class="icon-btn sm" data-card-ses="${s.id}" aria-label="Compartilhar o treino" title="Compartilhar">${COMPART_IC}</button>`}</div>
       <div class="atv-num"><div><small>Tempo</small><b>${min != null ? min + ' min' : '–'}</b></div><div><small>Esforço</small><b>${s.esforco != null ? s.esforco + '/10' : '–'}</b></div><div><small>Carga</small><b>${min != null && s.esforco != null ? cargaSessao(s.esforco, min) + ' UA' : '–'}</b></div></div></div>`;
   }
   const c = x.c,
@@ -117,6 +119,10 @@ async function feedAtividades(alunoId, alvo, staff) {
   const filtradas = () => (st.f === 'todas' ? todas : todas.filter((x) => atvGrupo(x) === st.f));
   alvo.innerHTML = `<div class="chips" id="atv-f" style="margin-top:14px">${ATV_FILTROS.map(([k, l]) => `<button type="button" class="chip ${k === st.f ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div><div id="atv-l" style="margin-top:12px"></div>`;
   const box = document.getElementById('atv-l');
+  box.onclick = (e) => {
+    const b = e.target.closest('[data-card-ses]');
+    if (b) abrirCardForca(b.dataset.cardSes);
+  };
   const desenha = async () => {
     const L = filtradas(),
       vis = L.slice(0, st.n);
@@ -1321,7 +1327,8 @@ function abrirCheckin(t, itens, st, key, fase) {
         const ua = cargaSessao(esforco, minutos(st.ini || new Date().toISOString(), new Date().toISOString()));
         store.del(key);
         closeSheet();
-        $app.innerHTML = `<section class="login center"><div class="slashes" style="justify-content:center;margin:0 auto 18px"><i></i><i></i><i></i></div><h1 class="h1">Treino concluído!</h1><p class="muted" style="margin:10px 0 6px">Seu treinador já recebeu o seu check-in.</p>${ua ? `<p class="small" style="margin-bottom:6px">Carga da sessão: <b>${ua} UA</b> <span class="dim">(esforço ${esforco} × ${minutos(st.ini || new Date().toISOString(), new Date().toISOString())} min)</span></p>` : ''}${novasCargas ? `<p class="small" style="margin-bottom:24px">${novasCargas} carga${novasCargas > 1 ? 's' : ''} registrada${novasCargas > 1 ? 's' : ''} na sua evolução.</p>` : '<div style="height:18px"></div>'}<a class="btn" href="#/">Voltar ao início</a><a class="btn ghost" href="#/historico/cargas" style="margin-top:12px">Ver minha evolução</a></section>`;
+        $app.innerHTML = `<section class="login center"><div class="slashes" style="justify-content:center;margin:0 auto 18px"><i></i><i></i><i></i></div><h1 class="h1">Treino concluído!</h1><p class="muted" style="margin:10px 0 6px">Seu treinador já recebeu o seu check-in.</p>${ua ? `<p class="small" style="margin-bottom:6px">Carga da sessão: <b>${ua} UA</b> <span class="dim">(esforço ${esforco} × ${minutos(st.ini || new Date().toISOString(), new Date().toISOString())} min)</span></p>` : ''}${novasCargas ? `<p class="small" style="margin-bottom:24px">${novasCargas} carga${novasCargas > 1 ? 's' : ''} registrada${novasCargas > 1 ? 's' : ''} na sua evolução.</p>` : '<div style="height:18px"></div>'}<a class="btn" href="#/">Voltar ao início</a><a class="btn ghost" href="#/historico/cargas" style="margin-top:12px">Ver minha evolução</a><button class="btn ghost" id="card-ses" style="margin-top:12px">${COMPART_IC} Compartilhar o treino</button></section>`;
+        document.getElementById('card-ses').onclick = () => abrirCardForca(ses.id);
       };
     },
   );
