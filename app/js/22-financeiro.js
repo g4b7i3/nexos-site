@@ -173,39 +173,112 @@ function salvarFinAluno(alunoId, financeiro) {
     .from('nx_alunos_fin')
     .upsert({ aluno_id: alunoId, org_id: S.org.id, financeiro, atualizado_em: new Date().toISOString() });
 }
+/** a mensalidade de um aluno num mês, pelo plano dele (null se não paga neste mês).
+    Paga todo mês (ou a cada 3, 6, 12 no plano trimestral, semestral, anual) desde o início até o mês em que foi encerrada. */
+function cobrancaDoMes(a, comp, base) {
+  const fz = a.financeiro || {};
+  if (!a.ativo || !fz.plano_id) return null;
+  const pl = base.planos.find((p) => p.id === fz.plano_id);
+  if (!pl) return null;
+  const ini = fz.inicio || comp;
+  const dm = mesesEntre(ini, comp);
+  if (dm < 0 || dm % (pl.meses || 1) !== 0) return null;
+  if (fz.fim && comp > fz.fim) return null;
+  const [y, m] = comp.split('-').map(Number);
+  const diaV = Math.min(+fz.dia || 10, new Date(y, m, 0).getDate());
+  return {
+    org_id: S.org.id,
+    aluno_id: a.user_id,
+    plano_id: pl.id,
+    competencia: comp,
+    descricao: `${pl.nome} · ${nomeMes(comp)}`,
+    valor: fz.valor != null && fz.valor !== '' ? +fz.valor : +pl.valor,
+    vencimento: `${comp}-${String(diaV).padStart(2, '0')}`,
+  };
+}
+// as cobranças de verdade são criadas até o mês seguinte; dali em diante o app só mostra as previstas
+const mesComCobranca = (comp) => mesesEntre(compDe(), comp) <= 1;
 async function gerarCobrancas(comp, base, soAluno) {
-  if (mesesEntre(compDe(), comp) > 1) return 0;
+  if (!mesComCobranca(comp)) return 0;
   const { data: existentes } = await sb
     .from('nx_cobrancas')
     .select('aluno_id')
     .eq('org_id', S.org.id)
     .eq('competencia', comp);
   const ja = new Set((existentes || []).map((c) => c.aluno_id));
-  const [y, m] = comp.split('-').map(Number);
-  const ultimo = new Date(y, m, 0).getDate();
-  const novas = [];
-  base.alunos.forEach((a) => {
-    if (soAluno && a.user_id !== soAluno) return;
-    const fz = a.financeiro || {};
-    if (!a.ativo || !fz.plano_id || ja.has(a.user_id)) return;
-    const pl = base.planos.find((p) => p.id === fz.plano_id);
-    if (!pl) return;
-    const ini = fz.inicio || comp;
-    const dm = mesesEntre(ini, comp);
-    if (dm < 0 || dm % (pl.meses || 1) !== 0) return;
-    const diaV = Math.min(+fz.dia || 10, ultimo);
-    novas.push({
-      org_id: S.org.id,
-      aluno_id: a.user_id,
-      plano_id: pl.id,
-      competencia: comp,
-      descricao: `${pl.nome} · ${nomeMes(comp)}`,
-      valor: fz.valor != null && fz.valor !== '' ? +fz.valor : +pl.valor,
-      vencimento: `${comp}-${String(diaV).padStart(2, '0')}`,
-    });
-  });
+  const novas = base.alunos
+    .filter((a) => (!soAluno || a.user_id === soAluno) && !ja.has(a.user_id))
+    .map((a) => cobrancaDoMes(a, comp, base))
+    .filter(Boolean);
   if (novas.length) await sb.from('nx_cobrancas').insert(novas);
   return novas.length;
+}
+/** meses à frente: as mensalidades que vão vir, pelo plano de cada aluno (nada é gravado) */
+const previstasDoMes = (comp, base) =>
+  base.alunos
+    .map((a) => cobrancaDoMes(a, comp, base))
+    .filter(Boolean)
+    .map((c) => ({ ...c, id: 'prev-' + c.aluno_id, status: 'prevista' }));
+/** o aluno saiu: a mensalidade dele para depois do último mês pago (e as cobranças em aberto dos meses seguintes são canceladas) */
+function encerrarMensalidade(aluno, compSug, depois) {
+  const fz = aluno.financeiro || {};
+  openSheet(
+    `<p class="eyebrow">Mensalidade</p><div class="h2" style="margin-top:4px">Encerrar a mensalidade de ${esc(firstName(aluno.nome))}</div>
+    <p class="small muted" style="margin:6px 0 14px">Use quando o aluno sair ou parar de pagar. Os meses seguintes deixam de ter mensalidade e as cobranças em aberto depois deste mês são canceladas. As já pagas ficam como estão.</p>
+    <label class="field"><span>Último mês que ${esc(firstName(aluno.nome))} paga</span><input class="input" type="month" id="enc-mes" value="${esc(compSug || compDe())}"></label>
+    <button class="btn block" id="enc-ok" style="margin-top:6px">Encerrar mensalidade</button>
+    <button class="btn ghost block" data-close style="margin-top:8px">Voltar</button>`,
+    (r) => {
+      r.querySelector('#enc-ok').onclick = async () => {
+        const fim = r.querySelector('#enc-mes').value;
+        if (!fim) return toast('Escolha o mês.', true);
+        const b = r.querySelector('#enc-ok');
+        b.disabled = true;
+        const { error } = await salvarFinAluno(aluno.user_id, { ...fz, fim });
+        if (error) {
+          b.disabled = false;
+          return toast('Não foi possível salvar.', true);
+        }
+        await sb
+          .from('nx_cobrancas')
+          .update({ status: 'cancelada' })
+          .eq('org_id', S.org.id)
+          .eq('aluno_id', aluno.user_id)
+          .eq('status', 'aberta')
+          .gt('competencia', fim)
+          .then(
+            () => {},
+            () => {},
+          );
+        aluno.financeiro = { ...fz, fim };
+        closeSheet();
+        toast(`Mensalidade encerrada: ${firstName(aluno.nome)} paga até ${nomeMes(fim)}.`);
+        (depois || staffFinanceiro)();
+      };
+    },
+  );
+}
+/** volta a cobrar quem tinha a mensalidade encerrada */
+async function reativarMensalidade(aluno, depois) {
+  const fz = { ...(aluno.financeiro || {}) };
+  delete fz.fim;
+  const { error } = await salvarFinAluno(aluno.user_id, fz);
+  if (error) return toast('Não foi possível salvar.', true);
+  aluno.financeiro = fz;
+  toast(`Mensalidade de ${firstName(aluno.nome)} ativa de novo.`);
+  (depois || staffFinanceiro)();
+}
+function detalhePrevista(c, aluno) {
+  openSheet(
+    `<p class="eyebrow">${esc(c.descricao)}</p><div class="h2" style="margin-top:4px">${esc(aluno.nome || 'Aluno')}</div>
+    <div class="cob-det"><b>${brl(c.valor)}</b><span class="tag">Prevista</span></div>
+    <p class="small muted">Vence no dia ${+c.vencimento.slice(8)} de ${esc(nomeMes(c.competencia))}. A cobrança é criada sozinha um mês antes e o aluno vê no app. Ela segue todo mês até você encerrar.</p>
+    <a class="btn ghost block" style="margin-top:14px" href="#/aluno/${c.aluno_id}/dados">Mudar valor ou vencimento no plano do aluno</a>
+    <button class="btn ghost block" id="pv-enc" style="margin-top:8px;color:var(--err)">Encerrar mensalidade (aluno saiu)</button>`,
+    (r) => {
+      r.querySelector('#pv-enc').onclick = () => encerrarMensalidade(aluno, somaMes(c.competencia, -1));
+    },
+  );
 }
 
 /* transparência entre os treinadores: só os totais do mês de cada um, sem nomes de alunos */
@@ -231,7 +304,17 @@ async function staffFinanceiro() {
     sb.rpc('nx_fin_resumo_equipe', { p_org: S.org.id, p_comp: st.comp }),
   ]);
   const nome = Object.fromEntries(base.alunos.map((a) => [a.user_id, a]));
-  const lista = (cobsT || []).filter((c) => c.status !== 'cancelada' && nome[c.aluno_id]);
+  const futuro = !mesComCobranca(st.comp);
+  const reais = (cobsT || []).filter((c) => c.status !== 'cancelada' && nome[c.aluno_id]);
+  const lista = (
+    futuro
+      ? [...reais, ...previstasDoMes(st.comp, base).filter((p) => !reais.some((c) => c.aluno_id === p.aluno_id))]
+      : reais
+  ).sort(
+    (x, y) =>
+      x.vencimento.localeCompare(y.vencimento) ||
+      String((nome[x.aluno_id] || {}).nome || '').localeCompare(String((nome[y.aluno_id] || {}).nome || '')),
+  );
   const tot = { pago: 0, aberto: 0, atraso: 0 };
   lista.forEach((c) => {
     const k = statusCob(c).k;
@@ -257,7 +340,8 @@ async function staffFinanceiro() {
   $app.innerHTML = `
     <div class="row between"><div><p class="eyebrow">Financeiro</p><h1 class="h1">Mensalidades</h1></div><button class="icon-btn" id="fin-cfg" aria-label="Planos e Pix">${I.gear}</button></div>
     <div class="mes-nav"><button class="icon-btn sm" id="m-a" aria-label="Mês anterior">${I.back}</button><b>${nomeMes(st.comp)}</b><button class="icon-btn sm" id="m-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
-    <div class="fin-tot"><div class="ok"><span>Recebido</span><b>${brl(tot.pago)}</b></div><div><span>A receber</span><b>${brl(tot.aberto)}</b></div><div class="${tot.atraso ? 'err' : ''}"><span>Atrasado</span><b>${brl(tot.atraso)}</b></div></div>
+    ${futuro ? `<p class="small muted fin-prev">Mês à frente: as mensalidades aparecem como <b>previstas</b>, pelo plano de cada aluno. A cobrança de verdade é criada um mês antes e segue todo mês até você encerrar.</p>` : ''}
+    <div class="fin-tot"><div class="ok"><span>Recebido</span><b>${brl(tot.pago)}</b></div><div><span>${futuro ? 'Previsto' : 'A receber'}</span><b>${brl(tot.aberto)}</b></div><div class="${tot.atraso ? 'err' : ''}"><span>Atrasado</span><b>${brl(tot.atraso)}</b></div></div>
     ${!pix.chave ? `<button class="aviso-linha" id="cfg-pix">${I.bell}<span><b>Cadastre a sua chave Pix</b> para os seus alunos pagarem pelo app.</span>${I.chev}</button>` : ''}
     ${
       !base.planos.length
@@ -274,6 +358,8 @@ async function staffFinanceiro() {
         .map((c) => {
           const s = statusCob(c);
           const a = nome[c.aluno_id] || {};
+          if (c.status === 'prevista')
+            return `<div class="list-item cob prev" data-cob="${c.id}"><div class="av">${esc(initials(a.nome))}</div><div class="grow"><b class="ellip" style="display:block">${esc(a.nome || 'Aluno')}</b><span class="small muted">vence ${fmtData(c.vencimento + 'T12:00:00')}</span></div><div class="cob-v"><b>${brl(c.valor)}</b><span class="tag">Prevista</span></div></div>`;
           return `<div class="list-item cob" data-cob="${c.id}"><div class="av">${esc(initials(a.nome))}</div><div class="grow"><b class="ellip" style="display:block">${esc(a.nome || 'Aluno')}</b><span class="small muted">${quandoVence(c)}</span></div><div class="cob-v"><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span></div>${s.k === 'informada' ? `<button class="mini-acao ok" data-conf="${c.id}" aria-label="Confirmar pagamento">${I.check}</button>` : s.k === 'paga' ? '' : `<button class="mini-acao" data-lemb="${c.id}" aria-label="Lembrar aluno">${I.bell}</button>`}</div>`;
         })
         .join('') ||
@@ -323,6 +409,10 @@ async function staffFinanceiro() {
       e.stopPropagation();
       const c = lista.find((x) => x.id === lemb.dataset.lemb);
       return lembrarCobranca(c, nome[c.aluno_id]);
+    }
+    if (row && row.dataset.cob.startsWith('prev-')) {
+      const c = lista.find((x) => x.id === row.dataset.cob);
+      return detalhePrevista(c, nome[c.aluno_id] || {});
     }
     if (row)
       detalheCobranca(
@@ -433,7 +523,8 @@ function detalheCobranca(c, aluno, depois) {
     }
     <details class="ajuda" style="margin-top:16px"><summary>Editar valor ou vencimento</summary>
       <div class="grid2" style="margin-top:12px"><label class="field"><span>Valor (R$)</span><input class="input" id="d-val" data-mask="dec" data-int="5" inputmode="decimal" value="${String(c.valor).replace('.', ',')}"></label><label class="field"><span>Vencimento</span><input class="input" type="date" id="d-ven" value="${c.vencimento}"></label></div>
-      <div class="row between"><button class="btn sm" id="d-salvar">Salvar</button><button class="link-btn small" id="d-canc" style="color:var(--err)">Cancelar esta cobrança</button></div></details>`,
+      <div class="row between"><button class="btn sm" id="d-salvar">Salvar</button><button class="link-btn small" id="d-canc" style="color:var(--err)">Cancelar esta cobrança</button></div></details>
+    ${aluno.user_id ? `<button class="btn ghost block" id="d-enc" style="margin-top:12px;color:var(--err)">Encerrar mensalidade (aluno saiu)</button>` : ''}`,
     (r) => {
       const fm = r.querySelector('#formas');
       if (fm)
@@ -441,6 +532,8 @@ function detalheCobranca(c, aluno, depois) {
           const b = e.target.closest('[data-forma]');
           if (b) marcarPaga(c, b.dataset.forma, depois);
         };
+      const en = r.querySelector('#d-enc');
+      if (en) en.onclick = () => encerrarMensalidade(aluno, c.competencia, depois);
       const lb = r.querySelector('#d-lemb');
       if (lb) lb.onclick = () => lembrarCobranca(c, aluno);
       const df = r.querySelector('#d-desf');
@@ -698,7 +791,8 @@ async function planoDoAlunoHTML(m) {
             )
             .join('')}</select></label>
       <div class="grid3"><label class="field"><span>Valor</span><input class="input" name="valor" data-mask="dec" data-int="5" inputmode="decimal" value="${fz.valor != null && fz.valor !== '' ? String(fz.valor).replace('.', ',') : ''}" placeholder="do plano"></label><label class="field"><span>Vence dia</span><input class="input" name="dia" data-mask="num" data-max="2" inputmode="numeric" value="${esc(fz.dia || 10)}"></label><label class="field"><span>Início</span><input class="input" type="month" name="inicio" value="${esc(fz.inicio || compDe())}"></label></div>
-      <button class="btn ghost block sm">Salvar plano do aluno</button></form>`
+      <button class="btn ghost block sm">Salvar plano do aluno</button></form>
+      ${fz.plano_id ? (fz.fim ? `<div class="fin-fim"><span>Mensalidade encerrada: paga até <b>${esc(nomeMes(fz.fim))}</b>.</span><button type="button" class="link-btn small" id="pl-reat">Voltar a cobrar</button></div>` : `<p class="tiny dim" style="margin-top:8px">A mensalidade se repete todo mês até você encerrar.</p><button type="button" class="link-btn small" id="pl-enc" style="color:var(--err)">Encerrar mensalidade (aluno saiu)</button>`) : ''}`
         : '<p class="small muted" style="margin-top:6px">Crie os planos em Financeiro → Ajustes.</p>'
     }
     ${autoStaffHTML(auto, m, valorPlano, plA ? plA.meses || 1 : 1)}
@@ -726,6 +820,7 @@ function bindPlanoDoAluno(m, info, recarregar) {
         valor: num(f.valor.value),
         dia: dd,
         inicio: f.inicio.value || compDe(),
+        ...((m.financeiro || {}).fim ? { fim: m.financeiro.fim } : {}),
       };
       const { error } = await salvarFinAluno(m.user_id, financeiro);
       if (error) return toast('Não foi possível salvar.', true);
@@ -746,6 +841,10 @@ function bindPlanoDoAluno(m, info, recarregar) {
           recarregar,
         );
     });
+  const pe = document.getElementById('pl-enc'),
+    pr = document.getElementById('pl-reat');
+  if (pe) pe.onclick = () => encerrarMensalidade(m, compDe(), recarregar);
+  if (pr) pr.onclick = () => reativarMensalidade(m, recarregar);
   bindAutoStaff(m, info.auto, info.valorPlano, info.mesesPlano, info.descPlano, recarregar);
 }
 

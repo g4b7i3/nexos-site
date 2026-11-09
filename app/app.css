@@ -3304,3 +3304,6 @@ details.guia-niv[open]>summary::after{content:'fechar'}
 details.guia-niv:not([open]){padding-top:12px;padding-bottom:12px}
 .alerta-cic{flex:none;display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:999px;border:1px solid rgba(26,143,224,.35);background:rgba(26,143,224,.1);color:var(--acc,#1a8fe0);font-size:.74rem;font-weight:700;cursor:pointer;margin-top:8px;white-space:nowrap}
 .alerta-cic svg{width:14px;height:14px}
+.cob.prev{opacity:.78;border-style:dashed}
+.fin-prev{margin:10px 0 0}
+.fin-fim{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,107,107,.1);font-size:.86rem}
