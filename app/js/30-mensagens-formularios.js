@@ -1694,3 +1694,123 @@ async function usoVideoMais() {
   const pct = u.minutos / u.limite;
   el.innerHTML = `Neste ciclo: ${u.minutos.toLocaleString('pt-BR')} de ${u.limite.toLocaleString('pt-BR')} minutos grátis${pct >= 1 ? ' <span class="tag err">Cobrando</span>' : pct >= 0.8 ? ' <span class="tag warn">Perto do limite</span>' : ''}`;
 }
+
+/* ---------- chamada recebida: tela cheia de ligação enquanto o app está aberto ---------- */
+let escutaChamT = null;
+const chamRecusadas = new Set();
+function escutarChamadas() {
+  if (escutaChamT || !S.user || !S.org) return;
+  const ver = () => document.visibilityState === 'visible' && verChamadaRecebida();
+  escutaChamT = setInterval(ver, 12000);
+  document.addEventListener('visibilitychange', ver);
+  ver();
+}
+async function verChamadaRecebida() {
+  if (chamadaAtual || document.querySelector('.cham-toca') || !S.user) return;
+  let q = sb
+    .from('nx_chamadas')
+    .select('id,tipo,treinador_id,criado_em')
+    .is('encerrada_em', null)
+    .is('atendida_em', null)
+    .gte('criado_em', new Date(Date.now() - 3 * 60e3).toISOString())
+    .order('criado_em', { ascending: false })
+    .limit(3);
+  q = S.staff ? q.eq('convidado_id', S.user.id) : q.eq('aluno_id', S.user.id);
+  const { data } = await q.then(
+    (r) => r,
+    () => ({ data: [] }),
+  );
+  const c = (data || []).find((x) => !chamRecusadas.has(x.id));
+  if (!c || location.hash === '#/chamada/' + c.id || chamadaAtual || document.querySelector('.cham-toca')) return;
+  const { data: quem } = await sb
+    .from('nx_membros')
+    .select('nome,foto_url')
+    .eq('org_id', S.org.id)
+    .eq('user_id', c.treinador_id)
+    .maybeSingle()
+    .then(
+      (r) => r,
+      () => ({ data: null }),
+    );
+  tocarChamada(c, quem || {});
+}
+// toque de ligação (dois bipes a cada 2,5 s); devolve a função que para o som
+function tocarToque() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let parar = false;
+    const bip = () => {
+      if (parar) return;
+      [0, 0.45].forEach((t) => {
+        const o = ctx.createOscillator(),
+          g = ctx.createGain(),
+          t0 = ctx.currentTime + t;
+        o.frequency.value = 880;
+        o.connect(g);
+        g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+        o.start(t0);
+        o.stop(t0 + 0.4);
+      });
+    };
+    ctx.resume().catch(() => {});
+    bip();
+    const t = setInterval(bip, 2500);
+    return () => {
+      parar = true;
+      clearInterval(t);
+      ctx.close().catch(() => {});
+    };
+  } catch {
+    return () => {};
+  }
+}
+function tocarChamada(c, quem) {
+  const nome = firstName(quem.nome) || (S.staff ? 'Um professor' : 'Seu treinador');
+  const box = document.createElement('div');
+  box.className = 'cham-toca';
+  box.innerHTML = `<div class="ct-in"><div class="ct-av"><i></i><i></i>${avAluno({ ...quem, nome: quem.nome || nome }, 'lg')}</div>
+    <p class="eyebrow">${c.tipo === 'aluno' ? 'Videochamada da Nexos' : 'Videochamada'}</p><h1 class="h1">${esc(nome)} está te chamando</h1>
+    <div class="ct-bts"><button type="button" class="ct-nao" id="ct-nao"><span>${I.x}</span>Agora não</button><button type="button" class="ct-sim" id="ct-sim"><span>${I.cam}</span>Atender</button></div></div>`;
+  document.body.appendChild(box);
+  const pararSom = tocarToque();
+  // o navegador só deixa vibrar depois que a pessoa já tocou na tela
+  const podeVibrar = () => navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive);
+  const vibra = () => podeVibrar() && navigator.vibrate([700, 300, 700]);
+  vibra();
+  const vib = setInterval(vibra, 2500);
+  const fim = setTimeout(() => fechar(), 90e3);
+  // se quem ligou desistir, a tela some
+  const conf = setInterval(async () => {
+    const { data } = await sb
+      .from('nx_chamadas')
+      .select('encerrada_em')
+      .eq('id', c.id)
+      .maybeSingle()
+      .then(
+        (r) => r,
+        () => ({ data: {} }),
+      );
+    if (!data || data.encerrada_em) fechar();
+  }, 5000);
+  function fechar() {
+    clearTimeout(fim);
+    clearInterval(vib);
+    clearInterval(conf);
+    pararSom();
+    if (podeVibrar()) navigator.vibrate(0);
+    box.remove();
+  }
+  box.querySelector('#ct-sim').onclick = () => {
+    fechar();
+    if (location.hash === '#/chamada/' + c.id) viewChamada(c.id);
+    else location.hash = '#/chamada/' + c.id;
+  };
+  box.querySelector('#ct-nao').onclick = () => {
+    chamRecusadas.add(c.id);
+    fechar();
+    funcaoVideo({ acao: 'recusar', id: c.id }).catch(() => {});
+  };
+}

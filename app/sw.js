@@ -2,7 +2,8 @@
 // v4: guarda os arquivos do app no aparelho para abrir rápido mesmo com internet ruim
 // v5: o código do app vem sempre da internet primeiro (fechar e abrir já atualiza)
 // v6: cache novo (apaga as cópias velhas de quem ficou preso numa versão antiga) e espera mais a internet
-const CACHE = 'nx-app-v2';
+// v7: notificação de videochamada fica na tela, vibra longo e tem o botão Atender
+const CACHE = 'nx-app-v3';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
   for (const k of await caches.keys()) if (k.startsWith('nx-app-') && k !== CACHE) await caches.delete(k);
@@ -70,14 +71,17 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'Nexos', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'Nexos', {
+  const opc = {
     body: d.body || '',
     badge: new URL('icons/badge-96.png', self.location).href, // silhueta branca da logo (Android pinta o ícone pequeno de branco)
     tag: d.tag || undefined,
     renotify: !!d.tag,
     data: { url: d.url || '#/' },
     lang: 'pt-BR',
-  }));
+  };
+  // videochamada: fica na tela até tocar, vibra como ligação e tem o botão Atender (Android e computador)
+  if (d.chamada) Object.assign(opc, { requireInteraction: true, vibrate: [800, 400, 800, 400, 800, 400, 800], actions: [{ action: 'atender', title: 'Atender' }] });
+  e.waitUntil(self.registration.showNotification(d.title || 'Nexos', opc));
 });
 
 self.addEventListener('notificationclick', (e) => {
