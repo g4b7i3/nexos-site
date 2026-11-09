@@ -52,6 +52,14 @@ section{margin-top:26px}
 .bar{height:6px;border-radius:9px;background:var(--s2);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--acc)}
 .acts{display:flex;gap:14px;margin-top:2px}
+.pg{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding:10px 12px;border-radius:12px;background:var(--s1)}
+.pg-l{display:flex;justify-content:space-between;gap:10px;font-size:.86rem}
+.pg-l b{font-weight:800}
+.pg-l .ok{color:var(--ok);font-weight:800}.pg-l .falta{color:var(--err);font-weight:800}
+.pg-h{font-size:.76rem;color:var(--dim)}
+.pg-h button{margin-left:6px;font-size:.76rem}
+.quem{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 14px}
+.quem .chip{padding:14px;font-size:1rem;text-align:center}
 .list{display:flex;flex-direction:column;gap:10px}
 table{width:100%;border-collapse:collapse;font-size:.92rem}
 th,td{text-align:left;padding:10px 6px;border-bottom:1px solid var(--line)}
@@ -89,7 +97,18 @@ const hojeMes = () => { const d = new Date(); return d.getFullYear() * 12 + d.ge
 const mesIdx = (iso) => { const [y, m] = String(iso).split('-').map(Number); return y * 12 + (m - 1); };
 const mesNome = (i) => `${MESES[i % 12]}/${Math.floor(i / 12)}`;
 const mesISO = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
-let senha = null, itens = [];
+let senha = null, itens = [], pagos = [];
+const NOMES = ['Gabriel', 'Orlando'];
+const cent = (v) => Math.round(v * 100) / 100;
+/* quanto cada sócio deve de um gasto: a metade das parcelas que já venceram (até este mês) e a metade do total */
+function contaSocio(g, socio, hoje) {
+  const ps = parcelas(g);
+  const devidoAgora = cent(ps.filter((p) => p.mes <= hoje).reduce((a, p) => a + p.v, 0) / SOCIOS);
+  const devidoTotal = cent(+g.valor / SOCIOS);
+  const pago = cent(pagos.filter((x) => x.gasto_id === g.id && x.socio === socio).reduce((a, x) => a + +x.valor, 0));
+  return { devidoAgora, devidoTotal, pago, faltaAgora: Math.max(0, cent(devidoAgora - pago)), faltaTotal: Math.max(0, cent(devidoTotal - pago)), aMais: Math.max(0, cent(pago - devidoTotal)) };
+}
+const dataBR = (iso) => { const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}`; };
 const guarda = {
   ler() { try { return sessionStorage.getItem('nx-emp') || localStorage.getItem('nx-emp'); } catch { return null; } },
   gravar(s, lembrar) { try { sessionStorage.setItem('nx-emp', s); if (lembrar) localStorage.setItem('nx-emp', s); } catch {} },
@@ -142,7 +161,7 @@ function telaSenha(criar) {
 async function carregar(s) {
   const { data, error } = await sb.rpc('nx_emp_listar', { p_senha: s });
   if (error || !data || data.erro) { if (data && data.erro) toast(msgErro(data.erro), true); guarda.limpar(); return false; }
-  senha = s; itens = data.itens || []; return true;
+  senha = s; itens = data.itens || []; pagos = data.pagos || []; return true;
 }
 
 /* ---------- painel ---------- */
@@ -166,6 +185,10 @@ function painel() {
       <div class="card stat"><span class="small muted">Total investido</span><div class="num">${brl(total)}</div><span class="tiny dim">${brl(total / SOCIOS)} de cada sócio</span></div>
       <div class="card stat"><span class="small muted">Tudo quitado em</span><div class="num">${ult == null ? '—' : ult <= hoje ? 'em dia' : mesNome(ult)}</div><span class="tiny dim">${itens.length} gasto${itens.length === 1 ? '' : 's'} registrado${itens.length === 1 ? '' : 's'}</span></div>
     </div>
+    ${itens.length ? `<section><div class="sec-h"><h2>Quanto cada um já pagou</h2></div><div class="stats">${NOMES.map((n) => {
+      const c = itens.map((g) => contaSocio(g, n, hoje)).reduce((a, x) => ({ pago: a.pago + x.pago, faltaAgora: a.faltaAgora + x.faltaAgora, faltaTotal: a.faltaTotal + x.faltaTotal }), { pago: 0, faltaAgora: 0, faltaTotal: 0 });
+      return `<div class="card stat"><span class="small muted">${n}</span><div class="num" style="color:${c.faltaAgora > 0 ? 'var(--err)' : 'var(--ok)'}">${c.faltaAgora > 0 ? 'Falta ' + brl(c.faltaAgora) : 'Em dia ✓'}</div><span class="tiny dim">Já pagou ${brl(c.pago)}${c.faltaTotal > c.faltaAgora ? ` · parcelas futuras: ${brl(c.faltaTotal - c.faltaAgora)}` : ''}</span></div>`;
+    }).join('')}</div></section>` : ''}
     <button class="btn block" id="novo" style="margin-top:16px">+ Adicionar gasto</button>
     <section><div class="sec-h"><h2>Gastos</h2></div><div class="list">${
       itens.length ? [...itens].sort((a, b) => fimDe(b) - fimDe(a) || b.criado_em.localeCompare(a.criado_em)).map((g) => cartao(g, hoje)).join('')
@@ -180,12 +203,20 @@ function painel() {
   if (va) va.onclick = () => { const t = document.getElementById('ant'); t.hidden = !t.hidden; va.textContent = t.hidden ? 'Ver meses anteriores' : 'Esconder anteriores'; };
   $app.querySelectorAll('[data-ed]').forEach((b) => (b.onclick = () => formGasto(itens.find((g) => g.id === b.dataset.ed))));
   $app.querySelectorAll('[data-del]').forEach((b) => (b.onclick = () => apagar(itens.find((g) => g.id === b.dataset.del))));
+  $app.querySelectorAll('[data-pagar]').forEach((b) => (b.onclick = () => jaPaguei(itens.find((g) => g.id === b.dataset.pagar))));
+  $app.querySelectorAll('[data-desf]').forEach((b) => (b.onclick = () => desfazer(pagos.find((x) => x.id === b.dataset.desf))));
 }
 function cartao(g, hoje) {
   const n = g.parcelas || 1, ini = mesIdx(g.inicio), fim = fimDe(g);
   const pagas = Math.max(0, Math.min(n, hoje - ini + 1));
   const ps = parcelas(g), vp = ps[0].v;
-  const quitado = fim < hoje;
+  const cs = NOMES.map((nm) => [nm, contaSocio(g, nm, hoje)]);
+  const quitado = cs.every(([, c]) => c.faltaTotal <= 0);
+  const hist = pagos.filter((x) => x.gasto_id === g.id);
+  const linhaSocio = ([nm, c]) => `<div class="pg-l"><span><b>${nm}</b> pagou ${brl(c.pago)}</span>${
+    c.faltaTotal <= 0 ? `<span class="ok">✓ ${c.aMais > 0 ? 'pagou ' + brl(c.aMais) + ' a mais' : 'quitado'}</span>`
+    : c.faltaAgora > 0 ? `<span class="falta">falta ${brl(c.faltaAgora)}</span>`
+    : `<span class="ok">✓ em dia</span>`}</div>`;
   const linha = n === 1
     ? `À vista em ${mesNome(ini)} · cada sócio ${brl(+g.valor / SOCIOS)}`
     : `${n}x de ${brl(vp)} · cada sócio ${brl(vp / SOCIOS)}/mês · ${mesNome(ini)} a ${mesNome(fim)}`;
@@ -193,7 +224,9 @@ function cartao(g, hoje) {
     <span class="small muted">${linha}</span>
     ${n > 1 ? `<div class="bar"><i style="width:${Math.round((pagas / n) * 100)}%"></i></div><span class="tiny dim">${pagas} de ${n} parcelas${pagas < n && pagas > 0 ? ` · faltam ${n - pagas}` : ''}</span>` : ''}
     ${g.obs ? `<span class="tiny dim">${esc(g.obs)}</span>` : ''}
-    <div class="acts"><button class="link" data-ed="${g.id}">Editar</button><button class="link err" data-del="${g.id}">Apagar</button></div></div>`;
+    <div class="pg">${cs.map(linhaSocio).join('')}${n > 1 && !quitado ? `<span class="pg-h">Cada um deve ${brl(+g.valor / SOCIOS)} no total; "falta" é o que já venceu até este mês.</span>` : ''}
+      ${hist.length ? `<span class="pg-h">${hist.map((x) => `${esc(x.socio)} · ${brl(x.valor)} em ${dataBR(x.pago_em)}<button class="link" data-desf="${x.id}">desfazer</button>`).join('<br>')}</span>` : ''}</div>
+    <div class="acts">${quitado ? '' : `<button class="link" data-pagar="${g.id}">Já paguei</button>`}<button class="link" data-ed="${g.id}">Editar</button><button class="link err" data-del="${g.id}">Apagar</button></div></div>`;
 }
 
 /* ---------- adicionar / editar ---------- */
@@ -246,6 +279,63 @@ function formGasto(g) {
     $dlg.close();
     await carregar(senha); painel();
     toast(ed ? 'Gasto atualizado.' : 'Gasto adicionado.');
+  };
+}
+/* ---------- já paguei: quem é você → quanto ---------- */
+function jaPaguei(g) {
+  const hoje = hojeMes();
+  let ult = null;
+  try { ult = localStorage.getItem('nx-emp-socio'); } catch {}
+  const passo1 = () => {
+    $dlg.innerHTML = `<p class="eyebrow">Já paguei</p><h2 style="margin:4px 0 6px">${esc(g.descricao)}</h2><p class="muted" style="margin:0 0 12px">Quem é você?</p>
+      <div class="quem">${NOMES.map((n) => `<button type="button" class="chip ${n === ult ? 'on' : ''}" data-quem="${n}">${n}</button>`).join('')}</div>
+      <button class="btn ghost block" id="cancelar">Cancelar</button>`;
+    if (!$dlg.open) $dlg.showModal();
+    document.getElementById('cancelar').onclick = () => $dlg.close();
+    $dlg.querySelectorAll('[data-quem]').forEach((b) => (b.onclick = () => passo2(b.dataset.quem)));
+  };
+  const passo2 = (socio) => {
+    try { localStorage.setItem('nx-emp-socio', socio); } catch {}
+    const c = contaSocio(g, socio, hoje);
+    const sugere = c.faltaAgora > 0 ? c.faltaAgora : c.faltaTotal;
+    $dlg.innerHTML = `<p class="eyebrow">Já paguei · ${socio}</p><h2 style="margin:4px 0 6px">${esc(g.descricao)}</h2>
+      <p class="muted" style="margin:0 0 12px">${c.faltaAgora > 0 ? `Falta você pagar <b>${brl(c.faltaAgora)}</b>${c.faltaTotal > c.faltaAgora ? ` agora (${brl(c.faltaTotal)} no total, com as parcelas futuras)` : ''}.` : c.faltaTotal > 0 ? `Você está em dia. Ainda faltam <b>${brl(c.faltaTotal)}</b> de parcelas futuras.` : 'Sua parte já está quitada.'}</p>
+      <form id="fp"><label class="f"><span>Quanto você pagou?</span><input class="in" name="v" inputmode="decimal" required placeholder="0,00" value="${sugere > 0 ? String(sugere.toFixed(2)).replace('.', ',') : ''}"></label>
+      <p class="small muted" id="resta" style="margin:-4px 0 12px"></p>
+      <div class="grid2"><button type="button" class="btn ghost" id="voltar">Voltar</button><button class="btn" id="ok">Salvar</button></div></form>`;
+    const f = document.getElementById('fp');
+    const val = () => +String(f.v.value).replace(/\./g, '').replace(',', '.') || 0;
+    const resta = () => {
+      const v = val(), r = cent(c.faltaTotal - v);
+      document.getElementById('resta').innerHTML = !v ? '' : r > 0 ? `Depois disso ainda falta <b>${brl(r)}</b>.` : r === 0 ? 'Com isso sua parte fica quitada.' : `Isso passa <b>${brl(-r)}</b> do que falta. Fica registrado como pago a mais.`;
+    };
+    f.oninput = resta; resta();
+    f.v.focus(); f.v.select();
+    document.getElementById('voltar').onclick = passo1;
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const v = val();
+      if (!(v > 0)) return toast('Digite quanto você pagou.', true);
+      const b = document.getElementById('ok'); b.disabled = true;
+      const { data, error } = await sb.rpc('nx_emp_pagamento', { p_senha: senha, p_gasto: g.id, p_socio: socio, p_valor: v });
+      b.disabled = false;
+      if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
+      $dlg.close(); await carregar(senha); painel();
+      const r = cent(c.faltaTotal - v);
+      toast(r > 0 ? `Registrado: ${socio} pagou ${brl(v)}. Ainda falta ${brl(r)}.` : `Registrado: ${socio} quitou a parte dele.`);
+    };
+  };
+  passo1();
+}
+function desfazer(x) {
+  $dlg.innerHTML = `<h2>Desfazer este pagamento?</h2><p class="muted">${esc(x.socio)} · ${brl(x.valor)} em ${dataBR(x.pago_em)}. O valor volta para o que falta pagar.</p>
+    <div class="grid2" style="margin-top:16px"><button class="btn ghost" id="nao">Cancelar</button><button class="btn" id="sim">Desfazer</button></div>`;
+  $dlg.showModal();
+  document.getElementById('nao').onclick = () => $dlg.close();
+  document.getElementById('sim').onclick = async () => {
+    const { data, error } = await sb.rpc('nx_emp_desfazer_pagamento', { p_senha: senha, p_id: x.id });
+    if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
+    $dlg.close(); await carregar(senha); painel(); toast('Pagamento desfeito.');
   };
 }
 function apagar(g) {
