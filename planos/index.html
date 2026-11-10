@@ -13,7 +13,7 @@
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/style.css?v=202611102032">
 <script>var t="light";try{t=localStorage.getItem("nexos-tema")||t}catch(e){}document.documentElement.dataset.theme=t</script>
 <style>
 .nav-r{display:flex;align-items:center;gap:10px}
@@ -28,9 +28,6 @@
 .pl-hero h1{font-size:clamp(2rem,7vw,4rem)}
 .pl-hero .lead{margin:16px auto 0}
 .pl-hero .lead b{color:var(--ink)}
-.pl-trust{display:flex;justify-content:center;gap:10px;margin-top:22px;flex-wrap:wrap}
-.pl-trust .tele{text-align:left}
-.pl-trust .tele b{font-size:1.15rem}
 
 /* formas de pagamento */
 .pag{max-width:900px;margin:26px auto 0;border:1px solid var(--line);border-radius:24px;background:var(--card);padding:22px clamp(16px,3vw,26px)}
@@ -63,6 +60,14 @@
 .pix-val b i{font-style:normal;font-family:var(--f-b);font-size:.8rem;font-weight:600;color:var(--mute);margin-left:2px}
 .pix-cta{padding:11px 18px;border-radius:999px;font-weight:800;font-size:.88rem;background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc);white-space:nowrap}
 @media (max-width:620px){.pix-sel{flex-direction:column;align-items:stretch;gap:12px;margin-top:16px;padding:14px 16px;border-radius:18px}.pix-sel strong{margin-top:8px;font-size:1.02rem}.pix-sub{font-size:.8rem;margin-top:4px}.pix-pe{flex-direction:row;align-items:center;justify-content:space-between;padding:12px 0 0;border-left:0;border-top:1px solid var(--line)}.pix-val{align-items:flex-start}.pix-pe{gap:10px}.pix-val b{font-size:1.25rem}.pix-val b i{font-size:.72rem}.pix-cta{padding:10px 14px;font-size:.8rem}.pix-sel{gap:8px;padding:12px 14px;margin-top:14px}.pix-chip{font-size:.58rem;padding:3px 8px 3px 6px}.pix-sel strong{font-size:.95rem;margin-top:6px}.pix-sub{display:none}.pix-pe{padding-top:8px}.pix-val em{font-size:.66rem}.pix-val b{font-size:1.15rem}.pix-cta{padding:9px 14px}}
+.pl-trust{display:grid;grid-template-columns:repeat(3,1fr);max-width:900px;margin:18px auto 0;border:1px solid var(--line);border-radius:20px;background:var(--card);overflow:hidden}
+.tr-i{display:flex;align-items:center;gap:12px;padding:16px 18px;text-align:left;min-width:0}
+.tr-i+.tr-i{border-left:1px solid var(--line)}
+.tr-ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(var(--acc-rgb),.1);color:var(--acc)}
+.tr-ic svg{width:20px;height:20px}
+.tr-i b{display:block;font-weight:800;font-size:.95rem;line-height:1.25;color:var(--ink)}
+.tr-i small{display:block;font-size:.8rem;line-height:1.3;color:var(--mute);margin-top:2px}
+@media (max-width:700px){.pl-trust{grid-template-columns:1fr;border-radius:18px}.tr-i{padding:12px 14px}.tr-i+.tr-i{border-left:0;border-top:1px solid var(--line)}.tr-ic{width:36px;height:36px;border-radius:10px}.tr-ic svg{width:18px;height:18px}.tr-i b{font-size:.9rem}.tr-i small{font-size:.76rem}}
 /* escolha */
 .esc-w{padding:20px clamp(16px,6vw,80px) 10px;position:relative;z-index:1}
 .esc-t{text-align:center;font-family:var(--f-h);font-size:clamp(1.3rem,4.4vw,1.9rem);margin-bottom:18px}
@@ -316,8 +321,6 @@ body.com-troca .footer{padding-bottom:96px}
   .esc-w{padding-top:14px}
   .esc-t{margin-bottom:12px}
   .pl-hero .eyebrow{font-size:.64rem;letter-spacing:.05em}
-  .pl-trust .tele{flex:1;min-width:0;padding:10px 12px}
-  .pl-trust .tele em{display:block;margin:0}
   .per button{font-size:.82rem}
   .ap-g{grid-template-columns:1fr}
   .ap-g div{padding:16px}
@@ -370,9 +373,9 @@ body.com-troca .footer{padding-bottom:96px}
     <span class="ei-pe"><span class="de">a partir de <b>R$ 350</b>/mês <span class="ei-an">no plano anual</span></span><span class="vai">Ver plano →</span></span>
   </button>
   <div class="pl-trust reveal">
-    <div class="tele"><small>A PARTIR DE</small><b>R$ 162</b><em>por mês no anual</em></div>
-    <div class="tele"><small>NO ANUAL</small><b>2 camisetas</b><em>de presente</em></div>
-    <div class="tele"><small>GARANTIA</small><b>7 dias</b><em>para desistir</em></div>
+    <div class="tr-i"><span class="tr-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></span><span><b>A partir de R$ 162/mês</b><small>no plano anual</small></span></div>
+    <div class="tr-i"><span class="tr-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 3 6l2 5 2-1v11h10V10l2 1 2-5-5-3a4 4 0 0 1-8 0z"/></svg></span><span><b>2 camisetas oficiais</b><small>de presente no plano anual</small></span></div>
+    <div class="tr-i"><span class="tr-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span><b>7 dias de garantia</b><small>não gostou, devolvemos o valor</small></span></div>
   </div>
   <div class="pag reveal" id="pagamento">
     <div class="pag-h"><h3>Formas de pagamento</h3><p>Escolha o período e a forma que cabem no seu bolso.</p></div>
