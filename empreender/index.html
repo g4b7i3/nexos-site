@@ -435,17 +435,17 @@ function telaMeses() {
    corrida (Essencial e Evolução) é do Gabriel, força é do Orlando e o Integral é dividido na proporção do serviço
    (corrida R$ 220 x força R$ 190: 53,66% e 46,34%). A taxa do Mercado Pago sai antes da divisão. */
 const PLANOS_REC = {
-  corrida_essencial: { nome: 'Corrida Essencial', tipo: 'corrida', pix: { mensal: 180, trimestral: 175, semestral: 169, anual: 162 }, cartao: { mensal: 188, trimestral: 183, semestral: 177, anual: 169 }, parc: { trimestral: 192, semestral: 197, anual: 206 } },
-  corrida_evolucao: { nome: 'Corrida Evolução', tipo: 'corrida', pix: { mensal: 220, trimestral: 214, semestral: 207, anual: 198 }, cartao: { mensal: 230, trimestral: 223, semestral: 216, anual: 207 }, parc: { trimestral: 235, semestral: 241, anual: 252 } },
-  integral: { nome: 'Integral (Corrida + Força)', tipo: 'integral', pix: { mensal: 389, trimestral: 377, semestral: 366, anual: 350 }, cartao: { mensal: 406, trimestral: 393, semestral: 382, anual: 365 }, parc: { trimestral: 413, semestral: 426, anual: 445 } },
-  forca_online: { nome: 'Força 100% Online', tipo: 'forca', pix: { mensal: 190, trimestral: 184, semestral: 179, anual: 171 }, cartao: { mensal: 198, trimestral: 192, semestral: 187, anual: 179 }, parc: { trimestral: 202, semestral: 209, anual: 218 } },
-  forca_presencial: { nome: 'Força Online com Avaliação Presencial', tipo: 'forca', pix: { mensal: 220, trimestral: 214, semestral: 207, anual: 198 }, cartao: { mensal: 230, trimestral: 223, semestral: 216, anual: 207 }, parc: { trimestral: 235, semestral: 241, anual: 252 } },
+  corrida_essencial: { nome: 'Corrida Essencial', tipo: 'corrida', pix: { mensal: 180, trimestral: 175, semestral: 169, anual: 162 }, cartao: { mensal: 188, trimestral: 183, semestral: 177, anual: 169 }, parc: { trimestral: 192, semestral: 197, anual: 206 }, avista: 1845 },
+  corrida_evolucao: { nome: 'Corrida Evolução', tipo: 'corrida', pix: { mensal: 220, trimestral: 214, semestral: 207, anual: 198 }, cartao: { mensal: 230, trimestral: 223, semestral: 216, anual: 207 }, parc: { trimestral: 235, semestral: 241, anual: 252 }, avista: 2255 },
+  integral: { nome: 'Integral (Corrida + Força)', tipo: 'integral', pix: { mensal: 389, trimestral: 377, semestral: 366, anual: 350 }, cartao: { mensal: 406, trimestral: 393, semestral: 382, anual: 365 }, parc: { trimestral: 413, semestral: 426, anual: 445 }, avista: 3990 },
+  forca_online: { nome: 'Força 100% Online', tipo: 'forca', pix: { mensal: 190, trimestral: 184, semestral: 179, anual: 171 }, cartao: { mensal: 198, trimestral: 192, semestral: 187, anual: 179 }, parc: { trimestral: 202, semestral: 209, anual: 218 }, avista: 1950 },
+  forca_presencial: { nome: 'Força Online com Avaliação Presencial', tipo: 'forca', pix: { mensal: 220, trimestral: 214, semestral: 207, anual: 198 }, cartao: { mensal: 230, trimestral: 223, semestral: 216, anual: 207 }, parc: { trimestral: 235, semestral: 241, anual: 252 }, avista: 2255 },
   outro: { nome: 'Outro', tipo: 'outro', pix: {}, cartao: {}, parc: {} },
 };
 const PERIODOS = { mensal: ['Mensal', 1], trimestral: ['Trimestral', 3], semestral: ['Semestral', 6], anual: ['Anual', 12], ciclo: ['Ciclo de 8 semanas', 2], avulso: ['Avulso', 1] };
-const FORMAS = { pix: 'Pix', cartao: 'Cartão (todo mês)', parcelado: 'Cartão parcelado', dinheiro: 'Dinheiro' };
+const FORMAS = { pix: 'Pix', pix_avista: 'Pix à vista (ano todo)', cartao: 'Cartão (todo mês)', parcelado: 'Cartão parcelado', dinheiro: 'Dinheiro' };
 const PARC_TX = [0, 0, 0.0253, 0.0462, 0.0669, 0.0866, 0.0996, 0.1124, 0.125, 0.1373, 0.1493, 0.1612, 0.1728];
-const taxaDe = (forma, n) => (forma === 'pix' ? 0.0099 : forma === 'cartao' ? 0.0399 : forma === 'parcelado' ? 0.0399 + PARC_TX[Math.max(1, Math.min(12, n || 1))] : 0);
+const taxaDe = (forma, n) => (forma === 'pix' || forma === 'pix_avista' ? 0.0099 : forma === 'cartao' ? 0.0399 : forma === 'parcelado' ? 0.0399 + PARC_TX[Math.max(1, Math.min(12, n || 1))] : 0);
 const pctGabriel = (plano, outro) => (plano === 'outro' ? +outro || 50 : { corrida: 100, integral: 53.66, forca: 0 }[PLANOS_REC[plano].tipo]);
 let recMes = '';
 const mesDe = (iso) => String(iso).slice(0, 7);
@@ -493,6 +493,7 @@ function formRecebimento() {
   const f = document.getElementById('fr');
   const sugerido = () => {
     const p = PLANOS_REC[plano];
+    if (forma === 'pix_avista') return p.avista && periodo === 'anual' ? p.avista : 0;
     if (forma === 'parcelado') return p.parc[periodo] ? p.parc[periodo] * (PERIODOS[periodo][1] === 1 ? n : PERIODOS[periodo][1]) : 0;
     return (forma === 'cartao' ? p.cartao : p.pix)[periodo] || 0;
   };
@@ -531,7 +532,7 @@ function formRecebimento() {
     e.preventDefault();
     const bt = f.querySelector('button:not([type])'); bt.disabled = true;
     const { data, error } = await sb.rpc('nx_emp_recebimento', {
-      p_senha: senha, p_aluno: f.aluno.value, p_plano: plano, p_periodo: periodo, p_forma: forma,
+      p_senha: senha, p_aluno: f.aluno.value, p_plano: plano, p_periodo: periodo, p_forma: forma === 'pix_avista' ? 'pix' : forma,
       p_parcelas: forma === 'parcelado' ? n : 1, p_valor: numDe(f.valor.value), p_recebido_em: f.data.value || null,
       p_obs: f.obs.value, p_pct_gabriel: plano === 'outro' ? numDe(f.pct.value) : null,
     });

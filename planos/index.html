@@ -193,6 +193,8 @@ body.com-troca .footer{padding-bottom:96px}
 :root[data-theme="light"] .pl li::before,:root[data-theme="light"] .ck li::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")}
 .pl li b{font-weight:800}
 .pl-esp{flex:1;min-height:22px}
+.pl-av{color:var(--acc)}
+.pl-av b{color:var(--ink)}
 .pl-res{color:var(--mute);font-size:.84rem;margin-top:10px;padding-left:26px}
 .pl .btn{width:100%}
 .pl:not(.top) .btn{background:transparent;color:var(--ink);border:1px solid rgba(var(--acc-rgb),.5);box-shadow:none}
@@ -459,6 +461,7 @@ body.com-troca .footer{padding-bottom:96px}
     <div class="rg">
       <div><b>Garantia de 7 dias</b><p>Se nos primeiros 7 dias o plano não for o que você esperava, devolvemos o valor pago.</p></div>
       <div><b>Mensalidade</b><p>No trimestral, no semestral e no anual, você paga todo mês, no Pix ou no cartão, já com o desconto do período. Se preferir, pode parcelar o período inteiro no cartão.</p></div>
+      <div><b>Anual à vista</b><p>Pagando o ano inteiro de uma vez no Pix, você ganha 5% a mais de desconto sobre o valor do anual.</p></div>
       <div><b>Cancelamento antes do fim</b><p>Sem multa. Você paga apenas a diferença entre o valor com desconto e o valor do mensal, referente aos meses já utilizados.</p></div>
       <div><b>Pausa</b><p>No semestral e no anual, você pode pausar por até 30 dias em caso de lesão, doença ou viagem. O plano é estendido pelo mesmo tempo.</p></div>
       <div><b>Análise biomecânica</b><p>No Corrida Evolução e no Integral, a cada 2 meses. Você grava a corrida de lado e de trás, seguindo as orientações do treinador, e recebe um relatório com as marcações da passada, os pontos fortes, o que ajustar e a comparação com a análise anterior.</p></div>
@@ -481,6 +484,7 @@ body.com-troca .footer{padding-bottom:96px}
     <div class="rg">
       <div><b>Garantia de 7 dias</b><p>Se nos primeiros 7 dias o plano não for o que você esperava, devolvemos o valor pago.</p></div>
       <div><b>Mensalidade</b><p>No trimestral, no semestral e no anual, você paga todo mês, no Pix ou no cartão, já com o desconto do período. Se preferir, pode parcelar o período inteiro no cartão.</p></div>
+      <div><b>Anual à vista</b><p>Pagando o ano inteiro de uma vez no Pix, você ganha 5% a mais de desconto sobre o valor do anual.</p></div>
       <div><b>Cancelamento antes do fim</b><p>Sem multa. Você paga apenas a diferença entre o valor com desconto e o valor do mensal, referente aos meses já utilizados.</p></div>
       <div><b>Pausa</b><p>No semestral e no anual, você pode pausar por até 30 dias em caso de lesão, doença ou viagem. O plano é estendido pelo mesmo tempo.</p></div>
       <div><b>Reavaliação física</b><p>A cada 8 semanas você refaz a avaliação, e o treino é atualizado com os novos resultados.</p></div>
@@ -539,21 +543,21 @@ body.com-troca .footer{padding-bottom:96px}
   var PER = { m: ['mensal', 1, ''], t: ['trimestral', 3, '−3%'], s: ['semestral', 6, '−6%'], a: ['anual', 12, '−10%'] };
   var CORRIDA = [
     { id: 'essencial', nome: 'Corrida Essencial', curto: 'Essencial', ds: 'Para quem quer treinar com método e acompanhamento.',
-      pix: { m: 180, t: 175, s: 169, a: 162 }, cartao: { m: 188, t: 183, s: 177, a: 169 }, parc: { t: 192, s: 197, a: 206 }, cam: { a: 2 },
+      pix: { m: 180, t: 175, s: 169, a: 162 }, avista: 1845, cartao: { m: 188, t: 183, s: 177, a: 169 }, parc: { t: 192, s: 197, a: 206 }, cam: { a: 2 },
       itens: ['<b>Avaliação inicial online</b> de 30 minutos', 'Planilha periodizada e personalizada', 'Análise de cada corrida pelo treinador', '<b>1 videochamada</b> por mês', 'Teste inicial e reteste a cada ciclo de treino', 'Estratégia de prova', 'Todos os recursos do aplicativo Nexos'] },
     { id: 'evolucao', nome: 'Corrida Evolução', curto: 'Evolução', ds: 'Para quem quer o treinador mais perto e melhorar a técnica de corrida.',
-      pix: { m: 220, t: 214, s: 207, a: 198 }, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 }, cam: { a: 2 },
+      pix: { m: 220, t: 214, s: 207, a: 198 }, avista: 2255, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 }, cam: { a: 2 },
       itens: ['Tudo do Essencial', '<b>2 videochamadas</b> por mês', '<b>Análise biomecânica da corrida</b> a cada 2 meses: você grava, o treinador analisa a sua passada e postura', '<b>Relatório técnico</b> com pontos fortes, o que ajustar e a comparação da sua evolução'] },
   ];
   var INTEGRAL = { id: 'integral', nome: 'Integral · Corrida + Força', curto: 'Integral', ds: 'Corrida e força juntas, com os dois treinadores da Nexos.', top: 'MAIS COMPLETO',
-    pix: { m: 389, t: 377, s: 366, a: 350 }, cartao: { m: 406, t: 393, s: 382, a: 365 }, parc: { t: 413, s: 426, a: 445 }, cam: { s: 1, a: 2 },
+    pix: { m: 389, t: 377, s: 366, a: 350 }, avista: 3990, cartao: { m: 406, t: 393, s: 382, a: 365 }, parc: { t: 413, s: 426, a: 445 }, cam: { s: 1, a: 2 },
     itens: ['Tudo do Corrida Evolução', '<b>Avaliação física</b> online com o Orlando', '<b>Prescrição de exercícios</b> de força', '<b>Ajustes mensais</b> no treino de força', '<b>Reavaliação física</b> a cada 8 semanas', 'Os dois treinadores no mesmo aplicativo'] };
   var FORCA = [
     { id: 'forca-online', nome: 'Força 100% Online', curto: '100% Online', bt: 'Quero a 100% Online', ds: 'Avaliação física online, por videochamada, e treino de força online.',
-      pix: { m: 190, t: 184, s: 179, a: 171 }, cartao: { m: 198, t: 192, s: 187, a: 179 }, parc: { t: 202, s: 209, a: 218 }, cam: { a: 2 },
+      pix: { m: 190, t: 184, s: 179, a: 171 }, avista: 1950, cartao: { m: 198, t: 192, s: 187, a: 179 }, parc: { t: 202, s: 209, a: 218 }, cam: { a: 2 },
       itens: ['<b>Avaliação física online</b> com o Orlando, por videochamada', '<b>Prescrição de exercícios</b> feita para você, com treino de força periodizado', '<b>Ajustes mensais</b> no treino, seguindo a periodização', 'Cada exercício explicado no aplicativo', '<b>Reavaliação física online</b> a cada 8 semanas, com o treino atualizado'] },
     { id: 'forca-presencial', nome: 'Força Online com Avaliação Presencial', curto: 'Com avaliação presencial', bt: 'Quero com avaliação presencial', ds: 'O treino é online; a avaliação é feita pessoalmente pelo Orlando.',
-      pix: { m: 220, t: 214, s: 207, a: 198 }, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 }, cam: { a: 2 },
+      pix: { m: 220, t: 214, s: 207, a: 198 }, avista: 2255, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 }, cam: { a: 2 },
       itens: ['<b>Avaliação física presencial</b> com o Orlando', '<b>Prescrição de exercícios</b> feita para você, com treino de força periodizado online', '<b>Ajustes mensais</b> no treino, seguindo a periodização', 'Cada exercício explicado no aplicativo', '<b>Reavaliação física presencial</b> a cada 8 semanas, com o treino atualizado'] },
   ];
   var num = function (v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
@@ -571,6 +575,7 @@ body.com-troca .footer{padding-bottom:96px}
     var t = 'Olá! Vim pelo site da Nexos e tenho interesse no plano ' + nome + ', ' + PER[k][0] + '.\n\n';
     t += 'Valor: ' + brl(c.pix[k]) + ' por mês no Pix' + (k === 'm' ? ', sem fidelidade' : ' (no mensal seria ' + brl(c.pix.m) + ')') + '.\n';
     t += 'No cartão: ' + brl(c.cartao[k]) + ' por mês' + (c.parc[k] ? ', ou parcelado em ' + PER[k][1] + 'x de ' + brl(c.parc[k]) : '') + '.\n';
+    if (k === 'a') t += 'Ou à vista no Pix: ' + brl(c.avista) + ' pelo ano inteiro.\n';
     if (cam) t += 'Inclui ' + (cam === 2 ? '2 camisetas oficiais' : '1 camiseta oficial') + ' de presente.\n';
     return t + '\nComo faço para contratar?';
   }
@@ -582,7 +587,7 @@ body.com-troca .footer{padding-bottom:96px}
     if (p !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * PER[p][1]) + ' no ' + PER[p][0] + '</span>';
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     if (c.id === 'integral') chips += '<span>Contratando separado: ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[p]) + '/mês</span>';
-    var ou = 'No cartão: ' + brl(c.cartao[p]) + '/mês' + (c.parc[p] ? ' ou ' + meses + 'x de ' + brl(c.parc[p]) : '');
+    var ou = 'No cartão: ' + brl(c.cartao[p]) + '/mês' + (c.parc[p] ? ' ou ' + meses + 'x de ' + brl(c.parc[p]) : '') + (p === 'a' ? '</p><p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b> o ano inteiro, 5% a mais de desconto' : '');
     var msg = msgPlano(c, p);
     return '<article class="pl' + (c.top ? ' top' : '') + '" id="pl-' + c.id + '">' + (c.top ? '<span class="pl-selo">' + c.top + '</span>' : '') +
       '<span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
@@ -604,6 +609,7 @@ body.com-troca .footer{padding-bottom:96px}
       '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
       (pf !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
       '<p class="pl-ou">No cartão: ' + brl(c.cartao[pf]) + '/mês' + (c.parc[pf] ? ' ou ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
+      (pf === 'a' ? '<p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b> o ano inteiro, 5% a mais de desconto</p>' : '') +
       '<div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-num="orlando" data-msg="' + msgPlano(c, pf) + '">' + c.bt + per + '</a></article>';
   }
@@ -713,12 +719,13 @@ body.com-troca .footer{padding-bottom:96px}
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     var pg = '<div class="tb"><table><tr><th>Período</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' + ['m', 't', 's', 'a'].map(function (q) {
       return '<tr class="' + (q === k ? 'on' : '') + '"><td>' + PER[q][0][0].toUpperCase() + PER[q][0].slice(1) + '</td><td><b>' + c.pix[q] + '</b>/mês</td><td>' + c.cartao[q] + '/mês</td><td>' + (c.parc[q] ? PER[q][1] + 'x de ' + c.parc[q] : '—') + '</td></tr>';
-    }).join('') + '</table></div>';
+    }).join('') + '<tr class="' + (k === 'a' ? 'on' : '') + '"><td>Anual à vista</td><td colspan="3"><b>' + brl(c.avista) + '</b> no Pix, o ano inteiro de uma vez</td></tr></table></div>';
     $('#sh-corpo').innerHTML = '<span class="pl-nm">' + c.nome + '</span><h2 id="sh-t">Tudo sobre o plano</h2><p class="pl-ds">' + c.ds + '</p>' +
       '<div class="per" ' + (ef ? 'data-perf' : 'data-per') + '>' + (ef ? perfHTML() : perHTML()) + '</div>' +
       '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
       (k !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
-      '<p class="pl-ou">No cartão: ' + brl(c.cartao[k]) + '/mês' + (c.parc[k] ? ' ou ' + meses + 'x de ' + brl(c.parc[k]) : '') + '</p><div class="pl-chips">' + chips + '</div>' +
+      '<p class="pl-ou">No cartão: ' + brl(c.cartao[k]) + '/mês' + (c.parc[k] ? ' ou ' + meses + 'x de ' + brl(c.parc[k]) : '') + '</p>' +
+      (k === 'a' ? '<p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b> o ano inteiro, 5% a mais de desconto</p>' : '') + '<div class="pl-chips">' + chips + '</div>' +
       (id === 'integral' ? '<p class="pl-de" style="margin-top:10px">Contratando separado, no Pix: ' + brl(CORRIDA[1].pix[k] + FORCA[0].pix[k]) + '/mês.</p>' : '') +
       '<div class="sh-sec"><b>Tudo que está incluído</b>' + sim + '<p class="sh-mais">E muito mais.</p></div>' +
       (nao ? '<div class="sh-sec"><b>Nos planos mais completos</b><p class="blk-s" style="margin:0">Itens que não fazem parte deste plano. Para tê-los, escolha um dos planos abaixo.</p>' + nao + '</div>' : '') +
