@@ -1183,6 +1183,8 @@ async function desenharCard(cv, c, o) {
   const dt = new Date(c.data);
   const dataTxt = o.stats.data ? `${fmtDia(c.data)} · ${fmtHora(c.data)}`.toUpperCase() : '';
   const temRota = o.stats.rota && c.rota && c.rota.length > 1;
+  // com a localização no alto do card, o conteúdo do post desce um pouco para não encostar nela
+  const yTopo = (v) => v + (o.local && post && o.layout !== 'recibo' ? 64 : 0);
   const rota = (x, y, w, h, lw = 9, br = false) => temRota && cardRota(ctx, c.rota, x, y, w, h, AC, lw, br);
   const L = o.layout;
   // modelos novos: dados de outras atividades (recorde, mesmo percurso, semana, constância) e tons de apoio
@@ -1299,7 +1301,7 @@ async function desenharCard(cv, c, o) {
   };
   if (L === 'clima') {
     // temperatura em destaque, com sensação, umidade e vento
-    let y = post ? 120 : 330;
+    let y = yTopo(post ? 120 : 330);
     simbolo(W / 2, y, 220);
     y += 170;
     if (clima) {
@@ -1792,7 +1794,7 @@ async function desenharCard(cv, c, o) {
     const pc = o.pc || { z: 1, dx: 0, dy: 0 },
       pb = o.pb || { z: 1, dx: 0, dy: 0 };
     const lhC = Math.min(post ? 72 : 92, ((post ? 0.52 : 0.58) * H - 160) / Math.max(1, parc.length));
-    const topoC = post ? 60 : 90,
+    const topoC = (post ? 60 : 90) + (o.local ? 90 : 0), // com localização, o título desce para não encostar nela
       cyC = topoC + (110 + parc.length * lhC) / 2;
     const pxB = post ? 72 : 80,
       yS = H - (post ? 80 : 120) - pxB * 1.4,
@@ -2017,7 +2019,7 @@ async function desenharCard(cv, c, o) {
   } else if (L === 'mesmo' && CX.igual) {
     // o mesmo trajeto de outro dia, com a diferença de tempo
     const G = CX.igual;
-    let y = post ? 150 : 250;
+    let y = yTopo(post ? 150 : 250);
     txt('MESMO PERCURSO', 100, y, `800 30px ${FB}`, AC, 'left', 5);
     const hR = post ? 330 : 560;
     cardRota(ctx, c.rota, 140, y + 50, W - 280, hR, AC, 13, true);
@@ -2065,7 +2067,7 @@ async function desenharCard(cv, c, o) {
     // a semana da corrida: km, corridas, tempo e as barras de cada dia
     const S0 = CX.semana,
       F = post ? 0.78 : 1;
-    let y = post ? 140 : 280;
+    let y = yTopo(post ? 140 : 280);
     txt(`MINHA SEMANA  ·  ${S0.rotulo}`, 100, y, `800 30px ${FB}`, AC, 'left', 5);
     const kmT = fmtNum(S0.total, S0.total >= 100 ? 0 : 1),
       pxK = cabe(kmT, '800', Math.round(260 * F), W - 360, FH, -10);
@@ -2105,7 +2107,7 @@ async function desenharCard(cv, c, o) {
     // semanas seguidas treinando, com os quadrados das últimas 16 semanas
     const K = CX.const,
       F = post ? 0.74 : 1;
-    let y = post ? 130 : 330;
+    let y = yTopo(post ? 130 : 330);
     txt('CONSTÂNCIA', W / 2, y, `800 30px ${FB}`, AC, 'center', 5);
     y += 360 * F;
     txt(String(K.n), W / 2, y, `800 ${Math.round(380 * F)}px ${FH}`, tx, 'center', -14);
@@ -2134,7 +2136,7 @@ async function desenharCard(cv, c, o) {
     // linha do pace a cada km (mais rápido em cima) e o melhor km marcado
     const parc = parcKm(c),
       F = post ? 0.8 : 1;
-    let y = post ? 130 : 270;
+    let y = yTopo(post ? 130 : 270);
     txt('PACE KM A KM', 100, y, `800 30px ${FB}`, AC, 'left', 5);
     y += 60;
     const tops = ['dist', 'tempo', 'pace'].filter((k) => V[k]).map((k) => V[k]);
@@ -2228,7 +2230,7 @@ async function desenharCard(cv, c, o) {
       return `${Z.lim[i]}–${Z.lim[i + 1] - 1}${u}`;
     };
     const media = pot ? E.pot_med_rel || E.pot_med : c.fc_media;
-    let y = post ? 130 : 280;
+    let y = yTopo(post ? 130 : 280);
     txt(pot ? 'ZONAS DE POTÊNCIA' : 'ZONAS DE FC', 100, y, `800 30px ${FB}`, AC, 'left', 5);
     y += 160 * F;
     const fg = `800 ${Math.round(150 * F)}px ${FH}`,
@@ -2308,7 +2310,7 @@ async function desenharCard(cv, c, o) {
     // efeito do treino do relógio: aeróbico e anaeróbico na escala de 0 a 5
     const T = cardTE(c),
       F = post ? 0.8 : 1;
-    let y = post ? 130 : 280;
+    let y = yTopo(post ? 130 : 280);
     txt('EFEITO DO TREINO', 100, y, `800 30px ${FB}`, AC, 'left', 5);
     y += 130 * F;
     const princ = T.ana != null && T.ana > T.aer ? T.ana : T.aer,
@@ -2398,7 +2400,7 @@ async function desenharCard(cv, c, o) {
       K = VO.classe,
       F = post ? 0.8 : 1;
     const CV = ['#ff4757', '#ff9a2e', '#2fc46b', '#3b8cff', '#a35cff'];
-    let y = post ? 130 : 280;
+    let y = yTopo(post ? 130 : 280);
     txt('VO2MÁX', 100, y, `800 30px ${FB}`, AC, 'left', 5);
     y += 120 * F;
     txt(
@@ -2510,7 +2512,7 @@ async function desenharCard(cv, c, o) {
     const E = (c.analise && c.analise.extras) || {},
       subida = Math.round(c.elevacao_m || E.sub || 0),
       altMax = Math.round(E.alt_max != null ? E.alt_max : amax);
-    let y = post ? 130 : 280;
+    let y = yTopo(post ? 130 : 280);
     txt('ALTIMETRIA', 100, y, `800 30px ${FB}`, AC, 'left', 5);
     const grande = subida ? `+${subida} m` : `${Math.round(amax - amin)} m`;
     y += 160 * F;
@@ -2581,7 +2583,7 @@ async function desenharCard(cv, c, o) {
     // treino de força: carga total levantada, números do treino e os exercícios
     const T = c._forca,
       F = post ? 0.8 : 1;
-    let y = post ? 120 : 260;
+    let y = yTopo(post ? 120 : 260);
     txt('TREINO DE FORÇA', 100, y, `800 30px ${FB}`, AC, 'left', 5);
     const tit = T.titulo || 'Treino',
       pxT = cabe(tit, '800', Math.round(66 * F), W - 200, FH, -1);
@@ -2709,12 +2711,90 @@ const locCurto = (r) => {
     ''
   );
 };
-async function locBuscar(q) {
-  const r = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&accept-language=pt-BR&q=${encodeURIComponent(q)}`,
+const UF_BR = {
+  Acre: 'AC',
+  Alagoas: 'AL',
+  Amapá: 'AP',
+  Amazonas: 'AM',
+  Bahia: 'BA',
+  Ceará: 'CE',
+  'Distrito Federal': 'DF',
+  'Espírito Santo': 'ES',
+  Goiás: 'GO',
+  Maranhão: 'MA',
+  'Mato Grosso': 'MT',
+  'Mato Grosso do Sul': 'MS',
+  'Minas Gerais': 'MG',
+  Pará: 'PA',
+  Paraíba: 'PB',
+  Paraná: 'PR',
+  Pernambuco: 'PE',
+  Piauí: 'PI',
+  'Rio de Janeiro': 'RJ',
+  'Rio Grande do Norte': 'RN',
+  'Rio Grande do Sul': 'RS',
+  Rondônia: 'RO',
+  Roraima: 'RR',
+  'Santa Catarina': 'SC',
+  'São Paulo': 'SP',
+  Sergipe: 'SE',
+  Tocantins: 'TO',
+};
+// centro da cidade do atleta (arredondado, cerca de 10 km): só para mostrar primeiro os lugares perto dele
+let locPerto = null;
+async function locCentro() {
+  if (locPerto !== null) return locPerto;
+  const { data } = await sb.rpc('nx_cidade_calor').then(
+    (r) => r,
+    () => ({ data: null }),
   );
-  if (!r.ok) throw 0;
-  return (await r.json()).map(locCurto).filter((x, i, a) => x && a.indexOf(x) === i);
+  locPerto = data && data.lat != null && data.lon != null ? [+(+data.lat).toFixed(1), +(+data.lon).toFixed(1)] : false;
+  return locPerto;
+}
+// busca em dois serviços do OpenStreetMap: o Photon acha nomes incompletos e sem acento ("litoranea");
+// o Nominatim completa com endereços. Lugares perto da cidade do atleta vêm primeiro, depois o resto do Brasil.
+async function locBuscar(q) {
+  const perto = await locCentro(),
+    e = encodeURIComponent(q);
+  const bias = perto ? `&lat=${perto[0]}&lon=${perto[1]}&zoom=11&location_bias_scale=0.1` : '';
+  const caixa = perto
+    ? `&viewbox=${[perto[1] - 0.6, perto[0] + 0.6, perto[1] + 0.6, perto[0] - 0.6].map((x) => x.toFixed(1)).join(',')}`
+    : '';
+  const pega = (u) =>
+    fetch(u)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  const [ph, nm] = await Promise.all([
+    pega(`https://photon.komoot.io/api/?q=${e}&limit=12${bias}`),
+    pega(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=br&accept-language=pt-BR${caixa}&q=${e}`,
+    ),
+  ]);
+  if (!ph && !nm) throw 0;
+  const km = (lat, lon) => (perto ? Math.hypot(lat - perto[0], lon - perto[1]) * 111 : 0);
+  const itens = [];
+  ((ph && ph.features) || []).forEach((f) => {
+    const p = f.properties || {},
+      [lon, lat] = (f.geometry && f.geometry.coordinates) || [0, 0];
+    const nome = p.name || p.street || '',
+      cid = p.city || p.town || p.village || p.county || '',
+      uf = UF_BR[p.state] || '';
+    const t = [...new Set([nome, cid].filter(Boolean))].join(', ') + (uf && cid ? ` - ${uf}` : '');
+    if (t) itens.push({ t, br: p.countrycode === 'BR', km: km(lat, lon) });
+  });
+  (Array.isArray(nm) ? nm : []).forEach((r) => {
+    const t = locCurto(r);
+    if (t) itens.push({ t, br: true, km: km(+r.lat, +r.lon) });
+  });
+  const temBr = itens.some((x) => x.br);
+  const nivel = (x) => (perto && x.br && x.km < 60 ? 0 : x.br ? 1 : 2);
+  return itens
+    .filter((x) => !temBr || x.br)
+    .map((x, i) => ({ ...x, i }))
+    .sort((a, b) => nivel(a) - nivel(b) || a.i - b.i)
+    .map((x) => x.t)
+    .filter((x, i, a) => a.indexOf(x) === i)
+    .slice(0, 8);
 }
 async function locReversa(lat, lon) {
   const r = await fetch(
@@ -3399,7 +3479,7 @@ async function abrirCardCorrida(c, plano) {
         <div class="chips wrap" style="margin-top:10px"><button type="button" class="chip" data-l="aqui">${PIN} Onde estou agora</button>${c.rota && c.rota.length && c.fonte !== 'garmin' ? `<button type="button" class="chip" data-l="corrida">${PIN} Onde foi a corrida</button>` : ''}${rec.map((x) => `<button type="button" class="chip" data-usar="${esc(x)}">${esc(x)}</button>`).join('')}</div>
         <div id="loc-res" class="loc-res"></div>
         <div class="row" style="gap:8px;margin-top:8px"><button type="button" class="link-btn small" data-l="escrito">Usar do jeito que escrevi</button><span class="grow"></span><button type="button" class="link-btn small" data-l="fechar">Cancelar</button></div>
-        <p class="tiny dim" style="margin-top:6px">A busca usa o OpenStreetMap e só acontece quando você toca em Buscar.</p></div>`;
+        <p class="tiny dim" style="margin-top:6px">A busca usa o OpenStreetMap e só acontece quando você toca em Buscar. Lugares perto da sua cidade aparecem primeiro.</p></div>`;
         const q = locBox.querySelector('#loc-q');
         setTimeout(() => q.focus(), 50);
         locBox.querySelector('#loc-f').onsubmit = async (e) => {
