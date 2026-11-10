@@ -3648,3 +3648,12 @@ body.em-video{overflow:hidden}
 .aviso-prev img{width:36px;height:36px;border-radius:10px;flex:none}
 .aviso-prev b{display:block;font-size:.92rem}
 .aviso-prev span{display:block;font-size:.84rem;color:var(--mute);line-height:1.4;margin-top:2px}
+
+/* semanas anteriores (treinador) */
+.sem-it summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+.sem-it summary::-webkit-details-marker{display:none}
+.sem-it summary svg{transition:transform .2s;flex:none}
+.sem-it[open] summary svg{transform:rotate(90deg)}
+.sem-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sem-lista{display:grid;gap:2px;margin-top:8px}
+.sem-lista .ativ-row{display:flex;gap:10px;align-items:center;padding:8px 2px;color:inherit;border-top:1px solid var(--line)}

@@ -977,7 +977,7 @@ function responderFalta(f, depois) {
 async function faltasEquipe(ids, porId) {
   const box = document.getElementById('faltas-eq');
   if (!box || !ids.length) return;
-  const desde = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const desde = isoDia(inicioSemana()); // só a semana atual; as anteriores ficam em Semanas anteriores
   const { data } = await sb
     .from('nx_faltas')
     .select('id,aluno_id,dia,treinos,motivo,detalhe,respondido_em,visto_treinador')
@@ -992,7 +992,7 @@ async function faltasEquipe(ids, porId) {
     );
   if (!data || !data.length || !document.getElementById('faltas-eq')) return;
   const novas = data.filter((f) => f.respondido_em && !f.visto_treinador).length;
-  box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Treinos não feitos</h2>${novas ? `<span class="tag acc">${novas} resposta${novas > 1 ? 's' : ''} nova${novas > 1 ? 's' : ''}</span>` : `<span class="small muted">últimos 7 dias</span>`}</div><div class="stack">${data
+  box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Treinos não feitos</h2>${novas ? `<span class="tag acc">${novas} resposta${novas > 1 ? 's' : ''} nova${novas > 1 ? 's' : ''}</span>` : `<a class="link-btn small" href="#/semanas">Semanas anteriores</a>`}</div><div class="stack">${data
     .map((f) => {
       const m = porId[f.aluno_id] || { nome: 'Aluno' };
       return `<a class="list-item" href="#/aluno/${f.aluno_id}" data-falta-vista="${f.respondido_em && !f.visto_treinador ? f.id : ''}" style="color:inherit;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${diaSemDe(f.dia)}</b><div class="small muted">${esc((f.treinos || []).join(' e '))}</div>${f.respondido_em ? `<div class="small" style="margin-top:4px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `: ${esc(f.detalhe)}` : ''}</div>` : '<div class="small muted" style="margin-top:4px">Aguardando a resposta do aluno</div>'}</div>${f.respondido_em && !f.visto_treinador ? '<i class="alert-dot"></i>' : ''}</a>`;

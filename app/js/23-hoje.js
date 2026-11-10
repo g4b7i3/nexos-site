@@ -73,6 +73,12 @@ async function idsMeusAlunos() {
 async function staffHoje() {
   loading();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
+  // a Hoje mostra só a semana atual (de segunda a domingo); na segunda tudo zera e o que passou fica em Semanas anteriores
+  const semIni = (() => {
+    const d = inicioSemana();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
   const segAtual = isoDia(inicioSemana()),
     segPass = somaDias(segAtual, -7),
     segProx = somaDias(segAtual, 7);
@@ -265,10 +271,10 @@ async function staffHoje() {
       // termômetro dos últimos 7 dias (check-ins de força e corrida)
       const ck = [
         ...sess
-          .filter((s) => s.aluno_id === id && s.iniciado_em > seteDias)
+          .filter((s) => s.aluno_id === id && s.iniciado_em > semIni)
           .map((s) => ({ e: s.esforco, dor: s.dor, c: s.cansaco, so: s.sono })),
         ...corr
-          .filter((c) => c.aluno_id === id && c.data > seteDias)
+          .filter((c) => c.aluno_id === id && c.data > semIni)
           .map((c) => ({ e: c.rpe, dor: c.dor, c: c.cansaco, so: c.sono })),
       ];
       const esf = ck.filter((x) => x.e != null).map((x) => x.e);
@@ -354,7 +360,7 @@ async function staffHoje() {
   const alMeus = alertas;
   const recentes = [
     ...sess
-      .filter((s) => s.iniciado_em > seteDias)
+      .filter((s) => s.iniciado_em > semIni)
       .map((s) => ({
         id: s.id,
         tp: 'sessao',
@@ -368,7 +374,7 @@ async function staffHoje() {
         ic: I.lib,
       })),
     ...corr
-      .filter((c) => c.data > seteDias)
+      .filter((c) => c.data > semIni)
       .map((c) => ({
         id: c.id,
         tp: 'corrida',
@@ -543,7 +549,7 @@ async function staffHoje() {
     })()}
     <div id="sug-hoje"></div>
     ${ehSeg ? '' : resumoHTML}
-    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Ver retornos</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
+    <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Retornos</a><a class="link-btn" href="#/semanas">Anteriores</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
       <div id="ativ-corpo" ${store.get('nx_ativ_oculta', false) ? 'hidden' : ''}>${
         recentes.length
           ? `<div class="card ativ">${recentes
@@ -554,7 +560,7 @@ async function staffHoje() {
               )
               .join('')}
         ${recentes.length > 6 ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">${st.tudo ? 'Mostrar menos' : `Mostrar mais ${recentes.length - 6}`}</button>` : ''}</div>`
-          : '<div class="empty"><div class="h3">Nenhum treino nos últimos 7 dias</div></div>'
+          : '<div class="empty"><div class="h3">Nenhum treino nesta semana ainda</div><p class="small">A semana começa na segunda. As anteriores ficam em <a href="#/semanas">Semanas anteriores</a>.</p></div>'
       }</div>
       ${store.get('nx_ativ_oculta', false) ? `<p class="small muted" id="ativ-oculta-txt">${recentes.length} ${recentes.length === 1 ? 'atividade oculta' : 'atividades ocultas'}. Toque na seta para mostrar.</p>` : ''}
     </div>`;
@@ -929,4 +935,108 @@ async function cartaoLiberarProxima(el, ativos) {
         };
       },
     );
+}
+
+/* ---------- semanas anteriores: o que saiu da Hoje fica guardado aqui, semana por semana (segunda a domingo) ---------- */
+async function staffSemanas() {
+  loading();
+  const N = 12;
+  const segAtual = isoDia(inicioSemana()),
+    ini = somaDias(segAtual, -7 * (N - 1));
+  const iniTs = new Date(ini + 'T00:00:00').toISOString();
+  const [{ data: membrosT }, { data: sessT }, { data: corrT }, { data: faltT }] = await Promise.all([
+    sb
+      .from('nx_membros')
+      .select('user_id,nome,treinador_id,foto_url,papel')
+      .eq('org_id', S.org.id)
+      .eq('papel', 'aluno'),
+    sb
+      .from('nx_sessoes')
+      .select('id,aluno_id,iniciado_em,treino_titulo,esforco,dor')
+      .eq('org_id', S.org.id)
+      .not('finalizado_em', 'is', null)
+      .gte('iniciado_em', iniTs)
+      .order('iniciado_em', { ascending: false })
+      .limit(2000),
+    sb
+      .from('nx_corridas')
+      .select('id,aluno_id,data,tipo,distancia_m,duracao_s,dor')
+      .eq('org_id', S.org.id)
+      .gte('data', iniTs)
+      .order('data', { ascending: false })
+      .limit(2000),
+    sb
+      .from('nx_faltas')
+      .select('id,aluno_id,dia,treinos,motivo,detalhe,respondido_em')
+      .eq('org_id', S.org.id)
+      .gte('dia', ini)
+      .order('dia', { ascending: false })
+      .limit(1000),
+  ]);
+  const meus = (membrosT || []).filter(ehMeuAluno),
+    vis = new Set(meus.map((m) => m.user_id)),
+    porId = Object.fromEntries(meus.map((m) => [m.user_id, m]));
+  const semDe = (ts) => isoDia(inicioSemana(new Date(ts)));
+  const semanas = {};
+  const sem = (k) => (semanas[k] = semanas[k] || { ativ: [], faltas: [] });
+  (sessT || [])
+    .filter((x) => vis.has(x.aluno_id))
+    .forEach((x) =>
+      sem(semDe(x.iniciado_em)).ativ.push({
+        t: x.iniciado_em,
+        al: x.aluno_id,
+        h: `#/aluno/${x.aluno_id}/historico`,
+        ic: I.lib,
+        d: `${esc(x.treino_titulo || 'Treino de força')}${x.esforco != null ? ` · esforço ${x.esforco}` : ''}`,
+        dor: x.dor,
+        forca: true,
+      }),
+    );
+  (corrT || [])
+    .filter((x) => vis.has(x.aluno_id))
+    .forEach((x) =>
+      sem(semDe(x.data)).ativ.push({
+        t: x.data,
+        al: x.aluno_id,
+        h: `#/corrida/${x.id}`,
+        ic: I.run,
+        d: ehCorr(x) ? `${fmtKm(x.distancia_m, 1)} · ${fmtPace(paceDe(x))}` : `${nomeAtiv(x)} · ${resumoAtiv(x)}`,
+        dor: x.dor,
+        km: ehCorr(x) ? (x.distancia_m || 0) / 1000 : 0,
+      }),
+    );
+  (faltT || [])
+    .filter((x) => vis.has(x.aluno_id))
+    .forEach((x) => sem(isoDia(inicioSemana(new Date(x.dia + 'T12:00:00')))).faltas.push(x));
+  const chaves = [];
+  for (let i = 0; i < N; i++) chaves.push(somaDias(segAtual, -7 * i));
+  const nome = (id) => esc(firstName((porId[id] || {}).nome || 'Aluno'));
+  dockStaff();
+  $app.innerHTML = `<a class="back" href="#/">${I.back} Hoje</a><p class="eyebrow">Histórico da equipe</p><h1 class="h1">Semanas anteriores</h1>
+    <p class="muted small" style="margin-top:6px">A tela Hoje mostra só a semana atual e zera toda segunda. Tudo o que passou fica guardado aqui, semana por semana. Toque numa semana para abrir.</p>
+    <div class="stack" style="margin-top:16px">${chaves
+      .filter((k, i) => i === 0 || (semanas[k] && (semanas[k].ativ.length || semanas[k].faltas.length)))
+      .map((k) => {
+        const i = chaves.indexOf(k);
+        const w = semanas[k] || { ativ: [], faltas: [] };
+        w.ativ.sort((a, b) => (a.t < b.t ? 1 : -1));
+        const forca = w.ativ.filter((x) => x.forca).length,
+          corr = w.ativ.length - forca,
+          km = w.ativ.reduce((a, x) => a + (x.km || 0), 0),
+          alunos = new Set(w.ativ.map((x) => x.al)).size,
+          dores = w.ativ.filter((x) => x.dor).length;
+        const tit =
+          i === 0
+            ? 'Esta semana'
+            : i === 1
+              ? 'Semana passada'
+              : `${fmtCurto(k + 'T12:00:00')} a ${fmtCurto(somaDias(k, 6) + 'T12:00:00')}`;
+        return `<details class="card sem-it"${i === 1 ? ' open' : ''}><summary><div class="grow" style="min-width:0"><b>${tit}</b><div class="small muted">${i < 2 ? `${fmtCurto(k + 'T12:00:00')} a ${fmtCurto(somaDias(k, 6) + 'T12:00:00')} · ` : ''}${w.ativ.length} treino${w.ativ.length === 1 ? '' : 's'} · ${alunos} aluno${alunos === 1 ? '' : 's'}${km ? ` · ${fmtNum(km, 1)} km` : ''}${w.faltas.length ? ` · ${w.faltas.length} não feito${w.faltas.length > 1 ? 's' : ''}` : ''}</div></div>${I.chev}</summary>
+          <div class="sem-chips">${forca ? `<span class="tag">${forca} de força</span>` : ''}${corr ? `<span class="tag">${corr} de corrida</span>` : ''}${dores ? `<span class="tag err">${dores} com dor</span>` : ''}</div>
+          ${w.ativ.length ? `<div class="sem-lista">${w.ativ.map((x) => `<a class="ativ-row" href="${x.h}"><span class="ativ-av">${avAluno(porId[x.al] || { nome: 'Aluno' }, 'sm')}</span><div class="grow" style="min-width:0"><b>${nome(x.al)}</b> <span class="small muted">· ${esc(DIA_SEM[new Date(x.t).getDay()])}</span><div class="small muted ellip">${x.d}${x.dor ? ' · <span style="color:var(--err)">dor</span>' : ''}</div></div></a>`).join('')}</div>` : '<p class="small muted" style="margin-top:8px">Nenhum treino registrado nesta semana.</p>'}
+          ${w.faltas.length ? `<p class="sec-lbl" style="margin-top:12px">Treinos não feitos</p><div class="sem-lista">${w.faltas.map((f) => `<a class="ativ-row" href="#/aluno/${f.aluno_id}"><span class="ativ-av">${avAluno(porId[f.aluno_id] || { nome: 'Aluno' }, 'sm')}</span><div class="grow" style="min-width:0"><b>${nome(f.aluno_id)}</b> <span class="small muted">· ${diaSemDe(f.dia)}</span><div class="small muted">${esc((f.treinos || []).join(' e '))}${f.respondido_em ? ` · ${esc(f.motivo || '')}${f.detalhe ? `: ${esc(f.detalhe)}` : ''}` : ' · sem resposta'}</div></div></a>`).join('')}</div>` : ''}
+        </details>`;
+      })
+      .join('')}</div>
+    <p class="small muted" style="margin-top:14px">Mostrando as últimas ${N} semanas. O histórico completo de cada aluno continua na ficha dele.</p>`;
 }
