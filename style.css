@@ -365,9 +365,9 @@ body,.nav,.panel,.wk-card,.booking,.faq details,.lab-in,.lab-out{transition:back
 .theme-btn:hover{border-color:var(--acc)}
 .theme-btn:active{transform:rotate(30deg) scale(.92)}
 .theme-btn svg{width:18px;height:18px}
-.theme-btn .sun{display:none}
-:root[data-theme="light"] .theme-btn .sun{display:block}
-:root[data-theme="light"] .theme-btn .moon{display:none}
+.theme-btn .moon{display:none}
+:root[data-theme="light"] .theme-btn .moon{display:block}
+:root[data-theme="light"] .theme-btn .sun{display:none}
 .nav-right{display:flex;align-items:center;gap:10px}
 @media (min-width:861px){.nav-right{gap:18px}}
 /* símbolo da marca no letreiro */
