@@ -966,12 +966,13 @@ async function staffAluno(alunoId, aba, extra) {
     <a class="back" href="#/alunos">${I.back} Meus Atletas</a>
     <div class="row" style="gap:16px">${avAluno(m, 'lg ' + (ultT && diasDesde(ultT) <= 3 ? 'st-ok' : ultT && diasDesde(ultT) <= 7 ? 'st-warn' : ''))}
       <div class="grow"><h1 class="h2">${esc(m.nome)}</h1><div class="small muted">${m.objetivo ? esc(m.objetivo) : 'Sem objetivo cadastrado'}</div>
-      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${ultT ? `<span class="tag">Último treino ${quando(ultT)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${m.ativo ? '<button type="button" class="tag acc tag-btn" id="ficha-video">Videochamada</button>' : ''}<span id="ficha-cham"></span><span data-pres="${alunoId}"></span></div></div></div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${ultT ? `<span class="tag">Último treino ${quando(ultT)}</span>` : '<span class="tag">Ainda não treinou</span>'}${(m.modalidades || []).length === 1 ? `<span class="tag acc">Só ${MODS.find((x) => x[0] === m.modalidades[0])[1].toLowerCase()}</span>` : ''}${!m.ativo ? '<span class="tag warn">Inativo</span>' : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<button type="button" class="tag acc tag-btn" id="ph-msg">Mensagem</button>${m.ativo ? '<button type="button" class="tag acc tag-btn" id="ficha-video">Videochamada</button>' : ''}<span id="ficha-cham"></span><span data-pres="${alunoId}"></span></div></div></div>
     ${m.observacoes || (anamnese && anamnese.parq_positivo) ? `<div class="card" style="margin-top:16px;border-color:rgba(255,207,92,.3)"><span class="eyebrow" style="color:var(--warn)">Atenção</span>${anamnese && anamnese.parq_positivo ? `<p class="small" style="margin-top:4px">${icT(I.alerta, 'warn')}PAR-Q com resposta "sim". <a href="#/aluno/${alunoId}/saude">Ver ficha de saúde</a></p>` : ''}${m.observacoes ? `<p class="small" style="margin-top:4px">${esc(m.observacoes)}</p>` : ''}</div>` : ''}
 `;
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
       <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a><a class="tag acc" data-ficha-ins="${alunoId}" hidden>Ficha de inscrição ✎</a>${(setTimeout(() => preencherFichaIns(alunoId), 0), '')}</div>
         <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div>
+        <div class="ph-acoes"><button type="button" class="tag acc tag-btn" id="ph-msg">${I.feed} Mensagem</button>${m.ativo ? `<button type="button" class="tag acc tag-btn" id="ficha-video">Videochamada</button>` : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<span id="ficha-cham"></span><span data-pres="${alunoId}"></span></div>
         <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : `+ Marcar dias de treino ${selo('corrida', 'sm')} ${selo('forca', 'sm')}`} <span class="dim">· editar</span></button>${cicloA ? cicloLinhaHTML(cicloA, true) : ''}</div></div>
         ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>${icT(I.flag)}${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
       ${fM && fC ? `<div class="subtabs mod-tabs" style="margin-top:12px"><a class="${aba === 'corrida' ? 'on' : ''}" href="#/aluno/${alunoId}/corrida">${I.run} Corrida</a><a class="${aba === 'forca' ? 'on' : ''}" href="#/aluno/${alunoId}/forca">${I.lib} Força</a></div>` : ''}`;
@@ -990,6 +991,8 @@ async function staffAluno(alunoId, aba, extra) {
     linhaUltimaChamada(alunoId);
     window.addEventListener('nx:video-fim', () => linhaUltimaChamada(alunoId), { once: true });
   }
+  const phMsg = document.getElementById('ph-msg');
+  if (phMsg) phMsg.onclick = () => mensagemRapida({ ...m, user_id: alunoId });
   const fAt = document.getElementById('ficha-ativo');
   if (fAt) fAt.onclick = () => (m.ativo ? desativarAluno : reativarAluno)(m, () => staffAluno(alunoId));
   // aluno sem notificação: o treinador vê e manda o passo a passo para ativar
@@ -2893,4 +2896,37 @@ async function staffDesativados() {
     const m = l.find((x) => x.user_id === b.dataset.reat);
     if (m) reativarAluno(m, () => staffDesativados());
   };
+}
+
+/** mensagem rápida para o aluno, sem sair da planilha */
+function mensagemRapida(m) {
+  openSheet(
+    `<p class="eyebrow">Mensagem</p><div class="h2" style="margin-top:4px">Para ${esc(firstName(m.nome))}</div>
+    <form id="f-rap" style="margin-top:12px"><textarea class="textarea" name="texto" rows="4" maxlength="2000" required placeholder="Escreva para ${esc(firstName(m.nome))}…"></textarea>
+    <div class="grid2" style="margin-top:12px"><a class="btn ghost" href="#/aluno/${m.user_id}/conversa">Abrir a conversa</a><button class="btn" id="rap-env">Enviar ${I.arrow}</button></div></form>`,
+    (r) => {
+      const f = r.querySelector('#f-rap');
+      setTimeout(() => f.texto.focus(), 250);
+      r.querySelector('a[href*="/conversa"]').onclick = () => closeSheet();
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        const texto = f.texto.value.trim();
+        if (!texto) return;
+        const b = r.querySelector('#rap-env');
+        b.disabled = true;
+        const { data: nm, error } = await sb
+          .from('nx_mensagens')
+          .insert({ org_id: S.org.id, aluno_id: m.user_id, autor_id: S.user.id, texto })
+          .select('id')
+          .single();
+        if (error) {
+          b.disabled = false;
+          return toast('Não foi possível enviar.', true);
+        }
+        notificar('mensagem', nm && nm.id);
+        closeSheet();
+        toast(`Mensagem enviada para ${firstName(m.nome)}.`);
+      };
+    },
+  );
 }

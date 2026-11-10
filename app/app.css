@@ -3408,3 +3408,11 @@ body.em-video{overflow:hidden}
 .rel-leg i,.rel-chk i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .rel-leg b,.rel-chk b{color:var(--ink)}
 .rel-chk small{color:var(--dim)}
+/* conversa: selecionar várias mensagens */
+.msg-selbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin-top:10px;border:1px solid var(--line);border-radius:14px;background:var(--s1)}
+.msg-selbar b{font-size:.9rem}
+.chat.selecionando .bubble{cursor:pointer}
+.chat.selecionando .bubble.sel{outline:2px solid var(--err);outline-offset:2px}
+/* planilha do aluno: atalhos */
+.ph-acoes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.ph-acoes .tag svg{width:13px;height:13px;vertical-align:-2px;margin-right:2px}

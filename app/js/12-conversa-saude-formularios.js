@@ -86,6 +86,50 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
   drawRef();
   let assin = '';
   const ladoMeu = (m) => (staff ? m.autor_id !== alunoId : m.autor_id === S.user.id);
+  // apagar: a equipe apaga qualquer mensagem da conversa; o aluno, só as dele
+  const podeApagar = (m) => !!m && (staff || m.autor_id === S.user.id);
+  const sel = new Set();
+  let selMode = false;
+  const barra = document.createElement('div');
+  barra.className = 'msg-selbar';
+  barra.hidden = true;
+  f.parentNode.insertBefore(barra, f);
+  const marcarSel = () => {
+    $chat.querySelectorAll('[data-msg]').forEach((b) => b.classList.toggle('sel', sel.has(b.dataset.msg)));
+    $chat.classList.toggle('selecionando', selMode);
+    barra.hidden = !selMode;
+    f.hidden = selMode;
+    if (selMode)
+      barra.innerHTML = `<button type="button" class="link-btn" data-sel="sair">Cancelar</button><b>${sel.size ? `${sel.size} selecionada${sel.size > 1 ? 's' : ''}` : 'Toque nas mensagens'}</b><button type="button" class="btn sm" data-sel="apagar" style="background:var(--err)" ${sel.size ? '' : 'disabled'}>Apagar</button>`;
+  };
+  const sairSel = () => {
+    selMode = false;
+    sel.clear();
+    marcarSel();
+  };
+  barra.onclick = async (e) => {
+    const b = e.target.closest('[data-sel]');
+    if (!b) return;
+    if (b.dataset.sel === 'sair') return sairSel();
+    if (!sel.size) return;
+    if (!b.dataset.ok) {
+      b.dataset.ok = '1';
+      b.textContent = 'Confirmar';
+      return;
+    }
+    b.disabled = true;
+    const ids = [...sel];
+    const { error } = await sb.from('nx_mensagens').delete().in('id', ids);
+    if (error) {
+      b.disabled = false;
+      return toast('Não foi possível apagar.', true);
+    }
+    toast(`${ids.length} mensage${ids.length > 1 ? 'ns apagadas' : 'm apagada'}`);
+    sairSel();
+    assin = '';
+    await carregar();
+    contarMsgNovas();
+  };
   const carregar = async () => {
     const { data, error } = await sb
       .from('nx_mensagens')
@@ -117,7 +161,8 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
             })
             .join('')
         : `<div class="empty"><div class="h3">Nenhuma mensagem ainda</div><p class="small">${staff ? 'Mande um recado, um ajuste ou um parabéns.' : 'Mande sua primeira mensagem para o treinador.'}</p></div>`;
-      $chat.scrollTop = $chat.scrollHeight;
+      if (selMode) marcarSel();
+      else $chat.scrollTop = $chat.scrollHeight;
       carregarAudios($chat).catch(() => {});
       if (!staff) window.scrollTo(0, document.body.scrollHeight);
     }
@@ -168,21 +213,35 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
   const menuMsg = (id) => {
     const m = (S.chatMsgs || []).find((x) => x.id === id);
     if (!m) return;
-    const minha = m.autor_id === S.user.id;
+    const minha = podeApagar(m);
     try {
       navigator.vibrate && navigator.vibrate(15);
     } catch {}
     openSheet(
-      `<div class="msg-prev">${esc(m.texto.length > 160 ? m.texto.slice(0, 159) + '…' : m.texto)}</div>
+      `<div class="msg-prev">${m.audio_path ? 'Mensagem de áudio' : esc(m.texto.length > 160 ? m.texto.slice(0, 159) + '…' : m.texto)}</div>
       <div class="stack" style="margin-top:16px">
         <button class="list-item msg-ac" id="mc-copiar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg><b>Copiar</b></button>
-        ${minha ? `<button class="list-item msg-ac del" id="mc-apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><b>Apagar para todos</b></button>` : ''}
+        ${
+          minha
+            ? `<button class="list-item msg-ac del" id="mc-apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><b>Apagar para todos</b></button>
+        <button class="list-item msg-ac" id="mc-varias"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M15.5 17.5l2 2 3.5-4"/></svg><b>Selecionar várias para apagar</b></button>`
+            : ''
+        }
       </div>
       <button class="btn ghost block" data-close style="margin-top:12px">Cancelar</button>`,
       (r) => {
+        const vs = r.querySelector('#mc-varias');
+        if (vs)
+          vs.onclick = () => {
+            closeSheet();
+            selMode = true;
+            sel.clear();
+            sel.add(m.id);
+            marcarSel();
+          };
         r.querySelector('#mc-copiar').onclick = async () => {
           try {
-            await navigator.clipboard.writeText(m.texto);
+            await navigator.clipboard.writeText(m.texto || '');
           } catch {
             const t = document.createElement('textarea');
             t.value = m.texto;
@@ -221,9 +280,19 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
   };
   let pressT = null,
     pressXY = null;
+  $chat.addEventListener('click', (e) => {
+    if (!selMode) return;
+    const b = e.target.closest('[data-msg]');
+    if (!b) return;
+    e.preventDefault();
+    const m = (S.chatMsgs || []).find((x) => x.id === b.dataset.msg);
+    if (!podeApagar(m)) return toast('Você só pode apagar as suas mensagens.', true);
+    sel.has(m.id) ? sel.delete(m.id) : sel.add(m.id);
+    marcarSel();
+  });
   $chat.addEventListener('pointerdown', (e) => {
     const b = e.target.closest('[data-msg]');
-    if (!b || e.button > 0) return;
+    if (!b || e.button > 0 || selMode) return;
     pressXY = [e.clientX, e.clientY];
     b.classList.add('press');
     pressT = setTimeout(() => {
@@ -245,7 +314,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
   });
   $chat.addEventListener('contextmenu', (e) => {
     const b = e.target.closest('[data-msg]');
-    if (!b) return;
+    if (!b || selMode) return;
     e.preventDefault();
     soltar();
     menuMsg(b.dataset.msg);
