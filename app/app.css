@@ -3495,3 +3495,16 @@ body.em-video{overflow:hidden}
 /* hidratação: os dois links do rodapé menores e numa linha só cada */
 .agua-pe{flex-wrap:wrap}
 .agua-pe .agua-desf,.agua-pe .agua-lemb{font-size:.78rem!important;white-space:nowrap}
+
+/* meditação */
+.med-ic{background:linear-gradient(135deg,#3b2a8f,#7c5cff)!important;color:#fff!important}
+.med-logo{background:linear-gradient(135deg,#3b2a8f,#7c5cff)!important}
+.med-semana{display:flex;align-items:baseline;gap:10px;margin-top:16px}
+.med-semana b{font-size:1.8rem;font-weight:800}
+.med-semana span{color:var(--mute,#8fa1c4);font-size:.9rem}
+.med-palco{position:relative;height:260px;display:grid;place-items:center;margin-top:18px}
+.med-circ{width:230px;height:230px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(124,92,255,.55),rgba(70,214,255,.25) 60%,rgba(70,214,255,.08));box-shadow:0 0 60px rgba(124,92,255,.35);transform:scale(.55);transition:transform .25s linear}
+.med-fase{position:absolute;font-weight:800;font-size:1.1rem;letter-spacing:.02em}
+.med-fala{text-align:center;min-height:3em;margin-top:6px;color:var(--mute,#8fa1c4)}
+.med-tempo{text-align:center;font-size:1.6rem;font-weight:800;font-variant-numeric:tabular-nums;margin-top:6px}
+@media (prefers-reduced-motion:reduce){.med-circ{transition:none}}
