@@ -67,6 +67,9 @@
 .blk-t h3{font-family:var(--f-h);font-size:clamp(1.15rem,3.6vw,1.5rem)}
 .blk-s{color:var(--mute);margin:-8px 0 18px;font-size:.95rem}
 .painel[hidden]{display:none}
+.sub-t{font-family:var(--f-m);font-size:.74rem;letter-spacing:.12em;color:var(--mute);text-transform:uppercase;margin:4px 0 10px}
+.pas + .sub-t{margin-top:22px}
+.blk .tr{margin:0}
 
 /* treinador */
 .tr{display:flex;gap:16px;align-items:center;border:1px solid var(--line);border-radius:22px;padding:16px 18px;background:var(--card);max-width:780px;margin:0 auto}
@@ -238,18 +241,14 @@
   <p class="esc-mix reveal">Quer os dois? <button data-ver="corrida" data-ir="integral">Conheça o Integral, corrida + força →</button></p>
 </section>
 
-<!-- ======== CORRIDA ======== -->
-<section class="sec painel" id="p-corrida" hidden>
+<!-- ======== CORRIDA: planos ======== -->
+<section class="sec painel" id="p-corrida" data-v="corrida" hidden>
   <div class="sec-head center">
     <p class="tag">Corrida · 100% online</p>
     <h2>Corrida com Gabriel Vinícius</h2>
   </div>
-  <div class="tr">
-    <img src="/img/treinadores/gabriel-avatar.jpg" alt="" width="72" height="72">
-    <div><b>Gabriel Vinícius</b><ul><li>Treinador de corrida</li><li>Especialista em Pliometria pelo NAR, São Paulo</li><li>Graduando em Educação Física, bacharelado (Estácio)</li><li>Curso de Fisiologia do Exercício</li></ul></div>
-  </div>
 
-  <div class="blk" style="margin-top:40px">
+  <div class="blk" style="margin-top:8px">
     <div class="blk-t"><i>01</i><h3>Escolha o período</h3></div>
     <p class="blk-s">Quanto mais tempo de compromisso, menor a mensalidade.</p>
     <div class="per" data-per></div>
@@ -264,54 +263,24 @@
   </div>
 
   <div class="blk">
-    <div class="blk-t"><i>03</i><h3>Compare item por item</h3></div>
-    <div class="tb c3" id="cmp-corrida"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>04</i><h3>Formas de pagamento</h3></div>
-    <p class="blk-s">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>
-    <div class="tb" id="pg-corrida"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>05</i><h3>Como funcionam os planos</h3></div>
-    <div class="rg">
-      <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
-      <div><b>Pagamento todo mês</b><p>Em qualquer período, você pode pagar mês a mês no Pix. O desconto vale enquanto durar o compromisso.</p></div>
-      <div><b>Saiu antes do fim?</b><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o mensal nos meses que usou.</p></div>
-      <div><b>Pausa sem perder o plano</b><p>No semestral e no anual, você pode pausar até 30 dias por lesão, doença ou viagem, e o prazo se estende.</p></div>
-      <div><b>Videochamadas</b><p>De até 30 minutos, combinadas e feitas pelo aplicativo. Não acumulam e podem ser remarcadas com 24 horas de aviso.</p></div>
-      <div><b>Camiseta</b><p>Entregue depois do segundo pagamento, conforme o tamanho disponível.</p></div>
-      <div><b>Mudar de plano</b><p>Para subir, a qualquer momento, pagando a diferença. Para descer, no fim do período contratado.</p></div>
-      <div><b>Avaliação presencial no Integral</b><p>O Integral inclui a avaliação física online. Para fazer a presencial com o Orlando, acrescente R$ 50 por mês.</p></div>
-      <div><b>Treino em dia</b><p>A planilha da semana seguinte é liberada com a mensalidade em dia, com 5 dias de tolerância.</p></div>
+    <div class="blk-t"><i>03</i><h3>Quem acompanha você</h3></div>
+    <div class="tr">
+      <img src="/img/treinadores/gabriel-avatar.jpg" alt="" width="72" height="72">
+      <div><b>Gabriel Vinícius</b><ul><li>Treinador de corrida</li><li>Especialista em Pliometria pelo NAR, São Paulo</li><li>Graduando em Educação Física, bacharelado (Estácio)</li><li>Curso de Fisiologia do Exercício</li></ul></div>
     </div>
   </div>
+
 </section>
 
-<!-- ======== FORÇA ======== -->
-<section class="sec painel" id="p-forca" hidden>
+<!-- ======== FORÇA: planos ======== -->
+<section class="sec painel" id="p-forca" data-v="forca" hidden>
   <div class="sec-head center">
     <p class="tag">Força · 100% online</p>
     <h2>Força com Orlando Borges</h2>
   </div>
-  <div class="tr">
-    <img src="/img/treinadores/orlando-avatar.jpg" alt="" width="72" height="72">
-    <div><b>Orlando Borges</b><ul><li>Bacharel em Educação Física (Pitágoras)</li><li>Pós-graduado em Ciência e Prática em Esportes de Alto Rendimento (NAR, São Paulo)</li><li>Treinador de Alta Performance pelo Athletic Lab (Carolina do Norte, EUA)</li><li>Formação em Força, Velocidade e Potência no Esporte (Ciência da Bola)</li></ul></div>
-  </div>
 
-  <div class="blk" style="margin-top:40px">
-    <div class="blk-t"><i>01</i><h3>Tudo começa pela avaliação física</h3></div>
-    <div class="pas">
-      <div class="pa"><i>COMPOSIÇÃO CORPORAL</i><b>A evolução real, além da balança</b><p>Medidas, peso e a proporção entre massa magra e gordura.</p></div>
-      <div class="pa"><i>AVALIAÇÃO COM O ORLANDO</i><b>Onde você está e o que precisa de atenção</b><p>Por videochamada ou pessoalmente, você escolhe. Daqui sai o seu treino.</p></div>
-      <div class="pa"><i>PRESCRIÇÃO DE EXERCÍCIOS</i><b>Um treino feito a partir da sua avaliação</b><p>Exercícios, séries, cargas e progressão semana a semana, ajustados à sua resposta.</p></div>
-    </div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>02</i><h3>Escolha como será a sua avaliação</h3></div>
+  <div class="blk" style="margin-top:8px">
+    <div class="blk-t"><i>01</i><h3>Escolha como será a sua avaliação</h3></div>
     <p class="blk-s">O treino é sempre online, pelo aplicativo. O que muda é a avaliação: online, por videochamada, ou presencial com o Orlando. Quanto mais tempo de compromisso, menor a mensalidade.</p>
     <div class="per" data-perf></div>
     <p class="isca" id="isca-f"></p>
@@ -319,7 +288,14 @@
   </div>
 
   <div class="blk">
-    <div class="blk-t"><i>03</i><h3>Como funciona o acompanhamento</h3></div>
+    <div class="blk-t"><i>02</i><h3>Como funciona</h3></div>
+    <p class="sub-t">A avaliação física</p>
+    <div class="pas">
+      <div class="pa"><i>COMPOSIÇÃO CORPORAL</i><b>A evolução real, além da balança</b><p>Medidas, peso e a proporção entre massa magra e gordura.</p></div>
+      <div class="pa"><i>AVALIAÇÃO COM O ORLANDO</i><b>Onde você está e o que precisa de atenção</b><p>Por videochamada ou pessoalmente, você escolhe. Daqui sai o seu treino.</p></div>
+      <div class="pa"><i>PRESCRIÇÃO DE EXERCÍCIOS</i><b>Um treino feito a partir da sua avaliação</b><p>Exercícios, séries, cargas e progressão semana a semana, ajustados à sua resposta.</p></div>
+    </div>
+    <p class="sub-t">O acompanhamento</p>
     <div class="pas">
       <div class="pa"><i>INÍCIO</i><b>Avaliação</b><p>Avaliação física com o Orlando. Daqui sai o seu plano.</p></div>
       <div class="pa"><i>TODO MÊS</i><b>Ajustes mensais no treino</b><p>Você treina e o Orlando acompanha cada sessão. Todo mês o treino é ajustado, seguindo a periodização.</p></div>
@@ -328,40 +304,23 @@
   </div>
 
   <div class="blk">
-    <div class="blk-t"><i>04</i><h3>Corre também?</h3></div>
+    <div class="blk-t"><i>03</i><h3>Corre também?</h3></div>
     <p class="blk-s">O Integral junta a força com o Orlando e a corrida com o Gabriel Vinícius, com desconto e pagamento mensal.</p>
     <div class="mix" data-mix></div>
   </div>
 
   <div class="blk">
-    <div class="blk-t"><i>05</i><h3>Compare item por item</h3></div>
-    <div class="tb c2" id="cmp-forca"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>06</i><h3>Formas de pagamento</h3></div>
-    <p class="blk-s">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>
-    <div class="tb" id="pg-forca"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>07</i><h3>Como funcionam os planos</h3></div>
-    <div class="rg">
-      <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
-      <div><b>Pagamento todo mês</b><p>Em qualquer período, você pode pagar mês a mês no Pix. O desconto vale enquanto durar o compromisso.</p></div>
-      <div><b>Saiu antes do fim?</b><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o mensal nos meses que usou.</p></div>
-      <div><b>Pausa sem perder o plano</b><p>No semestral e no anual, você pode pausar até 30 dias por lesão, doença ou viagem, e o prazo se estende.</p></div>
-      <div><b>Camiseta</b><p>No plano anual, entregue depois do segundo pagamento, conforme o tamanho disponível.</p></div>
-      <div><b>Reavaliação a cada 8 semanas</b><p>Você refaz a avaliação e o treino é atualizado com os números novos.</p></div>
-      <div><b>Mudar de plano</b><p>Para subir, a qualquer momento, pagando a diferença. Para descer, no fim do período contratado.</p></div>
-      <div><b>Treine onde preferir</b><p>Na academia que você já frequenta, com cada exercício explicado no aplicativo.</p></div>
-      <div><b>Quer correr também?</b><p>Você pode passar para o Integral a qualquer momento e juntar força e corrida.</p></div>
+    <div class="blk-t"><i>04</i><h3>Quem acompanha você</h3></div>
+    <div class="tr">
+      <img src="/img/treinadores/orlando-avatar.jpg" alt="" width="72" height="72">
+      <div><b>Orlando Borges</b><ul><li>Bacharel em Educação Física (Pitágoras)</li><li>Pós-graduado em Ciência e Prática em Esportes de Alto Rendimento (NAR, São Paulo)</li><li>Treinador de Alta Performance pelo Athletic Lab (Carolina do Norte, EUA)</li><li>Formação em Força, Velocidade e Potência no Esporte (Ciência da Bola)</li></ul></div>
     </div>
   </div>
+
 </section>
 
 <!-- ======== APLICATIVO (comum) ======== -->
-<section class="sec painel" id="app" hidden>
+<section class="sec painel" id="app" data-v="corrida forca" hidden>
   <div class="ap">
     <div class="sec-head center">
       <p class="tag">Em todos os planos</p>
@@ -381,6 +340,74 @@
     </div>
     <p class="ap-fim">O aplicativo reúne as informações. Quem decide o seu treino é sempre o seu treinador.</p>
   </div>
+</section>
+
+<!-- ======== CORRIDA: detalhes ======== -->
+<section class="sec painel" id="d-corrida" data-v="corrida" hidden>
+  <div class="sec-head center">
+    <p class="tag">Detalhes</p>
+    <h2>Tudo sobre os planos de corrida</h2>
+  </div>
+  <div class="blk" style="margin-top:8px">
+    <div class="blk-t"><i>01</i><h3>Compare item por item</h3></div>
+    <div class="tb c3" id="cmp-corrida"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>02</i><h3>Formas de pagamento</h3></div>
+    <p class="blk-s">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>
+    <div class="tb" id="pg-corrida"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>03</i><h3>Como funcionam os planos</h3></div>
+    <div class="rg">
+      <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
+      <div><b>Pagamento todo mês</b><p>Em qualquer período, você pode pagar mês a mês no Pix. O desconto vale enquanto durar o compromisso.</p></div>
+      <div><b>Saiu antes do fim?</b><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o mensal nos meses que usou.</p></div>
+      <div><b>Pausa sem perder o plano</b><p>No semestral e no anual, você pode pausar até 30 dias por lesão, doença ou viagem, e o prazo se estende.</p></div>
+      <div><b>Videochamadas</b><p>De até 30 minutos, combinadas e feitas pelo aplicativo. Não acumulam e podem ser remarcadas com 24 horas de aviso.</p></div>
+      <div><b>Camiseta</b><p>Entregue depois do segundo pagamento, conforme o tamanho disponível.</p></div>
+      <div><b>Mudar de plano</b><p>Para subir, a qualquer momento, pagando a diferença. Para descer, no fim do período contratado.</p></div>
+      <div><b>Avaliação presencial no Integral</b><p>O Integral inclui a avaliação física online. Para fazer a presencial com o Orlando, acrescente R$ 50 por mês.</p></div>
+      <div><b>Treino em dia</b><p>A planilha da semana seguinte é liberada com a mensalidade em dia, com 5 dias de tolerância.</p></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ======== FORÇA: detalhes ======== -->
+<section class="sec painel" id="d-forca" data-v="forca" hidden>
+  <div class="sec-head center">
+    <p class="tag">Detalhes</p>
+    <h2>Tudo sobre os planos de força</h2>
+  </div>
+  <div class="blk" style="margin-top:8px">
+    <div class="blk-t"><i>01</i><h3>Compare item por item</h3></div>
+    <div class="tb c2" id="cmp-forca"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>02</i><h3>Formas de pagamento</h3></div>
+    <p class="blk-s">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>
+    <div class="tb" id="pg-forca"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>03</i><h3>Como funcionam os planos</h3></div>
+    <div class="rg">
+      <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
+      <div><b>Pagamento todo mês</b><p>Em qualquer período, você pode pagar mês a mês no Pix. O desconto vale enquanto durar o compromisso.</p></div>
+      <div><b>Saiu antes do fim?</b><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o mensal nos meses que usou.</p></div>
+      <div><b>Pausa sem perder o plano</b><p>No semestral e no anual, você pode pausar até 30 dias por lesão, doença ou viagem, e o prazo se estende.</p></div>
+      <div><b>Camiseta</b><p>No plano anual, entregue depois do segundo pagamento, conforme o tamanho disponível.</p></div>
+      <div><b>Reavaliação a cada 8 semanas</b><p>Você refaz a avaliação e o treino é atualizado com os números novos.</p></div>
+      <div><b>Mudar de plano</b><p>Para subir, a qualquer momento, pagando a diferença. Para descer, no fim do período contratado.</p></div>
+      <div><b>Treine onde preferir</b><p>Na academia que você já frequenta, com cada exercício explicado no aplicativo.</p></div>
+      <div><b>Quer correr também?</b><p>Você pode passar para o Integral a qualquer momento e juntar força e corrida.</p></div>
+    </div>
+  </div>
+
 </section>
 
 <section class="cta-final pl-final">
@@ -530,9 +557,7 @@
   function mostrar(v, ir) {
     ver = v;
     $$('.esc-c').forEach(function (b) { b.classList.toggle('on', b.dataset.ver === v); });
-    $('#p-corrida').hidden = v !== 'corrida';
-    $('#p-forca').hidden = v !== 'forca';
-    $('#app').hidden = false;
+    $$('.painel').forEach(function (el) { el.hidden = el.dataset.v.split(' ').indexOf(v) < 0; });
     desenhar();
     try { history.replaceState(null, '', '#' + v); } catch (e) {}
     var alvo = ir ? $('#p-' + v + ' #pl-' + ir) : $('#p-' + v);
@@ -547,8 +572,8 @@
     if (k) { p = k.dataset.p; try { sessionStorage.setItem('nx-plano-per', p); } catch (er) {} desenhar(); }
   });
   var h = location.hash.slice(1);
-  if (h === 'corrida' || h === 'forca') { ver = h; $$('.esc-c').forEach(function (b) { b.classList.toggle('on', b.dataset.ver === h); }); $('#p-' + h).hidden = false; $('#app').hidden = false; }
-  if (h === 'integral') { ver = 'corrida'; $('#p-corrida').hidden = false; $('#app').hidden = false; }
+  if (h === 'integral') h = 'corrida';
+  if (h === 'corrida' || h === 'forca') { ver = h; $$('.esc-c').forEach(function (b) { b.classList.toggle('on', b.dataset.ver === h); }); $$('.painel').forEach(function (el) { el.hidden = el.dataset.v.split(' ').indexOf(h) < 0; }); }
   desenhar();
   $$('.zap').forEach(zap);
   $('#year').textContent = new Date().getFullYear();
