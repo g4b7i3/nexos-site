@@ -258,7 +258,7 @@ const MED_CAT = [
   ['binaural-theta', 'Teta · meditação', 'Ondas binaurais'],
   ['binaural-alpha', 'Alfa · relaxamento', 'Ondas binaurais'],
 ];
-// fotos de fundo (Unsplash License: uso livre, sem exigir crédito; mostramos o autor mesmo assim)
+// fotos de fundo (Unsplash License: uso livre, sem exigir crédito)
 const medFoto = (pz, w = 700) =>
   pz && pz.foto ? `https://images.unsplash.com/${pz.foto}?auto=format&fit=crop&w=${w}&q=70` : '';
 const MED_FOTO_GRUPO = {
@@ -1437,7 +1437,6 @@ function medPaisagem(pz) {
       <div class="med-opc-l"><span>${mix ? 'Seus sons' : 'Sons desta paisagem'}</span><div class="pz-lista" id="pz-lista">${listaHTML()}</div>
       ${mix ? '<button class="med-chip" id="pz-add" style="margin-top:10px">+ Adicionar som</button>' : '<a class="med-chip" href="#/meditacao/mix" style="display:inline-block;margin-top:10px">Montar a minha mistura</a>'}</div>
     </div>
-    <p class="pz-cred">Gravações de natureza em domínio público e de uso livre.${pz.autor ? ` Foto: ${esc(pz.autor)} / Unsplash.` : ''} Para as ondas binaurais, use fone de ouvido.</p>
     <div class="med-escuro" id="pz-escuro" hidden><p id="pz-esc-t"></p><small>Toque para voltar</small></div>
   </div>`;
   const cams = {};
