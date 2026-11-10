@@ -896,6 +896,7 @@ function alunoMais() {
     <p class="sec-lbl">Conta</p><div class="stack" id="mais-conta">
       ${it('#/conexoes', I.watch, 'Conexões', 'Relógio Garmin e outras marcas')}
       ${it('#/pagamentos', I.money, 'Pagamentos e plano', 'Mensalidades e formas de pagamento')}
+      ${it('#/termos', TERMOS_IC, 'Meus termos', 'Seu compromisso com a Nexos e os termos assinados, em PDF')}
       <div id="mais-notif"></div>
       ${it('#/perfil', I.user, 'Meu perfil', 'Foto, dados, cores do app e sair')}
       ${it('/ajuda/', I.ficha, 'Central de ajuda', 'Tutoriais passo a passo de tudo do app')}
