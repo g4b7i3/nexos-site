@@ -425,10 +425,10 @@
     pix: { m: 399, t: 387, s: 375, a: 359 }, cartao: { m: 416, t: 404, s: 391, a: 374 }, parc: { t: 424, s: 436, a: 456 }, cam: { s: 1, a: 2 },
     itens: ['Tudo do Corrida Evolução', '<b>Treino de força online</b> com o Orlando', '<b>Avaliação de força</b> a cada 2 meses', 'Os dois treinadores no mesmo aplicativo'] };
   var FORCA = [
-    { id: 'forca-online', nome: 'Força 100% Online', curto: '100% Online', ds: 'Avaliação orientada à distância e treino de força online.',
+    { id: 'forca-online', nome: 'Força 100% Online', curto: '100% Online', bt: 'Quero a 100% Online', ds: 'Avaliação orientada à distância e treino de força online.',
       pix: { m: 200, t: 194, s: 188, a: 180 }, cartao: { m: 209, t: 203, s: 196, a: 188 }, parc: { t: 213, s: 219, a: 229 }, cam: { a: 1 },
       itens: ['Avaliação da composição corporal orientada à distância', 'Testes funcionais feitos por você, com o passo a passo, e analisados pelo Orlando', 'Treino de força periodizado', 'Cada exercício explicado no aplicativo', 'Reavaliação a cada 2 meses'] },
-    { id: 'forca-presencial', nome: 'Força Online com Avaliação Presencial', curto: 'Com avaliação presencial', ds: 'O treino é online; a avaliação é feita pessoalmente pelo Orlando.',
+    { id: 'forca-presencial', nome: 'Força Online com Avaliação Presencial', curto: 'Com avaliação presencial', bt: 'Quero com avaliação presencial', ds: 'O treino é online; a avaliação é feita pessoalmente pelo Orlando.',
       pix: { m: 250, t: 243, s: 235, a: 225 }, cartao: { m: 261, t: 254, s: 245, a: 235 }, parc: { t: 266, s: 274, a: 286 }, cam: { a: 1 },
       itens: ['Composição corporal <b>feita pessoalmente</b>', '<b>Todos os testes funcionais</b>, aplicados pelo Orlando', '<b>Análise postural</b>', 'Treino de força periodizado', 'Reavaliação presencial a cada 2 meses'] },
   ];
@@ -468,7 +468,7 @@
       (pf !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[pf][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
       '<p class="pl-ou">ou ' + brl(c.cartao[pf]) + '/mês no cartão' + (c.parc[pf] ? ' · ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
       '<div class="pl-chips">' + chips + '</div>' + li(c.itens) + '<div class="pl-esp"></div>' +
-      '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ', ' + PER[pf][0] + ', com o Orlando.">Quero a ' + c.nome + per + '</a></article>';
+      '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ', ' + PER[pf][0] + ', com o Orlando.">' + c.bt + per + '</a></article>';
   }
   var ISCA_F = {
     m: 'No plano anual, a Força 100% Online sai por <b>R$ 180/mês</b> e vem com a camiseta oficial.',
