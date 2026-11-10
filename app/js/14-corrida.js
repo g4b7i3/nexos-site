@@ -762,6 +762,7 @@ const CARD_LAYOUTS = [
   ['zonas_pot', 'Zonas de potência'],
   ['efeito', 'Efeito do treino'],
   ['vo2', 'VO2máx'],
+  ['velocidade', 'Velocidade máxima'],
   ['semana', 'Minha semana'],
   ['constancia', 'Constância'],
   ['icones', 'Com ícones'],
@@ -877,6 +878,12 @@ function cardZonasPot(c) {
     R = E.zonas_rel && E.zonas_rel.pot;
   return R && R.t && R.t.length >= 3 && R.t.some((x) => x > 0) ? { seg: R.t, lim: R.lim || null } : null;
 }
+// pico de velocidade da corrida: os mesmos números da tela da corrida (Melhor pace e Velocidade máxima)
+const cardVel = (c) => {
+  const E = { ...(c.resumo_rel || {}), ...((c.analise && c.analise.extras) || {}) };
+  const v = E.vel_max_rel || E.vel_max;
+  return v > 0.5 ? { v, melhor: E.vel_max > 0.5 ? E.vel_max : null } : null;
+};
 const cardTE = (c) => {
   const E = (c.analise && c.analise.extras) || {};
   return E.te_aer != null && E.te_aer > 0 ? { aer: E.te_aer, ana: E.te_ana != null ? E.te_ana : null } : null;
@@ -2502,6 +2509,94 @@ async function desenharCard(cv, c, o) {
       );
     }
     logo(W / 2, H - (post ? 110 : 190), 220);
+  } else if (L === 'velocidade' && cardVel(c)) {
+    // velocímetro com a velocidade máxima e o melhor pace da corrida
+    const VV = cardVel(c),
+      kmh = VV.v * 3.6,
+      F = post ? 0.8 : 1,
+      esc = Math.max(15, Math.ceil((kmh + 1) / 5) * 5);
+    const y = yTopo(post ? 130 : 280);
+    txt('VELOCIDADE MÁXIMA', W / 2, y, `800 30px ${FB}`, AC, 'center', 5);
+    const R = post ? 300 : 410,
+      cx = W / 2,
+      cy = post ? y + 90 * F + R + 30 : Math.max(y + 120 + R, H / 2 - 80),
+      lw = R * 0.12,
+      A0 = Math.PI * 0.75,
+      A1 = Math.PI * 2.25,
+      ang = (k) => A0 + (A1 - A0) * Math.max(0, Math.min(1, k / esc));
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = fino;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, A0, A1);
+    ctx.stroke();
+    const gr = ctx.createLinearGradient(cx - R, cy + R, cx + R, cy - R);
+    gr.addColorStop(0, branco ? '#1f8bff' : '#0b62d6');
+    gr.addColorStop(1, branco ? '#46d6ff' : '#46a0ff');
+    if (sombra) {
+      ctx.shadowColor = 'rgba(0,0,0,.25)';
+      ctx.shadowBlur = 14;
+    }
+    ctx.strokeStyle = gr;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, A0, ang(kmh));
+    ctx.stroke();
+    ctx.restore();
+    // marcas a cada 5 km/h
+    for (let k = 0; k <= esc; k += 5) {
+      const a = ang(k),
+        r1 = R - lw / 2 - 18,
+        r2 = R - lw / 2 - (k % 10 ? 30 : 42);
+      ctx.save();
+      ctx.strokeStyle = k <= kmh ? tx : meio;
+      ctx.lineWidth = k % 10 ? 3 : 5;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+      ctx.stroke();
+      ctx.restore();
+      if (!(k % 10)) {
+        const rl = R - lw / 2 - 74;
+        txt(
+          String(k),
+          cx + Math.cos(a) * rl,
+          cy + Math.sin(a) * rl + 10,
+          `700 ${Math.round(26 * F)}px ${FB}`,
+          sub,
+          'center',
+        );
+      }
+    }
+    // ponteiro na velocidade máxima
+    const am = ang(kmh);
+    ctx.save();
+    if (sombra) {
+      ctx.shadowColor = 'rgba(0,0,0,.35)';
+      ctx.shadowBlur = 12;
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(am) * R, cy + Math.sin(am) * R, lw * 0.72, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = AC;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(am) * R, cy + Math.sin(am) * R, lw * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    txt(fmtNum(kmh, 1), cx, cy + R * 0.14, `800 ${Math.round(R * 0.46)}px ${FH}`, tx, 'center', -6);
+    txt('km/h', cx, cy + R * 0.34, `700 ${Math.round(R * 0.12)}px ${FB}`, sub, 'center');
+    if (VV.melhor) {
+      const yb = cy + R * (post ? 0.76 : 0.82);
+      stat(
+        { l: 'Melhor pace', v: fmtPace(1000 / VV.melhor).replace('/km', ''), u: '/km' },
+        cx,
+        yb,
+        post ? 80 : 100,
+        'center',
+      );
+    }
+    logo(W / 2, H - (post ? 110 : 190), 220);
   } else if (L === 'altimetria' && altDe(c)) {
     // perfil de subidas e descidas do percurso
     const A = altSuave(altDe(c)),
@@ -3183,6 +3278,7 @@ async function abrirCardCorrida(c, plano) {
           (k !== 'zonas_pot' || !!cardZonasPot(c)) &&
           (k !== 'efeito' || !!cardTE(c)) &&
           (k !== 'vo2' || !!c._x.vo2) &&
+          (k !== 'velocidade' || !!cardVel(c)) &&
           (k !== 'gigante' || !!V.dist),
       );
   if (!modelos.some(([k]) => k === o.layout))
