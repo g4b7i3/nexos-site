@@ -65,10 +65,7 @@ function compromissoHTML(ad) {
   const c = +ad.compromisso || 1;
   const nomeP = COMPROMISSO_NOME[c] || '';
   const assinado = fmtDia(ad.aceito_em);
-  if (c < 3)
-    return `<div class="card cmp-card mensal"><span class="eyebrow">Plano mensal</span><div class="h2" style="margin-top:4px">${esc(ad.plano_nome || 'Plano Nexos')}</div>
-      <p class="small muted" style="margin-top:6px">Termo de Adesão assinado em ${assinado}. Sem compromisso de período: você pode cancelar quando quiser, com aviso ao treinador.</p>
-      <p class="small" style="margin-top:10px">Quer pagar menos por mês? No trimestral, semestral e anual a mensalidade cai até 10%. Fale com o seu treinador.</p></div>`;
+  if (c < 3) return '';
   const fim = somaMesesData(ad.aceito_em, c);
   const mes = Math.min(c, mesDoCompromisso(ad.aceito_em));
   const cheio = mensalCheio(ad);
@@ -127,28 +124,33 @@ async function viewTermos() {
 }
 
 // texto e registro de cada termo (o mesmo na tela e no PDF)
-function termoDoc(k, { adesao, cons }) {
+function termoDoc(k, { adesao, cons, aluno }) {
+  const al = aluno || {
+    nome: S.me.nome,
+    email: S.me.email || S.user.email || '',
+    telefone: S.me.telefone ? MASCARA.tel(S.me.telefone) : '',
+  };
   const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
   if (k === 'adesao' && adesao)
     return {
       titulo: 'Termo de Adesão aos Planos da Nexos',
       arq: 'Termo-de-Adesao-Nexos',
       html: adesaoTexto({
-        nome: S.me.nome,
+        nome: al.nome,
         cpf: adesao.cpf || '',
-        email: S.me.email || S.user.email || '',
-        telefone: S.me.telefone ? MASCARA.tel(S.me.telefone) : '',
+        email: al.email || undefined,
+        telefone: al.telefone || undefined,
       }),
       reg: `Assinado em ${fmtDia(adesao.aceito_em)}`,
       registro: [
-        `Aluno(a): ${S.me.nome}${adesao.cpf ? ', CPF ' + adesao.cpf : ''}`,
+        `Aluno(a): ${al.nome}${adesao.cpf ? ', CPF ' + adesao.cpf : ''}`,
         `Plano: ${adesao.plano_nome || ''} · período ${COMPROMISSO_NOME[adesao.compromisso] || ''}${adesao.forma ? ' · ' + (FORMAS_PLANO[adesao.forma] || '') : ''}${adesao.valor ? ' · ' + brl(adesao.valor) + ' por mês' : ''}`,
         `Aceite eletrônico em ${quando(adesao.aceito_em)}, versão ${adesao.versao}${adesao.ip ? ', IP ' + adesao.ip : ''}`,
       ],
     };
   const base = cons
     ? [
-        `Aluno(a): ${S.me.nome}${cons.responsavel_nome ? ' · aceito pelo responsável legal ' + cons.responsavel_nome : ''}`,
+        `Aluno(a): ${al.nome}${cons.responsavel_nome ? ' · aceito pelo responsável legal ' + cons.responsavel_nome : ''}`,
         `Aceite eletrônico em ${quando(cons.aceito_em)}, versão ${cons.versao}`,
       ]
     : [];
@@ -298,7 +300,7 @@ async function baixarTermoPDF(k, dados, btn) {
         297 - 9,
       );
     }
-    const nome = `${t.arq}-${firstName(S.me.nome)}.pdf`;
+    const nome = `${t.arq}-${firstName((dados.aluno || S.me).nome)}.pdf`;
     const blob = pdf.output('blob');
     const arq = new File([blob], nome, { type: 'application/pdf' });
     if (!ehDesk() && navigator.canShare && navigator.canShare({ files: [arq] })) {
@@ -312,4 +314,136 @@ async function baixarTermoPDF(k, dados, btn) {
       btn.innerHTML = txtAnt;
     }
   }
+}
+
+/* ---------- Termos (treinador): cada termo aceito, separado por aluno, para ler e baixar em PDF ---------- */
+// o tipo do termo de adesão em poucas palavras: Pix trimestral, Pix semestral, Pix anual, Pix anual à vista
+const termoRotulo = (ad) =>
+  ad.forma === 'avista' ? 'Pix anual à vista' : `Pix ${COMPROMISSO_NOME[+ad.compromisso] || ''}`.trim();
+async function staffTermos() {
+  loading();
+  const [{ data: ads }, { data: cons }, { data: mem }] = await Promise.all([
+    sb.from('nx_adesoes').select('*').eq('org_id', S.org.id).order('aceito_em', { ascending: false }),
+    sb
+      .from('nx_consentimentos')
+      .select('aluno_id,versao,aceito_em,termo_riscos,responsavel_nome')
+      .eq('org_id', S.org.id)
+      .order('aceito_em', { ascending: false }),
+    sb.from('nx_membros').select('user_id,nome,email,telefone,ativo').eq('org_id', S.org.id).eq('papel', 'aluno'),
+  ]);
+  const pessoa = (id) => {
+    const m = (mem || []).find((x) => x.user_id === id) || {};
+    return { nome: m.nome || 'Aluno', email: m.email || '', telefone: m.telefone ? MASCARA.tel(m.telefone) : '' };
+  };
+  // o último consentimento de cada aluno (quem aceitou de novo numa versão nova fica com o mais recente)
+  const consUlt = [];
+  const vistos = new Set();
+  (cons || []).forEach((c) => {
+    if (vistos.has(c.aluno_id)) return;
+    vistos.add(c.aluno_id);
+    consUlt.push(c);
+  });
+  const itens = [
+    ...(ads || []).map((a) => ({ k: 'adesao', tipo: 'adesao', id: a.aluno_id, quando: a.aceito_em, adesao: a })),
+    ...consUlt.map((c) => ({ k: 'dados', tipo: 'dados', id: c.aluno_id, quando: c.aceito_em, cons: c })),
+    ...consUlt
+      .filter((c) => c.termo_riscos)
+      .map((c) => ({ k: 'riscos', tipo: 'riscos', id: c.aluno_id, quando: c.aceito_em, cons: c })),
+  ];
+  itens.forEach((it, i) => {
+    it.i = i;
+    it.aluno = pessoa(it.id);
+  });
+  const ABAS = [
+    ['adesao', 'Adesão', 'Termos de adesão'],
+    ['dados', 'Dados (LGPD)', 'Consentimento de dados'],
+    ['riscos', 'Riscos', 'Responsabilidade e riscos'],
+  ];
+  const st = { aba: 'adesao', busca: '' };
+  const linha = (it) => {
+    const a = it.adesao;
+    const titulo =
+      it.tipo === 'adesao'
+        ? `Termo de Adesão · ${termoRotulo(a)}`
+        : it.tipo === 'dados'
+          ? 'Consentimento de dados'
+          : 'Responsabilidade e riscos';
+    const det =
+      it.tipo === 'adesao'
+        ? [a.plano_nome, a.valor ? `${brl(+a.valor)} por mês` : '', a.cpf ? `CPF ${a.cpf}` : '', `versão ${a.versao}`]
+        : [
+            `versão ${it.cons.versao}`,
+            it.cons.responsavel_nome ? `aceito pelo responsável ${it.cons.responsavel_nome}` : '',
+          ];
+    return `<div class="list-item termo-it"><span class="ativ-ic">${TERMOS_IC}</span><div class="grow" style="min-width:0"><b>${esc(it.aluno.nome)}</b>
+      <div class="small">${esc(titulo)}</div><div class="tiny dim">${esc(det.filter(Boolean).join(' · '))}</div>
+      <span class="tag ${it.tipo === 'adesao' ? 'acc' : 'ok'}" style="margin-top:6px">Aceito em ${fmtDia(it.quando)}</span></div>
+      <div class="termo-bt"><button class="btn ghost sm" data-tler="${it.i}">Ler</button><button class="btn sm" data-tpdf="${it.i}">${BAIXAR_IC} PDF</button></div></div>`;
+  };
+  const desenhar = () => {
+    const q = st.busca
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const lista = itens.filter(
+      (it) =>
+        it.tipo === st.aba &&
+        (!q ||
+          it.aluno.nome
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .includes(q)),
+    );
+    document.getElementById('tm-lista').innerHTML = lista.length
+      ? lista.map(linha).join('')
+      : `<div class="empty"><p class="small">${
+          st.aba === 'adesao'
+            ? q
+              ? 'Nenhum termo de adesão para esse nome.'
+              : 'Nenhum termo de adesão aceito ainda. Ele aparece aqui quando um aluno fecha um plano trimestral, semestral ou anual no Pix.'
+            : 'Nenhum termo encontrado.'
+        }</p></div>`;
+    document.querySelectorAll('[data-taba]').forEach((b) => b.classList.toggle('on', b.dataset.taba === st.aba));
+    $app.querySelectorAll('[data-tler]').forEach(
+      (b) =>
+        (b.onclick = () => {
+          const it = itens[+b.dataset.tler];
+          const dados = { adesao: it.adesao || null, cons: it.cons || null, aluno: it.aluno };
+          const t = termoDoc(it.k, dados);
+          openSheet(
+            `<p class="eyebrow">${esc(it.aluno.nome)} · ${esc(t.reg)}</p><div class="h2" style="margin-top:4px">${esc(t.titulo)}</div>
+            <div class="card" style="margin-top:12px">${t.registro.map((l) => `<p class="small" style="margin:2px 0">${esc(l)}</p>`).join('')}</div>
+            <div class="card termo" style="margin-top:12px;max-height:none">${t.html}</div><button class="btn block" id="sh-pdf" style="margin-top:14px">Baixar em PDF</button>`,
+            (r) => (r.querySelector('#sh-pdf').onclick = (e) => baixarTermoPDF(it.k, dados, e.currentTarget)),
+          );
+        }),
+    );
+    $app.querySelectorAll('[data-tpdf]').forEach(
+      (b) =>
+        (b.onclick = () => {
+          const it = itens[+b.dataset.tpdf];
+          baixarTermoPDF(it.k, { adesao: it.adesao || null, cons: it.cons || null, aluno: it.aluno }, b);
+        }),
+    );
+  };
+  const n = (k) => itens.filter((it) => it.tipo === k).length;
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Assessoria</p><h1 class="h1">Termos</h1>
+    <p class="muted small" style="margin-top:6px">Cada termo aceito pelos alunos, separado, com data, versão e o registro do aceite. Toque em Ler para ver o texto ou baixe o PDF.</p>
+    <div class="chips tm-abas" style="margin-top:14px">${ABAS.map(([k, l]) => `<button class="chip" data-taba="${k}">${l} <span class="tiny dim">${n(k)}</span></button>`).join('')}</div>
+    <input class="input" id="tm-busca" placeholder="Buscar aluno" style="margin-top:12px">
+    <div class="stack" id="tm-lista" style="margin-top:12px"></div>
+    <p class="tiny dim" style="margin-top:14px">O Termo de Adesão vale para os planos trimestral, semestral e anual pagos no Pix. O consentimento de dados e o de riscos são aceitos por todos os alunos no primeiro acesso.</p>`;
+  $app.querySelectorAll('[data-taba]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        st.aba = b.dataset.taba;
+        desenhar();
+      }),
+  );
+  document.getElementById('tm-busca').oninput = (e) => {
+    st.busca = e.target.value.trim();
+    desenhar();
+  };
+  desenhar();
 }

@@ -488,6 +488,8 @@ async function viewFicha(token) {
     $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="empty" style="margin-top:30px"><div class="h3">Link indisponível</div><p class="small">${esc(e.message)}</p></div>`;
     return;
   }
+  // termo de adesão só no trimestral, semestral e anual pagos no Pix
+  const comTermo = !!info.plano && termoExigido(info.plano.periodo, info.plano.forma);
   if (info.respondido) {
     $app.innerHTML = `<div class="ficha-top"><img src="${LOGO.s()}" alt=""></div><div class="card center" style="margin-top:24px;padding:26px 18px">${estIc(I.okc, 'ok')}<div class="h2" style="margin-top:6px">Ficha já enviada</div><p class="small muted" style="margin-top:6px">Recebemos suas respostas. O seu treinador vai falar com você pelo WhatsApp.</p></div>`;
     return;
@@ -516,7 +518,7 @@ async function viewFicha(token) {
         '',
         `
         <label class="field"><span>Nome completo *</span><input class="input" name="nome" required value="${esc(info.nome)}" autocomplete="name"></label>
-        <label class="field"><span>CPF${info.plano ? ' *' : ''}</span><input class="input" name="cpf" data-mask="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14"></label>
+        <label class="field"><span>CPF${comTermo ? ' *' : ''}</span><input class="input" name="cpf" data-mask="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14"></label>
         <div class="grid2"><label class="field"><span>WhatsApp *</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" required placeholder="(98) 9 9999-9999" value="${esc(info.telefone)}" autocomplete="tel"></label>
         <label class="field"><span>E-mail *</span><input class="input" type="email" name="email" required inputmode="email" autocomplete="email" placeholder="será o seu login no app"></label></div>
         <div class="grid2"><label class="field"><span>Data de nascimento *</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa"></label>
@@ -581,11 +583,13 @@ async function viewFicha(token) {
         <div class="ficha-termo">${FICHA_TERMO}</div>
         <label class="ficha-aceite"><input type="checkbox" name="aceite"><span>Li e aceito o termo de responsabilidade acima. *</span></label>
         ${
-          info.plano
+          comTermo
             ? `<div class="ficha-plano" style="margin-top:14px"><span class="eyebrow">Termo de adesão · seu plano</span><b>${esc(info.plano.nome)} · ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}</b><span class="small muted">${esc(planoCombinadoTxt(info.plano).split(' · ').slice(2).join(' · '))}</span></div>
         <div class="ficha-termo termo" style="margin-top:8px">${adesaoTexto({ nome: info.nome, cpf: '', email: '', telefone: info.telefone })}</div>
         <label class="ficha-aceite"><input type="checkbox" name="adesao"><span>Eu, <b class="ad-nome">${esc(info.nome || '(seu nome completo)')}</b>, CPF <span class="ad-cpf"></span>, li e aceito o Termo de Adesão do plano ${esc(info.plano.nome)} ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}. *</span></label>`
-            : ''
+            : info.plano
+              ? `<div class="ficha-plano" style="margin-top:14px"><span class="eyebrow">Seu plano</span><b>${esc(info.plano.nome)} · ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}</b><span class="small muted">${esc(planoCombinadoTxt(info.plano).split(' · ').slice(2).join(' · '))}</span></div>`
+              : ''
         }
         <div class="field" style="margin-top:12px"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
         <label class="field"><span>Quer contar mais alguma coisa?</span><textarea class="textarea" name="obs"></textarea></label>`,
@@ -613,7 +617,7 @@ async function viewFicha(token) {
     f.querySelectorAll('.ad-tel').forEach((el) => (el.textContent = v('telefone')));
     f.querySelectorAll('.ad-cpf').forEach((el) => (el.textContent = v('cpf')));
   };
-  if (info.plano) {
+  if (comTermo) {
     ['input', 'change'].forEach((t) =>
       f.addEventListener(t, (e) => ['nome', 'cpf', 'email', 'telefone'].includes(e.target.name) && setTimeout(adVivo)),
     );
@@ -667,7 +671,7 @@ async function viewFicha(token) {
     if (k === '1') {
       if (v('nome').length < 3 || !v('nome').includes(' '))
         return { msg: 'Escreva o seu nome completo.', sel: '[name=nome]' };
-      if ((info.plano || v('cpf')) && !cpfValido(v('cpf'))) return { msg: 'Confira o seu CPF.', sel: '[name=cpf]' };
+      if ((comTermo || v('cpf')) && !cpfValido(v('cpf'))) return { msg: 'Confira o seu CPF.', sel: '[name=cpf]' };
       if (soDig(v('telefone')).length < 10) return { msg: 'Confira o seu WhatsApp com DDD.', sel: '[name=telefone]' };
       if (!/^\S+@\S+\.\S+$/.test(v('email'))) return { msg: 'Confira o seu e-mail.', sel: '[name=email]' };
       const nas = dataISO(v('nascimento'));
@@ -706,8 +710,7 @@ async function viewFicha(token) {
     }
     if (k === '7') {
       if (!fd.get('aceite')) return { msg: 'Aceite o termo de responsabilidade.', sel: '[name=aceite]' };
-      if (info.plano && !fd.get('adesao'))
-        return { msg: 'Aceite o Termo de Adesão do seu plano.', sel: '[name=adesao]' };
+      if (comTermo && !fd.get('adesao')) return { msg: 'Aceite o Termo de Adesão do seu plano.', sel: '[name=adesao]' };
       return null;
     }
     if (k === '8') return erroAcesso(fd);
@@ -789,13 +792,13 @@ async function viewFicha(token) {
     if (!d.disponibilidade.corrida.length && !d.disponibilidade.forca.length)
       return falta('.disp-l:not([hidden]) input', 'Marque os dias em que pode treinar.');
     if (!fd.get('aceite')) return falta('[name=aceite]', 'Aceite o termo de responsabilidade no final.');
-    if (info.plano && !fd.get('adesao')) return falta('[name=adesao]', 'Aceite o Termo de Adesão do seu plano.');
+    if (comTermo && !fd.get('adesao')) return falta('[name=adesao]', 'Aceite o Termo de Adesão do seu plano.');
     if (!d.nascimento) return falta('[name=nascimento]', 'Confira a data de nascimento.');
     const ea = erroAcesso(fd);
     if (ea) return falta(ea.sel, ea.msg);
     const senha = String(fd.get('senha'));
     d.aceite = true;
-    if (info.plano) d.adesao = { versao: ADESAO_VERSAO, aceite: true }; // a data, o IP e o aparelho são gravados pelo servidor
+    if (comTermo) d.adesao = { versao: ADESAO_VERSAO, aceite: true }; // a data, o IP e o aparelho são gravados pelo servidor
     btn.disabled = true;
     btn.textContent = 'Enviando…';
     try {
@@ -923,13 +926,13 @@ async function staffFormularios(id) {
     const msg =
       fichaMsg(f.nome, link) +
       (f.plano
-        ? `\n\nSeu plano: ${planoCombinadoTxt(f.plano)}.\nNo fim da ficha está o Termo de Adesão com as regras do plano.`
+        ? `\n\nSeu plano: ${planoCombinadoTxt(f.plano)}.${termoExigido(f.plano.periodo, f.plano.forma) ? '\nNo fim da ficha está o Termo de Adesão com as regras do plano.' : ''}`
         : '');
     const tel = telWa(f.telefone);
     openSheet(
       `<p class="eyebrow">${f.multiplo ? 'Link geral' : 'Link pronto'}</p><div class="h2" style="margin-top:4px">${f.multiplo ? 'Use na bio do Instagram ou em grupos' : esc(f.nome ? 'Ficha de ' + firstName(f.nome) : 'Ficha de entrada')}</div>
       <p class="small muted" style="margin-top:6px">${f.multiplo ? 'Qualquer pessoa pode preencher este link, quantas vezes for preciso.' : 'Vale para uma pessoa. Depois que ela enviar, o link fecha.'}</p>
-      ${f.plano ? `<div class="ficha-plano" style="margin-top:10px"><span class="eyebrow">Plano e Termo de Adesão</span><b>${esc(planoCombinadoTxt(f.plano))}</b></div>` : ''}
+      ${f.plano ? `<div class="ficha-plano" style="margin-top:10px"><span class="eyebrow">${termoExigido(f.plano.periodo, f.plano.forma) ? 'Plano e Termo de Adesão' : 'Plano (sem termo)'}</span><b>${esc(planoCombinadoTxt(f.plano))}</b></div>` : ''}
       <div class="ficha-link mono">${esc(link)}</div>
       <a class="btn block wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="margin-top:12px">Enviar no WhatsApp${tel ? '' : ' (escolher contato)'}</a>
       <div class="mail-row" style="margin-top:8px"><input class="input" type="email" id="fx-mail" placeholder="E-mail da pessoa" value="${esc(f.email || '')}"><button class="btn mail-btn" id="fx-env">${I.mail} Enviar</button></div>
@@ -984,7 +987,7 @@ async function staffFormularios(id) {
           r.querySelector('#gl-res').innerHTML = sem
             ? '<span class="small muted">Sem plano, a ficha vai sem o Termo de Adesão.</span>'
             : p
-              ? `<span class="eyebrow">Vai no fim da ficha, com o Termo de Adesão</span><b>${esc(planoCombinadoTxt(p))}</b>`
+              ? `<span class="eyebrow">${termoExigido(p.periodo, p.forma) ? 'Vai no fim da ficha, com o Termo de Adesão' : 'Vai no fim da ficha, sem termo (o termo é só para trimestral, semestral e anual no Pix)'}</span><b>${esc(planoCombinadoTxt(p))}</b>`
               : '';
         };
         ['plano', 'periodo', 'forma'].forEach((n) => fm[n].addEventListener('change', atualizar));

@@ -852,6 +852,11 @@ async function planoDoAlunoHTML(m) {
       ]
         .map(([v, l]) => `<option value="${v}" ${(+fz.compromisso || 1) === v ? 'selected' : ''}>${l}</option>`)
         .join('')}</select></label>
+      <label class="field"><span>Forma de pagamento</span><select class="input" name="forma">${Object.entries(
+        FORMAS_PLANO,
+      )
+        .map(([v, l]) => `<option value="${v}" ${(fz.forma || 'pix') === v ? 'selected' : ''}>${l}</option>`)
+        .join('')}</select></label>
       ${adesaoStaffHTML(fz, adesao)}
       <button class="btn ghost block sm">Salvar plano do aluno</button></form>
       ${fz.fim && !fz.plano_id ? `<div class="fin-fim"><span><b>Sem mensalidade.</b> A mensalidade foi encerrada${fz.fim >= (fz.inicio || '') ? ` (último mês pago: ${esc(nomeMes(fz.fim))})` : ''}. Continua no app normalmente.</span>${fz.plano_anterior ? '<button type="button" class="link-btn small" id="pl-reat">Voltar a cobrar</button>' : ''}</div>` : fz.plano_id ? `<p class="tiny dim" style="margin-top:8px">A mensalidade se repete todo mês até você encerrar.</p><button type="button" class="btn ghost block sm" id="pl-enc" style="margin-top:8px;color:var(--err)">Encerrar mensalidade (aluno saiu)</button>` : ''}`
@@ -872,10 +877,10 @@ async function planoDoAlunoHTML(m) {
 }
 function adesaoStaffHTML(fz, ad) {
   const c = +fz.compromisso || 1;
+  if (!termoExigido(c, fz.forma || 'pix'))
+    return '<p class="small muted" style="margin:-4px 0 10px">O Termo de Adesão vale só para trimestral, semestral e anual pagos no Pix. Nesses casos, o aluno aceita ao abrir o app ou no fim da ficha (Formulários › Gerar link).</p>';
   const ok =
     ad && ad.compromisso === c && (!fz.adesao_desde || ad.aceito_em >= fz.adesao_desde) && ad.versao === ADESAO_VERSAO;
-  if (c < 3 && !ok)
-    return '<p class="small muted" style="margin:-4px 0 10px">Trimestral, semestral ou anual: o aluno aceita o Termo de Adesão ao abrir o app. Aluno novo aceita no fim da ficha (Formulários › Gerar link).</p>';
   return `<p style="margin:-4px 0 10px">${ok ? `<span class="tag ok">Termo de adesão aceito em ${fmtDia(ad.aceito_em)}</span>` : '<span class="tag warn">Termo de adesão pendente: aparece para o aluno ao abrir o app</span>'}</p>`;
 }
 function bindPlanoDoAluno(m, info, recarregar) {
@@ -891,12 +896,16 @@ function bindPlanoDoAluno(m, info, recarregar) {
         dia: dd,
         inicio: f.inicio.value || compDe(),
         compromisso: +f.compromisso.value || 1,
+        forma: f.forma.value || 'pix',
       };
       // novo compromisso (ou novo plano com compromisso): o aluno aceita o termo de adesão de novo ao abrir o app
       const ant = m.financeiro || {};
-      if (financeiro.compromisso >= 3)
+      if (termoExigido(financeiro.compromisso, financeiro.forma))
         financeiro.adesao_desde =
-          ant.adesao_desde && +ant.compromisso === financeiro.compromisso && ant.plano_id === financeiro.plano_id
+          ant.adesao_desde &&
+          +ant.compromisso === financeiro.compromisso &&
+          ant.plano_id === financeiro.plano_id &&
+          termoExigido(ant.compromisso, ant.forma || 'pix')
             ? ant.adesao_desde
             : new Date().toISOString();
       const fimAnt = (m.financeiro || {}).fim;

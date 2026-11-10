@@ -1894,6 +1894,7 @@ function staffMais() {
     </div>
     <p class="sec-lbl">Assessoria</p><div class="stack">
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
+      ${it('#/termos-equipe', TERMOS_IC, 'Termos', 'Cada termo aceito pelos alunos, separado, para ler e baixar em PDF')}
       ${S.me.papel === 'admin' ? `<a class="list-item" href="/empreender/" target="_blank" rel="noopener" style="color:inherit"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Empreender</b><div class="small muted">Gastos da sociedade: parcelas e quanto cada sócio paga por mês</div></div>${I.chev}</a>` : ''}
       ${it('#/perfil', I.user, 'Perfil e equipe', S.me.papel === 'admin' ? 'Sua conta, equipe, notificações e cores do app' : 'Sua conta, notificações e cores do app')}
       ${it('#/saude-sistema', I.alerta, `Saúde do sistema${S.cache.saudeProb ? ` <span class="tag ${S.cache.saudeVerm ? 'err' : 'warn'}">${S.cache.saudeProb}</span>` : ''}`, 'Erros, Garmin, notificações e avisos automáticos')}

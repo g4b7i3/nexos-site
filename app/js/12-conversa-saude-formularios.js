@@ -1134,7 +1134,7 @@ function anamneseResumoHTML(a, termo) {
 }
 
 /* ---------- termo de adesão: só para quem tem compromisso trimestral, semestral ou anual ---------- */
-const ADESAO_VERSAO = '2026-11.1';
+const ADESAO_VERSAO = '2026-11.2';
 const COMPROMISSO_NOME = { 1: 'mensal', 3: 'trimestral', 6: 'semestral', 12: 'anual' };
 // mesmos valores da página /planos (Pix, cartão todo mês, cartão parcelado por mês e anual à vista no Pix)
 const PLANOS_NEXOS = [
@@ -1186,6 +1186,8 @@ const FORMAS_PLANO = {
   parc: 'Cartão parcelado',
   avista: 'Pix à vista (o ano inteiro)',
 };
+// o Termo de Adesão vale só para o compromisso pago no Pix: trimestral, semestral e anual (todo mês ou à vista)
+const termoExigido = (per, forma) => +per >= 3 && (forma === 'pix' || forma === 'avista');
 const formasDoPeriodo = (per) => ['pix', 'cartao', ...(per > 1 ? ['parc'] : []), ...(per === 12 ? ['avista'] : [])];
 // o que o aluno paga: valor por mês, total do período e como entra no financeiro (valor e a cada quantos meses)
 function precoPlanoNexos(k, per, forma) {
@@ -1222,32 +1224,31 @@ const adesaoAlunoHTML = (a = {}) =>
 function adesaoTexto(aluno) {
   const li = (t) => `<li>${t}</li>`;
   const planos = [
-    ['Corrida Essencial', '180', '175', '169', '162', '1.845 (R$ 153,75/mês)'],
-    ['Corrida Evolução', '220', '214', '207', '198', '2.255 (R$ 187,92/mês)'],
-    ['Integral (Corrida + Força)', '389', '377', '366', '350', '3.990 (R$ 332,50/mês)'],
-    ['Força 100% Online', '190', '184', '179', '171', '1.950 (R$ 162,50/mês)'],
-    ['Força Online com Avaliação Presencial', '220', '214', '207', '198', '2.255 (R$ 187,92/mês)'],
+    ['Corrida Essencial', '175', '169', '162', '1.845 (R$ 153,75/mês)', '180'],
+    ['Corrida Evolução', '214', '207', '198', '2.255 (R$ 187,92/mês)', '220'],
+    ['Integral (Corrida + Força)', '377', '366', '350', '3.990 (R$ 332,50/mês)', '389'],
+    ['Força 100% Online', '184', '179', '171', '1.950 (R$ 162,50/mês)', '190'],
+    ['Força Online com Avaliação Presencial', '214', '207', '198', '2.255 (R$ 187,92/mês)', '220'],
   ];
   return `<p><b>Termo de Adesão aos Planos da Nexos</b> · versão ${ADESAO_VERSAO}</p>
-  <p>Ao aceitar este termo, o aluno contrata um plano de treino da Nexos Performance e Saúde e concorda com as regras abaixo, que valem para todos os períodos: mensal, trimestral, semestral e anual.</p>
+  <p>Ao aceitar este termo, o aluno contrata um plano de treino da Nexos Performance e Saúde e concorda com as regras abaixo, que valem para os planos trimestral, semestral e anual pagos no Pix.</p>
   <p><b>1. Partes e objeto</b></p>
   <p><b>Contratada:</b> Nexos Performance e Saúde, inscrita no CNPJ sob o nº 66.401.426/0001-65, representada pelos treinadores Gabriel Vinícius (corrida) e Orlando Borges (força).</p>
   ${aluno ? adesaoAlunoHTML(aluno) : '<p><b>Aluno(a):</b> nome completo, e-mail e WhatsApp informados na ficha de cadastro.</p>'}
   <p><b>Objeto:</b> prestação de serviço de treinamento esportivo online, com planilha ou prescrição de treino, acompanhamento pelo aplicativo Nexos e as avaliações descritas no plano escolhido. O serviço é 100% online; no plano Força Online com Avaliação Presencial, apenas a avaliação e a reavaliação físicas são feitas pessoalmente.</p>
   <p><b>2. Planos, períodos e valores</b></p>
-  <p>Quanto maior o período de compromisso, menor a mensalidade: trimestral 3%, semestral 6% e anual 10% abaixo do mensal. Valores por mês no Pix (mensal / trimestral / semestral / anual) e anual à vista no Pix:</p>
-  <ul>${planos.map((p) => li(`<b>${p[0]}:</b> R$ ${p[1]} / ${p[2]} / ${p[3]} / ${p[4]} · à vista R$ ${p[5]}`)).join('')}</ul>
+  <p>Quanto maior o período de compromisso, menor a mensalidade: trimestral 3%, semestral 6% e anual 10% abaixo do valor mensal sem compromisso. Valores por mês no Pix (trimestral / semestral / anual), anual à vista no Pix e, como referência, o valor mensal sem compromisso:</p>
+  <ul>${planos.map((p) => li(`<b>${p[0]}:</b> R$ ${p[1]} / ${p[2]} / ${p[3]} · à vista R$ ${p[4]} · referência sem compromisso R$ ${p[5]}`)).join('')}</ul>
   <ul>${[
     '<b>Compromisso:</b> no trimestral, semestral e anual, o aluno se compromete com todo o período, e é por isso que paga menos por mês.',
     '<b>Anual à vista:</b> quem paga o ano inteiro de uma vez no Pix recebe 5% a mais de desconto sobre o valor do anual.',
-    '<b>Cartão:</b> os valores no cartão, todo mês ou parcelado, são maiores porque incluem a taxa da operadora, e estão na página de planos (nexosperformanceesaude.com.br/planos).',
     '<b>Reajuste:</b> o valor fica fixo durante todo o período contratado. Um novo valor só vale na renovação.',
   ]
     .map(li)
     .join('')}</ul>
   <p><b>3. Pagamento, atraso e garantia</b></p>
   <ul>${[
-    '<b>Como pagar:</b> em qualquer período, o aluno paga mês a mês no Pix ou no cartão, já com o desconto do período. Também pode parcelar o período inteiro no cartão ou, no anual, pagar o ano inteiro à vista no Pix.',
+    '<b>Como pagar:</b> o aluno paga mês a mês no Pix, já com o desconto do período. No anual, também pode pagar o ano inteiro à vista no Pix.',
     '<b>Vencimento:</b> a primeira mensalidade vence no início do plano. As seguintes vencem no mesmo dia dos meses seguintes.',
     '<b>Atraso:</b> a planilha da semana seguinte é liberada com a mensalidade em dia. Há 5 dias de tolerância após o vencimento. Passado esse prazo, o acompanhamento fica suspenso até o pagamento, e o período contratado continua correndo.',
     '<b>Garantia de 7 dias:</b> nos primeiros 7 dias a partir da contratação, o aluno pode desistir sem motivo e recebe de volta todo o valor pago, como prevê o Art. 49 do Código de Defesa do Consumidor.',
@@ -1256,9 +1257,8 @@ function adesaoTexto(aluno) {
     .join('')}</ul>
   <p><b>4. Cancelamento, pausa e troca de plano</b></p>
   <ul>${[
-    '<b>Cancelamento antes do fim, pagando mês a mês:</b> sem multa. O aluno paga a diferença entre o valor com desconto e o valor do mensal, referente aos meses já utilizados. Exemplo: Corrida Essencial anual cancelado no 4º mês = 4 × (R$ 180 − R$ 162) = R$ 72.',
-    '<b>Cancelamento antes do fim, pagando à vista ou parcelado:</b> o aluno recebe de volta o valor pago menos os meses já utilizados, cobrados pelo preço do mensal. Exemplo: Corrida Essencial anual à vista (R$ 1.845) cancelado no 4º mês = R$ 1.845 − 4 × R$ 180 = R$ 1.125 devolvidos.',
-    '<b>Plano mensal:</b> não tem compromisso de período. O aluno pode cancelar quando quiser, sem multa e sem diferença a pagar.',
+    '<b>Cancelamento antes do fim, pagando mês a mês:</b> sem multa. O aluno paga a diferença entre o valor com desconto e o valor mensal sem compromisso, referente aos meses já utilizados. Exemplo: Corrida Essencial anual cancelado no 4º mês = 4 × (R$ 180 − R$ 162) = R$ 72.',
+    '<b>Cancelamento antes do fim, pagando à vista:</b> o aluno recebe de volta o valor pago menos os meses já utilizados, cobrados pelo valor mensal sem compromisso. Exemplo: Corrida Essencial anual à vista (R$ 1.845) cancelado no 4º mês = R$ 1.845 − 4 × R$ 180 = R$ 1.125 devolvidos.',
     '<b>Como cancelar:</b> por mensagem ao treinador, no aplicativo ou no WhatsApp. O cancelamento vale a partir do mês seguinte ao pedido.',
     '<b>Pausa:</b> no semestral e no anual, o aluno pode pausar o plano por até 30 dias, uma vez por período, em caso de lesão, doença ou viagem. O plano é estendido pelo mesmo tempo.',
     '<b>Troca para um plano mais completo:</b> a qualquer momento, pagando só a diferença entre os valores mensais.',
@@ -1296,7 +1296,7 @@ function viewAdesao(ad) {
     <section class="login" style="justify-content:flex-start;padding-top:10px">
       <div class="row" style="gap:12px;margin-bottom:14px"><img src="${LOGO.s()}" alt="" style="width:44px">${slashes}</div>
       <p class="eyebrow">Seu plano</p><h1 class="h1" style="margin-top:4px">Termo de adesão</h1>
-      <p class="muted small" style="margin:8px 0 14px">Como o seu plano tem compromisso ${COMPROMISSO_NOME[ad.compromisso] || ''}, estas são as regras combinadas entre você e a Nexos. Leia com calma:</p>
+      <p class="muted small" style="margin:8px 0 14px">Como o seu plano tem compromisso ${COMPROMISSO_NOME[ad.compromisso] || ''} no Pix, estas são as regras combinadas entre você e a Nexos. Leia com calma:</p>
       ${adesaoResumo(ad)}
       <div class="card termo">${adesaoTexto({ nome: S.me.nome, cpf: '', email: S.me.email || S.user.email || '', telefone: S.me.telefone ? MASCARA.tel(S.me.telefone) : '' })}</div>
       <form id="f-adesao" style="margin-top:16px">
@@ -1321,6 +1321,7 @@ function viewAdesao(ad) {
       aluno_id: S.user.id,
       versao: ADESAO_VERSAO,
       plano_nome: ad.plano || null,
+      forma: ad.forma || 'pix',
       compromisso: ad.compromisso,
       valor: ad.valor != null ? +ad.valor : null,
       dispositivo: navigator.userAgent.slice(0, 180),
@@ -1347,6 +1348,6 @@ function viewAdesao(ad) {
 async function viewAdesaoLida() {
   const ad = await carregarAdesao();
   $app.innerHTML = `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Seu plano</p><h1 class="h1">Termo de adesão</h1>
-    ${ad.compromisso >= 3 ? `<div style="margin-top:12px">${adesaoResumo(ad)}</div>${ad.aceito_em ? `<span class="tag ok">Você aceitou em ${fmtDia(ad.aceito_em)} · versão ${ADESAO_VERSAO}</span>` : ''}` : '<p class="small muted" style="margin-top:12px">O seu plano é mensal, sem compromisso de período. Este termo vale para quem escolhe o trimestral, o semestral ou o anual.</p>'}
+    ${termoExigido(ad.compromisso, ad.forma) ? `<div style="margin-top:12px">${adesaoResumo(ad)}</div>${ad.aceito_em ? `<span class="tag ok">Você aceitou em ${fmtDia(ad.aceito_em)} · versão ${ADESAO_VERSAO}</span>` : ''}` : '<p class="small muted" style="margin-top:12px">Este termo vale para os planos trimestral, semestral e anual pagos no Pix.</p>'}
     <div class="card termo" style="margin-top:16px">${adesaoTexto()}</div>`;
 }
