@@ -1216,7 +1216,10 @@ async function carregarAdesao(force) {
   S.cache.adesao = data || { compromisso: 1, pendente: false };
   return S.cache.adesao;
 }
-function adesaoTexto() {
+// dados do aluno no termo: na ficha, são preenchidos ao vivo com o que ele digitou na etapa 1 (.ad-nome, .ad-email, .ad-tel)
+const adesaoAlunoHTML = (a = {}) =>
+  `<p><b>Aluno(a):</b> <b class="ad-nome">${esc(a.nome || '(seu nome completo)')}</b>${a.email !== undefined ? `, e-mail <span class="ad-email">${esc(a.email || '')}</span>` : ''}${a.telefone !== undefined ? `, WhatsApp <span class="ad-tel">${esc(a.telefone || '')}</span>` : ''}, conforme os dados da ficha de cadastro.</p>`;
+function adesaoTexto(aluno) {
   const li = (t) => `<li>${t}</li>`;
   const planos = [
     ['Corrida Essencial', '180', '175', '169', '162', '1.845 (R$ 153,75/mês)'],
@@ -1229,7 +1232,7 @@ function adesaoTexto() {
   <p>Ao aceitar este termo, o aluno contrata um plano de treino da Nexos Performance e Saúde e concorda com as regras abaixo, que valem para todos os períodos: mensal, trimestral, semestral e anual.</p>
   <p><b>1. Partes e objeto</b></p>
   <p><b>Contratada:</b> Nexos Performance e Saúde, inscrita no CNPJ sob o nº 66.401.426/0001-65, representada pelos treinadores Gabriel Vinícius (corrida) e Orlando Borges (força).</p>
-  <p><b>Aluno(a):</b> nome completo, CPF, e-mail e WhatsApp informados na ficha de cadastro.</p>
+  ${aluno ? adesaoAlunoHTML(aluno) : '<p><b>Aluno(a):</b> nome completo, e-mail e WhatsApp informados na ficha de cadastro.</p>'}
   <p><b>Objeto:</b> prestação de serviço de treinamento esportivo online, com planilha ou prescrição de treino, acompanhamento pelo aplicativo Nexos e as avaliações descritas no plano escolhido. O serviço é 100% online; no plano Força Online com Avaliação Presencial, apenas a avaliação e a reavaliação físicas são feitas pessoalmente.</p>
   <p><b>2. Planos, períodos e valores</b></p>
   <p>Quanto maior o período de compromisso, menor a mensalidade: trimestral 3%, semestral 6% e anual 10% abaixo do mensal. Valores por mês no Pix (mensal / trimestral / semestral / anual) e anual à vista no Pix:</p>
@@ -1295,9 +1298,9 @@ function viewAdesao(ad) {
       <p class="eyebrow">Seu plano</p><h1 class="h1" style="margin-top:4px">Termo de adesão</h1>
       <p class="muted small" style="margin:8px 0 14px">Como o seu plano tem compromisso ${COMPROMISSO_NOME[ad.compromisso] || ''}, estas são as regras combinadas entre você e a Nexos. Leia com calma:</p>
       ${adesaoResumo(ad)}
-      <div class="card termo">${adesaoTexto()}</div>
+      <div class="card termo">${adesaoTexto({ nome: S.me.nome, email: S.me.email || S.user.email || '', telefone: S.me.telefone ? MASCARA.tel(S.me.telefone) : '' })}</div>
       <form id="f-adesao" style="margin-top:16px">
-        <label class="aceite"><input type="checkbox" name="a" required><span>Li e concordo com o Termo de Adesão, com o plano e o período ${COMPROMISSO_NOME[ad.compromisso] || ''}.</span></label>
+        <label class="aceite"><input type="checkbox" name="a" required><span>Eu, <b>${esc(S.me.nome)}</b>, li e concordo com o Termo de Adesão, com o plano e o período ${COMPROMISSO_NOME[ad.compromisso] || ''}.</span></label>
         <button class="btn block" type="submit" style="margin-top:8px">Aceitar e continuar ${I.arrow}</button>
         <button class="btn ghost block" type="button" id="duvida-ad" style="margin-top:8px">Tenho uma dúvida</button>
       </form>

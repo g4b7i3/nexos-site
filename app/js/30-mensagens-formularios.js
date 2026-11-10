@@ -582,8 +582,8 @@ async function viewFicha(token) {
         ${
           info.plano
             ? `<div class="ficha-plano" style="margin-top:14px"><span class="eyebrow">Termo de adesão · seu plano</span><b>${esc(info.plano.nome)} · ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}</b><span class="small muted">${esc(planoCombinadoTxt(info.plano).split(' · ').slice(2).join(' · '))}</span></div>
-        <div class="ficha-termo termo" style="margin-top:8px">${adesaoTexto()}</div>
-        <label class="ficha-aceite"><input type="checkbox" name="adesao"><span>Li e aceito o Termo de Adesão do plano ${esc(info.plano.nome)} ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}. *</span></label>`
+        <div class="ficha-termo termo" style="margin-top:8px">${adesaoTexto({ nome: info.nome, email: '', telefone: info.telefone })}</div>
+        <label class="ficha-aceite"><input type="checkbox" name="adesao"><span>Eu, <b class="ad-nome">${esc(info.nome || '(seu nome completo)')}</b>, li e aceito o Termo de Adesão do plano ${esc(info.plano.nome)} ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}. *</span></label>`
             : ''
         }
         <div class="field" style="margin-top:12px"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
@@ -604,6 +604,19 @@ async function viewFicha(token) {
       <p class="tiny dim center">Suas respostas vão só para a equipe de treinadores da Nexos.</p>
     </form>`;
   const f = document.getElementById('f-ficha');
+  // o nome, o e-mail e o WhatsApp da etapa 1 aparecem no Termo de Adesão enquanto a pessoa digita
+  const adVivo = () => {
+    const v = (n) => String((f.elements[n] || {}).value || '').trim();
+    f.querySelectorAll('.ad-nome').forEach((el) => (el.textContent = v('nome') || '(seu nome completo)'));
+    f.querySelectorAll('.ad-email').forEach((el) => (el.textContent = v('email')));
+    f.querySelectorAll('.ad-tel').forEach((el) => (el.textContent = v('telefone')));
+  };
+  if (info.plano) {
+    ['input', 'change'].forEach((t) =>
+      f.addEventListener(t, (e) => ['nome', 'email', 'telefone'].includes(e.target.name) && setTimeout(adVivo)),
+    );
+    adVivo();
+  }
   bindDesemp(f);
   const ajustar = () => {
     const mods = [...f.querySelectorAll('[name=modalidades]:checked')].map((x) => x.value);
