@@ -2,7 +2,7 @@
    NEXOS · CONFIGURAÇÃO  (edite aqui)
    ========================================================= */
 const CONFIG = {
-  whatsapp: '5598900000000',            // DDI+DDD+número, só dígitos (TROCAR)
+  whatsapp: '5598984334880',            // DDI+DDD+número, só dígitos (Gabriel Vinícius)
   instagram: 'https://instagram.com/',  // link do perfil (TROCAR)
   precoAvulsa: 30,                      // valor da aula avulsa em R$ (TROCAR)
   diasFuncional: [2, 4],                // 0=dom 1=seg 2=ter 3=qua 4=qui 5=sex 6=sáb (TROCAR)

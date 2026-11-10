@@ -522,8 +522,10 @@ body.com-troca .footer{padding-bottom:96px}
 <script>
 (function () {
   // número do WhatsApp da Nexos: DDI+DDD+número, só dígitos (o mesmo do site principal)
-  var WHATS = '5598900000000';
-  function zap(a) { a.href = 'https://wa.me/' + WHATS + '?text=' + encodeURIComponent(a.dataset.msg); }
+  // WhatsApp: corrida, Integral e contato geral com o Gabriel Vinícius; força com o Orlando
+  var WHATS = '5598984334880';
+  var WHATS_ORLANDO = '5598984928256';
+  function zap(a) { a.href = 'https://wa.me/' + (a.dataset.num === 'orlando' ? WHATS_ORLANDO : WHATS) + '?text=' + encodeURIComponent(a.dataset.msg); }
   var $ = function (s) { return document.querySelector(s); };
   var $$ = function (s) { return document.querySelectorAll(s); };
 
@@ -587,7 +589,7 @@ body.com-troca .footer{padding-bottom:96px}
       (pf !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
       '<p class="pl-ou">No cartão: ' + brl(c.cartao[pf]) + '/mês' + (c.parc[pf] ? ' ou ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
       '<div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
-      '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ', ' + PER[pf][0] + ', com o Orlando.">' + c.bt + per + '</a></article>';
+      '<a class="btn zap" target="_blank" rel="noopener" data-num="orlando" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ', ' + PER[pf][0] + ', com o Orlando.">' + c.bt + per + '</a></article>';
   }
   var ISCA_F = {
     m: 'No plano anual, a Força 100% Online sai por <b>R$ 171/mês</b>, com 2 camisetas oficiais de presente.',
@@ -699,7 +701,7 @@ body.com-troca .footer{padding-bottom:96px}
       '<div class="sh-sec"><b>Como funcionam os planos</b>' + regras(id === 'integral' ? 'i' : col[0]) + '</div>';
     var nomeMsg = c.nome.replace(' · ', ' (') + (c.top ? ')' : '');
     var msg = 'Olá! Vi no site e quero o plano ' + nomeMsg + ', ' + PER[k][0] + (ef ? ', com o Orlando' : '') + '.';
-    $('#sh-pe').innerHTML = '<span>' + c.curto + ' · ' + PER[k][0] + '<b>' + brl(v) + '/mês</b></span><a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Prosseguir</a>';
+    $('#sh-pe').innerHTML = '<span>' + c.curto + ' · ' + PER[k][0] + '<b>' + brl(v) + '/mês</b></span><a class="btn zap" target="_blank" rel="noopener"' + (ef ? ' data-num="orlando"' : '') + ' data-msg="' + msg + '">Prosseguir</a>';
     zap($('#sh-pe .zap'));
     if ($('#sh').hidden) { $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; barra(); }
   }
