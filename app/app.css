@@ -998,6 +998,9 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .fdia-h .disp-ic{margin-left:0}
 .disp-res{display:block;margin-top:5px;padding:0;border:0;background:none;color:var(--acc);font-size:.8rem;font-weight:700;text-align:left;cursor:pointer}
 .radios.r3{grid-template-columns:1fr 1fr 1fr}
+.ficha-plano{display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--s1)}
+.ficha-plano b{font-size:.92rem}
+.ficha-termo.termo{max-height:340px}
 .ficha-termo{max-height:190px;overflow:auto;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:.82rem;line-height:1.5;color:var(--mute);margin-bottom:10px}
 .ses.salvando{opacity:.6;pointer-events:none}
 .selo,.cal-dia-h .selo,.cal-dia.hoje .cal-dia-h .selo{color:#fff!important;font-size:0}

@@ -1132,3 +1132,212 @@ function anamneseResumoHTML(a, termo) {
     </div></div>
     <button class="btn ghost block" id="editar-ana" style="margin-top:12px">Editar ficha</button>`;
 }
+
+/* ---------- termo de adesão: só para quem tem compromisso trimestral, semestral ou anual ---------- */
+const ADESAO_VERSAO = '2026-11.1';
+const COMPROMISSO_NOME = { 1: 'mensal', 3: 'trimestral', 6: 'semestral', 12: 'anual' };
+// mesmos valores da página /planos (Pix, cartão todo mês, cartão parcelado por mês e anual à vista no Pix)
+const PLANOS_NEXOS = [
+  {
+    k: 'essencial',
+    nome: 'Corrida Essencial',
+    pix: [180, 175, 169, 162],
+    cartao: [188, 183, 177, 169],
+    parc: [0, 192, 197, 206],
+    avista: 1845,
+  },
+  {
+    k: 'evolucao',
+    nome: 'Corrida Evolução',
+    pix: [220, 214, 207, 198],
+    cartao: [230, 223, 216, 207],
+    parc: [0, 235, 241, 252],
+    avista: 2255,
+  },
+  {
+    k: 'integral',
+    nome: 'Integral (Corrida + Força)',
+    pix: [389, 377, 366, 350],
+    cartao: [406, 393, 382, 365],
+    parc: [0, 413, 426, 445],
+    avista: 3990,
+  },
+  {
+    k: 'forca_online',
+    nome: 'Força 100% Online',
+    pix: [190, 184, 179, 171],
+    cartao: [198, 192, 187, 179],
+    parc: [0, 202, 209, 218],
+    avista: 1950,
+  },
+  {
+    k: 'forca_presencial',
+    nome: 'Força Online com Avaliação Presencial',
+    pix: [220, 214, 207, 198],
+    cartao: [230, 223, 216, 207],
+    parc: [0, 235, 241, 252],
+    avista: 2255,
+  },
+];
+const PERIODOS_PLANO = [1, 3, 6, 12];
+const FORMAS_PLANO = {
+  pix: 'Pix todo mês',
+  cartao: 'Cartão todo mês',
+  parc: 'Cartão parcelado',
+  avista: 'Pix à vista (o ano inteiro)',
+};
+const formasDoPeriodo = (per) => ['pix', 'cartao', ...(per > 1 ? ['parc'] : []), ...(per === 12 ? ['avista'] : [])];
+// o que o aluno paga: valor por mês, total do período e como entra no financeiro (valor e a cada quantos meses)
+function precoPlanoNexos(k, per, forma) {
+  const pl = PLANOS_NEXOS.find((p) => p.k === k);
+  const i = PERIODOS_PLANO.indexOf(+per);
+  if (!pl || i < 0 || !formasDoPeriodo(+per).includes(forma)) return null;
+  if (forma === 'avista')
+    return { mensal: Math.round((pl.avista / 12) * 100) / 100, total: pl.avista, cobrar: pl.avista, meses: 12 };
+  if (forma === 'parc') return { mensal: pl.parc[i], total: pl.parc[i] * per, cobrar: pl.parc[i] * per, meses: +per };
+  const v = pl[forma][i];
+  return { mensal: v, total: v * per, cobrar: v, meses: 1 };
+}
+// o plano combinado, em uma linha (ficha, termo e tela do treinador)
+const planoCombinadoTxt = (p) =>
+  p
+    ? `${p.nome} · ${COMPROMISSO_NOME[p.periodo] || ''} · ${FORMAS_PLANO[p.forma] || ''} · ${
+        p.forma === 'avista'
+          ? `${brl(p.total)} (equivale a ${brl(p.mensal)} por mês)`
+          : p.forma === 'parc'
+            ? `${p.periodo}x de ${brl(p.mensal)} (total ${brl(p.total)})`
+            : `${brl(p.mensal)} por mês`
+      }`
+    : '';
+async function carregarAdesao(force) {
+  if (S.cache.adesao && !force) return S.cache.adesao;
+  const { data, error } = await sb.rpc('nx_minha_adesao', { p_org: S.org.id, p_versao: ADESAO_VERSAO });
+  if (error) return { compromisso: 1, pendente: false }; // sem conexão com o banco: não trava o app
+  S.cache.adesao = data || { compromisso: 1, pendente: false };
+  return S.cache.adesao;
+}
+function adesaoTexto() {
+  const li = (t) => `<li>${t}</li>`;
+  const planos = [
+    ['Corrida Essencial', '180', '175', '169', '162', '1.845 (R$ 153,75/mês)'],
+    ['Corrida Evolução', '220', '214', '207', '198', '2.255 (R$ 187,92/mês)'],
+    ['Integral (Corrida + Força)', '389', '377', '366', '350', '3.990 (R$ 332,50/mês)'],
+    ['Força 100% Online', '190', '184', '179', '171', '1.950 (R$ 162,50/mês)'],
+    ['Força Online com Avaliação Presencial', '220', '214', '207', '198', '2.255 (R$ 187,92/mês)'],
+  ];
+  return `<p><b>Termo de Adesão aos Planos da Nexos</b> · versão ${ADESAO_VERSAO}</p>
+  <p>Ao aceitar este termo, o aluno contrata um plano de treino da Nexos Performance e Saúde e concorda com as regras abaixo, que valem para todos os períodos: mensal, trimestral, semestral e anual.</p>
+  <p><b>1. Partes e objeto</b></p>
+  <p><b>Contratada:</b> Nexos Performance e Saúde, inscrita no CNPJ sob o nº 66.401.426/0001-65, representada pelos treinadores Gabriel Vinícius (corrida) e Orlando Borges (força).</p>
+  <p><b>Aluno(a):</b> nome completo, CPF, e-mail e WhatsApp informados na ficha de cadastro.</p>
+  <p><b>Objeto:</b> prestação de serviço de treinamento esportivo online, com planilha ou prescrição de treino, acompanhamento pelo aplicativo Nexos e as avaliações descritas no plano escolhido. O serviço é 100% online; no plano Força Online com Avaliação Presencial, apenas a avaliação e a reavaliação físicas são feitas pessoalmente.</p>
+  <p><b>2. Planos, períodos e valores</b></p>
+  <p>Quanto maior o período de compromisso, menor a mensalidade: trimestral 3%, semestral 6% e anual 10% abaixo do mensal. Valores por mês no Pix (mensal / trimestral / semestral / anual) e anual à vista no Pix:</p>
+  <ul>${planos.map((p) => li(`<b>${p[0]}:</b> R$ ${p[1]} / ${p[2]} / ${p[3]} / ${p[4]} · à vista R$ ${p[5]}`)).join('')}</ul>
+  <ul>${[
+    '<b>Compromisso:</b> no trimestral, semestral e anual, o aluno se compromete com todo o período, e é por isso que paga menos por mês.',
+    '<b>Anual à vista:</b> quem paga o ano inteiro de uma vez no Pix recebe 5% a mais de desconto sobre o valor do anual.',
+    '<b>Cartão:</b> os valores no cartão, todo mês ou parcelado, são maiores porque incluem a taxa da operadora, e estão na página de planos (nexosperformanceesaude.com.br/planos).',
+    '<b>Reajuste:</b> o valor fica fixo durante todo o período contratado. Um novo valor só vale na renovação.',
+  ]
+    .map(li)
+    .join('')}</ul>
+  <p><b>3. Pagamento, atraso e garantia</b></p>
+  <ul>${[
+    '<b>Como pagar:</b> em qualquer período, o aluno paga mês a mês no Pix ou no cartão, já com o desconto do período. Também pode parcelar o período inteiro no cartão ou, no anual, pagar o ano inteiro à vista no Pix.',
+    '<b>Vencimento:</b> a primeira mensalidade vence no início do plano. As seguintes vencem no mesmo dia dos meses seguintes.',
+    '<b>Atraso:</b> a planilha da semana seguinte é liberada com a mensalidade em dia. Há 5 dias de tolerância após o vencimento. Passado esse prazo, o acompanhamento fica suspenso até o pagamento, e o período contratado continua correndo.',
+    '<b>Garantia de 7 dias:</b> nos primeiros 7 dias a partir da contratação, o aluno pode desistir sem motivo e recebe de volta todo o valor pago, como prevê o Art. 49 do Código de Defesa do Consumidor.',
+  ]
+    .map(li)
+    .join('')}</ul>
+  <p><b>4. Cancelamento, pausa e troca de plano</b></p>
+  <ul>${[
+    '<b>Cancelamento antes do fim, pagando mês a mês:</b> sem multa. O aluno paga a diferença entre o valor com desconto e o valor do mensal, referente aos meses já utilizados. Exemplo: Corrida Essencial anual cancelado no 4º mês = 4 × (R$ 180 − R$ 162) = R$ 72.',
+    '<b>Cancelamento antes do fim, pagando à vista ou parcelado:</b> o aluno recebe de volta o valor pago menos os meses já utilizados, cobrados pelo preço do mensal. Exemplo: Corrida Essencial anual à vista (R$ 1.845) cancelado no 4º mês = R$ 1.845 − 4 × R$ 180 = R$ 1.125 devolvidos.',
+    '<b>Plano mensal:</b> não tem compromisso de período. O aluno pode cancelar quando quiser, sem multa e sem diferença a pagar.',
+    '<b>Como cancelar:</b> por mensagem ao treinador, no aplicativo ou no WhatsApp. O cancelamento vale a partir do mês seguinte ao pedido.',
+    '<b>Pausa:</b> no semestral e no anual, o aluno pode pausar o plano por até 30 dias, uma vez por período, em caso de lesão, doença ou viagem. O plano é estendido pelo mesmo tempo.',
+    '<b>Troca para um plano mais completo:</b> a qualquer momento, pagando só a diferença entre os valores mensais.',
+    '<b>Troca para um plano mais simples:</b> vale ao fim do período contratado.',
+    '<b>Renovação:</b> ao fim do período, o plano não é renovado sozinho. O aluno escolhe o novo plano e o novo período.',
+  ]
+    .map(li)
+    .join('')}</ul>
+  <p><b>5. Como funciona o acompanhamento</b></p>
+  <ul>${[
+    '<b>Videochamadas (planos de corrida):</b> 1 por mês no Essencial e 2 por mês no Evolução e no Integral. Duram até 30 minutos, são agendadas com o treinador e feitas pelo aplicativo. Não passam para o mês seguinte e podem ser remarcadas com 24 horas de antecedência.',
+    '<b>Análise biomecânica (Evolução e Integral):</b> a cada 2 meses, a partir de vídeos que o aluno grava seguindo as orientações do treinador, com relatório e comparação com a análise anterior.',
+    '<b>Avaliação física (planos de força e Integral):</b> no início do plano e a cada 8 semanas, online ou presencial conforme o plano. No Integral, a avaliação é online; para fazê-la presencialmente, o valor é R$ 30 a mais por mês.',
+    '<b>Ajustes:</b> o treino é ajustado ao longo do período, conforme a periodização, os dados do aplicativo e o retorno do aluno.',
+    '<b>Camisetas:</b> 2 camisetas oficiais no plano anual e 1 no Integral semestral, entregues após o segundo mês de plano, conforme os tamanhos disponíveis. Quem cancela antes da entrega não recebe a camiseta.',
+    '<b>Compromisso do aluno:</b> registrar os treinos e o check-in no aplicativo e avisar o treinador sobre dores, lesões e mudanças de rotina. Sem esse retorno, o treinador não consegue ajustar o treino.',
+  ]
+    .map(li)
+    .join('')}</ul>
+  <p><b>6. Saúde e dados pessoais</b></p>
+  <ul>${[
+    '<b>Saúde:</b> o treino só começa depois da ficha de saúde e do PAR-Q+. Se alguma resposta indicar risco, é preciso a liberação de um médico. O treino não substitui atendimento médico, fisioterapêutico ou nutricional.',
+    '<b>Dados pessoais:</b> tratados conforme a Lei Geral de Proteção de Dados e o termo de consentimento que você já aceitou no app.',
+    '<b>Imagem:</b> fotos e vídeos do aluno só são publicados com a autorização dele.',
+  ]
+    .map(li)
+    .join('')}</ul>`;
+}
+const adesaoResumo = (ad) =>
+  `<div class="card" style="margin-bottom:12px"><span class="eyebrow">Seu plano</span><div class="h2" style="margin-top:4px">${esc(ad.plano || 'Plano Nexos')}</div><p class="small muted" style="margin-top:4px">Período ${COMPROMISSO_NOME[ad.compromisso] || ''}${ad.valor != null && +ad.valor > 0 ? ` · ${brl(+ad.valor)} por mês` : ''}</p></div>`;
+function viewAdesao(ad) {
+  $dock.hidden = true;
+  layout('bare');
+  $app.innerHTML = `
+    <section class="login" style="justify-content:flex-start;padding-top:10px">
+      <div class="row" style="gap:12px;margin-bottom:14px"><img src="${LOGO.s()}" alt="" style="width:44px">${slashes}</div>
+      <p class="eyebrow">Seu plano</p><h1 class="h1" style="margin-top:4px">Termo de adesão</h1>
+      <p class="muted small" style="margin:8px 0 14px">Como o seu plano tem compromisso ${COMPROMISSO_NOME[ad.compromisso] || ''}, estas são as regras combinadas entre você e a Nexos. Leia com calma:</p>
+      ${adesaoResumo(ad)}
+      <div class="card termo">${adesaoTexto()}</div>
+      <form id="f-adesao" style="margin-top:16px">
+        <label class="aceite"><input type="checkbox" name="a" required><span>Li e concordo com o Termo de Adesão, com o plano e o período ${COMPROMISSO_NOME[ad.compromisso] || ''}.</span></label>
+        <button class="btn block" type="submit" style="margin-top:8px">Aceitar e continuar ${I.arrow}</button>
+        <button class="btn ghost block" type="button" id="duvida-ad" style="margin-top:8px">Tenho uma dúvida</button>
+      </form>
+    </section>`;
+  const f = document.getElementById('f-adesao');
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const b = f.querySelector('[type=submit]');
+    b.disabled = true;
+    const { error } = await sb.from('nx_adesoes').insert({
+      org_id: S.org.id,
+      aluno_id: S.user.id,
+      versao: ADESAO_VERSAO,
+      plano_nome: ad.plano || null,
+      compromisso: ad.compromisso,
+      valor: ad.valor != null ? +ad.valor : null,
+      dispositivo: navigator.userAgent.slice(0, 180),
+    });
+    if (error) {
+      b.disabled = false;
+      return toast('Não foi possível registrar. Tente de novo.', true);
+    }
+    await carregarAdesao(true);
+    toast('Termo aceito!');
+    router();
+  };
+  document.getElementById('duvida-ad').onclick = () =>
+    openSheet(
+      `<div class="h2">Fale com o seu treinador</div><p class="muted" style="margin:10px 0 18px">Se algo no termo não ficou claro, chame o seu treinador no WhatsApp ou escreva para ${esc(CONTATO.email)}. O app continua aqui esperando o seu aceite.</p><button class="btn block" data-close>Voltar ao termo</button><button class="btn ghost block" id="sair-ad" style="margin-top:8px">Sair</button>`,
+      (r) => {
+        r.querySelector('#sair-ad').onclick = () => {
+          closeSheet();
+          sb.auth.signOut();
+        };
+      },
+    );
+}
+async function viewAdesaoLida() {
+  const ad = await carregarAdesao();
+  $app.innerHTML = `<a class="back" href="#/perfil">${I.back} Perfil</a><p class="eyebrow">Seu plano</p><h1 class="h1">Termo de adesão</h1>
+    ${ad.compromisso >= 3 ? `<div style="margin-top:12px">${adesaoResumo(ad)}</div>${ad.aceito_em ? `<span class="tag ok">Você aceitou em ${fmtDia(ad.aceito_em)} · versão ${ADESAO_VERSAO}</span>` : ''}` : '<p class="small muted" style="margin-top:12px">O seu plano é mensal, sem compromisso de período. Este termo vale para quem escolhe o trimestral, o semestral ou o anual.</p>'}
+    <div class="card termo" style="margin-top:16px">${adesaoTexto()}</div>`;
+}

@@ -579,6 +579,13 @@ async function viewFicha(token) {
         `
         <div class="ficha-termo">${FICHA_TERMO}</div>
         <label class="ficha-aceite"><input type="checkbox" name="aceite"><span>Li e aceito o termo de responsabilidade acima. *</span></label>
+        ${
+          info.plano
+            ? `<div class="ficha-plano" style="margin-top:14px"><span class="eyebrow">Termo de adesão · seu plano</span><b>${esc(info.plano.nome)} · ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}</b><span class="small muted">${esc(planoCombinadoTxt(info.plano).split(' · ').slice(2).join(' · '))}</span></div>
+        <div class="ficha-termo termo" style="margin-top:8px">${adesaoTexto()}</div>
+        <label class="ficha-aceite"><input type="checkbox" name="adesao"><span>Li e aceito o Termo de Adesão do plano ${esc(info.plano.nome)} ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}. *</span></label>`
+            : ''
+        }
         <div class="field" style="margin-top:12px"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
         <label class="field"><span>Quer contar mais alguma coisa?</span><textarea class="textarea" name="obs"></textarea></label>`,
       )}
@@ -681,8 +688,12 @@ async function viewFicha(token) {
         ? null
         : { msg: 'Marque os dias em que pode treinar.', sel: '.disp-l:not([hidden]) input' };
     }
-    if (k === '7')
-      return fd.get('aceite') ? null : { msg: 'Aceite o termo de responsabilidade.', sel: '[name=aceite]' };
+    if (k === '7') {
+      if (!fd.get('aceite')) return { msg: 'Aceite o termo de responsabilidade.', sel: '[name=aceite]' };
+      if (info.plano && !fd.get('adesao'))
+        return { msg: 'Aceite o Termo de Adesão do seu plano.', sel: '[name=adesao]' };
+      return null;
+    }
     if (k === '8') return erroAcesso(fd);
     return null;
   });
@@ -761,11 +772,13 @@ async function viewFicha(token) {
     if (!d.disponibilidade.corrida.length && !d.disponibilidade.forca.length)
       return falta('.disp-l:not([hidden]) input', 'Marque os dias em que pode treinar.');
     if (!fd.get('aceite')) return falta('[name=aceite]', 'Aceite o termo de responsabilidade no final.');
+    if (info.plano && !fd.get('adesao')) return falta('[name=adesao]', 'Aceite o Termo de Adesão do seu plano.');
     if (!d.nascimento) return falta('[name=nascimento]', 'Confira a data de nascimento.');
     const ea = erroAcesso(fd);
     if (ea) return falta(ea.sel, ea.msg);
     const senha = String(fd.get('senha'));
     d.aceite = true;
+    if (info.plano) d.adesao = { versao: ADESAO_VERSAO, aceite: true }; // a data, o IP e o aparelho são gravados pelo servidor
     btn.disabled = true;
     btn.textContent = 'Enviando…';
     try {
@@ -882,7 +895,7 @@ async function staffFormularios(id) {
             .map(
               (
                 f,
-              ) => `<div class="list-item"><span class="ativ-ic">${I.espera}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(f.nome || 'Link sem nome')}</b><div class="small muted">${f.telefone ? esc(f.telefone) + ' · ' : ''}enviado ${quando(f.criado_em)}</div></div>
+              ) => `<div class="list-item"><span class="ativ-ic">${I.espera}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(f.nome || 'Link sem nome')}</b><div class="small muted">${f.plano ? esc(f.plano.nome + ' ' + (COMPROMISSO_NOME[f.plano.periodo] || '')) + ' · ' : ''}${f.telefone ? esc(f.telefone) + ' · ' : ''}enviado ${quando(f.criado_em)}</div></div>
       <button class="icon-btn sm" data-wa="${f.id}" aria-label="Mandar de novo no WhatsApp" title="WhatsApp">${I.feed}</button><button class="icon-btn sm" data-del="${f.id}" aria-label="Cancelar link" title="Cancelar link">${I.x}</button></div>`,
             )
             .join('')}</div></div>`
@@ -890,11 +903,16 @@ async function staffFormularios(id) {
     }`;
   const mostrar = (f) => {
     const link = fichaLink(f.token);
-    const msg = fichaMsg(f.nome, link);
+    const msg =
+      fichaMsg(f.nome, link) +
+      (f.plano
+        ? `\n\nSeu plano: ${planoCombinadoTxt(f.plano)}.\nNo fim da ficha está o Termo de Adesão com as regras do plano.`
+        : '');
     const tel = telWa(f.telefone);
     openSheet(
       `<p class="eyebrow">${f.multiplo ? 'Link geral' : 'Link pronto'}</p><div class="h2" style="margin-top:4px">${f.multiplo ? 'Use na bio do Instagram ou em grupos' : esc(f.nome ? 'Ficha de ' + firstName(f.nome) : 'Ficha de entrada')}</div>
       <p class="small muted" style="margin-top:6px">${f.multiplo ? 'Qualquer pessoa pode preencher este link, quantas vezes for preciso.' : 'Vale para uma pessoa. Depois que ela enviar, o link fecha.'}</p>
+      ${f.plano ? `<div class="ficha-plano" style="margin-top:10px"><span class="eyebrow">Plano e Termo de Adesão</span><b>${esc(planoCombinadoTxt(f.plano))}</b></div>` : ''}
       <div class="ficha-link mono">${esc(link)}</div>
       <a class="btn block wa-btn" href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="margin-top:12px">Enviar no WhatsApp${tel ? '' : ' (escolher contato)'}</a>
       <div class="mail-row" style="margin-top:8px"><input class="input" type="email" id="fx-mail" placeholder="E-mail da pessoa" value="${esc(f.email || '')}"><button class="btn mail-btn" id="fx-env">${I.mail} Enviar</button></div>
@@ -923,8 +941,37 @@ async function staffFormularios(id) {
       `<p class="eyebrow">Ficha de entrada</p><div class="h2" style="margin-top:4px">Gerar link</div>
     <form id="f-gl" style="margin-top:16px"><label class="field"><span>Nome da pessoa (opcional)</span><input class="input" name="nome" placeholder="Já aparece preenchido para ela"></label>
     <label class="field"><span>WhatsApp (opcional)</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" placeholder="(98) 9 9999-9999"></label>
-    <p class="tiny dim" style="margin:-4px 0 14px">Com o número, o WhatsApp já abre na conversa dela.</p><button class="btn block" type="submit">Gerar link</button></form>`,
+    <p class="tiny dim" style="margin:-4px 0 14px">Com o número, o WhatsApp já abre na conversa dela.</p>
+    <label class="field"><span>Plano</span><select class="input" name="plano">${PLANOS_NEXOS.map((p) => `<option value="${p.k}">${esc(p.nome)}</option>`).join('')}<option value="">Sem plano (parceria ou combinar depois)</option></select></label>
+    <div class="grid2" id="gl-per"><label class="field"><span>Período</span><select class="input" name="periodo">${PERIODOS_PLANO.map((v) => `<option value="${v}" ${v === 12 ? 'selected' : ''}>${COMPROMISSO_NOME[v][0].toUpperCase() + COMPROMISSO_NOME[v].slice(1)}</option>`).join('')}</select></label>
+    <label class="field"><span>Pagamento</span><select class="input" name="forma"></select></label></div>
+    <div class="ficha-plano" id="gl-res" style="margin:-2px 0 14px"></div>
+    <button class="btn block" type="submit">Gerar link</button></form>`,
       (r) => {
+        const fm = r.querySelector('#f-gl');
+        const plAtual = () => {
+          const k = fm.plano.value,
+            per = +fm.periodo.value,
+            forma = fm.forma.value,
+            pr = precoPlanoNexos(k, per, forma);
+          return pr ? { k, nome: PLANOS_NEXOS.find((p) => p.k === k).nome, periodo: per, forma, ...pr } : null;
+        };
+        const atualizar = () => {
+          const sem = !fm.plano.value;
+          r.querySelector('#gl-per').hidden = sem;
+          const ant = fm.forma.value;
+          fm.forma.innerHTML = formasDoPeriodo(+fm.periodo.value)
+            .map((k) => `<option value="${k}" ${k === ant ? 'selected' : ''}>${FORMAS_PLANO[k]}</option>`)
+            .join('');
+          const p = plAtual();
+          r.querySelector('#gl-res').innerHTML = sem
+            ? '<span class="small muted">Sem plano, a ficha vai sem o Termo de Adesão.</span>'
+            : p
+              ? `<span class="eyebrow">Vai no fim da ficha, com o Termo de Adesão</span><b>${esc(planoCombinadoTxt(p))}</b>`
+              : '';
+        };
+        ['plano', 'periodo', 'forma'].forEach((n) => fm[n].addEventListener('change', atualizar));
+        atualizar();
         r.querySelector('#f-gl').onsubmit = async (e) => {
           e.preventDefault();
           const fd = new FormData(e.target);
@@ -937,6 +984,7 @@ async function staffFormularios(id) {
               nome: String(fd.get('nome') || '').trim() || null,
               telefone: String(fd.get('telefone') || '').trim() || null,
               criado_por: S.user.id,
+              plano: plAtual(),
             })
             .select('*')
             .single();
@@ -1266,6 +1314,7 @@ async function staffFichaResposta(id) {
       <div class="card"><span class="eyebrow">Histórico médico</span>${rs.histSim.length ? rs.histSim.map(([q, v]) => lin(esc(q), v === 'sim' ? '<span style="color:var(--err)">Sim</span>' : 'Não sei')).join('') : lin('Respostas', 'Tudo “não”')}${lin('Observações', esc(d.obs_medica || ''))}${lin('PAR-Q', rs.sim.length ? `<span style="color:var(--err)">${rs.sim.length} sim</span>` : 'Tudo “não”')}</div>
       ${d.origem || d.obs ? `<div class="card"><span class="eyebrow">Outros</span>${lin('Conheceu por', esc(nome(FICHA_ORIGEM, d.origem)))}${lin('Comentário', esc(d.obs || ''))}</div>` : ''}
       <p class="tiny dim">✓ Aceitou o termo de responsabilidade ao enviar.</p>
+      ${d.adesao && d.adesao.aceite ? `<p class="tiny dim">✓ Aceitou o Termo de Adesão (versão ${esc(d.adesao.versao || '')}) em ${d.adesao.aceito_em ? esc(new Date(d.adesao.aceito_em).toLocaleString('pt-BR')) : ''}${d.adesao.plano ? ': ' + esc(planoCombinadoTxt(d.adesao.plano)) : ''}.</p>` : ''}
       <button class="link-btn small" id="apagar" style="color:var(--err);justify-self:start">Apagar esta ficha</button>
     </div>`;
   const cad = document.getElementById('cadastrar');
