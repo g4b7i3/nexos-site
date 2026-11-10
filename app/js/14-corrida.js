@@ -2694,7 +2694,8 @@ async function desenharCard(cv, c, o) {
     txt(t, x0 + ic + 12, yb, fl, tx, 'left', 1);
   }
   ctx.restore();
-  if (o.parte !== 'baixo') assinatura();
+  // as faixas e o selo são da marca: saem junto com a logo quando ela é desligada
+  if (o.parte !== 'baixo' && comLogo) assinatura();
 }
 // localização do card: busca no OpenStreetMap (só quando o atleta pede; nada é enviado sozinho)
 const locCurto = (r) => {
