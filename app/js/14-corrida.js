@@ -2399,7 +2399,6 @@ async function desenharCard(cv, c, o) {
       const R = Math.min(280 * F, (g1 - g0) / 2.6);
       medidor(W / 2, (g0 + g1) / 2 - 20 * F, R, T.aer, 'Aeróbico');
     }
-    txt('Escala do relógio, de 0 a 5', W / 2, g1 + 70 * F, `600 ${Math.round(28 * F)}px ${FB}`, sub, 'center');
     logo(W / 2, H - (post ? 110 : 190), 220);
   } else if (L === 'vo2' && c._x && c._x.vo2) {
     // VO2máx do relógio com a classificação por idade e sexo (Cooper Institute, a mesma da Garmin)
