@@ -208,15 +208,221 @@ const MEDIT_SESSOES = [
     ],
   },
 ];
+// som de fundo das sessões guiadas e da respiração
 const MEDIT_SONS = [
   ['silencio', 'Silêncio'],
   ['chuva', 'Chuva'],
   ['mar', 'Mar'],
   ['riacho', 'Riacho'],
   ['floresta', 'Floresta'],
-  ['vento', 'Vento'],
-  ['tigela', 'Tigelas tibetanas'],
-  ['marrom', 'Ruído suave'],
+  ['fogueira', 'Fogueira'],
+  ['grilos', 'Noite com grilos'],
+  ['tigelas', 'Tigelas tibetanas'],
+  ['ruido-marrom', 'Ruído marrom'],
+];
+// todos os sons gravados (app/sons/<k>.mp3). Origem e licença em app/sons/CREDITOS.txt
+const MED_CAT = [
+  ['chuva', 'Chuva suave', 'Chuva'],
+  ['chuva-leve', 'Chuva leve', 'Chuva'],
+  ['chuva-forte', 'Chuva forte', 'Chuva'],
+  ['chuva-folhas', 'Chuva nas folhas', 'Chuva'],
+  ['chuva-janela', 'Chuva na janela', 'Chuva'],
+  ['chuva-barraca', 'Chuva na barraca', 'Chuva'],
+  ['trovoada', 'Trovoada', 'Chuva'],
+  ['mar', 'Ondas do mar', 'Água'],
+  ['rio', 'Rio', 'Água'],
+  ['riacho', 'Riacho', 'Água'],
+  ['cachoeira', 'Cachoeira', 'Água'],
+  ['gotas', 'Gotas na caverna', 'Água'],
+  ['fundo-mar', 'Fundo do mar', 'Água'],
+  ['floresta', 'Floresta de dia', 'Natureza'],
+  ['mata', 'Mata tropical', 'Natureza'],
+  ['folhas', 'Vento nas árvores', 'Natureza'],
+  ['vento', 'Brisa', 'Natureza'],
+  ['fogueira', 'Fogueira', 'Natureza'],
+  ['passaros', 'Pássaros', 'Animais'],
+  ['grilos', 'Grilos', 'Animais'],
+  ['sapos', 'Sapos', 'Animais'],
+  ['coruja', 'Coruja', 'Animais'],
+  ['gaivotas', 'Gaivotas', 'Animais'],
+  ['baleias', 'Baleias', 'Animais'],
+  ['tigela', 'Tigela tibetana', 'Meditação'],
+  ['sinos-vento', 'Sinos de vento', 'Meditação'],
+  ['templo', 'Templo', 'Meditação'],
+  ['noite-vila', 'Noite no interior', 'Lugares'],
+  ['veleiro', 'Veleiro', 'Lugares'],
+  ['barco-remo', 'Barco a remo', 'Lugares'],
+  ['ruido-marrom', 'Ruído marrom', 'Ruídos'],
+  ['ruido-rosa', 'Ruído rosa', 'Ruídos'],
+  ['binaural-delta', 'Delta · sono profundo', 'Ondas binaurais'],
+  ['binaural-theta', 'Teta · meditação', 'Ondas binaurais'],
+  ['binaural-alpha', 'Alfa · relaxamento', 'Ondas binaurais'],
+];
+const medNomeSom = (k) => (MED_CAT.find((x) => x[0] === k) || [k, k])[1];
+// paisagens sonoras: sons da natureza misturados, para ouvir deitado, sem voz
+const MED_PAISAGENS = [
+  {
+    id: 'chuva-floresta',
+    nome: 'Chuva na floresta',
+    desc: 'Chuva caindo nas folhas, com a mata respirando ao fundo.',
+    cor: ['#123a2c', '#2f7a5a'],
+    camadas: [
+      ['chuva-folhas', 0.9],
+      ['mata', 0.3],
+    ],
+  },
+  {
+    id: 'beira-mar',
+    nome: 'Beira-mar',
+    desc: 'Ondas quebrando na areia e gaivotas ao longe.',
+    cor: ['#0d3150', '#2a8fb8'],
+    camadas: [
+      ['mar', 0.9],
+      ['gaivotas', 0.2],
+    ],
+  },
+  {
+    id: 'cachoeira',
+    nome: 'Cachoeira na mata',
+    desc: 'Água caindo nas pedras e pássaros na mata.',
+    cor: ['#0e3b3b', '#3a9b8a'],
+    camadas: [
+      ['cachoeira', 0.75],
+      ['passaros', 0.4],
+    ],
+  },
+  {
+    id: 'riacho-manha',
+    nome: 'Riacho de manhã',
+    desc: 'Um riacho correndo e os pássaros acordando.',
+    cor: ['#1d3a1a', '#7aa84a'],
+    camadas: [
+      ['riacho', 0.85],
+      ['passaros', 0.45],
+    ],
+  },
+  {
+    id: 'noite-campo',
+    nome: 'Noite no campo',
+    desc: 'Grilos, sapos e o vento nas árvores.',
+    cor: ['#0e1430', '#34407a'],
+    camadas: [
+      ['grilos', 0.7],
+      ['sapos', 0.3],
+      ['folhas', 0.3],
+    ],
+  },
+  {
+    id: 'fogueira',
+    nome: 'Fogueira sob as estrelas',
+    desc: 'A lenha estalando e a noite ao redor.',
+    cor: ['#3a160c', '#b8582a'],
+    camadas: [
+      ['fogueira', 0.85],
+      ['grilos', 0.3],
+    ],
+  },
+  {
+    id: 'tempestade',
+    nome: 'Tempestade ao longe',
+    desc: 'Chuva forte e trovões distantes. Ótimo para dormir.',
+    cor: ['#151a26', '#4a5670'],
+    camadas: [
+      ['chuva-forte', 0.7],
+      ['trovoada', 0.55],
+    ],
+  },
+  {
+    id: 'barraca',
+    nome: 'Chuva na barraca',
+    desc: 'Protegido, ouvindo a chuva bater na lona.',
+    cor: ['#1f2b20', '#5b6d4a'],
+    camadas: [
+      ['chuva-barraca', 0.9],
+      ['trovoada', 0.2],
+    ],
+  },
+  {
+    id: 'janela',
+    nome: 'Chuva na janela',
+    desc: 'Em casa, a chuva escorrendo no vidro.',
+    cor: ['#1a2333', '#5a6f8f'],
+    camadas: [
+      ['chuva-janela', 0.9],
+      ['chuva-leve', 0.3],
+    ],
+  },
+  {
+    id: 'templo',
+    nome: 'Templo',
+    desc: 'Silêncio de templo, sinos de vento e a tigela tibetana.',
+    cor: ['#3a2410', '#b88a3a'],
+    camadas: [
+      ['templo', 0.7],
+      ['sinos-vento', 0.3],
+      ['tigela', 0.3],
+    ],
+  },
+  {
+    id: 'oceano',
+    nome: 'Oceano profundo',
+    desc: "Debaixo d'água, com o canto das baleias.",
+    cor: ['#061c33', '#1d5a8a'],
+    camadas: [
+      ['fundo-mar', 0.8],
+      ['baleias', 0.55],
+    ],
+  },
+  {
+    id: 'veleiro',
+    nome: 'Veleiro em alto-mar',
+    desc: 'O casco rangendo, as velas e o mar.',
+    cor: ['#0f2a40', '#4a86a8'],
+    camadas: [
+      ['veleiro', 0.8],
+      ['mar', 0.35],
+    ],
+  },
+  {
+    id: 'caverna',
+    nome: 'Gotas na caverna',
+    desc: 'Gotas pingando num lugar fresco e silencioso.',
+    cor: ['#14161f', '#3d4a5c'],
+    camadas: [
+      ['gotas', 0.85],
+      ['ruido-marrom', 0.15],
+    ],
+  },
+  {
+    id: 'vila',
+    nome: 'Noite no interior',
+    desc: 'Uma vila tranquila à noite, longe da cidade.',
+    cor: ['#121a2a', '#3d5170'],
+    camadas: [
+      ['noite-vila', 0.85],
+      ['coruja', 0.25],
+    ],
+  },
+  {
+    id: 'sono-profundo',
+    nome: 'Sono profundo',
+    desc: 'Ruído marrom com ondas binaurais delta. Use fone de ouvido.',
+    cor: ['#120c26', '#3b2a7a'],
+    camadas: [
+      ['ruido-marrom', 0.55],
+      ['binaural-delta', 0.45],
+    ],
+  },
+  {
+    id: 'foco-calmo',
+    nome: 'Foco tranquilo',
+    desc: 'Ruído rosa com ondas alfa, para estudar ou relaxar. Use fone.',
+    cor: ['#1a1030', '#6a4cf0'],
+    camadas: [
+      ['ruido-rosa', 0.4],
+      ['binaural-alpha', 0.45],
+    ],
+  },
 ];
 const MEDIT_HUMOR = [
   [1, 'Agitado'],
@@ -226,14 +432,11 @@ const MEDIT_HUMOR = [
   [5, 'Em paz'],
 ];
 
-const meditCfg = () => ({
-  voz: true,
-  tons: true,
-  vib: true,
-  som: 'silencio',
-  vol: 0.7,
-  ...(store.get(MEDIT_CFG, {}) || {}),
-});
+const meditCfg = () => {
+  const c = { voz: true, tons: true, vib: true, som: 'silencio', vol: 0.7, ...(store.get(MEDIT_CFG, {}) || {}) };
+  c.som = { tigela: 'tigelas', marrom: 'ruido-marrom', vento: 'floresta' }[c.som] || c.som; // nomes antigos
+  return c;
+};
 const meditSalvarCfg = (c) => store.set(MEDIT_CFG, c);
 function meditHist() {
   return (store.get(MEDIT_KEY, []) || []).filter((x) => x && x.d && x.m > 0);
@@ -332,20 +535,104 @@ function medSaida(no, seco = 1, sala = 0.4, pan = 0, dest = null) {
   x.connect(a).connect(dest || MED_AUDIO.mestre);
   x.connect(b).connect(MED_AUDIO.rev);
 }
-// gravações reais em domínio público (CC0), créditos em app/sons/CREDITOS.txt
-const MED_GRAVADOS = {
-  chuva: '/app/sons/chuva.mp3',
-  riacho: '/app/sons/riacho.mp3',
-  floresta: '/app/sons/floresta.mp3',
-  vento: '/app/sons/vento.mp3',
-};
+// gravações reais (créditos e licenças em app/sons/CREDITOS.txt)
+const MED_GRAVADOS = Object.fromEntries(MED_CAT.map(([k]) => [k, `/app/sons/${k}.mp3`]));
 const medBufGrav = {};
-async function medCarregarGravado(c, k) {
-  if (medBufGrav[k] && medBufGrav[k].c === c) return medBufGrav[k].b;
-  const ab = await (await fetch(MED_GRAVADOS[k])).arrayBuffer();
-  const b = await new Promise((ok, er) => c.decodeAudioData(ab, ok, er));
-  medBufGrav[k] = { c, b };
-  return b;
+function medCarregarGravado(c, k) {
+  if (medBufGrav[k] && medBufGrav[k].c === c) return medBufGrav[k].p;
+  const p = fetch(MED_GRAVADOS[k])
+    .then((r) => {
+      if (!r.ok) throw new Error('som');
+      return r.arrayBuffer();
+    })
+    .then((ab) => new Promise((ok, er) => c.decodeAudioData(ab, ok, er)));
+  medBufGrav[k] = { c, p };
+  p.then(
+    (b) => medBufGrav[k] && medBufGrav[k].p === p && (medBufGrav[k].b = b),
+    () => delete medBufGrav[k],
+  );
+  return p;
+}
+// uma camada gravada tocando em laço, com fusão suave entre o fim e o começo e volume próprio
+function medCamada(k, vol = 1, dest = null) {
+  const c = medCtx();
+  const g = c.createGain(),
+    cam = { k, g, fontes: [], timer: null, vivo: true };
+  g.gain.setValueAtTime(0.0001, c.currentTime);
+  g.gain.linearRampToValueAtTime(Math.max(0.0001, vol), c.currentTime + 2.5);
+  g.connect(dest || MED_AUDIO.mestre);
+  // ondas binaurais: um tom em cada ouvido, com a diferença na frequência da onda (gerado aqui, sem emendas)
+  const bi = { 'binaural-delta': 2, 'binaural-theta': 6, 'binaural-alpha': 10 }[k];
+  if (bi) {
+    const m = c.createChannelMerger(2),
+      t = c.currentTime;
+    [0, bi].forEach((d, ch) => {
+      const o = c.createOscillator(),
+        og = c.createGain();
+      o.frequency.value = 180 + d;
+      og.gain.value = 0.12;
+      o.connect(og).connect(m, 0, ch);
+      o.start(t);
+      cam.fontes.push(o);
+    });
+    m.connect(g);
+    cam.pronto = Promise.resolve();
+  } else
+    cam.pronto = medCarregarGravado(c, k).then((buf) => {
+      if (!cam.vivo) return;
+      const XF = Math.min(3, buf.duration / 4);
+      let px = c.currentTime + 0.05;
+      cam.agendar = (ate) => {
+        while (px < ate) {
+          const s = c.createBufferSource(),
+            v = c.createGain(),
+            t = px;
+          s.buffer = buf;
+          v.gain.setValueAtTime(0.0001, t);
+          v.gain.linearRampToValueAtTime(1, t + XF);
+          v.gain.setValueAtTime(1, t + buf.duration - XF);
+          v.gain.linearRampToValueAtTime(0.0001, t + buf.duration);
+          s.connect(v).connect(g);
+          s.start(t);
+          s.stop(t + buf.duration + 0.05);
+          cam.fontes.push(s);
+          if (cam.fontes.length > 4) cam.fontes.shift();
+          px += buf.duration - XF;
+        }
+      };
+      cam.agendar(c.currentTime + 2);
+      cam.timer = setInterval(() => cam.vivo && cam.agendar(c.currentTime + 2), 400);
+    });
+  cam.pronto.catch(() => {});
+  cam.vol = (v) => {
+    try {
+      g.gain.cancelScheduledValues(c.currentTime);
+      g.gain.setTargetAtTime(Math.max(0.0001, v), c.currentTime, 0.12);
+    } catch {}
+  };
+  cam.parar = (fade = 1.5) => {
+    cam.vivo = false;
+    clearInterval(cam.timer);
+    try {
+      g.gain.cancelScheduledValues(c.currentTime);
+      g.gain.setValueAtTime(g.gain.value, c.currentTime);
+      g.gain.linearRampToValueAtTime(0.0001, c.currentTime + fade);
+    } catch {}
+    setTimeout(
+      () => {
+        cam.fontes.forEach((s) => {
+          try {
+            s.stop();
+          } catch {}
+        });
+        try {
+          g.disconnect();
+        } catch {}
+      },
+      fade * 1000 + 200,
+    );
+  };
+  return cam;
 }
 const medBufs = {};
 function medRuidoBuf(c, tipo, seg = 6) {
@@ -486,10 +773,31 @@ function medToque(vol = 1, t0) {
   if (!c) return;
   medChime(1174.66, t0 ?? c.currentTime, 0.32 * vol);
 }
+// sino de início e fim: a tigela tibetana gravada (se já carregou) ou a nossa tigela composta
 function medSino(vol = 1, t0) {
   const c = medCtx();
   if (!c) return;
-  medTigela(196, t0 ?? c.currentTime, vol);
+  t0 = t0 ?? c.currentTime;
+  const b = medBufGrav.tigela && medBufGrav.tigela.c === c && medBufGrav.tigela.b;
+  if (!b) return medTigela(196, t0, vol);
+  const s = c.createBufferSource(),
+    g = c.createGain(),
+    dur = Math.min(10, b.duration);
+  s.buffer = b;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.9 * vol, t0 + 0.05);
+  g.gain.setValueAtTime(0.9 * vol, t0 + dur - 4);
+  g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+  s.connect(g);
+  medSaida(g, 0.8, 0.35);
+  s.start(t0);
+  s.stop(t0 + dur + 0.1);
+}
+// deixa a tigela gravada pronta para o sino
+function medPrepararSino() {
+  const c = medCtx();
+  if (!c) return;
+  medCarregarGravado(c, 'tigela').catch(() => {});
 }
 function medFundoParar(fade = 1.5) {
   const c = MED_AUDIO.c;
@@ -510,6 +818,7 @@ function medFundoParar(fade = 1.5) {
           s.stop();
         } catch {}
       });
+      if (g._cam) g._cam.parar(0.05);
       try {
         g.disconnect();
       } catch {}
@@ -524,86 +833,15 @@ function medFundo(tipo, vol = 0.7) {
   const c = medCtx();
   if (!c || !tipo || tipo === 'silencio') return;
   const t0 = c.currentTime,
-    g = c.createGain(),
-    pare = []; // fontes contínuas
+    g = c.createGain();
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.linearRampToValueAtTime(vol * 0.55, t0 + 3); // o fundo fica uns 8 dB abaixo da guia da respiração
   g.connect(MED_AUDIO.mestre);
-  const camada = (tp, filtro, freq, q, ganho) => {
-    const s = medFonte(c, tp, 6),
-      f = c.createBiquadFilter(),
-      v = c.createGain();
-    f.type = filtro;
-    f.frequency.value = freq;
-    f.Q.value = q;
-    v.gain.value = ganho;
-    s.connect(f).connect(v).connect(g);
-    s.start(t0);
-    pare.push(s);
-    return { f, v };
-  };
   let prox = t0 + 0.2,
     agendar = null;
   if (MED_GRAVADOS[tipo]) {
-    // gravação de verdade (CC0), tocada em laço com fusão suave entre o fim e o começo
-    medCarregarGravado(c, tipo)
-      .then((buf) => {
-        if (MED_AUDIO.fundo !== g) return;
-        const XF = Math.min(3, buf.duration / 4);
-        let px = c.currentTime + 0.05;
-        const tocar = (t) => {
-          const s = c.createBufferSource(),
-            v = c.createGain();
-          s.buffer = buf;
-          v.gain.setValueAtTime(0.0001, t);
-          v.gain.linearRampToValueAtTime(1, t + XF);
-          v.gain.setValueAtTime(1, t + buf.duration - XF);
-          v.gain.linearRampToValueAtTime(0.0001, t + buf.duration);
-          s.connect(v).connect(g);
-          s.start(t);
-          s.stop(t + buf.duration + 0.05);
-          pare.push(s);
-          if (pare.length > 4) pare.shift();
-        };
-        MED_AUDIO.agendar = (ate) => {
-          while (px < ate) {
-            tocar(px);
-            px += buf.duration - XF;
-          }
-        };
-        MED_AUDIO.agendar(c.currentTime + 2);
-      })
-      .catch(() => {});
-  } else if (tipo === 'mar') {
-    camada('marrom', 'lowpass', 350, 0.5, 0.22);
-    const onda = (t) => {
-      const s = medFonte(c, 'rosa', 6),
-        f = c.createBiquadFilter(),
-        v = c.createGain(),
-        sobe = 2.6 + Math.random() * 1.8,
-        desce = 5 + Math.random() * 2.5,
-        pico = 0.35 + Math.random() * 0.25;
-      f.type = 'lowpass';
-      f.Q.value = 0.4;
-      f.frequency.setValueAtTime(260, t);
-      f.frequency.exponentialRampToValueAtTime(2400 + Math.random() * 1500, t + sobe);
-      f.frequency.exponentialRampToValueAtTime(380, t + sobe + desce);
-      v.gain.setValueAtTime(0.0001, t);
-      v.gain.linearRampToValueAtTime(pico * 0.45, t + sobe * 0.7);
-      v.gain.linearRampToValueAtTime(pico, t + sobe);
-      v.gain.exponentialRampToValueAtTime(0.0001, t + sobe + desce);
-      s.connect(f).connect(v);
-      medSaida(v, 1, 0.12, Math.random() * 1 - 0.5, g);
-      s.start(t, Math.random() * 5);
-      s.stop(t + sobe + desce + 0.2);
-    };
-    agendar = (ate) => {
-      while (prox < ate) {
-        onda(prox);
-        prox += 5.5 + Math.random() * 5;
-      }
-    };
-  } else if (tipo === 'tigela') {
+    g._cam = medCamada(tipo, 1, g); // gravação de verdade, em laço
+  } else if (tipo === 'tigelas') {
     const notas = [174.61, 196, 220, 261.63, 293.66];
     agendar = (ate) => {
       while (prox < ate) {
@@ -617,14 +855,11 @@ function medFundo(tipo, vol = 0.7) {
         prox += 9 + Math.random() * 9;
       }
     };
-  } else if (tipo === 'marrom') {
-    camada('marrom', 'lowpass', 520, 0.5, 0.55);
   }
   MED_AUDIO.fundo = g;
   MED_AUDIO.agendar = agendar;
-  g._pare = pare;
   if (agendar) agendar(c.currentTime + 2);
-  if (agendar || MED_GRAVADOS[tipo]) {
+  if (agendar) {
     MED_AUDIO.fundoTimer = setInterval(() => MED_AUDIO.agendar && MED_AUDIO.agendar(MED_AUDIO.c.currentTime + 2), 400);
   }
 }
@@ -663,6 +898,19 @@ const medCard = (href, titulo, sub, extra = '', cls = '') =>
 
 /** #/meditacao (início), #/meditacao/<id> (sessão ou respiração) e #/meditacao/livre */
 async function viewMeditacao(id) {
+  if (id === 'mix') return medPaisagem(null);
+  if (id && id.startsWith('p-')) {
+    const pz = MED_PAISAGENS.find((x) => 'p-' + x.id === id);
+    if (pz) return medPaisagem(pz);
+  }
+  if (id && id.startsWith('som-') && MED_GRAVADOS[id.slice(4)])
+    return medPaisagem({
+      id,
+      nome: medNomeSom(id.slice(4)),
+      som: true,
+      cor: ['#151a2e', '#3b4a7a'],
+      camadas: [[id.slice(4), 0.85]],
+    });
   if (id === 'livre')
     return meditSessao({ id: 'livre', grupo: 'Meditação livre', nome: 'Meditação livre', livre: true });
   const r = id && MEDIT_RESP.find((x) => x.id === id);
@@ -705,6 +953,23 @@ async function viewMeditacao(id) {
             .join('')}</div>`,
       )
       .join('')}
+    <p class="sec-lbl">Sons da natureza</p>
+    <p class="tiny dim" style="margin:-4px 0 10px">Paisagens sonoras sem voz, para ouvir deitado, relaxar ou dormir.</p>
+    <div class="med-pz">${MED_PAISAGENS.map(
+      (x) =>
+        `<a href="#/meditacao/p-${x.id}" class="med-pz-c" style="--c1:${x.cor[0]};--c2:${x.cor[1]}"><span class="med-pz-ic">${I.play}</span><b>${esc(x.nome)}</b><small>${esc(x.camadas.map((c) => medNomeSom(c[0])).join(' · '))}</small></a>`,
+    ).join('')}</div>
+    <div class="stack" style="margin-top:10px">${medCard('#/meditacao/mix', 'Monte a sua mistura', `Combine os ${MED_CAT.length} sons do jeito que você gosta, com o volume de cada um.`)}</div>
+    <details class="med-todos"><summary>Todos os sons (${MED_CAT.length})</summary>${[
+      ...new Set(MED_CAT.map((x) => x[2])),
+    ]
+      .map(
+        (gr) =>
+          `<p class="med-todos-g">${esc(gr)}</p><div class="med-chips2">${MED_CAT.filter((x) => x[2] === gr)
+            .map((x) => `<a class="med-chip2" href="#/meditacao/som-${x[0]}">${esc(x[1])}</a>`)
+            .join('')}</div>`,
+      )
+      .join('')}</details>
     <p class="sec-lbl">No seu tempo</p><div class="stack">${medCard('#/meditacao/livre', 'Meditação livre', 'Escolha o tempo, o som de fundo e o sino de intervalo. Sem voz.')}</div>
     <p class="tiny dim" style="margin-top:18px">Use fone de ouvido para a melhor experiência. A meditação ajuda no bem-estar e não substitui acompanhamento de saúde. Se sentir tontura, volte a respirar no seu ritmo natural.</p>`;
 }
@@ -728,6 +993,7 @@ function meditSessao(s) {
     ultimo = 0,
     falados = new Set();
   const total = () => st.min * 60;
+  medPrepararSino();
   const opcoesMin = s.livre ? [3, 5, 10, 15, 20, 30] : s.mins || null;
   const chip = (on, attr, txt) => `<button class="med-chip${on ? ' on' : ''}" ${attr}>${txt}</button>`;
   $app.innerHTML = `<div class="med-play" id="m-raiz">
@@ -1056,4 +1322,217 @@ function meditSessao(s) {
   };
   const aoTrocar = () => setTimeout(sair, 50);
   addEventListener('hashchange', aoTrocar);
+}
+
+/* ---------- paisagens sonoras e mistura: só sons, sem voz, com temporizador para dormir ---------- */
+const MED_MIX_KEY = 'nx-medit-mix';
+function medPaisagem(pz) {
+  const mix = !pz;
+  if (mix) {
+    const salvo = store.get(MED_MIX_KEY, null);
+    pz = {
+      id: 'mix',
+      nome: 'Sua mistura',
+      desc: 'Adicione sons e ajuste o volume de cada um. A mistura fica salva.',
+      cor: ['#1a1240', '#6a4cf0'],
+      camadas: Array.isArray(salvo) && salvo.length ? salvo.filter((x) => MED_GRAVADOS[x[0]]) : [['chuva-leve', 0.8]],
+    };
+  }
+  const st = {
+    min: store.get('nx-medit-pz-min', 30),
+    t: 0,
+    rodando: false,
+    camadas: pz.camadas.map(([k, v]) => ({ k, v })),
+    k: Date.now().toString(36),
+    feito: 0,
+  };
+  let timer = null,
+    lock = null,
+    ultimo = 0;
+  const tela = {};
+  $app._med = tela;
+  const el = (x) => document.getElementById(x);
+  const minha = () => $app._med === tela && !!el('pz-raiz');
+  const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+  const salvarMix = () =>
+    mix &&
+    store.set(
+      MED_MIX_KEY,
+      st.camadas.map((c) => [c.k, c.v]),
+    );
+  const listaHTML = () =>
+    st.camadas
+      .map(
+        (c, i) =>
+          `<div class="pz-cam"><span>${esc(medNomeSom(c.k))}</span><input type="range" min="0" max="100" value="${Math.round(c.v * 100)}" data-vol="${i}" aria-label="Volume de ${esc(medNomeSom(c.k))}">${mix ? `<button class="med-x pz-tira" data-tira="${i}" aria-label="Tirar">${I.x}</button>` : ''}</div>`,
+      )
+      .join('') || '<p class="small" style="color:rgba(255,255,255,.6)">Nenhum som ainda. Toque em adicionar som.</p>';
+  $app.innerHTML = `<div class="med-play pz" id="pz-raiz" style="--c1:${pz.cor[0]};--c2:${pz.cor[1]}">
+    <div class="pz-aurora"><i></i><i></i><i></i></div>
+    <div class="med-play-top"><a class="med-x" href="#/meditacao" aria-label="Voltar">${I.back}</a><div class="grow" style="min-width:0"><p class="med-eyebrow">${mix ? 'Mistura' : pz.som ? 'Som' : 'Paisagem sonora'}</p><h1>${esc(pz.nome)}</h1></div><button class="med-x" id="pz-olhos" aria-label="Apagar a tela" title="Apagar a tela"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>
+    ${pz.desc ? `<p class="med-desc">${esc(pz.desc)}</p>` : ''}
+    <div class="pz-centro"><div class="pz-tempo" id="pz-tempo"></div><div class="pz-sub" id="pz-sub">Deite-se, feche os olhos e só escute</div></div>
+    <div class="med-ctrl"><button class="med-bt" id="pz-play" aria-label="Tocar">${I.play}</button></div>
+    <div class="med-opc">
+      <div class="med-opc-l"><span>Desligar em</span><div class="med-chips">${[15, 30, 45, 60, 90, 0]
+        .map(
+          (m) =>
+            `<button class="med-chip${m === st.min ? ' on' : ''}" data-min="${m}">${m ? m + ' min' : 'Sem parar'}</button>`,
+        )
+        .join('')}</div></div>
+      <div class="med-opc-l"><span>${mix ? 'Seus sons' : 'Sons desta paisagem'}</span><div class="pz-lista" id="pz-lista">${listaHTML()}</div>
+      ${mix ? '<button class="med-chip" id="pz-add" style="margin-top:10px">+ Adicionar som</button>' : '<a class="med-chip" href="#/meditacao/mix" style="display:inline-block;margin-top:10px">Montar a minha mistura</a>'}</div>
+    </div>
+    <p class="pz-cred">Gravações de natureza em domínio público e de uso livre. Para as ondas binaurais, use fone de ouvido.</p>
+    <div class="med-escuro" id="pz-escuro" hidden><p id="pz-esc-t"></p><small>Toque para voltar</small></div>
+  </div>`;
+  const cams = {};
+  const tocarCamadas = () =>
+    st.camadas.forEach((c, i) => {
+      if (!cams[i]) cams[i] = medCamada(c.k, c.v);
+    });
+  const pararCamadas = (fade) =>
+    Object.keys(cams).forEach((i) => {
+      cams[i].parar(fade);
+      delete cams[i];
+    });
+  const salvarHist = () => {
+    const m = Math.round((st.t / 60) * 10) / 10;
+    if (m - st.feito < 1) return;
+    const h = meditHist().filter((x) => new Date(x.d).getTime() > Date.now() - 400 * 864e5);
+    h.push({ d: new Date().toISOString(), m: Math.round((m - st.feito) * 10) / 10, s: 'pz-' + pz.id, k: st.k });
+    store.set(MEDIT_KEY, h);
+    st.feito = m;
+  };
+  const pintar = () => {
+    if (!minha()) return;
+    const resta = Math.max(0, st.min * 60 - st.t);
+    el('pz-tempo').textContent = st.min ? fmt(resta) : st.t ? fmt(st.t) : 'Sem parar';
+    el('pz-esc-t').textContent = st.min ? fmt(resta) : '';
+    el('pz-play').innerHTML = st.rodando
+      ? '<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>'
+      : I.play;
+    el('pz-raiz').classList.toggle('rodando', st.rodando);
+  };
+  const parar = (fade = 1.5) => {
+    clearInterval(timer);
+    timer = null;
+    st.rodando = false;
+    pararCamadas(fade);
+    try {
+      if (lock) lock.release();
+    } catch {}
+    lock = null;
+    salvarHist();
+    pintar();
+  };
+  const tique = () => {
+    if (!minha()) return parar(0.5);
+    const agora = performance.now();
+    st.t += Math.min(1, (agora - ultimo) / 1000);
+    ultimo = agora;
+    // no último minuto o som vai sumindo devagar, para não acordar ninguém
+    if (st.min && st.t >= st.min * 60 - 60 && !st.sumindo) {
+      st.sumindo = true;
+      pararCamadas(58);
+    }
+    if (st.min && st.t >= st.min * 60) {
+      parar(0.1);
+      st.t = 0;
+      st.feito = 0;
+      el('pz-sub').textContent = 'Terminou. Bom descanso.';
+      el('pz-escuro').hidden = true;
+    }
+    pintar();
+  };
+  el('pz-play').onclick = async () => {
+    if (st.rodando) return parar(1.2);
+    medCtx();
+    if (!st.camadas.length) return toast('Adicione pelo menos um som.', true);
+    st.rodando = true;
+    st.sumindo = false;
+    tocarCamadas();
+    el('pz-sub').textContent = 'Deite-se, feche os olhos e só escute';
+    try {
+      if ('wakeLock' in navigator && !lock) lock = await navigator.wakeLock.request('screen');
+    } catch {}
+    ultimo = performance.now();
+    timer = setInterval(tique, 500);
+    pintar();
+  };
+  const raiz = el('pz-raiz');
+  raiz.addEventListener('click', (e) => {
+    const m = e.target.closest('[data-min]');
+    if (m) {
+      st.min = +m.dataset.min;
+      store.set('nx-medit-pz-min', st.min);
+      raiz.querySelectorAll('[data-min]').forEach((x) => x.classList.toggle('on', x === m));
+      if (st.min && st.t >= st.min * 60 - 60) st.t = 0;
+      return pintar();
+    }
+    const tr = e.target.closest('[data-tira]');
+    if (tr) {
+      const i = +tr.dataset.tira;
+      const vivos = st.camadas.map((c, j) => cams[j]);
+      if (vivos[i]) vivos[i].parar(0.6);
+      st.camadas.splice(i, 1);
+      vivos.splice(i, 1);
+      Object.keys(cams).forEach((j) => delete cams[j]);
+      vivos.forEach((c, j) => c && (cams[j] = c));
+      salvarMix();
+      el('pz-lista').innerHTML = listaHTML();
+    }
+  });
+  raiz.addEventListener('input', (e) => {
+    const r = e.target.closest('[data-vol]');
+    if (!r) return;
+    const i = +r.dataset.vol;
+    st.camadas[i].v = r.value / 100;
+    if (cams[i]) cams[i].vol(st.camadas[i].v);
+    salvarMix();
+  });
+  const add = el('pz-add');
+  if (add)
+    add.onclick = () =>
+      openSheet(
+        `<p class="eyebrow">Mistura</p><div class="h2" style="margin-top:4px">Adicionar som</div>${[
+          ...new Set(MED_CAT.map((x) => x[2])),
+        ]
+          .map(
+            (gr) =>
+              `<p class="sec-lbl">${esc(gr)}</p><div class="chips wrap">${MED_CAT.filter((x) => x[2] === gr)
+                .map(
+                  (x) =>
+                    `<button class="chip" data-addk="${x[0]}" ${st.camadas.some((c) => c.k === x[0]) ? 'disabled' : ''}>${esc(x[1])}</button>`,
+                )
+                .join('')}</div>`,
+          )
+          .join('')}`,
+        (r) =>
+          r.querySelectorAll('[data-addk]').forEach(
+            (b) =>
+              (b.onclick = () => {
+                if (st.camadas.length >= 6) return toast('Use até 6 sons ao mesmo tempo.', true);
+                st.camadas.push({ k: b.dataset.addk, v: 0.6 });
+                salvarMix();
+                if (st.rodando && !st.sumindo) tocarCamadas();
+                el('pz-lista').innerHTML = listaHTML();
+                closeSheet();
+              }),
+          ),
+      );
+  el('pz-olhos').onclick = () => {
+    el('pz-escuro').hidden = false;
+    if (!st.rodando) el('pz-play').click();
+  };
+  el('pz-escuro').onclick = () => (el('pz-escuro').hidden = true);
+  const aoTrocar = () =>
+    setTimeout(() => {
+      if (!minha()) {
+        parar(0.6);
+        removeEventListener('hashchange', aoTrocar);
+      }
+    }, 50);
+  addEventListener('hashchange', aoTrocar);
+  pintar();
 }

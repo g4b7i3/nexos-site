@@ -1,14 +1,20 @@
-Sons de fundo da Meditação (app Nexos)
+Sons da Meditação (app Nexos) · origem e licenças
 
-Gravações em domínio público (CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/).
-Não exigem crédito; registramos a origem por respeito aos autores.
-Arquivos obtidos pela biblioteca Leminno/DNAABR ambient-sounds-library (SHA-256 conferido) e
-ajustados pela Nexos (volume e corte).
+1) Gravações em domínio público (CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/)
+   obtidas pela biblioteca Leminno/DNAABR ambient-sounds-library (SHA-256 conferido):
+   - chuva.mp3     barkenov · https://freesound.org/people/barkenov/sounds/640655/
+   - vento.mp3     keweldog · https://freesound.org/people/keweldog/sounds/181801/
+   - riacho.mp3    SamsterBirdies · https://freesound.org/people/SamsterBirdies/sounds/584269/
+   - floresta.mp3  Sadiquecat · https://freesound.org/people/Sadiquecat/sounds/799439/
 
-- chuva.mp3     "rain" por barkenov · https://freesound.org/people/barkenov/sounds/640655/
-- vento.mp3     "wind breeze" por keweldog · https://freesound.org/people/keweldog/sounds/181801/
-- riacho.mp3    "water stream" por SamsterBirdies · https://freesound.org/people/SamsterBirdies/sounds/584269/
-- floresta.mp3  "forest day" por Sadiquecat · https://freesound.org/people/Sadiquecat/sounds/799439/
+2) Gravações do catálogo do projeto Moodist (https://github.com/remvze/moodist), que declara que seus
+   sons estão sob a licença CC0 ou a Pixabay Content License (https://pixabay.com/service/license-summary/).
+   As duas permitem uso gratuito, inclusive comercial, dentro de aplicativos, sem exigir crédito.
+   Arquivos: mar, rio, cachoeira, gotas, mata, folhas, fogueira, chuva-leve, chuva-forte, chuva-folhas,
+   chuva-janela, chuva-barraca, trovoada, passaros, grilos, sapos, baleias, coruja, gaivotas, tigela,
+   sinos-vento, templo, noite-vila, fundo-mar, veleiro, barco-remo, ruido-marrom, ruido-rosa.
 
-Os sons da respiração (acordes e sinos), as tigelas tibetanas, o mar e o ruído suave são composições
-originais da Nexos, geradas no próprio aparelho.
+As ondas binaurais (delta, teta e alfa) são geradas no próprio aparelho.
+Todos foram ajustados pela Nexos (volume, corte e formato). Os sons da respiração (acordes e sinos)
+e as "Tigelas tibetanas" das sessões guiadas são composições originais da Nexos, geradas no aparelho.
+Os arquivos de som não são vendidos nem distribuídos separadamente: são usados só dentro do app.
