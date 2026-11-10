@@ -258,11 +258,30 @@ const MED_CAT = [
   ['binaural-theta', 'Teta · meditação', 'Ondas binaurais'],
   ['binaural-alpha', 'Alfa · relaxamento', 'Ondas binaurais'],
 ];
+// fotos de fundo (Unsplash License: uso livre, sem exigir crédito; mostramos o autor mesmo assim)
+const medFoto = (pz, w = 700) =>
+  pz && pz.foto ? `https://images.unsplash.com/${pz.foto}?auto=format&fit=crop&w=${w}&q=70` : '';
+const MED_FOTO_GRUPO = {
+  Chuva: 'chuva-floresta',
+  Água: 'cachoeira',
+  Natureza: 'riacho-manha',
+  Animais: 'noite-campo',
+  Meditação: 'templo',
+  Lugares: 'vila',
+  Ruídos: 'sono-profundo',
+  'Ondas binaurais': 'sono-profundo',
+};
+const medPzDoGrupo = (k) => {
+  const g = (MED_CAT.find((x) => x[0] === k) || [])[2];
+  return MED_PAISAGENS.find((x) => x.id === MED_FOTO_GRUPO[g]) || {};
+};
 const medNomeSom = (k) => (MED_CAT.find((x) => x[0] === k) || [k, k])[1];
 // paisagens sonoras: sons da natureza misturados, para ouvir deitado, sem voz
 const MED_PAISAGENS = [
   {
     id: 'chuva-floresta',
+    foto: 'photo-1725429928872-a35ac36e3b38',
+    autor: 'Katarzyna Zygnerska',
     nome: 'Chuva na floresta',
     desc: 'Chuva caindo nas folhas, com a mata respirando ao fundo.',
     cor: ['#123a2c', '#2f7a5a'],
@@ -273,6 +292,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'beira-mar',
+    foto: 'photo-1584358838337-8f86d1b3922e',
+    autor: 'Simon Marsault',
     nome: 'Beira-mar',
     desc: 'Ondas quebrando na areia e gaivotas ao longe.',
     cor: ['#0d3150', '#2a8fb8'],
@@ -283,6 +304,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'cachoeira',
+    foto: 'photo-1707151478621-a0e9a09b8063',
+    autor: 'Vitor Camilo',
     nome: 'Cachoeira na mata',
     desc: 'Água caindo nas pedras e pássaros na mata.',
     cor: ['#0e3b3b', '#3a9b8a'],
@@ -293,6 +316,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'riacho-manha',
+    foto: 'photo-1765700937681-618f300c3619',
+    autor: 'Kuu Akura',
     nome: 'Riacho de manhã',
     desc: 'Um riacho correndo e os pássaros acordando.',
     cor: ['#1d3a1a', '#7aa84a'],
@@ -303,6 +328,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'noite-campo',
+    foto: 'photo-1541782211150-275829de291c',
+    autor: 'Aurélien Lemasson-Théobald',
     nome: 'Noite no campo',
     desc: 'Grilos, sapos e o vento nas árvores.',
     cor: ['#0e1430', '#34407a'],
@@ -314,6 +341,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'fogueira',
+    foto: 'photo-1632211663769-f67b63ff5102',
+    autor: 'Hamid Tajik',
     nome: 'Fogueira sob as estrelas',
     desc: 'A lenha estalando e a noite ao redor.',
     cor: ['#3a160c', '#b8582a'],
@@ -324,6 +353,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'tempestade',
+    foto: 'photo-1497163326116-446ff9cbfe51',
+    autor: 'SHTTEFAN',
     nome: 'Tempestade ao longe',
     desc: 'Chuva forte e trovões distantes. Ótimo para dormir.',
     cor: ['#151a26', '#4a5670'],
@@ -334,6 +365,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'barraca',
+    foto: 'photo-1600539717700-955ec0cf3198',
+    autor: 'Gary Meulemans',
     nome: 'Chuva na barraca',
     desc: 'Protegido, ouvindo a chuva bater na lona.',
     cor: ['#1f2b20', '#5b6d4a'],
@@ -344,6 +377,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'janela',
+    foto: 'photo-1512511708753-3150cd2ec8ee',
+    autor: 'Anant Jain',
     nome: 'Chuva na janela',
     desc: 'Em casa, a chuva escorrendo no vidro.',
     cor: ['#1a2333', '#5a6f8f'],
@@ -354,6 +389,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'templo',
+    foto: 'photo-1758647533664-9aefd77dd787',
+    autor: 'Honney Artkongharn',
     nome: 'Templo',
     desc: 'Silêncio de templo, sinos de vento e a tigela tibetana.',
     cor: ['#3a2410', '#b88a3a'],
@@ -365,6 +402,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'oceano',
+    foto: 'photo-1698551007683-7226dc6f4e85',
+    autor: 'Oliver Tsappis',
     nome: 'Oceano profundo',
     desc: "Debaixo d'água, com o canto das baleias.",
     cor: ['#061c33', '#1d5a8a'],
@@ -375,6 +414,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'veleiro',
+    foto: 'photo-1725412625923-4cd8aa78c040',
+    autor: 'Leslie Cross',
     nome: 'Veleiro em alto-mar',
     desc: 'O casco rangendo, as velas e o mar.',
     cor: ['#0f2a40', '#4a86a8'],
@@ -385,6 +426,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'caverna',
+    foto: 'photo-1532449637670-ba23a300b8ff',
+    autor: 'Jared Rice',
     nome: 'Gotas na caverna',
     desc: 'Gotas pingando num lugar fresco e silencioso.',
     cor: ['#14161f', '#3d4a5c'],
@@ -395,6 +438,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'vila',
+    foto: 'photo-1725477038986-8caac4022c7e',
+    autor: 'Achim Ruhnau',
     nome: 'Noite no interior',
     desc: 'Uma vila tranquila à noite, longe da cidade.',
     cor: ['#121a2a', '#3d5170'],
@@ -405,6 +450,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'sono-profundo',
+    foto: 'photo-1499578124509-1611b77778c8',
+    autor: 'Ganapathy Kumar',
     nome: 'Sono profundo',
     desc: 'Ruído marrom com ondas binaurais delta. Use fone de ouvido.',
     cor: ['#120c26', '#3b2a7a'],
@@ -415,6 +462,8 @@ const MED_PAISAGENS = [
   },
   {
     id: 'foco-calmo',
+    foto: 'photo-1768069853451-4f6ad57d6917',
+    autor: 'Nejc Soklič',
     nome: 'Foco tranquilo',
     desc: 'Ruído rosa com ondas alfa, para estudar ou relaxar. Use fone.',
     cor: ['#1a1030', '#6a4cf0'],
@@ -909,6 +958,8 @@ async function viewMeditacao(id) {
       nome: medNomeSom(id.slice(4)),
       som: true,
       cor: ['#151a2e', '#3b4a7a'],
+      foto: medPzDoGrupo(id.slice(4)).foto,
+      autor: medPzDoGrupo(id.slice(4)).autor,
       camadas: [[id.slice(4), 0.85]],
     });
   if (id === 'livre')
@@ -957,7 +1008,7 @@ async function viewMeditacao(id) {
     <p class="tiny dim" style="margin:-4px 0 10px">Paisagens sonoras sem voz, para ouvir deitado, relaxar ou dormir.</p>
     <div class="med-pz">${MED_PAISAGENS.map(
       (x) =>
-        `<a href="#/meditacao/p-${x.id}" class="med-pz-c" style="--c1:${x.cor[0]};--c2:${x.cor[1]}"><span class="med-pz-ic">${I.play}</span><b>${esc(x.nome)}</b><small>${esc(x.camadas.map((c) => medNomeSom(c[0])).join(' · '))}</small></a>`,
+        `<a href="#/meditacao/p-${x.id}" class="med-pz-c" style="--c1:${x.cor[0]};--c2:${x.cor[1]}"><img class="med-pz-img" src="${medFoto(x, 420)}" alt="" loading="lazy" onerror="this.remove()"><span class="med-pz-ic">${I.play}</span><b>${esc(x.nome)}</b><small>${esc(x.camadas.map((c) => medNomeSom(c[0])).join(' · '))}</small></a>`,
     ).join('')}</div>
     <div class="stack" style="margin-top:10px">${medCard('#/meditacao/mix', 'Monte a sua mistura', `Combine os ${MED_CAT.length} sons do jeito que você gosta, com o volume de cada um.`)}</div>
     <details class="med-todos"><summary>Todos os sons (${MED_CAT.length})</summary>${[
@@ -1335,6 +1386,8 @@ function medPaisagem(pz) {
       nome: 'Sua mistura',
       desc: 'Adicione sons e ajuste o volume de cada um. A mistura fica salva.',
       cor: ['#1a1240', '#6a4cf0'],
+      foto: (MED_PAISAGENS.find((x) => x.id === 'foco-calmo') || {}).foto,
+      autor: (MED_PAISAGENS.find((x) => x.id === 'foco-calmo') || {}).autor,
       camadas: Array.isArray(salvo) && salvo.length ? salvo.filter((x) => MED_GRAVADOS[x[0]]) : [['chuva-leve', 0.8]],
     };
   }
@@ -1367,7 +1420,8 @@ function medPaisagem(pz) {
           `<div class="pz-cam"><span>${esc(medNomeSom(c.k))}</span><input type="range" min="0" max="100" value="${Math.round(c.v * 100)}" data-vol="${i}" aria-label="Volume de ${esc(medNomeSom(c.k))}">${mix ? `<button class="med-x pz-tira" data-tira="${i}" aria-label="Tirar">${I.x}</button>` : ''}</div>`,
       )
       .join('') || '<p class="small" style="color:rgba(255,255,255,.6)">Nenhum som ainda. Toque em adicionar som.</p>';
-  $app.innerHTML = `<div class="med-play pz" id="pz-raiz" style="--c1:${pz.cor[0]};--c2:${pz.cor[1]}">
+  $app.innerHTML = `<div class="med-play pz${pz.foto ? ' com-foto' : ''}" id="pz-raiz" style="--c1:${pz.cor[0]};--c2:${pz.cor[1]}">
+    ${pz.foto ? `<div class="pz-foto"><img src="${medFoto(pz, 1200)}" alt="" onerror="this.parentNode.remove()"></div>` : ''}
     <div class="pz-aurora"><i></i><i></i><i></i></div>
     <div class="med-play-top"><a class="med-x" href="#/meditacao" aria-label="Voltar">${I.back}</a><div class="grow" style="min-width:0"><p class="med-eyebrow">${mix ? 'Mistura' : pz.som ? 'Som' : 'Paisagem sonora'}</p><h1>${esc(pz.nome)}</h1></div><button class="med-x" id="pz-olhos" aria-label="Apagar a tela" title="Apagar a tela"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>
     ${pz.desc ? `<p class="med-desc">${esc(pz.desc)}</p>` : ''}
@@ -1383,7 +1437,7 @@ function medPaisagem(pz) {
       <div class="med-opc-l"><span>${mix ? 'Seus sons' : 'Sons desta paisagem'}</span><div class="pz-lista" id="pz-lista">${listaHTML()}</div>
       ${mix ? '<button class="med-chip" id="pz-add" style="margin-top:10px">+ Adicionar som</button>' : '<a class="med-chip" href="#/meditacao/mix" style="display:inline-block;margin-top:10px">Montar a minha mistura</a>'}</div>
     </div>
-    <p class="pz-cred">Gravações de natureza em domínio público e de uso livre. Para as ondas binaurais, use fone de ouvido.</p>
+    <p class="pz-cred">Gravações de natureza em domínio público e de uso livre.${pz.autor ? ` Foto: ${esc(pz.autor)} / Unsplash.` : ''} Para as ondas binaurais, use fone de ouvido.</p>
     <div class="med-escuro" id="pz-escuro" hidden><p id="pz-esc-t"></p><small>Toque para voltar</small></div>
   </div>`;
   const cams = {};
