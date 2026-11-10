@@ -636,6 +636,7 @@ body,.nav,.panel,.wk-card,.booking,.faq details,.lab-in,.lab-out{transition:back
 .hp-c b{font-family:var(--f-h);font-size:1.15rem}
 .hp-c span{font-size:.8rem;color:var(--mute)}
 .hp-c em{font-style:normal;font-weight:700;color:var(--acc)}
+.hp-c span i{font-style:normal;display:block;font-size:.74rem}
 .hp-int{border-color:rgba(var(--acc-rgb),.45)}
 .hp-nota{margin:10px 2px 0;font-size:.74rem;color:var(--mute)}
-@media (max-width:560px){.hp-g{grid-template-columns:1fr}.hp-c{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:8px}.hp-c small{order:3;width:100%}.hp-c span{margin-left:auto}}
+@media (max-width:560px){.hp-g{grid-template-columns:1fr}.hp-c{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:8px}.hp-c small{order:3;width:100%}.hp-c span{margin-left:auto;text-align:right}}
