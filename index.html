@@ -10,7 +10,7 @@
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="style.css?v=202611102336">
+<link rel="stylesheet" href="style.css?v=202611102342">
 <script>var t="light";try{t=localStorage.getItem("nexos-tema")||t}catch(e){}document.documentElement.dataset.theme=t</script>
 <script>/* link de "esqueci minha senha" que caiu no site: abre o app com o mesmo endereço */if(/type=recovery|access_token=/.test(location.hash))location.replace("/app/"+location.hash);</script>
 </head>
@@ -74,32 +74,32 @@
 <!-- HERO -->
 <section class="hero" id="topo">
   <div class="hero-grid"></div>
-  <div class="hero-inner">
-    <p class="eyebrow reveal"><span class="dot"></span>Assessoria esportiva · São Luís – MA</p>
-    <h1 class="reveal"><span class="line">PERFORMANCE</span><span class="line accent">E SAÚDE.</span></h1>
-    <p class="lema reveal">Treinos personalizados para a sua vida.</p>
-    <p class="lead reveal">Corrida, musculação online e funcional estruturado, com planejamento individual, acompanhamento de perto e dados a favor do seu progresso.</p>
-    <div class="hp reveal">
-      <div class="hp-top"><span class="hp-tit">Planos 2027</span><a href="/planos/" class="hp-todos">Ver todos →</a></div>
-      <div class="hp-g">
-        <a class="hp-c" href="/planos/#corrida"><small>Com Gabriel Vinícius</small><b>Corrida</b><span>a partir de <em>R$ 162</em>/mês <i>no plano anual</i></span></a>
-        <a class="hp-c" href="/planos/#forca"><small>Com Orlando Borges</small><b>Força</b><span>a partir de <em>R$ 171</em>/mês <i>no plano anual</i></span></a>
-        <a class="hp-c hp-int" href="/planos/#integral"><small>Corrida + força</small><b>Integral</b><span>a partir de <em>R$ 350</em>/mês <i>no plano anual</i></span></a>
+  <div class="hero-inner hx-in">
+    <div class="hx-top">
+      <p class="eyebrow reveal"><span class="dot"></span>Assessoria esportiva · São Luís – MA</p>
+      <h1 class="reveal"><span class="line">PERFORMANCE</span><span class="line accent">E SAÚDE.</span></h1>
+      <p class="hx-lema reveal">Treinos personalizados para a sua vida.</p>
+      <p class="lead reveal">Corrida, musculação online e funcional estruturado, com planejamento individual, acompanhamento de perto e dados a favor do seu progresso.</p>
+    </div>
+    <aside class="hx-planos reveal" aria-label="Planos 2027">
+      <div class="hx-h"><span class="hx-live"><i></i>Planos 2027</span><span class="hx-on">100% online</span></div>
+      <div class="hx-lista">
+        <a class="hx-p" href="/planos/#corrida"><span class="hx-av"><img src="img/treinadores/gabriel-avatar.jpg" alt="" width="40" height="40"></span><span class="hx-n"><b>Corrida</b><small>Com Gabriel Vinícius</small></span><span class="hx-v"><small>a partir de</small><b>R$ 162<i>/mês</i></b><small>no plano anual</small></span><span class="hx-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+        <a class="hx-p" href="/planos/#forca"><span class="hx-av"><img src="img/treinadores/orlando-avatar.jpg" alt="" width="40" height="40"></span><span class="hx-n"><b>Força</b><small>Com Orlando Borges</small></span><span class="hx-v"><small>a partir de</small><b>R$ 171<i>/mês</i></b><small>no plano anual</small></span><span class="hx-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+        <a class="hx-p" href="/planos/#integral"><span class="hx-av"><img src="img/treinadores/gabriel-avatar.jpg" alt="" width="40" height="40"><img src="img/treinadores/orlando-avatar.jpg" alt="" width="40" height="40"></span><span class="hx-n"><b>Integral</b><small>Corrida + força, com os dois</small></span><span class="hx-v"><small>a partir de</small><b>R$ 350<i>/mês</i></b><small>no plano anual</small></span><span class="hx-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
       </div>
-      <p class="hp-nota">Mensal, trimestral e semestral na página de planos.</p>
-    </div>
-    <div class="hero-cta reveal">
-      <a href="/planos/" class="btn">Ver planos e preços</a>
-      <a href="#avulsa" class="btn btn-ghost">Agendar aula avulsa</a>
-    </div>
-    <a href="app/" class="hero-aluno reveal">Já é aluno? <b>Entrar como aluno →</b></a>
-    <div class="integra-of reveal">
-      <span class="of-tag"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Integração oficial</span>
-      <img class="of-badge" src="img/marcas/works-with-garmin-connect.png" width="211" height="48" alt="Works with the app Garmin Connect">
-    </div>
-    <div class="fita reveal" aria-label="Também compatível com Coros, Polar, Suunto e Wahoo">
-      <span class="fita-tit">Também compatível</span>
-      <div class="fita-vp"><div class="fita-trilho" aria-hidden="true"><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div></div></div>
+      <a class="hx-todos" href="/planos/"><span>Mensal, trimestral e semestral</span><b>Ver todos os planos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></b></a>
+    </aside>
+    <div class="hx-bot">
+      <div class="hero-cta reveal">
+        <a href="/planos/" class="btn">Ver planos e preços</a>
+        <a href="#avulsa" class="btn btn-ghost">Agendar aula avulsa</a>
+      </div>
+      <a href="app/" class="hero-aluno reveal">Já é aluno? <b>Entrar como aluno →</b></a>
+      <div class="hx-conn reveal">
+        <img class="of-badge" src="img/marcas/works-with-garmin-connect.png" width="211" height="48" alt="Works with the app Garmin Connect">
+        <div class="hx-conn-t"><span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Integração oficial com a Garmin</span><small>Também compatível com Coros, Polar, Suunto e Wahoo</small></div>
+      </div>
     </div>
   </div>
   <a href="#modalidades" class="scroll-hint" aria-label="Rolar">
@@ -443,6 +443,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="script.js?v=202611102336"></script>
+<script src="script.js?v=202611102342"></script>
 </body>
 </html>
