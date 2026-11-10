@@ -5,138 +5,237 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nexos · Empreender</title>
-<meta name="theme-color" content="#f3f6fb">
+<meta name="theme-color" content="#0b1834">
 <link rel="icon" href="/app/icons/icon-192.png">
 <link rel="stylesheet" href="/fonts/fonts.css">
 <style>
-:root{--bg:#f3f6fb;--card:#fff;--s1:#eef2f9;--s2:#e4ebf6;--line:#dfe6f2;--ink:#0b1834;--mute:#55657f;--dim:#8492aa;--acc:#0284c7;--acc2:#2f6bff;--ok:#0e9a5f;--err:#d23f3f;--r:18px}
+:root{--bg:#f3f6fb;--card:#fff;--s1:#eef2f9;--s2:#e4ebf6;--line:#dfe6f2;--ink:#0b1834;--mute:#55657f;--dim:#8492aa;--acc:#0284c7;--acc2:#2f6bff;--ok:#0e9a5f;--okb:#e3f6ee;--err:#d23f3f;--errb:#fdecec;--warn:#b26b00;--r:18px;
+  --c1:#0284c7;--c2:#2f6bff;--c3:#0e9a5f;--c4:#e2903a;--c5:#9c6ade;--c6:#e5484d;--c7:#14b8a6;--c8:#8492aa}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:760px;margin:0 auto;padding:22px 16px 60px}
-h1,h2,.num{font-family:Unbounded,Manrope,sans-serif;letter-spacing:-.01em}
-h1{font-size:1.7rem;margin:4px 0 0}
-h2{font-size:1.05rem;margin:0}
-.eyebrow{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--acc);margin:0}
+button{font-family:inherit}
+h1,h2,h3,.num{font-family:Unbounded,Manrope,sans-serif;letter-spacing:-.01em}
+h1{font-size:1.5rem;margin:0}
+h2{font-size:1.02rem;margin:0}
+h3{font-size:.92rem;margin:0}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--acc);margin:0}
 .muted{color:var(--mute)} .dim{color:var(--dim)} .small{font-size:.86rem} .tiny{font-size:.76rem}
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.logo{height:26px;margin-bottom:14px}
+.r{text-align:right} .nw{white-space:nowrap}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
-.btn{appearance:none;border:0;border-radius:14px;background:var(--acc);color:#fff;font:700 .95rem Manrope,sans-serif;padding:13px 18px;cursor:pointer}
-.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
-.btn.sm{padding:8px 12px;font-size:.82rem;border-radius:11px}
+.btn{appearance:none;border:0;border-radius:12px;background:var(--acc);color:#fff;font:700 .92rem Manrope,sans-serif;padding:12px 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn.dark{background:var(--ink)}
+.btn.sm{padding:8px 12px;font-size:.82rem;border-radius:10px}
 .btn.block{width:100%}
-.btn:disabled{opacity:.6}
-.link{background:none;border:0;color:var(--acc);font:700 .86rem Manrope,sans-serif;cursor:pointer;padding:0}
+.btn:disabled{opacity:.55;cursor:default}
+.link{background:none;border:0;color:var(--acc);font:700 .84rem Manrope,sans-serif;cursor:pointer;padding:0}
 .link.err{color:var(--err)}
 label.f{display:block;margin-bottom:12px}
 label.f>span{display:block;font-size:.8rem;font-weight:700;color:var(--mute);margin-bottom:6px}
 .in{width:100%;border:1px solid var(--line);background:var(--s1);border-radius:12px;padding:12px 13px;font:500 1rem Manrope,sans-serif;color:var(--ink)}
 .in:focus{outline:2px solid color-mix(in srgb,var(--acc) 40%,transparent);background:#fff}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
-.stat .num{font-size:1.25rem;margin-top:4px}
-.stat.hl{background:linear-gradient(135deg,#0b2a5c,#0284c7);color:#fff;border:0;grid-column:1/-1}
-.stat.hl .muted,.stat.hl .dim{color:rgba(255,255,255,.78)}
-.stat.hl .num{font-size:1.7rem}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:9px 14px;font:700 .86rem Manrope,sans-serif;color:var(--ink);cursor:pointer}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 13px;font:700 .82rem Manrope,sans-serif;color:var(--ink);cursor:pointer;white-space:nowrap}
 .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tag{display:inline-block;font-size:.68rem;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--s2);color:var(--mute);white-space:nowrap}
+.tag.ok{background:var(--okb);color:var(--ok)} .tag.err{background:var(--errb);color:var(--err)} .tag.acc{background:#e3f1fb;color:var(--acc)}
+.bar{height:8px;border-radius:9px;background:var(--s2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);border-radius:9px}
 .prev{margin-top:4px;padding:12px 14px;border-radius:12px;background:#e8f4fb;color:#0b4a6e;font-size:.9rem;line-height:1.45}
-section{margin-top:26px}
-.sec-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px}
-.g{display:flex;flex-direction:column;gap:8px}
-.g-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
-.g-top b{font-size:1rem}
-.tag{display:inline-block;font-size:.7rem;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--s2);color:var(--mute);margin-left:6px;vertical-align:2px}
-.tag.ok{background:#e3f6ee;color:var(--ok)}
-.bar{height:6px;border-radius:9px;background:var(--s2);overflow:hidden}
-.bar i{display:block;height:100%;background:var(--acc)}
-.acts{display:flex;gap:14px;margin-top:2px}
-.pg{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding:10px 12px;border-radius:12px;background:var(--s1)}
-.pg-l{display:flex;justify-content:space-between;gap:10px;font-size:.86rem}
-.pg-l b{font-weight:800}
-.pg-l .ok{color:var(--ok);font-weight:800}.pg-l .falta{color:var(--err);font-weight:800}
-.pg-h{font-size:.76rem;color:var(--dim)}
-.pg-h button{margin-left:6px;font-size:.76rem}
-.quem{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 14px}
-.quem .chip{padding:14px;font-size:1rem;text-align:center}
-.list{display:flex;flex-direction:column;gap:10px}
-table{width:100%;border-collapse:collapse;font-size:.92rem}
-th,td{text-align:left;padding:10px 6px;border-bottom:1px solid var(--line)}
-th{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:700}
-td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
-tr.atual td{font-weight:800;color:var(--acc)}
 .vazio{text-align:center;padding:26px 16px;color:var(--mute)}
-.gate{max-width:380px;margin:12vh auto 0}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;font-weight:600;font-size:.9rem;opacity:0;transition:.25s;pointer-events:none;max-width:92vw}
+.gate{max-width:380px;margin:12vh auto 0;padding:0 16px}
+.logo{height:24px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;font-weight:600;font-size:.9rem;opacity:0;transition:.25s;pointer-events:none;max-width:92vw;z-index:50}
 .toast.on{opacity:1;transform:translateX(-50%)}
 .toast.err{background:var(--err)}
-dialog{border:0;border-radius:22px;padding:20px;width:min(520px,94vw);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(11,24,52,.25)}
+dialog{border:0;border-radius:22px;padding:20px;width:min(540px,94vw);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(11,24,52,.25);color:var(--ink)}
 dialog::backdrop{background:rgba(11,24,52,.45)}
-@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+
+/* cabeçalho e abas */
+.topo{position:sticky;top:0;z-index:20;background:#0b1834;color:#fff;padding:14px 16px 0;box-shadow:0 8px 24px -16px rgba(11,24,52,.6)}
+.topo-in{max-width:1080px;margin:0 auto}
+.topo-l{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.topo-l .marca{display:flex;align-items:center;gap:12px;min-width:0}
+.topo-l .marca img{height:20px;filter:brightness(0) invert(1)}
+.topo-l .marca span{font-family:Unbounded,sans-serif;font-size:1rem;opacity:.92;border-left:1px solid rgba(255,255,255,.25);padding-left:12px}
+.topo-acoes{display:flex;gap:8px;align-items:center}
+.topo .btn.ghost{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+.abas{display:flex;gap:4px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+.abas::-webkit-scrollbar{display:none}
+.abas button{background:none;border:0;color:rgba(255,255,255,.7);font:700 .88rem Manrope,sans-serif;padding:10px 12px 12px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.abas button.on{color:#fff;border-bottom-color:#38bdf8}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 90px}
+@media (max-width:640px){.so-pc{display:none!important}}
+@media (min-width:641px){.so-cel{display:none!important}}
+
+/* visão geral */
+.hero{background:linear-gradient(135deg,#0b2a5c,#0284c7);color:#fff;border:0;display:grid;grid-template-columns:1.2fr 1fr;gap:16px;align-items:center}
+.hero .num{font-size:2rem;margin:4px 0 2px}
+.hero .muted,.hero .dim{color:rgba(255,255,255,.8)}
+.hero-acoes{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.hero .btn{background:#fff;color:#0b2a5c}
+.hero .btn.ghost{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+@media (max-width:640px){.hero{grid-template-columns:1fr}.hero-acoes{justify-content:flex-start}}
+.socios{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:640px){.socios{grid-template-columns:1fr}}
+.socio{display:flex;flex-direction:column;gap:10px}
+.socio-top{display:flex;align-items:center;gap:10px}
+.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;flex:none}
+.socio .num{font-size:1.35rem}
+.socio .linhas{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.socio .linhas div{background:var(--s1);border-radius:12px;padding:8px 10px}
+.socio .linhas span{display:block;font-size:.72rem;color:var(--mute);font-weight:700}
+.socio .linhas b{font-size:.92rem}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+@media (max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi span{display:block;font-size:.76rem;color:var(--mute);font-weight:700}
+.kpi .num{font-size:1.15rem;margin-top:4px}
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:760px){.duas{grid-template-columns:1fr}}
+.cat-l{display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center;margin-top:12px;font-size:.86rem}
+.cat-l i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.cat-l .bar i{background:var(--c)}
+.cols{display:flex;align-items:flex-end;gap:8px;height:150px;margin-top:14px}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:0}
+.col i{display:block;width:100%;max-width:44px;border-radius:8px 8px 3px 3px;background:var(--acc);min-height:3px}
+.col.atual i{background:#0b1834}
+.col small{font-size:.66rem;color:var(--mute);white-space:nowrap}
+.col b{font-size:.66rem;white-space:nowrap}
+
+/* gastos */
+.barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.barra .in{flex:1;min-width:200px;padding:10px 12px;font-size:.92rem;background:var(--card)}
+.barra select.in{flex:0 0 auto;min-width:160px}
+.tabela{width:100%;border-collapse:collapse;font-size:.88rem}
+.tabela th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-weight:800}
+.tabela td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tabela tbody tr{cursor:pointer;transition:background .15s}
+.tabela tbody tr:hover{background:var(--s1)}
+.tabela tbody tr:last-child td{border-bottom:0}
+.tabela .desc b{display:block}
+.tabela .desc small{color:var(--mute)}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.82rem}
+.st i{width:8px;height:8px;border-radius:50%;background:var(--err)}
+.st.ok i{background:var(--ok)} .st.fut i{background:var(--acc)}
+.lista-cel{display:flex;flex-direction:column;gap:10px}
+.g-cel{display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.g-cel .l1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.g-cel .l2{display:flex;gap:12px;flex-wrap:wrap}
+.tot{display:flex;justify-content:space-between;gap:10px;padding:12px;font-weight:800;font-size:.88rem;border-top:1px solid var(--line)}
+
+/* detalhe do gasto */
+.det-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.det-num{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+.det-num div{background:var(--s1);border-radius:12px;padding:10px 12px}
+.det-num span{display:block;font-size:.72rem;color:var(--mute);font-weight:700}
+.det-soc{display:flex;flex-direction:column;gap:8px}
+.det-soc .ln{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.hist{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.hist div{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;padding:8px 0;border-bottom:1px dashed var(--line)}
+.parc{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.parc span{font-size:.72rem;font-weight:700;padding:4px 8px;border-radius:8px;background:var(--s2);color:var(--mute)}
+.parc span.venc{background:#e3f1fb;color:var(--acc)}
+.acoes-dlg{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+
+/* pagamentos */
+.pag{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.pag:last-child{border-bottom:0}
+.pag .grow{flex:1;min-width:0}
+.quem{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 14px}
+.quem .chip{padding:14px;font-size:1rem;text-align:center}
+.dist{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.dist div{display:flex;justify-content:space-between;gap:10px;font-size:.86rem;padding:8px 10px;background:var(--s1);border-radius:10px}
+.fab{position:fixed;right:18px;bottom:18px;z-index:30;border-radius:999px;padding:14px 20px;box-shadow:0 14px 30px -12px rgba(2,132,199,.7)}
+.sec{margin-top:24px}
+.sec-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 </style>
 </head>
 <body>
-<div class="wrap" id="app"><p class="muted">Carregando…</p></div>
+<div id="raiz"><div class="wrap"><p class="muted">Carregando…</p></div></div>
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/app/supabase.js"></script>
 <script>
 'use strict';
-/* Empreender: gastos da sociedade Nexos. Entra só com a senha da página; a senha é conferida no servidor
-   (funções nx_emp_* no Supabase), e cada gasto parcelado vira as parcelas por mês, divididas entre os dois sócios. */
+/* Empreender: gastos da sociedade Nexos. Entra só com a senha da página (conferida no servidor, funções nx_emp_*).
+   Cada gasto parcelado vira as parcelas por mês, divididas entre os dois sócios; cada sócio lança o que já pagou
+   e a página soma o que cada um ainda deve. */
 const sb = window.supabase.createClient('https://gbcshtmesawpokuwiaxb.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiY3NodG1lc2F3cG9rdXdpYXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDg2MjYsImV4cCI6MjEwODk4NDYyNn0.ZR4vHBDAa_yMA8pSCWUriKAoh8OsEUKXO7WgZnR89Ak', { auth: { persistSession: false } });
 const SOCIOS = 2;
+const NOMES = ['Gabriel', 'Orlando'];
+const COR_SOCIO = { Gabriel: '#0284c7', Orlando: '#0e9a5f' };
 const CATS = ['Equipamentos', 'Uniformes', 'Marketing', 'Site e aplicativos', 'Eventos', 'Taxas e documentos', 'Espaço', 'Outros'];
+const COR_CAT = Object.fromEntries(CATS.map((c, i) => [c, `var(--c${i + 1})`]));
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const $app = document.getElementById('app'), $dlg = document.getElementById('dlg');
+const $raiz = document.getElementById('raiz'), $dlg = document.getElementById('dlg');
 const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const brl = (v) => (+v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const cent = (v) => Math.round(v * 100) / 100;
 const hojeMes = () => { const d = new Date(); return d.getFullYear() * 12 + d.getMonth(); };
 const mesIdx = (iso) => { const [y, m] = String(iso).split('-').map(Number); return y * 12 + (m - 1); };
 const mesNome = (i) => `${MESES[i % 12]}/${Math.floor(i / 12)}`;
+const mesCurto = (i) => `${MESES[i % 12]}/${String(Math.floor(i / 12)).slice(2)}`;
 const mesISO = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
+const dataBR = (iso) => { const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y.slice(2)}`; };
+const numDe = (txt) => +String(txt).replace(/\s|R\$/g, '').replace(/\./g, '').replace(',', '.') || 0;
 let senha = null, itens = [], pagos = [];
-const NOMES = ['Gabriel', 'Orlando'];
-const cent = (v) => Math.round(v * 100) / 100;
-/* quanto cada sócio deve de um gasto: a metade das parcelas que já venceram (até este mês) e a metade do total */
-function contaSocio(g, socio, hoje) {
+let aba = 'geral';
+const filtro = { q: '', st: 'todos', cat: '' };
+const guarda = {
+  ler() { try { return sessionStorage.getItem('nx-emp') || localStorage.getItem('nx-emp'); } catch { return null; } },
+  gravar(s, lembrar) { try { sessionStorage.setItem('nx-emp', s); if (lembrar) localStorage.setItem('nx-emp', s); } catch {} },
+  limpar() { try { sessionStorage.removeItem('nx-emp'); localStorage.removeItem('nx-emp'); } catch {} },
+};
+try { aba = sessionStorage.getItem('nx-emp-aba') || 'geral'; } catch {}
+function toast(t, erro) {
+  const el = document.getElementById('toast');
+  el.textContent = t; el.className = 'toast on' + (erro ? ' err' : '');
+  clearTimeout(toast.t); toast.t = setTimeout(() => (el.className = 'toast'), 3400);
+}
+const msgErro = (e) => (e === 'travado' ? 'Muitas tentativas. Espere 15 minutos.' : e === 'senha' ? 'Senha incorreta.' : e === 'dados' ? 'Confira os dados e tente de novo.' : 'Não foi possível agora. Tente de novo.');
+
+/* ---------- contas ---------- */
+// parcelas: valor dividido em n vezes; a última acerta os centavos
+function parcelas(g) {
+  const n = g.parcelas || 1, base = Math.floor((+g.valor / n) * 100) / 100, ini = mesIdx(g.inicio);
+  return Array.from({ length: n }, (_, k) => ({ mes: ini + k, v: k === n - 1 ? cent(+g.valor - base * (n - 1)) : base }));
+}
+const fimDe = (g) => mesIdx(g.inicio) + (g.parcelas || 1) - 1;
+// quanto cada sócio deve de um gasto: a metade do que já venceu (até este mês) e a metade do total
+function contaSocio(g, socio, hoje = hojeMes()) {
   const ps = parcelas(g);
   const devidoAgora = cent(ps.filter((p) => p.mes <= hoje).reduce((a, p) => a + p.v, 0) / SOCIOS);
   const devidoTotal = cent(+g.valor / SOCIOS);
   const pago = cent(pagos.filter((x) => x.gasto_id === g.id && x.socio === socio).reduce((a, x) => a + +x.valor, 0));
   return { devidoAgora, devidoTotal, pago, faltaAgora: Math.max(0, cent(devidoAgora - pago)), faltaTotal: Math.max(0, cent(devidoTotal - pago)), aMais: Math.max(0, cent(pago - devidoTotal)) };
 }
-const dataBR = (iso) => { const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}`; };
-const guarda = {
-  ler() { try { return sessionStorage.getItem('nx-emp') || localStorage.getItem('nx-emp'); } catch { return null; } },
-  gravar(s, lembrar) { try { sessionStorage.setItem('nx-emp', s); if (lembrar) localStorage.setItem('nx-emp', s); } catch {} },
-  limpar() { try { sessionStorage.removeItem('nx-emp'); localStorage.removeItem('nx-emp'); } catch {} },
+const situacao = (g) => {
+  const cs = NOMES.map((n) => contaSocio(g, n));
+  if (cs.every((c) => c.faltaTotal <= 0)) return 'quitado';
+  if (cs.some((c) => c.faltaAgora > 0)) return 'aberto';
+  return 'emdia';
 };
-function toast(t, erro) {
-  const el = document.getElementById('toast');
-  el.textContent = t; el.className = 'toast on' + (erro ? ' err' : '');
-  clearTimeout(toast.t); toast.t = setTimeout(() => (el.className = 'toast'), 3200);
+const ST_TXT = { quitado: ['Quitado', 'ok'], aberto: ['Em aberto', ''], emdia: ['Em dia', 'fut'] };
+function resumoSocio(n) {
+  return itens.map((g) => contaSocio(g, n)).reduce((a, x) => ({ pago: a.pago + x.pago, faltaAgora: a.faltaAgora + x.faltaAgora, faltaTotal: a.faltaTotal + x.faltaTotal, devido: a.devido + x.devidoTotal }), { pago: 0, faltaAgora: 0, faltaTotal: 0, devido: 0 });
 }
-const msgErro = (e) => (e === 'travado' ? 'Muitas tentativas. Espere 15 minutos.' : e === 'senha' ? 'Senha incorreta.' : 'Não foi possível agora. Tente de novo.');
-
-/* parcelas: valor dividido em n vezes; a última parcela acerta os centavos */
-function parcelas(g) {
-  const n = g.parcelas || 1, base = Math.floor((+g.valor / n) * 100) / 100, ini = mesIdx(g.inicio);
-  return Array.from({ length: n }, (_, k) => ({ mes: ini + k, v: k === n - 1 ? Math.round((+g.valor - base * (n - 1)) * 100) / 100 : base }));
+function porMesTotais() {
+  const m = {};
+  itens.forEach((g) => parcelas(g).forEach((p) => (m[p.mes] = (m[p.mes] || 0) + p.v)));
+  return m;
 }
-const fimDe = (g) => mesIdx(g.inicio) + (g.parcelas || 1) - 1;
 
 /* ---------- acesso ---------- */
 async function iniciar() {
   const s = guarda.ler();
-  if (s && (await carregar(s))) return painel();
+  if (s && (await carregar(s))) return desenhar();
   const { data: tem } = await sb.rpc('nx_emp_tem_senha');
   telaSenha(!tem);
 }
 function telaSenha(criar) {
-  $app.innerHTML = `<div class="gate"><img class="logo" src="/app/icons/wordmark-escuro.svg" alt="Nexos"><p class="eyebrow">Nexos · sociedade</p><h1>Empreender</h1>
+  $raiz.innerHTML = `<div class="gate"><img class="logo" src="/app/icons/wordmark-escuro.svg" alt="Nexos" style="margin-bottom:14px"><p class="eyebrow">Nexos · sociedade</p><h1 style="font-size:1.7rem;margin-top:4px">Empreender</h1>
     <p class="muted" style="margin:8px 0 18px">${criar ? 'Primeiro acesso: crie a senha desta página. Ela vale para os dois sócios.' : 'Os gastos da sociedade. Digite a senha para entrar.'}</p>
     <form id="f" class="card">
       <label class="f"><span>${criar ? 'Senha nova' : 'Senha'}</span><input class="in" type="password" name="s" required minlength="6" autocomplete="${criar ? 'new-password' : 'current-password'}"></label>
@@ -154,7 +253,7 @@ function telaSenha(criar) {
       const { data, error } = await sb.rpc('nx_emp_criar_senha', { p_nova: s });
       if (error || !data) { b.disabled = false; return toast(error ? 'Use pelo menos 6 caracteres.' : 'A senha já foi criada. Entre com ela.', true); }
     }
-    if (await carregar(s)) { guarda.gravar(s, f.lembrar.checked); return painel(); }
+    if (await carregar(s)) { guarda.gravar(s, f.lembrar.checked); return desenhar(); }
     b.disabled = false;
   };
 }
@@ -163,70 +262,191 @@ async function carregar(s) {
   if (error || !data || data.erro) { if (data && data.erro) toast(msgErro(data.erro), true); guarda.limpar(); return false; }
   senha = s; itens = data.itens || []; pagos = data.pagos || []; return true;
 }
+async function recarregar() { await carregar(senha); desenhar(); }
 
-/* ---------- painel ---------- */
-function painel() {
-  const hoje = hojeMes();
-  const porMes = {};
-  itens.forEach((g) => parcelas(g).forEach((p) => (porMes[p.mes] = (porMes[p.mes] || 0) + p.v)));
-  const meses = Object.keys(porMes).map(Number).sort((a, b) => a - b);
+/* ---------- estrutura ---------- */
+const ABAS = [['geral', 'Visão geral'], ['gastos', 'Gastos'], ['pagamentos', 'Pagamentos'], ['meses', 'Por mês']];
+function desenhar() {
+  const y = window.scrollY;
+  $raiz.innerHTML = `<header class="topo"><div class="topo-in">
+      <div class="topo-l"><div class="marca"><img src="/app/icons/wordmark-escuro.svg" alt="Nexos"><span>Empreender</span></div>
+        <div class="topo-acoes"><button class="btn sm so-pc" data-acao="novo">+ Gasto</button><button class="btn sm ghost so-pc" data-acao="paguei">Já paguei</button><button class="btn sm ghost" data-acao="menu" aria-label="Mais opções">⋯</button></div></div>
+      <nav class="abas">${ABAS.map(([k, t]) => `<button class="${aba === k ? 'on' : ''}" data-aba="${k}">${t}</button>`).join('')}</nav></div></header>
+    <main class="wrap" id="corpo"></main>
+    <button class="btn fab so-cel" data-acao="novo">+ Gasto</button>`;
+  const corpo = document.getElementById('corpo');
+  corpo.innerHTML = aba === 'gastos' ? telaGastos() : aba === 'pagamentos' ? telaPagamentos() : aba === 'meses' ? telaMeses() : telaGeral();
+  $raiz.onclick = cliques;
+  const bq = document.getElementById('busca');
+  if (bq) bq.oninput = () => { filtro.q = bq.value; atualizarLista(); };
+  const sc = document.getElementById('f-cat');
+  if (sc) sc.onchange = () => { filtro.cat = sc.value; atualizarLista(); };
+  window.scrollTo(0, y);
+}
+function cliques(e) {
+  const t = e.target.closest('[data-aba],[data-acao],[data-g],[data-st],[data-desf]');
+  if (!t) return;
+  if (t.dataset.aba) { aba = t.dataset.aba; try { sessionStorage.setItem('nx-emp-aba', aba); } catch {} window.scrollTo(0, 0); return desenhar(); }
+  if (t.dataset.st) { filtro.st = t.dataset.st; document.querySelectorAll('[data-st]').forEach((x) => x.classList.toggle('on', x === t)); return atualizarLista(); }
+  if (t.dataset.g) return detalhe(itens.find((g) => g.id === t.dataset.g));
+  if (t.dataset.desf) return desfazer(pagos.find((x) => x.id === t.dataset.desf));
+  const a = t.dataset.acao;
+  if (a === 'novo') return formGasto();
+  if (a === 'paguei') return jaPagueiGeral();
+  if (a === 'menu') return menu();
+  if (a === 'ver-ant') { const tb = document.getElementById('ant'); tb.hidden = !tb.hidden; t.textContent = tb.hidden ? 'Ver meses anteriores' : 'Esconder anteriores'; }
+}
+
+/* ---------- visão geral ---------- */
+function telaGeral() {
+  const hoje = hojeMes(), pm = porMesTotais();
+  const meses = Object.keys(pm).map(Number).sort((a, b) => a - b);
   const ult = meses.length ? meses[meses.length - 1] : null;
   const total = itens.reduce((a, g) => a + +g.valor, 0);
-  const falta = meses.filter((m) => m > hoje).reduce((a, m) => a + porMes[m], 0);
-  const esteMes = porMes[hoje] || 0, proximo = porMes[hoje + 1] || 0;
-  const futuros = meses.filter((m) => m >= hoje), antigos = meses.filter((m) => m < hoje);
-  const linhaMes = (m) => `<tr class="${m === hoje ? 'atual' : ''}"><td>${mesNome(m)}${m === hoje ? ' · este mês' : ''}</td><td class="r">${brl(porMes[m])}</td><td class="r">${brl(porMes[m] / SOCIOS)}</td></tr>`;
-  $app.innerHTML = `<div class="top"><div><img class="logo" src="/app/icons/wordmark-escuro.svg" alt="Nexos"><p class="eyebrow">Nexos · sociedade</p><h1>Empreender</h1></div>
-      <button class="link" id="sair" style="margin-top:6px">Sair</button></div>
-    <div class="stats">
-      <div class="card stat hl"><span class="small muted">Este mês (${mesNome(hoje)}) · cada sócio paga</span><div class="num">${brl(esteMes / SOCIOS)}</div><span class="tiny dim">${brl(esteMes)} no total, dividido entre os ${SOCIOS}</span></div>
-      <div class="card stat"><span class="small muted">Próximo mês</span><div class="num">${brl(proximo / SOCIOS)}</div><span class="tiny dim">por sócio · ${brl(proximo)} no total</span></div>
-      <div class="card stat"><span class="small muted">Falta pagar</span><div class="num">${brl(falta / SOCIOS)}</div><span class="tiny dim">por sócio${ult != null && ult > hoje ? ` · até ${mesNome(ult)}` : ''}</span></div>
-      <div class="card stat"><span class="small muted">Total investido</span><div class="num">${brl(total)}</div><span class="tiny dim">${brl(total / SOCIOS)} de cada sócio</span></div>
-      <div class="card stat"><span class="small muted">Tudo quitado em</span><div class="num">${ult == null ? '—' : ult <= hoje ? 'em dia' : mesNome(ult)}</div><span class="tiny dim">${itens.length} gasto${itens.length === 1 ? '' : 's'} registrado${itens.length === 1 ? '' : 's'}</span></div>
+  const esteMes = pm[hoje] || 0;
+  if (!itens.length)
+    return `<div class="card vazio"><h2>Nenhum gasto ainda</h2><p>Comece lançando o primeiro gasto da sociedade.</p><button class="btn" data-acao="novo">+ Adicionar gasto</button></div>`;
+  const rs = NOMES.map((n) => [n, resumoSocio(n)]);
+  const socios = rs.map(([n, c]) => {
+    const pct = c.devido ? Math.min(100, Math.round((c.pago / c.devido) * 100)) : 0;
+    return `<div class="card socio"><div class="socio-top"><span class="av" style="background:${COR_SOCIO[n]}">${n[0]}</span><div style="flex:1"><h3>${n}</h3><span class="tiny muted">${pct}% da parte dele já paga</span></div>
+        <span class="tag ${c.faltaAgora > 0 ? 'err' : 'ok'}">${c.faltaAgora > 0 ? 'Pendente' : 'Em dia'}</span></div>
+      <div class="num" style="color:${c.faltaAgora > 0 ? 'var(--err)' : 'var(--ok)'}">${c.faltaAgora > 0 ? 'Falta ' + brl(c.faltaAgora) : 'Nada vencido'}</div>
+      <div class="bar"><i style="width:${pct}%;background:${COR_SOCIO[n]}"></i></div>
+      <div class="linhas"><div><span>Já pagou</span><b>${brl(c.pago)}</b></div><div><span>Parcelas futuras</span><b>${brl(Math.max(0, c.faltaTotal - c.faltaAgora))}</b></div><div><span>Parte total</span><b>${brl(c.devido)}</b></div></div></div>`;
+  }).join('');
+  // categorias
+  const porCat = {};
+  itens.forEach((g) => (porCat[g.categoria] = (porCat[g.categoria] || 0) + +g.valor));
+  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+  const maxC = cats.length ? cats[0][1] : 1;
+  const catHTML = cats.map(([c, v]) => `<span class="nw"><i style="background:${COR_CAT[c] || 'var(--c8)'}"></i> ${esc(c)}</span><div class="bar" style="--c:${COR_CAT[c] || 'var(--c8)'}"><i style="width:${Math.max(3, (v / maxC) * 100)}%"></i></div><b class="r nw">${brl(v)} <span class="tiny dim">${Math.round((v / total) * 100)}%</span></b>`).join('');
+  // próximos 6 meses
+  const prox = Array.from({ length: 6 }, (_, k) => hoje + k);
+  const maxM = Math.max(1, ...prox.map((m) => pm[m] || 0));
+  const colHTML = prox.map((m) => `<div class="col ${m === hoje ? 'atual' : ''}"><b>${pm[m] ? brl(pm[m] / SOCIOS).replace('R$', '').trim() : ''}</b><i style="height:${((pm[m] || 0) / maxM) * 100}%"></i><small>${mesCurto(m)}</small></div>`).join('');
+  return `<div class="card hero"><div><p class="tiny" style="opacity:.8;margin:0">Este mês (${mesNome(hoje)}) · cada sócio</p><div class="num">${brl(esteMes / SOCIOS)}</div><span class="small dim">${brl(esteMes)} no total, dividido entre os ${SOCIOS}</span></div>
+      <div class="hero-acoes"><button class="btn" data-acao="paguei">Já paguei</button><button class="btn ghost" data-acao="novo">+ Gasto</button></div></div>
+    <div class="socios">${socios}</div>
+    <div class="kpis">
+      <div class="card kpi"><span>Total investido</span><div class="num">${brl(total)}</div><span class="tiny dim">${itens.length} gasto${itens.length === 1 ? '' : 's'}</span></div>
+      <div class="card kpi"><span>Próximo mês</span><div class="num">${brl((pm[hoje + 1] || 0) / SOCIOS)}</div><span class="tiny dim">por sócio</span></div>
+      <div class="card kpi"><span>Falta pagar (os dois)</span><div class="num">${brl(rs.reduce((a, [, c]) => a + c.faltaTotal, 0))}</div><span class="tiny dim">incluindo parcelas futuras</span></div>
+      <div class="card kpi"><span>Parcelas até</span><div class="num">${ult == null ? '—' : ult <= hoje ? 'em dia' : mesNome(ult)}</div><span class="tiny dim">último mês com parcela</span></div>
     </div>
-    ${itens.length ? `<section><div class="sec-h"><h2>Quanto cada um já pagou</h2></div><div class="stats">${NOMES.map((n) => {
-      const c = itens.map((g) => contaSocio(g, n, hoje)).reduce((a, x) => ({ pago: a.pago + x.pago, faltaAgora: a.faltaAgora + x.faltaAgora, faltaTotal: a.faltaTotal + x.faltaTotal }), { pago: 0, faltaAgora: 0, faltaTotal: 0 });
-      return `<div class="card stat"><span class="small muted">${n}</span><div class="num" style="color:${c.faltaAgora > 0 ? 'var(--err)' : 'var(--ok)'}">${c.faltaAgora > 0 ? 'Falta ' + brl(c.faltaAgora) : 'Em dia ✓'}</div><span class="tiny dim">Já pagou ${brl(c.pago)}${c.faltaTotal > c.faltaAgora ? ` · parcelas futuras: ${brl(c.faltaTotal - c.faltaAgora)}` : ''}</span></div>`;
-    }).join('')}</div></section>` : ''}
-    <button class="btn block" id="novo" style="margin-top:16px">+ Adicionar gasto</button>
-    <section><div class="sec-h"><h2>Gastos</h2></div><div class="list">${
-      itens.length ? [...itens].sort((a, b) => fimDe(b) - fimDe(a) || b.criado_em.localeCompare(a.criado_em)).map((g) => cartao(g, hoje)).join('')
-        : '<div class="card vazio">Nenhum gasto ainda. Toque em <b>Adicionar gasto</b>.</div>'
-    }</div></section>
-    ${meses.length ? `<section><div class="sec-h"><h2>Por mês</h2>${antigos.length ? '<button class="link" id="ver-ant">Ver meses anteriores</button>' : ''}</div>
-      <div class="card" style="padding:6px 12px"><table><thead><tr><th>Mês</th><th class="r">Total</th><th class="r">Cada sócio</th></tr></thead>
-      <tbody id="ant" hidden>${antigos.map(linhaMes).join('')}</tbody><tbody>${futuros.map(linhaMes).join('') || '<tr><td colspan="3" class="dim">Nada a pagar daqui pra frente.</td></tr>'}</tbody></table></div></section>` : ''}`;
-  document.getElementById('sair').onclick = () => { guarda.limpar(); senha = null; telaSenha(false); };
-  document.getElementById('novo').onclick = () => formGasto();
-  const va = document.getElementById('ver-ant');
-  if (va) va.onclick = () => { const t = document.getElementById('ant'); t.hidden = !t.hidden; va.textContent = t.hidden ? 'Ver meses anteriores' : 'Esconder anteriores'; };
-  $app.querySelectorAll('[data-ed]').forEach((b) => (b.onclick = () => formGasto(itens.find((g) => g.id === b.dataset.ed))));
-  $app.querySelectorAll('[data-del]').forEach((b) => (b.onclick = () => apagar(itens.find((g) => g.id === b.dataset.del))));
-  $app.querySelectorAll('[data-pagar]').forEach((b) => (b.onclick = () => jaPaguei(itens.find((g) => g.id === b.dataset.pagar))));
-  $app.querySelectorAll('[data-desf]').forEach((b) => (b.onclick = () => desfazer(pagos.find((x) => x.id === b.dataset.desf))));
+    <div class="duas">
+      <div class="card"><h2>Para onde vai o dinheiro</h2><div class="cat-l">${catHTML}</div></div>
+      <div class="card"><div class="sec-h" style="margin:0"><h2>Próximos 6 meses</h2><span class="tiny dim">por sócio</span></div><div class="cols">${colHTML}</div></div>
+    </div>
+    <div class="sec"><div class="sec-h"><h2>Em aberto</h2><button class="link" data-aba="gastos">Ver todos os gastos</button></div>${listaGastos(itens.filter((g) => situacao(g) === 'aberto'), 'Nenhum gasto com parcela vencida em aberto.')}</div>`;
 }
-function cartao(g, hoje) {
-  const n = g.parcelas || 1, ini = mesIdx(g.inicio), fim = fimDe(g);
-  const pagas = Math.max(0, Math.min(n, hoje - ini + 1));
-  const ps = parcelas(g), vp = ps[0].v;
-  const cs = NOMES.map((nm) => [nm, contaSocio(g, nm, hoje)]);
-  const quitado = cs.every(([, c]) => c.faltaTotal <= 0);
+
+/* ---------- gastos ---------- */
+function telaGastos() {
+  return `<div class="sec-h"><div><h1>Gastos</h1><p class="small muted" style="margin:4px 0 0">Toque num gasto para ver as parcelas, os pagamentos e editar.</p></div><button class="btn so-pc" data-acao="novo">+ Adicionar gasto</button></div>
+    <div class="barra"><input class="in" id="busca" placeholder="Buscar gasto" value="${esc(filtro.q)}" aria-label="Buscar gasto">
+      <select class="in" id="f-cat" aria-label="Categoria"><option value="">Todas as categorias</option>${CATS.map((c) => `<option ${filtro.cat === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+    <div class="chips" style="margin-bottom:12px">${[['todos', 'Todos'], ['aberto', 'Em aberto'], ['emdia', 'Em dia'], ['quitado', 'Quitados']].map(([k, t]) => `<button class="chip ${filtro.st === k ? 'on' : ''}" data-st="${k}">${t}</button>`).join('')}</div>
+    <div id="lista">${listaFiltrada()}</div>`;
+}
+function filtrados() {
+  const q = filtro.q.trim().toLowerCase();
+  return itens
+    .filter((g) => (!q || `${g.descricao} ${g.categoria} ${g.obs || ''}`.toLowerCase().includes(q)) && (!filtro.cat || g.categoria === filtro.cat) && (filtro.st === 'todos' || situacao(g) === filtro.st))
+    .sort((a, b) => (situacao(a) === 'quitado') - (situacao(b) === 'quitado') || String(b.inicio).localeCompare(String(a.inicio)) || String(b.criado_em).localeCompare(String(a.criado_em)));
+}
+function listaFiltrada() { return listaGastos(filtrados(), itens.length ? 'Nenhum gasto com esses filtros.' : 'Nenhum gasto ainda. Toque em + Gasto.', true); }
+function atualizarLista() { const l = document.getElementById('lista'); if (l) l.innerHTML = listaFiltrada(); }
+function listaGastos(lista, vazio, total) {
+  if (!lista.length) return `<div class="card vazio">${vazio}</div>`;
+  const forma = (g) => (g.parcelas > 1 ? `${g.parcelas}x de ${brl(parcelas(g)[0].v)}` : 'À vista');
+  const periodo = (g) => (g.parcelas > 1 ? `${mesCurto(mesIdx(g.inicio))} a ${mesCurto(fimDe(g))}` : mesNome(mesIdx(g.inicio)));
+  const stSoc = (g, n) => { const c = contaSocio(g, n); return c.faltaTotal <= 0 ? '<span class="st ok"><i></i>Pago</span>' : c.faltaAgora > 0 ? `<span class="st"><i></i>${brl(c.faltaAgora)}</span>` : '<span class="st fut"><i></i>Em dia</span>'; };
+  const soma = lista.reduce((a, g) => a + +g.valor, 0);
+  const tabela = `<div class="card so-pc" style="padding:0;overflow:hidden"><table class="tabela"><thead><tr><th>Gasto</th><th>Categoria</th><th>Pagamento</th><th class="r">Valor</th>${NOMES.map((n) => `<th>${n}</th>`).join('')}<th>Situação</th></tr></thead><tbody>
+    ${lista.map((g) => { const s = ST_TXT[situacao(g)]; return `<tr data-g="${g.id}"><td class="desc"><b>${esc(g.descricao)}</b>${g.obs ? `<small>${esc(g.obs)}</small>` : ''}</td><td><span class="tag" style="background:color-mix(in srgb,${COR_CAT[g.categoria] || 'var(--c8)'} 14%,transparent);color:${COR_CAT[g.categoria] || 'var(--mute)'}">${esc(g.categoria)}</span></td><td class="nw">${forma(g)}<br><small class="muted">${periodo(g)}</small></td><td class="r nw"><b>${brl(g.valor)}</b></td>${NOMES.map((n) => `<td class="nw">${stSoc(g, n)}</td>`).join('')}<td><span class="tag ${s[1] === 'ok' ? 'ok' : s[1] === 'fut' ? 'acc' : 'err'}">${s[0]}</span></td></tr>`; }).join('')}
+    </tbody></table>${total ? `<div class="tot"><span>${lista.length} gasto${lista.length === 1 ? '' : 's'}</span><span>${brl(soma)}</span></div>` : ''}</div>`;
+  const cel = `<div class="lista-cel so-cel">${lista.map((g) => { const s = ST_TXT[situacao(g)]; return `<div class="card g-cel" data-g="${g.id}"><div class="l1"><b>${esc(g.descricao)}</b><b class="nw">${brl(g.valor)}</b></div>
+      <div class="small muted">${esc(g.categoria)} · ${forma(g)} · ${periodo(g)}</div>
+      <div class="l2">${NOMES.map((n) => `<span class="small"><b>${n}</b> ${stSoc(g, n)}</span>`).join('')}<span class="tag ${s[1] === 'ok' ? 'ok' : s[1] === 'fut' ? 'acc' : 'err'}" style="margin-left:auto">${s[0]}</span></div></div>`; }).join('')}
+      ${total ? `<div class="tot" style="border:0;padding:4px 2px"><span>${lista.length} gasto${lista.length === 1 ? '' : 's'}</span><span>${brl(soma)}</span></div>` : ''}</div>`;
+  return tabela + cel;
+}
+
+/* ---------- detalhe de um gasto ---------- */
+function detalhe(g) {
+  if (!g) return;
+  const hoje = hojeMes();
+  const ps = parcelas(g);
   const hist = pagos.filter((x) => x.gasto_id === g.id);
-  const linhaSocio = ([nm, c]) => `<div class="pg-l"><span><b>${nm}</b> pagou ${brl(c.pago)}</span>${
-    c.faltaTotal <= 0 ? `<span class="ok">✓ ${c.aMais > 0 ? 'pagou ' + brl(c.aMais) + ' a mais' : 'quitado'}</span>`
-    : c.faltaAgora > 0 ? `<span class="falta">falta ${brl(c.faltaAgora)}</span>`
-    : `<span class="ok">✓ em dia</span>`}</div>`;
-  const linha = n === 1
-    ? `À vista em ${mesNome(ini)} · cada sócio ${brl(+g.valor / SOCIOS)}`
-    : `${n}x de ${brl(vp)} · cada sócio ${brl(vp / SOCIOS)}/mês · ${mesNome(ini)} a ${mesNome(fim)}`;
-  return `<div class="card g"><div class="g-top"><b>${esc(g.descricao)}<span class="tag">${esc(g.categoria)}</span>${quitado ? '<span class="tag ok">quitado</span>' : ''}</b><b class="num" style="font-size:.95rem;white-space:nowrap">${brl(g.valor)}</b></div>
-    <span class="small muted">${linha}</span>
-    ${n > 1 ? `<div class="bar"><i style="width:${Math.round((pagas / n) * 100)}%"></i></div><span class="tiny dim">${pagas} de ${n} parcelas${pagas < n && pagas > 0 ? ` · faltam ${n - pagas}` : ''}</span>` : ''}
-    ${g.obs ? `<span class="tiny dim">${esc(g.obs)}</span>` : ''}
-    <div class="pg">${cs.map(linhaSocio).join('')}${n > 1 && !quitado ? `<span class="pg-h">Cada um deve ${brl(+g.valor / SOCIOS)} no total; "falta" é o que já venceu até este mês.</span>` : ''}
-      ${hist.length ? `<span class="pg-h">${hist.map((x) => `${esc(x.socio)} · ${brl(x.valor)} em ${dataBR(x.pago_em)}<button class="link" data-desf="${x.id}">desfazer</button>`).join('<br>')}</span>` : ''}</div>
-    <div class="acts">${quitado ? '' : `<button class="link" data-pagar="${g.id}">Já paguei</button>`}<button class="link" data-ed="${g.id}">Editar</button><button class="link err" data-del="${g.id}">Apagar</button></div></div>`;
+  const s = ST_TXT[situacao(g)];
+  $dlg.innerHTML = `<div class="det-top"><div><p class="eyebrow">${esc(g.categoria)}</p><h2 style="margin-top:4px;font-size:1.2rem">${esc(g.descricao)}</h2></div><span class="tag ${s[1] === 'ok' ? 'ok' : s[1] === 'fut' ? 'acc' : 'err'}">${s[0]}</span></div>
+    ${g.obs ? `<p class="small muted" style="margin:6px 0 0">${esc(g.obs)}</p>` : ''}
+    <div class="det-num"><div><span>Valor total</span><b>${brl(g.valor)}</b></div><div><span>Cada sócio</span><b>${brl(+g.valor / SOCIOS)}</b></div>
+      <div><span>Pagamento</span><b>${g.parcelas > 1 ? `${g.parcelas}x de ${brl(ps[0].v)}` : 'À vista'}</b></div><div><span>${g.parcelas > 1 ? 'Período' : 'Mês'}</span><b>${g.parcelas > 1 ? `${mesCurto(mesIdx(g.inicio))} a ${mesCurto(fimDe(g))}` : mesNome(mesIdx(g.inicio))}</b></div></div>
+    ${g.parcelas > 1 ? `<div class="parc">${ps.map((p, k) => `<span class="${p.mes <= hoje ? 'venc' : ''}">${k + 1}ª · ${mesCurto(p.mes)}</span>`).join('')}</div><p class="tiny dim" style="margin:6px 0 12px">Em azul, as parcelas que já venceram.</p>` : ''}
+    <h3 style="margin-top:6px">Cada sócio</h3>
+    <div class="det-soc" style="margin-top:8px">${NOMES.map((n) => { const c = contaSocio(g, n, hoje); return `<div class="ln"><span><b>${n}</b> <span class="small muted">pagou ${brl(c.pago)} de ${brl(c.devidoTotal)}</span></span>${c.faltaTotal <= 0 ? `<span class="tag ok">${c.aMais > 0 ? 'Pagou ' + brl(c.aMais) + ' a mais' : 'Quitado'}</span>` : c.faltaAgora > 0 ? `<span class="tag err">Falta ${brl(c.faltaAgora)}</span>` : `<span class="tag acc">Em dia</span>`}</div>`; }).join('')}</div>
+    <h3 style="margin-top:16px">Pagamentos lançados</h3>
+    <div class="hist">${hist.length ? hist.map((x) => `<div><span><b>${esc(x.socio)}</b> · ${brl(x.valor)} <span class="muted">em ${dataBR(x.pago_em)}</span></span><button class="link err" data-desf="${x.id}">Desfazer</button></div>`).join('') : '<p class="small muted" style="margin:0">Nenhum pagamento lançado ainda.</p>'}</div>
+    <div class="acoes-dlg">${situacao(g) === 'quitado' ? '' : '<button class="btn" id="d-pag">Já paguei</button>'}<button class="btn ghost" id="d-ed">Editar</button><button class="btn ghost" id="d-del" style="color:var(--err)">Apagar</button><button class="btn ghost" id="d-fechar" style="margin-left:auto">Fechar</button></div>`;
+  if (!$dlg.open) $dlg.showModal();
+  $dlg.onclick = (e) => { const d = e.target.closest('[data-desf]'); if (d) desfazer(pagos.find((x) => x.id === d.dataset.desf), () => detalhe(itens.find((y) => y.id === g.id))); };
+  const p = document.getElementById('d-pag'); if (p) p.onclick = () => jaPaguei(g);
+  document.getElementById('d-ed').onclick = () => formGasto(g);
+  document.getElementById('d-del').onclick = () => apagar(g);
+  document.getElementById('d-fechar').onclick = () => $dlg.close();
+}
+
+/* ---------- pagamentos ---------- */
+function telaPagamentos() {
+  const lista = [...pagos].sort((a, b) => String(b.pago_em).localeCompare(String(a.pago_em)));
+  const tot = Object.fromEntries(NOMES.map((n) => [n, pagos.filter((x) => x.socio === n).reduce((a, x) => a + +x.valor, 0)]));
+  const nome = (id) => (itens.find((g) => g.id === id) || {}).descricao || 'Gasto apagado';
+  return `<div class="sec-h"><div><h1>Pagamentos</h1><p class="small muted" style="margin:4px 0 0">Tudo o que cada sócio já lançou, do mais recente ao mais antigo.</p></div><button class="btn" data-acao="paguei">Já paguei</button></div>
+    <div class="socios">${NOMES.map((n) => `<div class="card kpi"><span>${n} já pagou</span><div class="num" style="color:${COR_SOCIO[n]}">${brl(tot[n])}</div><span class="tiny dim">${pagos.filter((x) => x.socio === n).length} lançamento${pagos.filter((x) => x.socio === n).length === 1 ? '' : 's'}</span></div>`).join('')}</div>
+    <div class="card" style="margin-top:12px">${lista.length ? lista.map((x) => `<div class="pag"><span class="av" style="background:${COR_SOCIO[x.socio] || 'var(--dim)'};width:32px;height:32px;font-size:.8rem">${esc(x.socio[0])}</span><div class="grow"><b>${esc(x.socio)}</b> pagou <b>${brl(x.valor)}</b><div class="small muted">${esc(nome(x.gasto_id))} · ${dataBR(x.pago_em)}</div></div><button class="link err" data-desf="${x.id}">Desfazer</button></div>`).join('') : '<div class="vazio">Nenhum pagamento lançado ainda. Toque em <b>Já paguei</b>.</div>'}</div>`;
+}
+
+/* ---------- por mês ---------- */
+function telaMeses() {
+  const hoje = hojeMes(), pm = porMesTotais();
+  const meses = Object.keys(pm).map(Number).sort((a, b) => a - b);
+  const futuros = meses.filter((m) => m >= hoje), antigos = meses.filter((m) => m < hoje);
+  const quais = (m) => itens.filter((g) => parcelas(g).some((p) => p.mes === m)).map((g) => esc(g.descricao)).join(', ');
+  const linha = (m) => `<tr style="cursor:default${m === hoje ? ';background:#e8f4fb' : ''}"><td><b>${mesNome(m)}</b>${m === hoje ? ' <span class="tag acc">este mês</span>' : ''}<br><small class="muted">${quais(m)}</small></td><td class="r nw">${brl(pm[m])}</td><td class="r nw"><b>${brl(pm[m] / SOCIOS)}</b></td></tr>`;
+  return `<div class="sec-h"><div><h1>Por mês</h1><p class="small muted" style="margin:4px 0 0">Quanto cai em cada mês, somando as parcelas de todos os gastos.</p></div>${antigos.length ? '<button class="link" data-acao="ver-ant">Ver meses anteriores</button>' : ''}</div>
+    ${meses.length ? `<div class="card" style="padding:0;overflow:hidden"><table class="tabela"><thead><tr><th>Mês</th><th class="r">Total</th><th class="r">Cada sócio</th></tr></thead>
+      <tbody id="ant" hidden>${antigos.map(linha).join('')}</tbody><tbody>${futuros.map(linha).join('') || '<tr><td colspan="3" class="dim">Nada a pagar daqui pra frente.</td></tr>'}</tbody></table></div>` : '<div class="card vazio">Nenhum gasto ainda.</div>'}`;
+}
+
+/* ---------- menu: planilha e sair ---------- */
+function menu() {
+  $dlg.innerHTML = `<h2>Opções</h2><div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+    <button class="btn ghost block" id="m-csv">Baixar a planilha (Excel/CSV)</button>
+    <button class="btn ghost block" id="m-sair" style="color:var(--err)">Sair desta página</button>
+    <button class="btn block" id="m-fechar">Fechar</button></div>`;
+  $dlg.showModal();
+  document.getElementById('m-fechar').onclick = () => $dlg.close();
+  document.getElementById('m-sair').onclick = () => { $dlg.close(); guarda.limpar(); senha = null; telaSenha(false); };
+  document.getElementById('m-csv').onclick = () => { baixarCSV(); $dlg.close(); };
+}
+function baixarCSV() {
+  const c = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const n2 = (v) => String(cent(+v || 0)).replace('.', ',');
+  const linhas = [['Gasto', 'Categoria', 'Valor total', 'Parcelas', 'Primeiro mês', 'Cada sócio', ...NOMES.flatMap((n) => [`${n} pagou`, `${n} falta`]), 'Situação', 'Observação']];
+  itens.forEach((g) => linhas.push([g.descricao, g.categoria, n2(g.valor), g.parcelas, mesISO(mesIdx(g.inicio)), n2(+g.valor / SOCIOS), ...NOMES.flatMap((n) => { const x = contaSocio(g, n); return [n2(x.pago), n2(x.faltaTotal)]; }), ST_TXT[situacao(g)][0], g.obs || '']));
+  linhas.push([]);
+  linhas.push(['Pagamentos']);
+  linhas.push(['Data', 'Sócio', 'Valor', 'Gasto']);
+  pagos.forEach((x) => linhas.push([dataBR(x.pago_em), x.socio, n2(x.valor), (itens.find((g) => g.id === x.gasto_id) || {}).descricao || '']));
+  const csv = '﻿' + linhas.map((l) => l.map(c).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `nexos-gastos-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('Planilha baixada.');
 }
 
 /* ---------- adicionar / editar ---------- */
@@ -240,13 +460,14 @@ function formGasto(g) {
       <div class="f" style="margin-bottom:12px"><span class="small" style="display:block;font-weight:700;color:var(--mute);margin-bottom:6px">Pagamento</span><div class="chips"><button type="button" class="chip ${n0 === 1 ? 'on' : ''}" data-forma="1">À vista</button><button type="button" class="chip ${n0 > 1 ? 'on' : ''}" data-forma="n">Parcelado</button></div></div>
       <div class="grid2"><label class="f" id="lb-n" ${n0 > 1 ? '' : 'hidden'}><span>Quantas vezes</span><input class="in" name="parcelas" type="number" min="2" max="60" value="${n0 > 1 ? n0 : 2}"></label>
       <label class="f"><span id="lb-ini">${n0 > 1 ? 'Mês da 1ª parcela' : 'Mês do pagamento'}</span><input class="in" name="inicio" type="month" required value="${g ? String(g.inicio).slice(0, 7) : mesISO(hojeMes())}"></label></div>
-      <label class="f"><span>Observação (opcional)</span><input class="in" name="obs" maxlength="200" value="${esc(g && g.obs ? g.obs : '')}"></label>
+      <label class="f"><span>Observação (opcional)</span><input class="in" name="obs" maxlength="200" placeholder="Ex.: loja, nota fiscal, quem comprou" value="${esc(g && g.obs ? g.obs : '')}"></label>
       <div class="prev" id="prev"></div>
       <div class="grid2" style="margin-top:16px"><button type="button" class="btn ghost" id="cancelar">Cancelar</button><button class="btn" id="salvar">Salvar</button></div></form>`;
-  $dlg.showModal();
+  if (!$dlg.open) $dlg.showModal();
+  $dlg.onclick = null;
   const f = document.getElementById('fg');
   let parc = n0 > 1;
-  const valor = () => +String(f.valor.value).replace(/\./g, '').replace(',', '.') || 0;
+  const valor = () => numDe(f.valor.value);
   const prev = () => {
     const v = valor(), n = parc ? Math.max(2, Math.min(60, +f.parcelas.value || 2)) : 1;
     const ini = f.inicio.value ? mesIdx(f.inicio.value + '-01') : hojeMes();
@@ -263,7 +484,7 @@ function formGasto(g) {
     prev();
   }));
   f.oninput = prev; prev();
-  document.getElementById('cancelar').onclick = () => $dlg.close();
+  document.getElementById('cancelar').onclick = () => (g ? detalhe(g) : $dlg.close());
   f.descricao.focus();
   f.onsubmit = async (e) => {
     e.preventDefault();
@@ -277,76 +498,143 @@ function formGasto(g) {
     b.disabled = false;
     if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
     $dlg.close();
-    await carregar(senha); painel();
+    await recarregar();
     toast(ed ? 'Gasto atualizado.' : 'Gasto adicionado.');
   };
 }
-/* ---------- já paguei: quem é você → quanto ---------- */
+function apagar(g) {
+  $dlg.innerHTML = `<h2>Apagar "${esc(g.descricao)}"?</h2><p class="muted">O gasto, as parcelas e os pagamentos lançados nele saem das contas. Não dá para desfazer.</p>
+    <div class="grid2" style="margin-top:16px"><button class="btn ghost" id="nao">Cancelar</button><button class="btn" id="sim" style="background:var(--err)">Apagar</button></div>`;
+  if (!$dlg.open) $dlg.showModal();
+  $dlg.onclick = null;
+  document.getElementById('nao').onclick = () => detalhe(g);
+  document.getElementById('sim').onclick = async () => {
+    const { data, error } = await sb.rpc('nx_emp_apagar', { p_senha: senha, p_id: g.id });
+    if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
+    $dlg.close(); await recarregar(); toast('Gasto apagado.');
+  };
+}
+
+/* ---------- já paguei ---------- */
+const ultimoSocio = () => { try { return localStorage.getItem('nx-emp-socio'); } catch { return null; } };
+const lembrarSocio = (s) => { try { localStorage.setItem('nx-emp-socio', s); } catch {} };
+function escolherSocio(titulo, sub, depois) {
+  const ult = ultimoSocio();
+  $dlg.innerHTML = `<p class="eyebrow">Já paguei</p><h2 style="margin:4px 0 6px">${titulo}</h2><p class="muted" style="margin:0 0 12px">${sub}</p>
+    <div class="quem">${NOMES.map((n) => `<button type="button" class="chip ${n === ult ? 'on' : ''}" data-quem="${n}">${n}</button>`).join('')}</div>
+    <button class="btn ghost block" id="cancelar">Cancelar</button>`;
+  if (!$dlg.open) $dlg.showModal();
+  $dlg.onclick = null;
+  document.getElementById('cancelar').onclick = () => $dlg.close();
+  $dlg.querySelectorAll('[data-quem]').forEach((b) => (b.onclick = () => { lembrarSocio(b.dataset.quem); depois(b.dataset.quem); }));
+}
+// um gasto: quem → quanto
 function jaPaguei(g) {
   const hoje = hojeMes();
-  let ult = null;
-  try { ult = localStorage.getItem('nx-emp-socio'); } catch {}
-  const passo1 = () => {
-    $dlg.innerHTML = `<p class="eyebrow">Já paguei</p><h2 style="margin:4px 0 6px">${esc(g.descricao)}</h2><p class="muted" style="margin:0 0 12px">Quem é você?</p>
-      <div class="quem">${NOMES.map((n) => `<button type="button" class="chip ${n === ult ? 'on' : ''}" data-quem="${n}">${n}</button>`).join('')}</div>
-      <button class="btn ghost block" id="cancelar">Cancelar</button>`;
-    if (!$dlg.open) $dlg.showModal();
-    document.getElementById('cancelar').onclick = () => $dlg.close();
-    $dlg.querySelectorAll('[data-quem]').forEach((b) => (b.onclick = () => passo2(b.dataset.quem)));
-  };
-  const passo2 = (socio) => {
-    try { localStorage.setItem('nx-emp-socio', socio); } catch {}
+  escolherSocio(esc(g.descricao), 'Quem é você?', (socio) => {
     const c = contaSocio(g, socio, hoje);
     const sugere = c.faltaAgora > 0 ? c.faltaAgora : c.faltaTotal;
     $dlg.innerHTML = `<p class="eyebrow">Já paguei · ${socio}</p><h2 style="margin:4px 0 6px">${esc(g.descricao)}</h2>
       <p class="muted" style="margin:0 0 12px">${c.faltaAgora > 0 ? `Falta você pagar <b>${brl(c.faltaAgora)}</b>${c.faltaTotal > c.faltaAgora ? ` agora (${brl(c.faltaTotal)} no total, com as parcelas futuras)` : ''}.` : c.faltaTotal > 0 ? `Você está em dia. Ainda faltam <b>${brl(c.faltaTotal)}</b> de parcelas futuras.` : 'Sua parte já está quitada.'}</p>
-      <form id="fp"><label class="f"><span>Quanto você pagou?</span><input class="in" name="v" inputmode="decimal" required placeholder="0,00" value="${sugere > 0 ? String(sugere.toFixed(2)).replace('.', ',') : ''}"></label>
+      <form id="fp"><label class="f"><span>Quanto você pagou?</span><input class="in" name="v" inputmode="decimal" required placeholder="0,00" value="${sugere > 0 ? sugere.toFixed(2).replace('.', ',') : ''}"></label>
       <p class="small muted" id="resta" style="margin:-4px 0 12px"></p>
       <div class="grid2"><button type="button" class="btn ghost" id="voltar">Voltar</button><button class="btn" id="ok">Salvar</button></div></form>`;
     const f = document.getElementById('fp');
-    const val = () => +String(f.v.value).replace(/\./g, '').replace(',', '.') || 0;
     const resta = () => {
-      const v = val(), r = cent(c.faltaTotal - v);
+      const v = numDe(f.v.value), r = cent(c.faltaTotal - v);
       document.getElementById('resta').innerHTML = !v ? '' : r > 0 ? `Depois disso ainda falta <b>${brl(r)}</b>.` : r === 0 ? 'Com isso sua parte fica quitada.' : `Isso passa <b>${brl(-r)}</b> do que falta. Fica registrado como pago a mais.`;
     };
     f.oninput = resta; resta();
     f.v.focus(); f.v.select();
-    document.getElementById('voltar').onclick = passo1;
+    document.getElementById('voltar').onclick = () => jaPaguei(g);
     f.onsubmit = async (e) => {
       e.preventDefault();
-      const v = val();
+      const v = numDe(f.v.value);
       if (!(v > 0)) return toast('Digite quanto você pagou.', true);
       const b = document.getElementById('ok'); b.disabled = true;
       const { data, error } = await sb.rpc('nx_emp_pagamento', { p_senha: senha, p_gasto: g.id, p_socio: socio, p_valor: v });
       b.disabled = false;
       if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
-      $dlg.close(); await carregar(senha); painel();
+      $dlg.close(); await recarregar();
       const r = cent(c.faltaTotal - v);
       toast(r > 0 ? `Registrado: ${socio} pagou ${brl(v)}. Ainda falta ${brl(r)}.` : `Registrado: ${socio} quitou a parte dele.`);
     };
-  };
-  passo1();
+  });
 }
-function desfazer(x) {
-  $dlg.innerHTML = `<h2>Desfazer este pagamento?</h2><p class="muted">${esc(x.socio)} · ${brl(x.valor)} em ${dataBR(x.pago_em)}. O valor volta para o que falta pagar.</p>
+// geral: quem → quanto pagou no total → o app distribui pelos gastos, dos mais antigos para os mais novos
+function distribuir(socio, valor) {
+  const hoje = hojeMes();
+  const abertos = itens
+    .map((g) => ({ g, c: contaSocio(g, socio, hoje) }))
+    .filter((x) => x.c.faltaTotal > 0)
+    .sort((a, b) => (b.c.faltaAgora > 0) - (a.c.faltaAgora > 0) || String(a.g.inicio).localeCompare(String(b.g.inicio)) || String(a.g.criado_em).localeCompare(String(b.g.criado_em)));
+  let resto = cent(valor);
+  const partes = [];
+  // primeiro o que já venceu, depois as parcelas futuras
+  for (const fase of ['faltaAgora', 'faltaTotal']) {
+    for (const x of abertos) {
+      if (resto <= 0) break;
+      const ja = partes.find((p) => p.g.id === x.g.id);
+      const cabe = cent(x.c[fase] - (ja ? ja.v : 0));
+      if (cabe <= 0) continue;
+      const v = Math.min(cabe, resto);
+      if (ja) ja.v = cent(ja.v + v); else partes.push({ g: x.g, v: cent(v) });
+      resto = cent(resto - v);
+    }
+  }
+  return { partes, sobra: resto };
+}
+function jaPagueiGeral() {
+  escolherSocio('Lançar um pagamento', 'Quem é você?', (socio) => {
+    const r = resumoSocio(socio);
+    if (r.faltaTotal <= 0) {
+      $dlg.innerHTML = `<h2>${socio} está com tudo quitado</h2><p class="muted">Não há nada em aberto na parte de ${socio}.</p><button class="btn block" id="ok" style="margin-top:12px">Fechar</button>`;
+      document.getElementById('ok').onclick = () => $dlg.close();
+      return;
+    }
+    $dlg.innerHTML = `<p class="eyebrow">Já paguei · ${socio}</p><h2 style="margin:4px 0 6px">Quanto você pagou?</h2>
+      <p class="muted" style="margin:0 0 12px">${r.faltaAgora > 0 ? `Vencido até este mês: <b>${brl(r.faltaAgora)}</b>.` : 'Nada vencido.'} No total, com as parcelas futuras: <b>${brl(r.faltaTotal)}</b>. O app distribui o valor pelos gastos, primeiro o que já venceu, dos mais antigos para os mais novos.</p>
+      <form id="fp"><label class="f"><span>Valor pago</span><input class="in" name="v" inputmode="decimal" required placeholder="0,00" value="${(r.faltaAgora > 0 ? r.faltaAgora : r.faltaTotal).toFixed(2).replace('.', ',')}"></label>
+      <div class="dist" id="dist"></div>
+      <div class="grid2" style="margin-top:14px"><button type="button" class="btn ghost" id="voltar">Voltar</button><button class="btn" id="ok">Salvar</button></div></form>`;
+    const f = document.getElementById('fp');
+    const ver = () => {
+      const v = numDe(f.v.value);
+      const d = distribuir(socio, v);
+      document.getElementById('dist').innerHTML = !v ? '' : d.partes.map((p) => `<div><span>${esc(p.g.descricao)}</span><b>${brl(p.v)}</b></div>`).join('') + (d.sobra > 0 ? `<p class="small" style="color:var(--warn);margin:4px 0 0">Sobram ${brl(d.sobra)}: é mais do que a parte de ${socio} em tudo. Confira o valor.</p>` : '');
+    };
+    f.oninput = ver; ver();
+    f.v.focus(); f.v.select();
+    document.getElementById('voltar').onclick = jaPagueiGeral;
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const v = numDe(f.v.value);
+      if (!(v > 0)) return toast('Digite quanto você pagou.', true);
+      const d = distribuir(socio, v);
+      if (d.sobra > 0) return toast(`O valor passa ${brl(d.sobra)} da parte de ${socio}. Confira.`, true);
+      const b = document.getElementById('ok'); b.disabled = true;
+      for (const p of d.partes) {
+        const { data, error } = await sb.rpc('nx_emp_pagamento', { p_senha: senha, p_gasto: p.g.id, p_socio: socio, p_valor: p.v });
+        if (error || !data || data.erro) { b.disabled = false; await recarregar(); return toast('Parte do pagamento não foi salva. Confira em Pagamentos.', true); }
+      }
+      $dlg.close(); await recarregar();
+      toast(`Registrado: ${socio} pagou ${brl(v)} em ${d.partes.length} gasto${d.partes.length > 1 ? 's' : ''}.`);
+    };
+  });
+}
+function desfazer(x, depois) {
+  if (!x) return;
+  const nome = (itens.find((g) => g.id === x.gasto_id) || {}).descricao || '';
+  $dlg.innerHTML = `<h2>Desfazer este pagamento?</h2><p class="muted">${esc(x.socio)} · ${brl(x.valor)} em ${dataBR(x.pago_em)}${nome ? ` · ${esc(nome)}` : ''}. O valor volta para o que falta pagar.</p>
     <div class="grid2" style="margin-top:16px"><button class="btn ghost" id="nao">Cancelar</button><button class="btn" id="sim">Desfazer</button></div>`;
-  $dlg.showModal();
-  document.getElementById('nao').onclick = () => $dlg.close();
+  if (!$dlg.open) $dlg.showModal();
+  $dlg.onclick = null;
+  document.getElementById('nao').onclick = () => (depois ? depois() : $dlg.close());
   document.getElementById('sim').onclick = async () => {
     const { data, error } = await sb.rpc('nx_emp_desfazer_pagamento', { p_senha: senha, p_id: x.id });
     if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
-    $dlg.close(); await carregar(senha); painel(); toast('Pagamento desfeito.');
-  };
-}
-function apagar(g) {
-  $dlg.innerHTML = `<h2>Apagar "${esc(g.descricao)}"?</h2><p class="muted">O gasto e as parcelas dele saem das contas. Não dá para desfazer.</p>
-    <div class="grid2" style="margin-top:16px"><button class="btn ghost" id="nao">Cancelar</button><button class="btn" id="sim" style="background:var(--err)">Apagar</button></div>`;
-  $dlg.showModal();
-  document.getElementById('nao').onclick = () => $dlg.close();
-  document.getElementById('sim').onclick = async () => {
-    const { data, error } = await sb.rpc('nx_emp_apagar', { p_senha: senha, p_id: g.id });
-    if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
-    $dlg.close(); await carregar(senha); painel(); toast('Gasto apagado.');
+    await recarregar(); toast('Pagamento desfeito.');
+    if (depois) depois(); else $dlg.close();
   };
 }
 iniciar();
