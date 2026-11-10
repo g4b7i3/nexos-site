@@ -1045,7 +1045,11 @@ async function alunoHoje() {
       })
       .catch(() => {});
   momentosHoje(document.getElementById('momentos'), perfC, provaProx).catch((e) => console.error(e));
-  if (fC) calorHoje(document.getElementById('calor-hoje'), corrDoDia[0]);
+  // a leitura do tempo sugere o treino só enquanto ele não foi feito; com todas as corridas do dia feitas, não sugere mais
+  if (fC) {
+    const corrPend = corrDoDia.filter((p) => !corrSem.find((c) => c.plano_id === p.id));
+    calorHoje(document.getElementById('calor-hoje'), corrPend[0], corrDoDia.length > 0 && !corrPend.length);
+  }
   convidarTour();
   if (fC)
     processarTestes(S.me)
@@ -1604,7 +1608,7 @@ const CALOR_LEITURA = {
   extremo: () =>
     'Calor muito alto. Treino forte fica melhor em outro horário ou outro dia; se for correr, que seja leve e curto. Se tiver dúvida, fale com o seu treinador.',
 };
-function calorCardHTML(loc, prev, treino) {
+function calorCardHTML(loc, prev, treino, feito) {
   const horas = prev.horas;
   const cat = categoriaCalor(loc.lat);
   // dia de hoje na cidade (a previsão começa à meia-noite de lá)
@@ -1650,7 +1654,7 @@ function calorCardHTML(loc, prev, treino) {
   // a leitura parte do melhor horário que ainda dá para treinar (é quando a pessoa deve correr)
   const nvLeitura = resto.length ? nvM : nv;
   if (store.get('nx-calor-oculto', '') === hojeL)
-    return `<div class="card calor-card calor-${nv.k} cal-mini"><div class="grow" style="min-width:0"><span class="eyebrow">Leitura do tempo · ${esc(cidade)}</span><b>${prev.velho ? 'Ainda não atualizada · ' : ''}${nv.nome} agora${resto.length ? ` · melhor horário ${hh(melhor)}` : ''}</b></div><button type="button" class="link-btn small" data-cal-tg="mostrar">Mostrar</button></div>`;
+    return `<div class="card calor-card calor-${nv.k} cal-mini"><div class="grow" style="min-width:0"><span class="eyebrow">Leitura do tempo · ${esc(cidade)}</span><b>${prev.velho ? 'Ainda não atualizada · ' : ''}${nv.nome} agora${resto.length && !feito ? ` · melhor horário ${hh(melhor)}` : feito ? ' · treino de hoje feito' : ''}</b></div><button type="button" class="link-btn small" data-cal-tg="mostrar">Mostrar</button></div>`;
   const barras = janela
     .map((x) => {
       const n = nivelCalor(x.w, cat),
@@ -1679,9 +1683,9 @@ function calorCardHTML(loc, prev, treino) {
     <div class="cal-main"><div class="cal-sel cal-${nv.k}"><small>Calor agora</small><b>${nv.nome}</b></div>
       <div class="cal-num"><div><span>Temperatura</span><b>${Math.round(agora.temp)}°</b></div><div><span>Sensação</span><b>${Math.round(agora.sens)}°</b></div><div><span>Umidade</span><b>${Math.round(agora.ur)}%</b></div></div></div>
     <p class="cal-chuva${chuvaAgora ? ' on' : ''}">${linhaChuva}</p>
-    ${resto.length ? `<p class="cal-melhor">Melhor horário para correr hoje: <b>${hh(melhor)}</b> (${nvM.nome.toLowerCase()})</p>` : '<p class="cal-melhor">Amanhã cedo costuma ser o horário mais fresco.</p>'}
+    ${feito ? '' : resto.length ? `<p class="cal-melhor">Melhor horário para correr hoje: <b>${hh(melhor)}</b> (${nvM.nome.toLowerCase()})</p>` : '<p class="cal-melhor">Amanhã cedo costuma ser o horário mais fresco.</p>'}
     <div class="cal-graf" aria-label="Calor por hora, das 5h às 20h">${barras}</div>
-    <p class="small cal-dica">${treino ? `<b>${esc(treino.titulo || 'Treino de hoje')}:</b> ` : ''}${CALOR_LEITURA[nvLeitura.k](guiaCalor())}${dicaChuva}${avisoTreino}</p>
+    <p class="small cal-dica">${feito ? '<b>Treino de hoje feito.</b> Beba água ao longo do dia para repor o que perdeu no treino.' : `${treino ? `<b>${esc(treino.titulo || 'Treino de hoje')}:</b> ` : ''}${CALOR_LEITURA[nvLeitura.k](guiaCalor())}${dicaChuva}${avisoTreino}`}</p>
     <details class="cal-mais"><summary>Ver mais</summary>
       <div class="cal-det" style="margin-top:8px"><div><span>Índice de calor</span><b>${f1(agora.w)}°</b></div><div><span>Índice UV</span><b>${agora.uv != null ? f1(agora.uv) : '–'}</b></div><div><span>Vento</span><b>${agora.vento != null ? Math.round(agora.vento) + ' km/h' : '–'}</b></div></div>
       <p class="sec-lbl">No calor</p><ul class="cal-lista"><li>Beba água ao longo do dia e leve água em treinos de mais de 1 hora.</li><li>Roupa clara e leve; boné e protetor solar se houver sol.</li><li>Tontura, náusea, dor de cabeça forte ou arrepio no calor: pare, vá para a sombra e se refresque.</li><li>Teste da fala: no treino leve dá para conversar em frases inteiras. Se só sai uma palavra por vez, o esforço está alto demais para o calor.</li><li>O corpo se adapta ao calor em cerca de 10 a 14 dias treinando nele. Se você viajou de um lugar mais frio, vá com mais calma.</li></ul>
@@ -1689,23 +1693,23 @@ function calorCardHTML(loc, prev, treino) {
       <div class="cal-cidade"><div class="grow" style="min-width:0"><span class="tiny dim">Cidade da leitura</span><b class="ellip" style="display:block">${esc(cidade)}</b><span class="tiny dim">${loc.origem === 'celular' ? 'Pela localização do celular' : loc.origem === 'corrida' ? 'Pela sua última corrida com GPS' : 'Padrão, até a sua primeira corrida com GPS'}</span></div><button type="button" class="btn ghost sm" data-cal-loc="trocar">Trocar</button></div>
     </details></div>`;
 }
-async function calorHoje(el, treino) {
+async function calorHoje(el, treino, feito) {
   if (!el) return;
   let loc = null;
   try {
     loc = await localCalor();
     const prev = await previsaoCalor(loc);
     if (!document.body.contains(el)) return;
-    el.innerHTML = calorCardHTML(loc, prev, treino);
+    el.innerHTML = calorCardHTML(loc, prev, treino, feito);
     el.onclick = (e) => {
       const tg = e.target.closest('[data-cal-tg]');
       if (tg) {
         store.set('nx-calor-oculto', tg.dataset.calTg === 'ocultar' ? (prev.horas[0] || { t: '' }).t.slice(0, 10) : '');
-        el.innerHTML = calorCardHTML(loc, prev, treino);
+        el.innerHTML = calorCardHTML(loc, prev, treino, feito);
         return;
       }
       const lb = e.target.closest('[data-cal-loc]');
-      if (lb) trocarCidadeCalor(loc, () => calorHoje(el, treino));
+      if (lb) trocarCidadeCalor(loc, () => calorHoje(el, treino, feito));
     };
   } catch {
     // sem previsão nenhuma: o aluno vê que não atualizou (em vez do card sumir) e pode tentar de novo
@@ -1717,7 +1721,7 @@ async function calorHoje(el, treino) {
           .filter((k) => k.startsWith('nx-calor'))
           .forEach((k) => sessionStorage.removeItem(k));
       } catch {}
-      calorHoje(el, treino);
+      calorHoje(el, treino, feito);
     };
   }
 }
