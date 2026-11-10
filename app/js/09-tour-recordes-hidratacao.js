@@ -1391,8 +1391,12 @@ function constanciaHTML(datas, titulo = 'Sua constância') {
      Bulbo úmido pela fórmula de Stull (2011); o globo soma o efeito do sol pela radiação prevista da hora.
    - Faixas pela adaptação de quem vive na região (Grundstein et al. 2015, guias regionais de WBGT usados no esporte):
      quem mora em lugar quente e úmido, como São Luís, está adaptado e tem limites mais altos que quem mora em BH.
-   - Cidade: a que o aluno escolheu ou a do início da última corrida com GPS (o banco acha o município do IBGE);
-     para o serviço de clima vai só o centro do município, nunca o ponto da corrida. Previsão do Open-Meteo. */
+   - Lugar: a cidade do celular ou a do início da última corrida com GPS (o banco acha o município do IBGE).
+     A previsão é pedida para um ponto arredondado a cerca de 1 km de onde a pessoa está ou corre (assim a altitude
+     fica certa, e o local exato nunca sai do aparelho/banco); sem esse ponto, vale o centro do município.
+   - Previsão: a média de 4 modelos do Open-Meteo (o padrão, o europeu ECMWF, o americano GFS e o alemão ICON).
+     A média de vários modelos erra menos que qualquer um sozinho; a chuva vem da chance média e de quantos modelos
+     preveem chuva na hora. */
 const CALOR_PADRAO = { nome: 'São Luís', uf: 'MA', lat: -2.53874, lon: -44.2825, origem: 'padrao' };
 /* calor:puro:inicio (conferido pelo teste automático scripts/testes/calor.test.js antes de cada publicação) */
 const CALOR_NIVEIS = [
@@ -1429,6 +1433,33 @@ function wbgtDe(t, ur, sol) {
   const tg = t + Math.min(12, Math.max(0, sol || 0) * 0.0125); // globo: o sol esquenta o corpo além do ar
   return 0.7 * tw + 0.2 * tg + 0.1 * t;
 }
+const CALOR_MODELOS = ['best_match', 'ecmwf_ifs025', 'gfs_seamless', 'icon_seamless'];
+// média dos modelos que têm o valor naquela hora (null se nenhum tem)
+function mediaModelos(h, chave, i) {
+  const vs = CALOR_MODELOS.map((m) => (h[`${chave}_${m}`] || [])[i]).filter((v) => v != null && isFinite(v));
+  if (!vs.length && h[chave] && h[chave][i] != null) return +h[chave][i];
+  return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
+}
+// condição da hora: chuva quando pelo menos 2 modelos preveem 0,1 mm ou mais; senão, pelas nuvens
+function condicaoHora(h, i) {
+  const chuvas = CALOR_MODELOS.map((m) => (h[`precipitation_${m}`] || [])[i]).filter((v) => v != null && isFinite(v));
+  const codes = CALOR_MODELOS.map((m) => (h[`weather_code_${m}`] || [])[i]).filter((v) => v != null);
+  const comChuva = chuvas.filter((v) => v >= 0.1);
+  const raios = codes.filter((c) => c >= 95).length >= 2;
+  if (comChuva.length >= 2) {
+    const mm = comChuva.reduce((a, b) => a + b, 0) / comChuva.length;
+    return {
+      k: 'chuva',
+      nome: raios ? 'Chuva com raios' : mm < 0.5 ? 'Garoa' : mm < 2.5 ? 'Chuva' : 'Chuva forte',
+      mm,
+    };
+  }
+  const nuv = mediaModelos(h, 'cloud_cover', i);
+  if (nuv == null) return { k: 'seco', nome: '' };
+  return { k: 'seco', nome: nuv < 25 ? 'Céu limpo' : nuv < 70 ? 'Parcialmente nublado' : 'Nublado' };
+}
+// valor de agora entre duas horas (a previsão é de hora em hora)
+const entreHoras = (a, b, frac) => (a == null ? b : b == null ? a : a + (b - a) * frac);
 /* calor:puro:fim */
 // posição do celular agora (só para achar a cidade; o ponto não é guardado)
 const posicaoCelular = (pedir) =>
@@ -1443,8 +1474,9 @@ const posicaoCelular = (pedir) =>
 async function localCalor() {
   const modo = (S.me && S.me.local_clima && S.me.local_clima.modo) || 'auto';
   let data = null;
+  let c = null;
   if (modo === 'celular') {
-    const c = await posicaoCelular(false);
+    c = await posicaoCelular(false);
     ({ data } = await sb
       .rpc('nx_local_clima_modo', { p_modo: 'celular', p_lat: c ? c.latitude : null, p_lon: c ? c.longitude : null })
       .then(
@@ -1456,33 +1488,41 @@ async function localCalor() {
       (r) => r,
       () => ({ data: null }),
     ));
+  if (data && c && !data.fora) data = { ...data, ponto: [+c.latitude.toFixed(2), +c.longitude.toFixed(2)] };
   return data && data.lat != null ? data : { ...CALOR_PADRAO, modo };
 }
+// ponto da previsão: o aproximado (cerca de 1 km) de onde a pessoa está ou corre; senão o centro do município
+const pontoCalor = (loc) =>
+  Array.isArray(loc.ponto) && loc.ponto.length === 2 && isFinite(loc.ponto[0]) ? loc.ponto : [loc.lat, loc.lon];
 // previsão da cidade; se o serviço do tempo falhar, usa a última previsão boa (até 30 h) e avisa que não está atualizada
 async function previsaoCalor(loc) {
-  const chave = `${loc.lat},${loc.lon}`;
-  const ch = `nx-calor-${chave}-${new Date().toISOString().slice(0, 13)}`;
+  const [plat, plon] = pontoCalor(loc);
+  const chave = `${plat},${plon}`;
+  const ch = `nx-calor2-${chave}-${new Date().toISOString().slice(0, 13)}`;
   try {
     const c = JSON.parse(sessionStorage.getItem(ch) || 'null');
     if (c && c.horas) return c;
   } catch {}
   try {
     const r = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,uv_index,wind_speed_10m,shortwave_radiation&forecast_days=2&timezone=auto`,
+      `https://api.open-meteo.com/v1/forecast?latitude=${plat}&longitude=${plon}&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,uv_index,wind_speed_10m,shortwave_radiation,precipitation,precipitation_probability,weather_code,cloud_cover&models=${CALOR_MODELOS.join(',')}&forecast_days=2&timezone=auto`,
     );
     if (!r.ok) throw new Error('Leitura do tempo: o serviço do tempo respondeu ' + r.status);
     const h = (await r.json()).hourly || {};
     const horas = (h.time || []).map((t, i) => {
-      const temp = h.temperature_2m[i],
-        ur = h.relative_humidity_2m[i];
+      const temp = mediaModelos(h, 'temperature_2m', i),
+        ur = mediaModelos(h, 'relative_humidity_2m', i);
+      const prob = mediaModelos(h, 'precipitation_probability', i);
       return {
         t, // hora local da cidade, "AAAA-MM-DDTHH:00"
         temp,
         ur,
-        sens: h.apparent_temperature[i],
-        uv: h.uv_index[i],
-        vento: h.wind_speed_10m[i],
-        w: temp != null && ur != null ? wbgtDe(temp, ur, (h.shortwave_radiation || [])[i]) : null,
+        sens: mediaModelos(h, 'apparent_temperature', i),
+        uv: mediaModelos(h, 'uv_index', i),
+        vento: mediaModelos(h, 'wind_speed_10m', i),
+        prob: prob == null ? null : Math.round(prob),
+        cond: condicaoHora(h, i),
+        w: temp != null && ur != null ? wbgtDe(temp, ur, mediaModelos(h, 'shortwave_radiation', i)) : null,
       };
     });
     // confere se os dados fazem sentido antes de mostrar
@@ -1492,13 +1532,13 @@ async function previsaoCalor(loc) {
     const res = { horas, em: new Date().toISOString() };
     try {
       sessionStorage.setItem(ch, JSON.stringify(res));
-      localStorage.setItem('nx-calor-ultimo', JSON.stringify({ chave, ...res }));
+      localStorage.setItem('nx-calor-ultimo2', JSON.stringify({ chave, ...res }));
     } catch {}
     return res;
   } catch (e) {
     if (!/Failed to fetch|NetworkError|Load failed/i.test(e.message || '')) reportarErro(e, 'Leitura do tempo');
     try {
-      const u = JSON.parse(localStorage.getItem('nx-calor-ultimo') || 'null');
+      const u = JSON.parse(localStorage.getItem('nx-calor-ultimo2') || 'null');
       if (u && u.chave === chave && Date.now() - new Date(u.em).getTime() < 30 * 3600e3)
         return { horas: u.horas, em: u.em, velho: true };
     } catch {}
@@ -1544,11 +1584,31 @@ function calorCardHTML(loc, prev, treino) {
   const hora = (x) => +x.t.slice(11, 13);
   const doDia = horas.filter((x) => x.t.slice(0, 10) === hojeL && x.w != null);
   const janela = doDia.filter((x) => hora(x) >= 5 && hora(x) <= 20);
-  const agora = doDia.find((x) => hora(x) === agoraH) || janela[0];
-  if (!agora) return '';
+  const agora0 = doDia.find((x) => hora(x) === agoraH) || janela[0];
+  if (!agora0) return '';
+  // agora de verdade: entre esta hora e a próxima, pelos minutos
+  const prox = doDia.find((x) => hora(x) === hora(agora0) + 1);
+  const frac = hora(agora0) === agoraH ? new Date().getMinutes() / 60 : 0;
+  const agora = prox
+    ? {
+        ...agora0,
+        temp: entreHoras(agora0.temp, prox.temp, frac),
+        sens: entreHoras(agora0.sens, prox.sens, frac),
+        ur: entreHoras(agora0.ur, prox.ur, frac),
+        w: entreHoras(agora0.w, prox.w, frac),
+      }
+    : agora0;
   const resto = janela.filter((x) => hora(x) >= agoraH);
   const base = resto.length ? resto : janela;
-  const melhor = base.reduce((a, b) => (b.w < a.w ? b : a));
+  // melhor horário: o menos quente; entre horários do mesmo nível, o sem chuva e com menos chance de chuva
+  const idxN = (x) => CALOR_NIVEIS.indexOf(nivelCalor(x.w, cat));
+  const nMin = Math.min(...base.map(idxN));
+  const nota = (x) => [x.cond && x.cond.k === 'chuva' ? 1 : 0, x.prob ?? 0, x.w];
+  const antes = (a, b) => {
+    const [na, nb] = [nota(a), nota(b)];
+    return na[0] - nb[0] || na[1] - nb[1] || na[2] - nb[2];
+  };
+  const melhor = base.filter((x) => idxN(x) === nMin).reduce((a, b) => (antes(b, a) < 0 ? b : a));
   const nv = nivelCalor(agora.w, cat),
     nvM = nivelCalor(melhor.w, cat);
   const hh = (x) => `${hora(x)}h`;
@@ -1562,9 +1622,22 @@ function calorCardHTML(loc, prev, treino) {
     .map((x) => {
       const n = nivelCalor(x.w, cat),
         h = hora(x);
-      return `<div class="cal-h${h === agoraH ? ' ag' : ''}${h < agoraH ? ' pas' : ''}"><i class="cal-${n.k}" style="height:${Math.max(16, Math.min(100, ((x.w - 18) / 17) * 100))}%"></i><span>${h % 3 === 2 ? h + 'h' : ''}</span></div>`;
+      const chove = (x.cond && x.cond.k === 'chuva') || (x.prob != null && x.prob >= 60);
+      return `<div class="cal-h${h === agoraH ? ' ag' : ''}${h < agoraH ? ' pas' : ''}">${chove ? '<em class="cal-gota" aria-label="chuva"></em>' : ''}<i class="cal-${n.k}" style="height:${Math.max(16, Math.min(100, ((x.w - 18) / 17) * 100))}%"></i><span>${h % 3 === 2 ? h + 'h' : ''}</span></div>`;
     })
     .join('');
+  // chuva: o que está acontecendo agora e quando melhora (só informa, sem alarme)
+  const condA = agora0.cond || { k: 'seco', nome: '' };
+  const chuvaAgora = condA.k === 'chuva';
+  const proxChuva = resto.find((x) => x !== agora0 && x.cond && x.cond.k === 'chuva');
+  const fimChuva = chuvaAgora ? resto.find((x) => hora(x) > agoraH && !(x.cond && x.cond.k === 'chuva')) : null;
+  const linhaChuva = chuvaAgora
+    ? `${condA.nome} agora${fimChuva ? `, deve parar perto das ${hh(fimChuva)}` : ''}.`
+    : `${condA.nome || 'Sem chuva agora'}${agora0.prob != null ? ` · chance de chuva ${agora0.prob}%` : ''}${proxChuva ? ` · chuva prevista perto das ${hh(proxChuva)}` : ''}.`;
+  const dicaChuva =
+    chuvaAgora || (melhor.cond && melhor.cond.k === 'chuva')
+      ? ' Com chuva, o chão fica escorregadio: cuidado nas descidas, faixas pintadas e tampas de bueiro. Se tiver raio, espere passar.'
+      : '';
   const avisoTreino =
     forte && ['alto', 'extremo'].includes(nvLeitura.k)
       ? ` É um treino forte num dia de calor alto: faça no horário mais fresco e ${guiaCalor().acao}.`
@@ -1572,13 +1645,14 @@ function calorCardHTML(loc, prev, treino) {
   return `<div class="card calor-card calor-${nv.k}"><div class="cal-top"><span class="eyebrow">Leitura do tempo · ${esc(cidade)}</span><button type="button" class="link-btn small" data-cal-tg="ocultar">Ocultar</button></div>${aviso}
     <div class="cal-main"><div class="cal-sel cal-${nv.k}"><small>Calor agora</small><b>${nv.nome}</b></div>
       <div class="cal-num"><div><span>Temperatura</span><b>${Math.round(agora.temp)}°</b></div><div><span>Sensação</span><b>${Math.round(agora.sens)}°</b></div><div><span>Umidade</span><b>${Math.round(agora.ur)}%</b></div></div></div>
+    <p class="cal-chuva${chuvaAgora ? ' on' : ''}">${linhaChuva}</p>
     ${resto.length ? `<p class="cal-melhor">Melhor horário para correr hoje: <b>${hh(melhor)}</b> (${nvM.nome.toLowerCase()})</p>` : '<p class="cal-melhor">Amanhã cedo costuma ser o horário mais fresco.</p>'}
     <div class="cal-graf" aria-label="Calor por hora, das 5h às 20h">${barras}</div>
-    <p class="small cal-dica">${treino ? `<b>${esc(treino.titulo || 'Treino de hoje')}:</b> ` : ''}${CALOR_LEITURA[nvLeitura.k](guiaCalor())}${avisoTreino}</p>
+    <p class="small cal-dica">${treino ? `<b>${esc(treino.titulo || 'Treino de hoje')}:</b> ` : ''}${CALOR_LEITURA[nvLeitura.k](guiaCalor())}${dicaChuva}${avisoTreino}</p>
     <details class="cal-mais"><summary>Ver mais</summary>
       <div class="cal-det" style="margin-top:8px"><div><span>Índice de calor</span><b>${f1(agora.w)}°</b></div><div><span>Índice UV</span><b>${agora.uv != null ? f1(agora.uv) : '–'}</b></div><div><span>Vento</span><b>${agora.vento != null ? Math.round(agora.vento) + ' km/h' : '–'}</b></div></div>
       <p class="sec-lbl">No calor</p><ul class="cal-lista"><li>Beba água ao longo do dia e leve água em treinos de mais de 1 hora.</li><li>Roupa clara e leve; boné e protetor solar se houver sol.</li><li>Tontura, náusea, dor de cabeça forte ou arrepio no calor: pare, vá para a sombra e se refresque.</li><li>Teste da fala: no treino leve dá para conversar em frases inteiras. Se só sai uma palavra por vez, o esforço está alto demais para o calor.</li><li>O corpo se adapta ao calor em cerca de 10 a 14 dias treinando nele. Se você viajou de um lugar mais frio, vá com mais calma.</li></ul>
-      <p class="sec-lbl">Como é feita esta leitura</p><p class="tiny dim">O índice de calor estima o WBGT, a medida usada no esporte, a partir da temperatura, da umidade e do sol previstos para cada hora. Os níveis levam em conta que quem mora na região já está adaptado ao clima dela (guias regionais de calor para o esporte, Grundstein e colegas, 2015). Só a cidade é usada, nunca o local exato da corrida ou do celular. Previsão ${prev.velho ? 'de' : 'atualizada às'} ${hm(prev.em)}. Previsão do Open-Meteo.</p>
+      <p class="sec-lbl">Como é feita esta leitura</p><p class="tiny dim">O índice de calor estima o WBGT, a medida usada no esporte, a partir da temperatura, da umidade e do sol previstos para cada hora. Os níveis levam em conta que quem mora na região já está adaptado ao clima dela (guias regionais de calor para o esporte, Grundstein e colegas, 2015). A previsão é a média de 4 modelos meteorológicos (o padrão do Open-Meteo, o europeu, o americano e o alemão), que erra menos que um só. É calculada para um ponto arredondado a cerca de 1 km de onde você ${loc.origem === 'celular' ? 'está' : 'corre'}, para pegar a altitude certa, nunca o local exato. Previsão ${prev.velho ? 'de' : 'atualizada às'} ${hm(prev.em)}.</p>
       <div class="cal-cidade"><div class="grow" style="min-width:0"><span class="tiny dim">Cidade da leitura</span><b class="ellip" style="display:block">${esc(cidade)}</b><span class="tiny dim">${loc.origem === 'celular' ? 'Pela localização do celular' : loc.origem === 'corrida' ? 'Pela sua última corrida com GPS' : 'Padrão, até a sua primeira corrida com GPS'}</span></div><button type="button" class="btn ghost sm" data-cal-loc="trocar">Trocar</button></div>
     </details></div>`;
 }
@@ -1607,7 +1681,7 @@ async function calorHoje(el, treino) {
     document.getElementById('cal-tenta').onclick = () => {
       try {
         Object.keys(sessionStorage)
-          .filter((k) => k.startsWith('nx-calor-'))
+          .filter((k) => k.startsWith('nx-calor'))
           .forEach((k) => sessionStorage.removeItem(k));
       } catch {}
       calorHoje(el, treino);
@@ -1624,7 +1698,7 @@ function trocarCidadeCalor(loc, depois) {
       <label class="list-item cal-op"><input type="radio" name="cal-modo" value="auto" ${modo !== 'celular' ? 'checked' : ''}><div class="grow"><b>Automático, pela última corrida</b><div class="small muted">Usa a cidade da corrida com GPS mais recente. Bom para quem corre sempre no mesmo lugar.</div></div></label>
       <label class="list-item cal-op"><input type="radio" name="cal-modo" value="celular" ${modo === 'celular' ? 'checked' : ''}><div class="grow"><b>Pela localização do celular</b><div class="small muted">Usa a cidade onde você está ao abrir o app, mesmo antes de correr. Bom para quem viaja. Vale também fora do Brasil.</div></div></label>
     </div>
-    <p class="tiny dim" style="margin-top:10px">Nos dois casos vale a informação mais recente, e só a cidade é usada, nunca o ponto exato.</p>
+    <p class="tiny dim" style="margin-top:10px">Nos dois casos vale a informação mais recente. A previsão usa um ponto arredondado a cerca de 1 km, nunca o local exato.</p>
     <button class="btn block" id="cal-salvar" style="margin-top:14px">Salvar</button>`,
     () => {
       document.getElementById('cal-salvar').onclick = async (e) => {

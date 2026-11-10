@@ -3416,3 +3416,8 @@ body.em-video{overflow:hidden}
 /* planilha do aluno: atalhos */
 .ph-acoes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
 .ph-acoes .tag svg{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
+/* leitura do tempo: chuva */
+.cal-chuva{margin-top:8px;font-size:.86rem;color:var(--mute)}
+.cal-chuva::before{content:'';display:inline-block;width:8px;height:10px;margin-right:6px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#4a90d9;vertical-align:-1px;opacity:.55}
+.cal-chuva.on{color:var(--ink)}.cal-chuva.on::before{opacity:1}
+.cal-gota{display:block;flex:none;margin-bottom:3px;width:6px;height:8px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#4a90d9}
