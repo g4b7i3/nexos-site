@@ -124,40 +124,6 @@ function flowCanvas(cv, opts = {}) {
   frame();
 }
 
-/* telemetria ao vivo: alterna Corrida / Musculação */
-const tele = { mode: 'run', s: 312, b: 148, c: 172, kg: 80, set: 1, rpe: 7 };
-const TELE_LBL = {
-  run: [['PACE', 'min/km'], ['FC', 'bpm'], ['CADÊNCIA', 'ppm']],
-  gym: [['CARGA', 'kg'], ['SÉRIE', 'de 4'], ['RPE', '/10']],
-};
-function teleTick() {
-  if (tele.mode === 'run') {
-    tele.s = Math.max(285, Math.min(340, tele.s + (Math.random() * 8 - 4)));
-    tele.b = Math.max(138, Math.min(166, tele.b + Math.round(Math.random() * 4 - 2)));
-    tele.c = Math.max(166, Math.min(182, tele.c + Math.round(Math.random() * 2 - 1)));
-    $('#t1').textContent = `${Math.floor(tele.s / 60)}:${String(Math.round(tele.s % 60)).padStart(2, '0')}`;
-    $('#t2').textContent = tele.b; $('#t3').textContent = tele.c;
-  } else {
-    if (Math.random() < .35) { tele.set = tele.set % 4 + 1; if (tele.set === 1) tele.kg = tele.kg >= 100 ? 80 : tele.kg + 2.5; }
-    tele.rpe = Math.min(10, 6 + tele.set * .8 + (tele.kg - 80) / 20);
-    $('#t1').textContent = tele.kg.toLocaleString('pt-BR');
-    $('#t2').textContent = tele.set;
-    $('#t3').textContent = tele.rpe.toFixed(1).replace('.', ',');
-  }
-}
-function setMode(m) {
-  tele.mode = m;
-  $$('#mode button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
-  $('#mode').classList.toggle('gym', m === 'gym');
-  TELE_LBL[m].forEach(([l, u], i) => { $('#t' + (i + 1) + 'l').textContent = l; $('#t' + (i + 1) + 'u').textContent = u; });
-  const t = $('#telemetry'); t.classList.remove('flip'); void t.offsetWidth; t.classList.add('flip');
-  teleTick();
-}
-$$('#mode button').forEach(b => b.addEventListener('click', () => { clearInterval(tele.auto); setMode(b.dataset.mode); }));
-setInterval(teleTick, 1100);
-// alterna sozinho entre corrida e musculação até a pessoa tocar
-tele.auto = setInterval(() => setMode(tele.mode === 'run' ? 'gym' : 'run'), 7000);
-
 /* ---------- TABS ---------- */
 const ink = $('#tab-ink');
 function moveInk(btn) { ink.style.left = btn.offsetLeft + 'px'; ink.style.width = btn.offsetWidth + 'px'; }
@@ -198,54 +164,6 @@ function updateSteps() {
   if (innerWidth <= 760) { fill.style.height = p * 100 + '%'; fill.style.width = '100%'; }
   else { fill.style.width = p * 100 + '%'; fill.style.height = '100%'; }
 }
-
-/* ---------- LAB: pace + Riegel ---------- */
-let distKm = 5;
-const fmt = sec => {
-  sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
-  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
-};
-function calc() {
-  const tot = (+$('#t-h').value || 0) * 3600 + (+$('#t-m').value || 0) * 60 + (+$('#t-s').value || 0);
-  if (!tot) return;
-  $('#pace-out').textContent = fmt(tot / distKm);
-  const ds = [[5, '5K'], [10, '10K'], [21.0975, '21K'], [42.195, '42K']];
-  const preds = ds.map(([d, l]) => [l, tot * Math.pow(d / distKm, 1.06), d]);
-  const max = preds[3][1];
-  $('#pred').innerHTML = preds.map(([l, t, d]) =>
-    `<div class="pred-row ${d === distKm ? 'cur' : ''}"><span>${l}</span><div class="pred-bar"><i style="width:${t / max * 100}%"></i></div><b>${fmt(t)}</b></div>`).join('');
-}
-$$('#dist-seg button').forEach(b => b.addEventListener('click', () => {
-  $$('#dist-seg button').forEach(x => x.classList.toggle('on', x === b)); distKm = +b.dataset.km; calc();
-}));
-['#t-h', '#t-m', '#t-s'].forEach(id => $(id).addEventListener('input', calc));
-calc();
-
-/* troca de ferramenta do Lab */
-$$('#lab-switch button').forEach(b => b.addEventListener('click', () => {
-  $$('#lab-switch button').forEach(x => x.classList.toggle('on', x === b));
-  $$('.lab-pane').forEach(p => { const on = p.dataset.pane === b.dataset.lab; p.classList.toggle('on', on); if (on) p.classList.add('in'); });
-}));
-
-/* calculadora de carga (Epley) */
-const ZONES = [
-  ['Força', '85–90%', '3–5 reps', .85, .90],
-  ['Hipertrofia', '70–80%', '6–12 reps', .70, .80],
-  ['Resistência', '55–65%', '15+ reps', .55, .65],
-];
-const r25 = v => Math.round(v / 2.5) * 2.5;
-const kgf = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-function calcRM() {
-  const w = +$('#rm-w').value || 0, r = +$('#rm-r').value;
-  $('#rm-rv').textContent = r;
-  if (!w) return;
-  const rm = r === 1 ? w : w * (1 + r / 30);
-  $('#rm-out').textContent = kgf(r25(rm));
-  $('#zones').innerHTML = ZONES.map(([n, pct, reps, a, b]) =>
-    `<div class="zone"><div><b>${n}</b><small>${pct} · ${reps}</small></div><div class="zone-kg mono">${kgf(r25(rm * a))}–${kgf(r25(rm * b))} kg</div><div class="zone-bar"><i style="left:${a * 100}%;width:${(b - a) * 100}%"></i></div></div>`).join('');
-}
-['#rm-w', '#rm-r'].forEach(id => $(id).addEventListener('input', calcRM));
-calcRM();
 
 /* ---------- AULA AVULSA ---------- */
 const DOW = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];

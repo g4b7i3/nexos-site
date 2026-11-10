@@ -54,10 +54,10 @@
   <nav class="links" id="links">
     <a href="#contato" class="btn btn-sm">Seja aluno</a>
     <a href="app/" class="nav-app"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Entrar como aluno</a>
+    <a href="/planos/">Planos</a>
     <a href="#modalidades">Modalidades</a>
     <a href="#metodo">Método</a>
     <a href="#treinadores">Treinadores</a>
-    <a href="#lab">Lab</a>
     <a href="#avulsa">Aula avulsa</a>
     <a href="#patrocinadores">Parceiros</a>
   </nav>
@@ -77,9 +77,20 @@
   <div class="hero-inner">
     <p class="eyebrow reveal"><span class="dot"></span>Assessoria esportiva · São Luís – MA</p>
     <h1 class="reveal"><span class="line">PERFORMANCE</span><span class="line accent">E SAÚDE.</span></h1>
+    <p class="lema reveal">Treinos personalizados para a sua vida. Na Nexos, o treino se adapta à sua rotina, e não a sua rotina ao treino.</p>
     <p class="lead reveal">Corrida, musculação online e funcional estruturado, com planejamento individual, acompanhamento de perto e dados a favor do seu progresso.</p>
+    <div class="hp reveal">
+      <div class="hp-top"><span class="hp-tit">Planos 2027 · 100% online</span><a href="/planos/" class="hp-todos">Ver todos →</a></div>
+      <div class="hp-g">
+        <a class="hp-c" href="/planos/#corrida"><small>Com Gabriel Vinícius</small><b>Corrida</b><span>a partir de <em>R$ 162</em>/mês</span></a>
+        <a class="hp-c" href="/planos/#forca"><small>Com Orlando Borges</small><b>Força</b><span>a partir de <em>R$ 171</em>/mês</span></a>
+        <a class="hp-c hp-int" href="/planos/#integral"><small>Corrida + força</small><b>Integral</b><span>a partir de <em>R$ 350</em>/mês</span></a>
+      </div>
+      <p class="hp-nota">Valores do plano anual. Os outros prazos estão na página de planos.</p>
+    </div>
     <div class="hero-cta reveal">
-      <a href="#avulsa" class="btn">Agendar aula avulsa</a>
+      <a href="/planos/" class="btn">Ver planos e preços</a>
+      <a href="#avulsa" class="btn btn-ghost">Agendar aula avulsa</a>
       <a href="/aluno" class="btn btn-ghost">Quero ser aluno →</a>
     </div>
     <a href="app/" class="hero-aluno reveal">Já é aluno? <b>Entrar como aluno →</b></a>
@@ -90,14 +101,6 @@
     <div class="fita reveal" aria-label="Também compatível com Coros, Polar, Suunto e Wahoo">
       <span class="fita-tit">Também compatível</span>
       <div class="fita-vp"><div class="fita-trilho" aria-hidden="true"><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div><div class="fita-g"><span class="fx-m"><b>Coros</b></span><i></i><span class="fx-m"><b>Polar</b></span><i></i><span class="fx-m"><b>Suunto</b></span><i></i><span class="fx-m"><b>Wahoo</b></span><i></i></div></div></div>
-    </div>
-    <div class="mode reveal" id="mode">
-      <button class="on" data-mode="run">Corrida</button><button data-mode="gym">Musculação</button><span class="mode-ink"></span>
-    </div>
-    <div class="telemetry reveal" id="telemetry">
-      <div class="tele"><small id="t1l">PACE</small><b id="t1">5:12</b><em id="t1u">min/km</em></div>
-      <div class="tele"><small id="t2l">FC</small><b id="t2">148</b><em id="t2u">bpm</em></div>
-      <div class="tele"><small id="t3l">CADÊNCIA</small><b id="t3">172</b><em id="t3u">ppm</em></div>
     </div>
   </div>
   <a href="#modalidades" class="scroll-hint" aria-label="Rolar">
@@ -259,66 +262,10 @@
   </div>
 </section>
 
-<!-- LAB -->
-<section class="section" id="lab">
-  <div class="sec-head reveal">
-    <p class="tag">04 / Nexos Lab</p>
-    <h2>Números que<br>guiam o treino.</h2>
-    <p class="sub">Calcule seu pace de corrida ou descubra a carga certa pra cada objetivo na musculação.</p>
-  </div>
-  <div class="lab-switch reveal" id="lab-switch">
-    <button class="on" data-lab="pace">Pace · Corrida</button><button data-lab="rm">Carga · Musculação</button>
-  </div>
-  <div class="lab reveal lab-pane on" data-pane="pace">
-    <div class="lab-in">
-      <label>Distância
-        <div class="seg" id="dist-seg">
-          <button data-km="5" class="on">5K</button><button data-km="10">10K</button><button data-km="21.0975">21K</button><button data-km="42.195">42K</button>
-        </div>
-      </label>
-      <label>Seu tempo
-        <div class="time-in">
-          <input type="number" id="t-h" min="0" max="9" value="0" inputmode="numeric"><span>h</span>
-          <input type="number" id="t-m" min="0" max="59" value="28" inputmode="numeric"><span>min</span>
-          <input type="number" id="t-s" min="0" max="59" value="30" inputmode="numeric"><span>s</span>
-        </div>
-      </label>
-      <div class="pace-out">
-        <small class="mono">SEU PACE MÉDIO</small>
-        <b id="pace-out">5:42</b><em>min/km</em>
-      </div>
-    </div>
-    <div class="lab-out">
-      <small class="mono">ESTIMATIVA DE PROVA</small>
-      <div class="pred" id="pred"></div>
-      <p class="note">Estimativa pela fórmula de Riegel. Serve como referência, não como promessa: o treino certo muda esse número.</p>
-    </div>
-  </div>
-  <div class="lab reveal lab-pane" data-pane="rm">
-    <div class="lab-in">
-      <label>Carga que você levantou
-        <div class="time-in"><input type="number" id="rm-w" min="1" max="500" value="60" inputmode="decimal" style="width:100px"><span>kg</span></div>
-      </label>
-      <label>Repetições completas: <output id="rm-rv" class="mono">8</output>
-        <input type="range" id="rm-r" min="1" max="12" value="8" class="range">
-      </label>
-      <div class="pace-out">
-        <small class="mono">CARGA MÁXIMA ESTIMADA (1RM)</small>
-        <b id="rm-out">76</b><em>kg</em>
-      </div>
-    </div>
-    <div class="lab-out">
-      <small class="mono">CARGA POR OBJETIVO</small>
-      <div class="zones" id="zones"></div>
-      <p class="note">Estimativa pela fórmula de Epley, mais confiável até 10 repetições. Teste de carga máxima real só com acompanhamento.</p>
-    </div>
-  </div>
-</section>
-
 <!-- AULA AVULSA -->
 <section class="section alt" id="avulsa">
   <div class="sec-head reveal">
-    <p class="tag">05 / Aula avulsa</p>
+    <p class="tag">04 / Aula avulsa</p>
     <h2>Treine com a gente<br>sem ser aluno.</h2>
     <p class="sub">Escolha o dia do funcional, garanta sua vaga e pague com Pix ou cartão.</p>
   </div>
@@ -429,7 +376,7 @@
     </div>
   </div>
   <div class="kit-txt reveal">
-    <p class="tag">06 / Vista a Nexos</p>
+    <p class="tag">05 / Vista a Nexos</p>
     <h2>Quem treina com a gente veste a camisa.</h2>
     <p>A camisa oficial da equipe, em azul-marinho e branca, nos modelos masculino e baby look. Feita pra treinar, correr prova e representar a Nexos.</p>
     <dl class="kit-spec">
@@ -445,7 +392,7 @@
 <!-- PATROCINADORES -->
 <section class="section sponsors" id="patrocinadores">
   <div class="sec-head center reveal">
-    <p class="tag">07 / Parceiros</p>
+    <p class="tag">06 / Parceiros</p>
     <h2>Quem corre junto.</h2>
   </div>
   <div class="marquee" id="marquee">
@@ -456,7 +403,7 @@
 <!-- FAQ -->
 <section class="section" id="faq">
   <div class="sec-head reveal">
-    <p class="tag">08 / Dúvidas</p>
+    <p class="tag">07 / Dúvidas</p>
     <h2>Perguntas frequentes</h2>
   </div>
   <div class="faq reveal">
