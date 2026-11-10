@@ -433,20 +433,20 @@ function telaMeses() {
 /* ---------- pagamentos da assessoria (o que os alunos pagam) ----------
    Cada plano tem nome próprio, para a página saber de quem é o dinheiro:
    corrida (Essencial e Evolução) é do Gabriel, força é do Orlando e o Integral é dividido na proporção do serviço
-   (corrida R$ 220 x força R$ 100: 68,75% e 31,25%). A taxa do Mercado Pago sai antes da divisão. */
+   (corrida R$ 220 x força R$ 200: 52,38% e 47,62%). A taxa do Mercado Pago sai antes da divisão. */
 const PLANOS_REC = {
   corrida_essencial: { nome: 'Corrida Essencial', tipo: 'corrida', pix: { mensal: 180, trimestral: 175, semestral: 169, anual: 162 }, cartao: { mensal: 188, trimestral: 183, semestral: 177, anual: 169 }, parc: { trimestral: 192, semestral: 197, anual: 206 } },
   corrida_evolucao: { nome: 'Corrida Evolução', tipo: 'corrida', pix: { mensal: 220, trimestral: 214, semestral: 207, anual: 198 }, cartao: { mensal: 230, trimestral: 223, semestral: 216, anual: 207 }, parc: { trimestral: 235, semestral: 241, anual: 252 } },
-  integral: { nome: 'Integral (Corrida + Força)', tipo: 'integral', pix: { mensal: 309, trimestral: 299, semestral: 289, anual: 279 }, cartao: { mensal: 322, trimestral: 312, semestral: 302, anual: 291 }, parc: { trimestral: 328, semestral: 336, anual: 355 } },
-  forca_online: { nome: 'Força Online', tipo: 'forca', pix: { mensal: 100, trimestral: 97, semestral: 94, anual: 90 }, cartao: { mensal: 105, trimestral: 102, semestral: 98, anual: 94 }, parc: { trimestral: 107, semestral: 110, anual: 115 } },
-  forca_presencial: { nome: 'Força Presencial', tipo: 'forca', pix: { mensal: 125, trimestral: 121, semestral: 118, anual: 113 }, cartao: { mensal: 131, trimestral: 127, semestral: 123, anual: 118 }, parc: { trimestral: 133, semestral: 138, anual: 144 } },
+  integral: { nome: 'Integral (Corrida + Força)', tipo: 'integral', pix: { mensal: 399, trimestral: 387, semestral: 375, anual: 359 }, cartao: { mensal: 416, trimestral: 404, semestral: 391, anual: 374 }, parc: { trimestral: 424, semestral: 436, anual: 456 } },
+  forca_online: { nome: 'Força Online', tipo: 'forca', pix: { mensal: 200, trimestral: 194, semestral: 188, anual: 180 }, cartao: { mensal: 209, trimestral: 203, semestral: 196, anual: 188 }, parc: { trimestral: 213, semestral: 219, anual: 229 } },
+  forca_presencial: { nome: 'Força Presencial', tipo: 'forca', pix: { mensal: 250, trimestral: 243, semestral: 235, anual: 225 }, cartao: { mensal: 261, trimestral: 254, semestral: 245, anual: 235 }, parc: { trimestral: 266, semestral: 274, anual: 286 } },
   outro: { nome: 'Outro', tipo: 'outro', pix: {}, cartao: {}, parc: {} },
 };
 const PERIODOS = { mensal: ['Mensal', 1], trimestral: ['Trimestral', 3], semestral: ['Semestral', 6], anual: ['Anual', 12], ciclo: ['Ciclo de 8 semanas', 2], avulso: ['Avulso', 1] };
 const FORMAS = { pix: 'Pix', cartao: 'Cartão (todo mês)', parcelado: 'Cartão parcelado', dinheiro: 'Dinheiro' };
 const PARC_TX = [0, 0, 0.0253, 0.0462, 0.0669, 0.0866, 0.0996, 0.1124, 0.125, 0.1373, 0.1493, 0.1612, 0.1728];
 const taxaDe = (forma, n) => (forma === 'pix' ? 0.0099 : forma === 'cartao' ? 0.0399 : forma === 'parcelado' ? 0.0399 + PARC_TX[Math.max(1, Math.min(12, n || 1))] : 0);
-const pctGabriel = (plano, outro) => (plano === 'outro' ? +outro || 50 : { corrida: 100, integral: 68.75, forca: 0 }[PLANOS_REC[plano].tipo]);
+const pctGabriel = (plano, outro) => (plano === 'outro' ? +outro || 50 : { corrida: 100, integral: 52.38, forca: 0 }[PLANOS_REC[plano].tipo]);
 let recMes = '';
 const mesDe = (iso) => String(iso).slice(0, 7);
 function telaAssessoria() {
