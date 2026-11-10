@@ -3602,6 +3602,7 @@ body.em-video{overflow:hidden}
 .med-play:not(.rodando) .pz-foto img{animation-play-state:paused}
 .med-pz-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
 .med-pz-ic{z-index:2}
+.med-pz-inf{position:absolute;top:16px;right:12px;z-index:2;font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.2);backdrop-filter:blur(4px)}
 .pz-centro{text-align:center;padding:60px 0 30px}
 .pz-tempo{font-family:var(--f-h);font-size:3.2rem;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 4px 30px rgba(0,0,0,.4)}
 .pz-sub{margin-top:10px;font-size:.9rem;color:rgba(255,255,255,.7)}

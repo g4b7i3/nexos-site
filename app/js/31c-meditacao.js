@@ -258,6 +258,86 @@ const MED_CAT = [
   ['binaural-theta', 'Teta · meditação', 'Ondas binaurais'],
   ['binaural-alpha', 'Alfa · relaxamento', 'Ondas binaurais'],
 ];
+// sessões infinitas: tocam sem fim (o motor contínuo não repete) e a mistura muda devagar ao longo da noite
+const MED_INFINITAS = [
+  {
+    id: 'mar',
+    nome: 'Mar a noite inteira',
+    desc: 'Ondas sem fim, para dormir a noite toda.',
+    base: 'beira-mar',
+    camadas: [['mar', 0.9]],
+  },
+  {
+    id: 'chuva',
+    nome: 'Chuva a noite inteira',
+    desc: 'Chuva constante caindo lá fora.',
+    base: 'janela',
+    camadas: [
+      ['chuva-leve', 0.8],
+      ['chuva-folhas', 0.35],
+    ],
+  },
+  {
+    id: 'tempestade',
+    nome: 'Tempestade lá fora',
+    desc: 'Chuva forte e trovões distantes, protegido em casa.',
+    base: 'tempestade',
+    camadas: [
+      ['chuva-forte', 0.6],
+      ['trovoada', 0.4],
+      ['chuva-janela', 0.3],
+    ],
+  },
+  {
+    id: 'floresta',
+    nome: 'Floresta viva',
+    desc: 'A mata, os pássaros e um riacho ao fundo.',
+    base: 'riacho-manha',
+    camadas: [
+      ['mata', 0.55],
+      ['passaros', 0.35],
+      ['riacho', 0.4],
+    ],
+  },
+  {
+    id: 'fogueira',
+    nome: 'Fogueira até amanhecer',
+    desc: 'A lenha estalando e os grilos da noite.',
+    base: 'fogueira',
+    camadas: [
+      ['fogueira', 0.8],
+      ['grilos', 0.3],
+    ],
+  },
+  {
+    id: 'rio',
+    nome: 'Beira do rio à noite',
+    desc: 'O rio correndo, sapos e grilos ao longe.',
+    base: 'noite-campo',
+    camadas: [
+      ['rio', 0.75],
+      ['grilos', 0.3],
+      ['sapos', 0.2],
+    ],
+  },
+  {
+    id: 'cachoeira',
+    nome: 'Cachoeira sem fim',
+    desc: 'Água caindo nas pedras, contínua e forte.',
+    base: 'cachoeira',
+    camadas: [
+      ['cachoeira', 0.75],
+      ['folhas', 0.25],
+    ],
+  },
+  {
+    id: 'ruido',
+    nome: 'Ruído marrom profundo',
+    desc: 'Um som grave e constante que esconde os barulhos da casa.',
+    base: 'sono-profundo',
+    camadas: [['ruido-marrom', 0.7]],
+  },
+];
 // fotos de fundo (Unsplash License: uso livre, sem exigir crédito)
 const medFoto = (pz, w = 700) =>
   pz && pz.foto ? `https://images.unsplash.com/${pz.foto}?auto=format&fit=crop&w=${w}&q=70` : '';
@@ -684,10 +764,10 @@ function medCamada(k, vol = 1, dest = null) {
       cam.timer = setInterval(() => cam.vivo && cam.agendar(c.currentTime + 2), 400);
     });
   cam.pronto.catch(() => {});
-  cam.vol = (v) => {
+  cam.vol = (v, tau = 0.12) => {
     try {
       g.gain.cancelScheduledValues(c.currentTime);
-      g.gain.setTargetAtTime(Math.max(0.0001, v), c.currentTime, 0.12);
+      g.gain.setTargetAtTime(Math.max(0.0001, v), c.currentTime, tau);
     } catch {}
   };
   cam.parar = (fade = 1.5) => {
@@ -979,6 +1059,11 @@ const medCard = (href, titulo, sub, extra = '', cls = '') =>
 /** #/meditacao (início), #/meditacao/<id> (sessão ou respiração) e #/meditacao/livre */
 async function viewMeditacao(id) {
   if (id === 'mix') return medPaisagem(null);
+  if (id && id.startsWith('i-')) {
+    const inf = MED_INFINITAS.find((x) => 'i-' + x.id === id);
+    const b = inf && MED_PAISAGENS.find((x) => x.id === inf.base);
+    if (inf) return medPaisagem({ ...inf, id: 'i-' + inf.id, cor: b.cor, foto: b.foto, infinita: true });
+  }
   if (id && id.startsWith('p-')) {
     const pz = MED_PAISAGENS.find((x) => 'p-' + x.id === id);
     if (pz) return medPaisagem(pz);
@@ -1035,6 +1120,12 @@ async function viewMeditacao(id) {
             .join('')}</div>`,
       )
       .join('')}
+    <p class="sec-lbl">Sessões infinitas</p>
+    <p class="tiny dim" style="margin:-4px 0 10px">Tocam a noite inteira, sem repetir e sem parar. A mistura muda devagar, como na natureza.</p>
+    <div class="med-pz">${MED_INFINITAS.map((x) => {
+      const b = MED_PAISAGENS.find((y) => y.id === x.base);
+      return `<a href="#/meditacao/i-${x.id}" class="med-pz-c" style="--c1:${b.cor[0]};--c2:${b.cor[1]}"><img class="med-pz-img" src="${medFoto(b, 420)}" alt="" loading="lazy" onerror="this.remove()"><span class="med-pz-ic">${I.play}</span><span class="med-pz-inf">Sem fim</span><b>${esc(x.nome)}</b><small>${esc(x.desc)}</small></a>`;
+    }).join('')}</div>
     <p class="sec-lbl">Sons da natureza</p>
     <p class="tiny dim" style="margin:-4px 0 10px">Paisagens sonoras sem voz, para ouvir deitado, relaxar ou dormir.</p>
     <div class="med-pz">${MED_PAISAGENS.map(
@@ -1423,7 +1514,7 @@ function medPaisagem(pz) {
     };
   }
   const st = {
-    min: store.get('nx-medit-pz-min', 30),
+    min: pz.infinita ? store.get('nx-medit-inf-min', 0) : store.get('nx-medit-pz-min', 30),
     t: 0,
     rodando: false,
     camadas: pz.camadas.map(([k, v]) => ({ k, v })),
@@ -1454,15 +1545,18 @@ function medPaisagem(pz) {
   $app.innerHTML = `<div class="med-play pz${pz.foto ? ' com-foto' : ''}" id="pz-raiz" style="--c1:${pz.cor[0]};--c2:${pz.cor[1]}">
     ${pz.foto ? `<div class="pz-foto"><img src="${medFoto(pz, 1200)}" alt="" onerror="this.parentNode.remove()"></div>` : ''}
     <div class="pz-aurora"><i></i><i></i><i></i></div>
-    <div class="med-play-top"><a class="med-x" href="#/meditacao" aria-label="Voltar">${I.back}</a><div class="grow" style="min-width:0"><p class="med-eyebrow">${mix ? 'Mistura' : pz.som ? 'Som' : 'Paisagem sonora'}</p><h1>${esc(pz.nome)}</h1></div><button class="med-x" id="pz-olhos" aria-label="Apagar a tela" title="Apagar a tela"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>
+    <div class="med-play-top"><a class="med-x" href="#/meditacao" aria-label="Voltar">${I.back}</a><div class="grow" style="min-width:0"><p class="med-eyebrow">${mix ? 'Mistura' : pz.infinita ? 'Sessão infinita' : pz.som ? 'Som' : 'Paisagem sonora'}</p><h1>${esc(pz.nome)}</h1></div><button class="med-x" id="pz-olhos" aria-label="Apagar a tela" title="Apagar a tela"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>
     ${pz.desc ? `<p class="med-desc">${esc(pz.desc)}</p>` : ''}
     <div class="pz-centro"><div class="pz-tempo" id="pz-tempo"></div><div class="pz-sub" id="pz-sub">Deite-se, feche os olhos e só escute</div></div>
     <div class="med-ctrl"><button class="med-bt" id="pz-play" aria-label="Tocar">${I.play}</button></div>
     <div class="med-opc">
-      <div class="med-opc-l"><span>Desligar em</span><div class="med-chips">${[15, 30, 45, 60, 90, 0]
+      <div class="med-opc-l"><span>Desligar em</span><div class="med-chips">${(pz.infinita
+        ? [60, 120, 240, 480, 0]
+        : [15, 30, 45, 60, 90, 0]
+      )
         .map(
           (m) =>
-            `<button class="med-chip${m === st.min ? ' on' : ''}" data-min="${m}">${m ? m + ' min' : 'Sem parar'}</button>`,
+            `<button class="med-chip${m === st.min ? ' on' : ''}" data-min="${m}">${m ? (m >= 60 && pz.infinita ? m / 60 + ' h' : m + ' min') : 'Sem parar'}</button>`,
         )
         .join('')}</div></div>
       <div class="med-opc-l"><span>${mix ? 'Seus sons' : 'Sons desta paisagem'}</span><div class="pz-lista" id="pz-lista">${listaHTML()}</div>
@@ -1515,6 +1609,13 @@ function medPaisagem(pz) {
     const agora = performance.now();
     st.t += Math.min(1, (agora - ultimo) / 1000);
     ultimo = agora;
+    // sessão infinita: a cada meio minuto, cada som sobe ou desce um pouco, bem devagar (a paisagem "respira")
+    if (pz.infinita && !st.sumindo && Math.floor(st.t / 30) !== st.deriva) {
+      st.deriva = Math.floor(st.t / 30);
+      Object.entries(cams).forEach(
+        ([i, c]) => st.camadas[i] && c.vol(st.camadas[i].v * (0.7 + Math.random() * 0.45), 12),
+      );
+    }
     // no último minuto o som vai sumindo devagar, para não acordar ninguém
     if (st.min && st.t >= st.min * 60 - 60 && !st.sumindo) {
       st.sumindo = true;
@@ -1549,7 +1650,7 @@ function medPaisagem(pz) {
     const m = e.target.closest('[data-min]');
     if (m) {
       st.min = +m.dataset.min;
-      store.set('nx-medit-pz-min', st.min);
+      store.set(pz.infinita ? 'nx-medit-inf-min' : 'nx-medit-pz-min', st.min);
       raiz.querySelectorAll('[data-min]').forEach((x) => x.classList.toggle('on', x === m));
       if (st.min && st.t >= st.min * 60 - 60) st.t = 0;
       return pintar();
