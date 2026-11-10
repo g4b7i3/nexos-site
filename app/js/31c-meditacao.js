@@ -212,8 +212,10 @@ const MEDIT_SONS = [
   ['silencio', 'Silêncio'],
   ['chuva', 'Chuva'],
   ['mar', 'Mar'],
+  ['riacho', 'Riacho'],
+  ['floresta', 'Floresta'],
   ['vento', 'Vento'],
-  ['tigela', 'Tigela'],
+  ['tigela', 'Tigelas tibetanas'],
   ['marrom', 'Ruído suave'],
 ];
 const MEDIT_HUMOR = [
@@ -269,235 +271,362 @@ function meditResumo() {
 // compatível com o atalho antigo: minutos dos últimos 7 dias
 const meditMinSemana = () => meditResumo().min7;
 
-/* ---------- sons (Web Audio): tons da respiração, sino e sons de fundo, tudo gerado no aparelho ---------- */
-const MED_AUDIO = { c: null, mestre: null, fundo: null, fundoNos: [] };
+/* ---------- sons (Web Audio), compostos para a Nexos e gerados no aparelho ----------
+   Respiração: acorde quente que se abre ao inspirar (Ré maior) e se fecha ao soltar (Si menor), com um sino suave
+   marcando cada troca. Tigela: parciais de tigela tibetana em pares levemente desafinados, que fazem o batimento
+   natural do metal. Tudo passa por uma sala com eco (reverberação) para soar acústico. */
+const MED_AUDIO = { c: null, mestre: null, rev: null, fundo: null, fundoTimer: null, agendar: null };
+function medIR(c, seg) {
+  const n = Math.floor(c.sampleRate * seg),
+    pre = Math.floor(c.sampleRate * 0.025),
+    b = c.createBuffer(2, n, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = b.getChannelData(ch);
+    let lp = 0;
+    for (let i = pre; i < n; i++) {
+      const x = (i - pre) / (n - pre);
+      lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.42 * x); // a cauda vai ficando mais escura, como numa sala
+      d[i] = lp * Math.pow(1 - x, 2.4) * 1.6;
+    }
+  }
+  return b;
+}
+function medMontar(c) {
+  const comp = c.createDynamicsCompressor();
+  comp.threshold.value = -16;
+  comp.ratio.value = 3;
+  comp.attack.value = 0.01;
+  comp.release.value = 0.4;
+  comp.connect(c.destination);
+  const mestre = c.createGain();
+  mestre.gain.value = 0.9;
+  mestre.connect(comp);
+  const rev = c.createConvolver();
+  rev.buffer = medIR(c, 4);
+  const rg = c.createGain();
+  rg.gain.value = 0.5;
+  rev.connect(rg).connect(comp);
+  Object.assign(MED_AUDIO, { c, mestre, rev });
+}
 function medCtx() {
   const C = window.AudioContext || window.webkitAudioContext;
   if (!C) return null;
-  if (!MED_AUDIO.c) {
-    MED_AUDIO.c = new C();
-    MED_AUDIO.mestre = MED_AUDIO.c.createGain();
-    MED_AUDIO.mestre.connect(MED_AUDIO.c.destination);
-  }
+  if (!MED_AUDIO.c) medMontar(new C());
   if (MED_AUDIO.c.state === 'suspended') MED_AUDIO.c.resume().catch(() => {});
   return MED_AUDIO.c;
 }
-function medRuido(c, tipo, seg = 4) {
-  const n = c.sampleRate * seg,
-    buf = c.createBuffer(1, n, c.sampleRate),
-    d = buf.getChannelData(0);
-  let ult = 0,
-    b0 = 0,
-    b1 = 0,
-    b2 = 0;
-  for (let i = 0; i < n; i++) {
-    const w = Math.random() * 2 - 1;
-    if (tipo === 'marrom') {
-      ult = (ult + 0.02 * w) / 1.02;
-      d[i] = ult * 3.5;
-    } else if (tipo === 'rosa') {
-      b0 = 0.99765 * b0 + w * 0.099;
-      b1 = 0.963 * b1 + w * 0.2965;
-      b2 = 0.57 * b2 + w * 1.0526;
-      d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.12;
-    } else d[i] = w;
+// manda o som para a saída direta e para a sala (eco), com posição no espaço
+function medSaida(no, seco = 1, sala = 0.4, pan = 0, dest = null) {
+  const c = MED_AUDIO.c;
+  let x = no;
+  if (pan && c.createStereoPanner) {
+    const p = c.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    no.connect(p);
+    x = p;
   }
+  const a = c.createGain(),
+    b = c.createGain();
+  a.gain.value = seco;
+  b.gain.value = sala;
+  x.connect(a).connect(dest || MED_AUDIO.mestre);
+  x.connect(b).connect(MED_AUDIO.rev);
+}
+// gravações reais em domínio público (CC0), créditos em app/sons/CREDITOS.txt
+const MED_GRAVADOS = {
+  chuva: '/app/sons/chuva.mp3',
+  riacho: '/app/sons/riacho.mp3',
+  floresta: '/app/sons/floresta.mp3',
+  vento: '/app/sons/vento.mp3',
+};
+const medBufGrav = {};
+async function medCarregarGravado(c, k) {
+  if (medBufGrav[k] && medBufGrav[k].c === c) return medBufGrav[k].b;
+  const ab = await (await fetch(MED_GRAVADOS[k])).arrayBuffer();
+  const b = await new Promise((ok, er) => c.decodeAudioData(ab, ok, er));
+  medBufGrav[k] = { c, b };
+  return b;
+}
+const medBufs = {};
+function medRuidoBuf(c, tipo, seg = 6) {
+  const chave = tipo + seg + c.sampleRate;
+  if (medBufs[chave] && medBufs[chave].c === c) return medBufs[chave].b;
+  const n = Math.floor(c.sampleRate * seg),
+    buf = c.createBuffer(2, n, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let ult = 0,
+      b0 = 0,
+      b1 = 0,
+      b2 = 0;
+    for (let i = 0; i < n; i++) {
+      const w = Math.random() * 2 - 1;
+      if (tipo === 'marrom') {
+        ult = (ult + 0.02 * w) / 1.02;
+        d[i] = ult * 3.5;
+      } else if (tipo === 'rosa') {
+        b0 = 0.99765 * b0 + w * 0.099;
+        b1 = 0.963 * b1 + w * 0.2965;
+        b2 = 0.57 * b2 + w * 1.0526;
+        d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.12;
+      } else if (tipo === 'gota') {
+        d[i] = w * Math.exp(-i / (c.sampleRate * 0.0035));
+      } else d[i] = w;
+    }
+  }
+  medBufs[chave] = { c, b: buf };
+  return buf;
+}
+function medFonte(c, tipo, seg, loop = true) {
   const s = c.createBufferSource();
-  s.buffer = buf;
-  s.loop = true;
+  s.buffer = medRuidoBuf(c, tipo, seg);
+  s.loop = loop;
   return s;
 }
-// tom suave que sobe (inspirar) ou desce (soltar) durante a fase inteira
-function medTom(sobe, dur, vol = 1) {
+// sino suave (lembra uma kalimba): marca o começo de cada fase
+function medChime(f, t0, vol = 1, pan = 0) {
+  const c = MED_AUDIO.c,
+    g = c.createGain();
+  [
+    [1, 0.15, 2.4],
+    [2.01, 0.035, 1.1],
+    [5.43, 0.016, 0.35],
+  ].forEach(([r, a, d]) => {
+    const o = c.createOscillator(),
+      og = c.createGain();
+    o.type = 'sine';
+    o.frequency.value = f * r;
+    og.gain.setValueAtTime(0.0001, t0);
+    og.gain.exponentialRampToValueAtTime(a * vol, t0 + 0.006);
+    og.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(og).connect(g);
+    o.start(t0);
+    o.stop(t0 + d + 0.05);
+  });
+  medSaida(g, 0.75, 0.55, pan);
+}
+// acorde quente que acompanha a fase inteira: abre ao inspirar e fecha ao soltar
+const MED_ACORDE_IN = [146.83, 220, 293.66, 369.99, 440];
+const MED_ACORDE_OUT = [123.47, 185, 246.94, 293.66, 369.99];
+function medPad(notas, dur, abre, t0, vol = 1) {
+  const c = MED_AUDIO.c,
+    f = c.createBiquadFilter(),
+    g = c.createGain(),
+    pico = 0.07 * vol;
+  f.type = 'lowpass';
+  f.Q.value = 0.5;
+  f.frequency.setValueAtTime(abre ? 320 : 1900, t0);
+  f.frequency.exponentialRampToValueAtTime(abre ? 1900 : 300, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(pico, t0 + Math.min(1.6, dur * 0.45));
+  g.gain.setValueAtTime(pico, t0 + dur * 0.72);
+  g.gain.linearRampToValueAtTime(0.0001, t0 + dur + 0.9);
+  f.connect(g);
+  medSaida(g, 0.7, 0.75);
+  notas.forEach((fr, i) =>
+    [-7, 7].forEach((ct) => {
+      const o = c.createOscillator(),
+        og = c.createGain();
+      o.type = i === 0 ? 'triangle' : 'sawtooth';
+      o.frequency.value = fr;
+      o.detune.value = ct + (Math.random() * 4 - 2);
+      og.gain.value = i === 0 ? 0.55 : 0.14;
+      o.connect(og).connect(f);
+      o.start(t0);
+      o.stop(t0 + dur + 1);
+    }),
+  );
+}
+// tigela tibetana: golpe + parciais em pares desafinados (batimento) com decaimento longo
+function medTigela(base = 196, t0, vol = 1, dest = null, pan = 0) {
+  const c = MED_AUDIO.c,
+    g = c.createGain();
+  [
+    [1, 0.13, 12],
+    [2.71, 0.07, 9],
+    [5.12, 0.032, 6],
+    [8.27, 0.014, 3.5],
+  ].forEach(([r, a, d], k) =>
+    [0, 0.7 + k * 0.45].forEach((dt, j) => {
+      const o = c.createOscillator(),
+        og = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = base * r + dt;
+      og.gain.setValueAtTime(0.0001, t0);
+      og.gain.exponentialRampToValueAtTime(a * vol * (j ? 0.8 : 1), t0 + 0.01);
+      og.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+      o.connect(og).connect(g);
+      o.start(t0);
+      o.stop(t0 + d + 0.1);
+    }),
+  );
+  const n = medFonte(c, 'branco', 1, false),
+    bp = c.createBiquadFilter(),
+    ng = c.createGain();
+  bp.type = 'bandpass';
+  bp.frequency.value = base * 6;
+  bp.Q.value = 1.2;
+  ng.gain.setValueAtTime(0.06 * vol, t0);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+  n.connect(bp).connect(ng).connect(g);
+  n.start(t0);
+  n.stop(t0 + 0.06);
+  medSaida(g, 0.7, 0.6, pan, dest);
+}
+// guias da respiração (t0 permite agendar adiantado)
+function medTom(sobe, dur, vol = 1, t0) {
   const c = medCtx();
   if (!c || dur <= 0) return;
-  const t0 = c.currentTime,
-    f0 = sobe ? 174 : 261,
-    f1 = sobe ? 261 : 174;
-  [1, 2].forEach((h, i) => {
-    const o = c.createOscillator(),
-      g = c.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(f0 * h, t0);
-    o.frequency.exponentialRampToValueAtTime(f1 * h, t0 + dur);
-    const pico = (i ? 0.025 : 0.09) * vol;
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.linearRampToValueAtTime(pico, t0 + Math.min(1.2, dur * 0.35));
-    g.gain.linearRampToValueAtTime(pico * 0.8, t0 + dur * 0.75);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g).connect(MED_AUDIO.mestre);
-    o.start(t0);
-    o.stop(t0 + dur + 0.05);
-  });
-  // sopro de ar, bem baixo, junto com o tom (lembra a respiração)
-  const r = medRuido(c, 'rosa', 2),
-    bp = c.createBiquadFilter(),
-    g = c.createGain();
-  bp.type = 'bandpass';
-  bp.Q.value = 0.7;
-  bp.frequency.setValueAtTime(sobe ? 500 : 1100, t0);
-  bp.frequency.exponentialRampToValueAtTime(sobe ? 1100 : 500, t0 + dur);
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.linearRampToValueAtTime(0.05 * vol, t0 + dur * 0.4);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  r.connect(bp).connect(g).connect(MED_AUDIO.mestre);
-  r.start(t0);
-  r.stop(t0 + dur + 0.05);
+  t0 = t0 ?? c.currentTime;
+  medChime(sobe ? 880 : 659.25, t0, 0.9 * vol, sobe ? -0.15 : 0.15);
+  medPad(sobe ? MED_ACORDE_IN : MED_ACORDE_OUT, dur, sobe, t0, vol);
 }
-// toque curto para "segure"
-function medToque(vol = 1) {
+function medToque(vol = 1, t0) {
   const c = medCtx();
   if (!c) return;
-  const t0 = c.currentTime,
-    o = c.createOscillator(),
-    g = c.createGain();
-  o.type = 'sine';
-  o.frequency.value = 880;
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.05 * vol, t0 + 0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
-  o.connect(g).connect(MED_AUDIO.mestre);
-  o.start(t0);
-  o.stop(t0 + 1.2);
+  medChime(1174.66, t0 ?? c.currentTime, 0.32 * vol);
 }
-// sino de tigela: parciais fora de proporção, como uma tigela tibetana
-function medSino(vol = 1) {
+function medSino(vol = 1, t0) {
   const c = medCtx();
   if (!c) return;
-  const t0 = c.currentTime;
-  [
-    [220, 0.16, 6],
-    [528, 0.12, 5],
-    [839, 0.05, 3.5],
-    [1243, 0.025, 2.4],
-  ].forEach(([f, a, dur]) => {
-    const o = c.createOscillator(),
-      g = c.createGain();
-    o.type = 'sine';
-    o.frequency.value = f;
-    o.detune.value = Math.random() * 6 - 3;
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(a * vol, t0 + 0.015);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g).connect(MED_AUDIO.mestre);
-    o.start(t0);
-    o.stop(t0 + dur + 0.1);
-  });
+  medTigela(196, t0 ?? c.currentTime, vol);
 }
 function medFundoParar(fade = 1.5) {
   const c = MED_AUDIO.c;
+  clearInterval(MED_AUDIO.fundoTimer);
+  MED_AUDIO.fundoTimer = null;
+  MED_AUDIO.agendar = null;
   if (!c || !MED_AUDIO.fundo) return;
-  const g = MED_AUDIO.fundo,
-    nos = MED_AUDIO.fundoNos;
+  const g = MED_AUDIO.fundo;
   try {
     g.gain.cancelScheduledValues(c.currentTime);
     g.gain.setValueAtTime(g.gain.value, c.currentTime);
     g.gain.linearRampToValueAtTime(0.0001, c.currentTime + fade);
   } catch {}
   setTimeout(
-    () =>
-      nos.forEach((n) => {
+    () => {
+      (g._pare || []).forEach((s) => {
         try {
-          n.stop();
+          s.stop();
         } catch {}
-      }),
-    fade * 1000 + 100,
+      });
+      try {
+        g.disconnect();
+      } catch {}
+    },
+    fade * 1000 + 200,
   );
   MED_AUDIO.fundo = null;
-  MED_AUDIO.fundoNos = [];
 }
+// sons de fundo: camadas contínuas + eventos agendados (gotas, ondas, rajadas, tigelas)
 function medFundo(tipo, vol = 0.7) {
   medFundoParar(0.6);
   const c = medCtx();
   if (!c || !tipo || tipo === 'silencio') return;
-  const g = c.createGain(),
-    nos = [];
-  g.gain.setValueAtTime(0.0001, c.currentTime);
-  g.gain.linearRampToValueAtTime(vol, c.currentTime + 2.5);
+  const t0 = c.currentTime,
+    g = c.createGain(),
+    pare = []; // fontes contínuas
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(vol * 0.55, t0 + 3); // o fundo fica uns 8 dB abaixo da guia da respiração
   g.connect(MED_AUDIO.mestre);
-  const lfo = (freq, prof, alvo) => {
-    const o = c.createOscillator(),
-      og = c.createGain();
-    o.frequency.value = freq;
-    og.gain.value = prof;
-    o.connect(og).connect(alvo);
-    o.start();
-    nos.push(o);
+  const camada = (tp, filtro, freq, q, ganho) => {
+    const s = medFonte(c, tp, 6),
+      f = c.createBiquadFilter(),
+      v = c.createGain();
+    f.type = filtro;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    v.gain.value = ganho;
+    s.connect(f).connect(v).connect(g);
+    s.start(t0);
+    pare.push(s);
+    return { f, v };
   };
-  if (tipo === 'chuva') {
-    const r = medRuido(c, 'branco'),
-      hp = c.createBiquadFilter(),
-      lp = c.createBiquadFilter(),
-      v = c.createGain();
-    hp.type = 'highpass';
-    hp.frequency.value = 900;
-    lp.type = 'lowpass';
-    lp.frequency.value = 7000;
-    v.gain.value = 0.11;
-    r.connect(hp).connect(lp).connect(v).connect(g);
-    r.start();
-    nos.push(r);
-    const r2 = medRuido(c, 'marrom'),
-      v2 = c.createGain();
-    v2.gain.value = 0.25;
-    r2.connect(v2).connect(g);
-    r2.start();
-    nos.push(r2);
+  let prox = t0 + 0.2,
+    agendar = null;
+  if (MED_GRAVADOS[tipo]) {
+    // gravação de verdade (CC0), tocada em laço com fusão suave entre o fim e o começo
+    medCarregarGravado(c, tipo)
+      .then((buf) => {
+        if (MED_AUDIO.fundo !== g) return;
+        const XF = Math.min(3, buf.duration / 4);
+        let px = c.currentTime + 0.05;
+        const tocar = (t) => {
+          const s = c.createBufferSource(),
+            v = c.createGain();
+          s.buffer = buf;
+          v.gain.setValueAtTime(0.0001, t);
+          v.gain.linearRampToValueAtTime(1, t + XF);
+          v.gain.setValueAtTime(1, t + buf.duration - XF);
+          v.gain.linearRampToValueAtTime(0.0001, t + buf.duration);
+          s.connect(v).connect(g);
+          s.start(t);
+          s.stop(t + buf.duration + 0.05);
+          pare.push(s);
+          if (pare.length > 4) pare.shift();
+        };
+        MED_AUDIO.agendar = (ate) => {
+          while (px < ate) {
+            tocar(px);
+            px += buf.duration - XF;
+          }
+        };
+        MED_AUDIO.agendar(c.currentTime + 2);
+      })
+      .catch(() => {});
   } else if (tipo === 'mar') {
-    const r = medRuido(c, 'rosa'),
-      lp = c.createBiquadFilter(),
-      v = c.createGain();
-    lp.type = 'lowpass';
-    lp.frequency.value = 1200;
-    v.gain.value = 0.32;
-    lfo(0.085, 0.26, v.gain); // ondas a cada ~12 s
-    lfo(0.085, 500, lp.frequency);
-    r.connect(lp).connect(v).connect(g);
-    r.start();
-    nos.push(r);
-  } else if (tipo === 'vento') {
-    const r = medRuido(c, 'rosa'),
-      bp = c.createBiquadFilter(),
-      v = c.createGain();
-    bp.type = 'bandpass';
-    bp.Q.value = 1.4;
-    bp.frequency.value = 520;
-    v.gain.value = 0.55;
-    lfo(0.06, 260, bp.frequency);
-    lfo(0.11, 0.18, v.gain);
-    r.connect(bp).connect(v).connect(g);
-    r.start();
-    nos.push(r);
-  } else if (tipo === 'marrom') {
-    const r = medRuido(c, 'marrom'),
-      lp = c.createBiquadFilter(),
-      v = c.createGain();
-    lp.type = 'lowpass';
-    lp.frequency.value = 600;
-    v.gain.value = 0.5;
-    r.connect(lp).connect(v).connect(g);
-    r.start();
-    nos.push(r);
+    camada('marrom', 'lowpass', 350, 0.5, 0.22);
+    const onda = (t) => {
+      const s = medFonte(c, 'rosa', 6),
+        f = c.createBiquadFilter(),
+        v = c.createGain(),
+        sobe = 2.6 + Math.random() * 1.8,
+        desce = 5 + Math.random() * 2.5,
+        pico = 0.35 + Math.random() * 0.25;
+      f.type = 'lowpass';
+      f.Q.value = 0.4;
+      f.frequency.setValueAtTime(260, t);
+      f.frequency.exponentialRampToValueAtTime(2400 + Math.random() * 1500, t + sobe);
+      f.frequency.exponentialRampToValueAtTime(380, t + sobe + desce);
+      v.gain.setValueAtTime(0.0001, t);
+      v.gain.linearRampToValueAtTime(pico * 0.45, t + sobe * 0.7);
+      v.gain.linearRampToValueAtTime(pico, t + sobe);
+      v.gain.exponentialRampToValueAtTime(0.0001, t + sobe + desce);
+      s.connect(f).connect(v);
+      medSaida(v, 1, 0.12, Math.random() * 1 - 0.5, g);
+      s.start(t, Math.random() * 5);
+      s.stop(t + sobe + desce + 0.2);
+    };
+    agendar = (ate) => {
+      while (prox < ate) {
+        onda(prox);
+        prox += 5.5 + Math.random() * 5;
+      }
+    };
   } else if (tipo === 'tigela') {
-    [
-      [110, 0.05],
-      [110.6, 0.04],
-      [165, 0.025],
-      [220.4, 0.018],
-    ].forEach(([f, a], i) => {
-      const o = c.createOscillator(),
-        v = c.createGain();
-      o.type = 'sine';
-      o.frequency.value = f;
-      v.gain.value = a;
-      lfo(0.05 + i * 0.013, a * 0.6, v.gain);
-      o.connect(v).connect(g);
-      o.start();
-      nos.push(o);
-    });
+    const notas = [174.61, 196, 220, 261.63, 293.66];
+    agendar = (ate) => {
+      while (prox < ate) {
+        medTigela(
+          notas[Math.floor(Math.random() * notas.length)],
+          prox,
+          0.55 + Math.random() * 0.3,
+          g,
+          Math.random() * 1.2 - 0.6,
+        );
+        prox += 9 + Math.random() * 9;
+      }
+    };
+  } else if (tipo === 'marrom') {
+    camada('marrom', 'lowpass', 520, 0.5, 0.55);
   }
   MED_AUDIO.fundo = g;
-  MED_AUDIO.fundoNos = nos;
+  MED_AUDIO.agendar = agendar;
+  g._pare = pare;
+  if (agendar) agendar(c.currentTime + 2);
+  if (agendar || MED_GRAVADOS[tipo]) {
+    MED_AUDIO.fundoTimer = setInterval(() => MED_AUDIO.agendar && MED_AUDIO.agendar(MED_AUDIO.c.currentTime + 2), 400);
+  }
 }
 let medVozEscolhida;
 function medFalar(t) {

@@ -1,0 +1,14 @@
+Sons de fundo da Meditação (app Nexos)
+
+Gravações em domínio público (CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/).
+Não exigem crédito; registramos a origem por respeito aos autores.
+Arquivos obtidos pela biblioteca Leminno/DNAABR ambient-sounds-library (SHA-256 conferido) e
+ajustados pela Nexos (volume e corte).
+
+- chuva.mp3     "rain" por barkenov · https://freesound.org/people/barkenov/sounds/640655/
+- vento.mp3     "wind breeze" por keweldog · https://freesound.org/people/keweldog/sounds/181801/
+- riacho.mp3    "water stream" por SamsterBirdies · https://freesound.org/people/SamsterBirdies/sounds/584269/
+- floresta.mp3  "forest day" por Sadiquecat · https://freesound.org/people/Sadiquecat/sounds/799439/
+
+Os sons da respiração (acordes e sinos), as tigelas tibetanas, o mar e o ruído suave são composições
+originais da Nexos, geradas no próprio aparelho.
