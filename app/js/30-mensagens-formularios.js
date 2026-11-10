@@ -267,7 +267,7 @@ const fichaDesempHTML = () => `<div class="ficha-corr ficha-desemp">
     <div class="grid2"><label class="field"><span>Km por semana no último mês</span><input class="input" name="km_sem" data-mask="num" data-max="3" inputmode="numeric" placeholder="Ex.: 15"></label>
     <label class="field"><span>Dias de corrida por semana hoje</span><input class="input" name="dias_sem" data-mask="num" data-max="1" inputmode="numeric" placeholder="Ex.: 3"></label></div>
     <p class="small muted" style="margin:4px 0 8px">Último resultado em cada distância: prova ou treino feito no seu máximo. Se não lembrar o tempo exato, deixe o tempo em branco.</p>
-    ${FICHA_DIST.map(([k, l]) => `<div class="ficha-pv"><b>${l}</b><select class="input" name="q${k}" aria-label="Quando correu ${l}"><option value="">Quando foi?</option>${FICHA_QUANDO.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select><input class="input" name="t${k}" data-mask="tempo" inputmode="numeric" placeholder="Tempo (ex.: ${{ 5: '28:30', 10: '58:00', 21: '2:05:00', 42: '4:30:00' }[k]})" aria-label="Tempo nos ${l}" hidden></div>`).join('')}
+    ${FICHA_DIST.map(([k, l]) => `<div class="ficha-pv"><b>${l}</b><select class="input" name="pq${k}" aria-label="Quando correu ${l}"><option value="">Quando foi?</option>${FICHA_QUANDO.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select><input class="input" name="pt${k}" data-mask="tempo" inputmode="numeric" placeholder="Tempo (ex.: ${{ 5: '28:30', 10: '58:00', 21: '2:05:00', 42: '4:30:00' }[k]})" aria-label="Tempo nos ${l}" hidden></div>`).join('')}
     <div class="field" style="margin-top:10px"><span>Qual distância quer treinar nos próximos meses?</span><div class="chips wrap">${FICHA_ALVO.map(([k, l]) => `<label class="chipc"><input type="radio" name="alvo" value="${k}"><span>${l}</span></label>`).join('')}</div></div>
   </div>`;
 const lerDesemp = (fd) => {
@@ -279,20 +279,21 @@ const lerDesemp = (fd) => {
     p: {},
   };
   FICHA_DIST.forEach(([k]) => {
-    const q = fd.get('q' + k);
-    if (q) o.p[k] = { q, t: ['nunca', 'antigo'].includes(q) ? null : String(fd.get('t' + k) || '').trim() || null };
+    // pq/pt: quando correu e o tempo em cada distância (q1…q7 são as perguntas do PAR-Q)
+    const q = fd.get('pq' + k);
+    if (q) o.p[k] = { q, t: ['nunca', 'antigo'].includes(q) ? null : String(fd.get('pt' + k) || '').trim() || null };
   });
   return o.cont || Object.keys(o.p).length || o.alvo ? o : null;
 };
 const bindDesemp = (f) => {
   const ver = () =>
     FICHA_DIST.forEach(([k]) => {
-      const q = f.querySelector(`[name=q${k}]`),
-        t = f.querySelector(`[name=t${k}]`);
+      const q = f.querySelector(`[name=pq${k}]`),
+        t = f.querySelector(`[name=pt${k}]`);
       if (q && t) t.hidden = !q.value || ['nunca', 'antigo'].includes(q.value);
     });
   f.addEventListener('change', (e) => {
-    if (/^q\d+$/.test(e.target.name || '')) ver();
+    if (/^pq\d+$/.test(e.target.name || '')) ver();
   });
   ver();
 };
