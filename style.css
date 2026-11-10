@@ -854,3 +854,19 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
   .fone-frente{left:38%}
   .ft-h{font-size:1rem}.ft-treino>b{font-size:.95rem}.evo-bars{height:96px}
 }
+/* app: recursos visíveis e os exclusivos trancados */
+.app-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+.app-tags span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:.8rem;font-weight:700;color:var(--ink)}
+.app-tags svg{width:15px;height:15px;color:var(--acc)}
+.app-lock{display:flex;align-items:center;gap:16px;margin-top:22px;padding:14px;border-radius:20px;background:var(--ink);color:#fff;max-width:520px}
+:root:not([data-theme="light"]) .app-lock{background:rgba(var(--bg2-rgb),.9);box-shadow:0 0 0 1px var(--line) inset}
+.al-g{display:flex;gap:6px;flex:none}
+.al-t{position:relative;width:54px;height:62px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.08)}
+.al-fake{position:absolute;inset:8px;display:flex;flex-direction:column;gap:5px;filter:blur(3px)}
+.al-fake i{height:5px;border-radius:3px;background:rgba(255,255,255,.55)}
+.al-fake b{flex:1;border-radius:6px;background:linear-gradient(135deg,#60a5fa,#34d399)}
+.al-cad{position:absolute;inset:0;display:grid;place-items:center;background:rgba(11,31,68,.35)}
+.al-cad svg{width:18px;height:18px;color:#fff}
+.app-lock p b{display:block;font-weight:800;font-size:.95rem}
+.app-lock p small{display:block;font-size:.8rem;color:rgba(255,255,255,.68);margin-top:3px;line-height:1.4}
+@media (max-width:420px){.app-lock{flex-direction:column;align-items:flex-start}.app-tags span{font-size:.74rem;padding:7px 10px}}
