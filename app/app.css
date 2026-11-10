@@ -2120,7 +2120,7 @@ label.btn.carregando{opacity:.6;pointer-events:none}
 
 /* ---------- Hoje do aluno (nova) ---------- */
 .hoje-hero{position:relative;overflow:hidden;border-radius:24px;padding:18px 18px 16px;margin:4px 0 18px;color:#fff;background:radial-gradient(120% 90% at 100% 0%,rgba(var(--p1r),.35),transparent 55%),linear-gradient(150deg,var(--h1) 0%,var(--h2) 55%,var(--h3) 100%);box-shadow:0 14px 34px -18px rgba(8,30,80,.7)}
-.hoje-hero:after{content:"";position:absolute;right:-70px;bottom:-26px;width:380px;height:160px;background:url(icons/simbolo.svg) no-repeat center/contain;opacity:.07;transform:rotate(-10deg);pointer-events:none}
+.hoje-hero:after{content:"";position:absolute;right:-46px;bottom:96px;width:210px;height:90px;background:url(icons/simbolo.svg) no-repeat center/contain;opacity:.035;transform:rotate(-8deg);pointer-events:none}
 .hh-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .hh-data{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:700}
 .hh-btn{position:relative;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff}
