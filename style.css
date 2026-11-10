@@ -644,4 +644,5 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .hp-int{border-color:rgba(var(--acc-rgb),.45)}
 .hp-nota{margin:10px 2px 0;font-size:.74rem;color:var(--mute)}
 @media (max-width:560px){.hp-g{grid-template-columns:1fr}.hp-c{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:8px}.hp-c small{order:3;width:100%}.hp-c span{margin-left:auto;text-align:right}}
-@media (max-width:380px){.nav-app-m span{display:none}}
+@media (max-width:480px){.nav-app-m{font-size:.74rem;padding:7px 10px;gap:5px;white-space:nowrap}.nav-app-m svg{width:14px;height:14px}.brand span{font-size:.82rem;letter-spacing:.12em}}
+@media (max-width:420px){.brand span{display:none}}
