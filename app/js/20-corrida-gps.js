@@ -972,6 +972,7 @@ async function viewGps(id, modo) {
       rota: rota.length > 1 ? rota : null,
       parciais: !est && st.parciais.length ? st.parciais : null,
       plano_id: p ? p.id : null,
+      livre: !p,
       titulo: titulo,
       fonte: 'celular',
       ext_id: 'cel-' + new Date(st.inicio).getTime(),

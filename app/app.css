@@ -3663,3 +3663,7 @@ body.em-video{overflow:hidden}
 .javi-bt{position:absolute;right:10px;bottom:10px;display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:999px;font-size:.72rem;font-weight:800;color:var(--mute);background:var(--bg);border:1px solid var(--line);cursor:pointer;z-index:2}
 .javi-bt:hover{color:var(--ink);border-color:var(--acc)}
 .javi-saindo{transition:opacity .2s,transform .2s;opacity:0;transform:translateX(16px)}
+
+/* corrida por fora (não ligada a treino) */
+.avulsa-card{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.avulsa-card .grow{min-width:180px}

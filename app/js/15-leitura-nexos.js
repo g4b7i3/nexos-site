@@ -582,8 +582,11 @@ async function viewCorrida(id) {
         ? `<div class="card plan-vs"><span class="eyebrow">Previsto × realizado</span><div class="h3" style="margin-top:4px">${esc(plano.titulo || nomeTipo(plano.tipo))}</div>
       <div class="pv"><div><span>Previsto</span><b>${plano.distancia_km ? String(plano.distancia_km).replace('.', ',') + ' km' : plano.duracao_min ? plano.duracao_min + ' min' : '–'}</b></div><div><span>Feito</span><b>${fmtKm(c.distancia_m)}</b></div>
       ${plano.distancia_km ? `<div><span>Cumprido</span><b>${Math.round((c.distancia_m / 1000 / plano.distancia_km) * 100)}%</b></div>` : ''}</div>
-      ${plano.descricao ? `<p class="small muted" style="margin-top:8px">${esc(plano.descricao)}</p>` : ''}</div>`
-        : ''
+      ${plano.descricao ? `<p class="small muted" style="margin-top:8px">${esc(plano.descricao)}</p>` : ''}
+      <button type="button" class="link-btn small" id="trocar-plano" style="margin-top:10px">Não era este treino? Trocar</button></div>`
+        : ehCorr(c) && c.tipo !== 'caminhada'
+          ? `<div class="card avulsa-card"><div class="grow"><span class="eyebrow">Corrida por fora</span><p class="small muted" style="margin-top:4px">Não conta como treino da planilha.</p></div><button type="button" class="btn sm ghost" id="trocar-plano">Era um treino da planilha</button></div>`
+          : ''
     }
     ${
       c.rota
@@ -618,6 +621,8 @@ async function viewCorrida(id) {
     })
     .catch(() => {});
   $app.querySelectorAll('[data-visto]').forEach((b) => (b.onclick = () => marcarVisto(b)));
+  const tp = document.getElementById('trocar-plano');
+  if (tp) tp.onclick = () => trocarTreinoDaCorrida(c);
   ['coment-tr', 'coment-tr-ed'].forEach((k) => {
     const e = document.getElementById(k);
     if (e) e.onclick = () => comentarTreino(c, nome);
@@ -628,4 +633,62 @@ async function viewCorrida(id) {
     const { error } = await sb.from('nx_corridas').delete().eq('id', c.id);
     error ? toast('Não foi possível apagar.', true) : (toast('Corrida apagada.'), (location.hash = voltar));
   };
+}
+
+/* ---------- de qual treino foi esta corrida: o aluno (ou o treinador) corrige à mão ----------
+   O app liga sozinho só o treino do mesmo dia (ou o treino enviado ao relógio, pelo nome). Aqui dá para dizer que foi
+   uma corrida por fora (não conta como treino) ou escolher o treino certo da planilha. */
+async function trocarTreinoDaCorrida(c) {
+  const d = isoDia(c.data);
+  const [{ data: pl }, { data: usados }] = await Promise.all([
+    sb
+      .from('nx_plano_corrida')
+      .select('id,data,titulo,tipo,distancia_km,duracao_min,liberado')
+      .eq('aluno_id', c.aluno_id)
+      .gte('data', somaDias(d, -7))
+      .lte('data', somaDias(d, 7))
+      .not('tipo', 'in', '(folga,forca)')
+      .order('data'),
+    sb
+      .from('nx_corridas')
+      .select('id,plano_id')
+      .eq('aluno_id', c.aluno_id)
+      .not('plano_id', 'is', null)
+      .gte('data', new Date(Date.parse(d + 'T12:00:00') - 9 * 864e5).toISOString()),
+  ]);
+  const ocupado = new Set((usados || []).filter((u) => u.id !== c.id).map((u) => u.plano_id));
+  const lista = (pl || []).filter((p) => p.liberado !== false || S.staff);
+  const linha = (p) => {
+    const oc = ocupado.has(p.id);
+    const qt = p.distancia_km
+      ? `${String(p.distancia_km).replace('.', ',')} km`
+      : p.duracao_min
+        ? `${p.duracao_min} min`
+        : '';
+    return `<button type="button" class="list-item" data-esc="${p.id}" ${oc ? 'disabled' : ''} style="width:100%;text-align:left;color:inherit${oc ? ';opacity:.5' : ''}"><div class="grow" style="min-width:0"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b><div class="small muted">${fmtData(p.data + 'T12:00:00')}${p.data === d ? ' · mesmo dia' : ''}${qt ? ' · ' + qt : ''}${oc ? ' · já feito com outra corrida' : ''}</div></div>${c.plano_id === p.id ? `<span class="tag ok">${I.check} atual</span>` : ''}</button>`;
+  };
+  openSheet(
+    `<p class="eyebrow">Corrida de ${fmtData(c.data)}</p><div class="h2" style="margin-top:4px">De qual treino foi?</div>
+    <p class="small muted" style="margin-top:6px">O app liga sozinho a corrida ao treino do mesmo dia. Se foi uma corrida por fora, marque abaixo: ela fica no histórico, mas não conta como treino feito.</p>
+    <button type="button" class="list-item avulsa-op" data-esc="" style="width:100%;text-align:left;color:inherit;margin-top:12px"><div class="grow"><b>Corrida por fora</b><div class="small muted">Não era treino da planilha</div></div>${!c.plano_id ? `<span class="tag ok">${I.check} atual</span>` : ''}</button>
+    <p class="sec-lbl" style="margin-top:14px">Treinos da planilha (uma semana antes e depois)</p>
+    <div class="stack">${lista.length ? lista.map(linha).join('') : '<p class="small muted">Nenhum treino de corrida nesse período.</p>'}</div>`,
+    (r) =>
+      r.querySelectorAll('[data-esc]').forEach(
+        (b) =>
+          (b.onclick = async () => {
+            const id = b.dataset.esc || null;
+            b.disabled = true;
+            const { error } = await sb.from('nx_corridas').update({ plano_id: id, avulsa: !id }).eq('id', c.id);
+            if (error) {
+              b.disabled = false;
+              return toast('Não foi possível trocar agora.', true);
+            }
+            closeSheet();
+            toast(id ? 'Pronto. A corrida agora conta como esse treino.' : 'Pronto. Ficou como corrida por fora.');
+            S.cache = { ...S.cache, planilha: null };
+            viewCorrida(c.id);
+          }),
+      ),
+  );
 }

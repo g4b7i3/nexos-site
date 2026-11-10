@@ -626,7 +626,8 @@ function formCorrida(alunoId, d, plano, onSalvo) {
   dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
   const diaD = isoDia(d.data);
   const prox = [...plano].sort((a, b) => Math.abs(dia(a.data) - dia(diaD)) - Math.abs(dia(b.data) - dia(diaD)));
-  const sugerido = prox.find((p) => p.data === diaD);
+  // corrida livre (escolhida no GPS do app): não sugere treino, fica como corrida avulsa
+  const sugerido = d.livre ? null : prox.find((p) => p.data === diaD);
   let rpe = d.rpe ?? null,
     dor = !!d.dor;
   const corpo = { cansaco: d.cansaco ?? null, sono: d.sono ?? null };
@@ -711,6 +712,8 @@ function formCorrida(alunoId, d, plano, onSalvo) {
           sono: corpo.sono ?? null,
           comentario: f.comentario.value.trim() || null,
           plano_id: f.plano ? f.plano.value || null : null,
+          // escolheu "Corrida avulsa" (ou corrida livre no GPS): o app respeita e não liga a nenhum treino
+          avulsa: f.plano ? !f.plano.value : !!d.livre,
           parciais: reaproveitaArquivo ? d.parciais : null,
           rota: d.rota || null,
           fonte: d.fonte || 'manual',
