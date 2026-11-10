@@ -2245,9 +2245,7 @@ async function desenharCard(cv, c, o) {
       sub,
       'left',
     );
-    y += 90 * F;
-    [V.dist, V.tempo, V.pace].filter(Boolean).forEach((s, i) => stat(s, 100 + i * 310, y, 66 * F, 'left'));
-    const g0 = y + 170 * F,
+    const g0 = y + 130 * F,
       g1 = H - (post ? 200 : 330);
     const barra = (x, yy, w, h, cor) => {
       ctx.save();
@@ -2325,9 +2323,7 @@ async function desenharCard(cv, c, o) {
       sub,
       'left',
     );
-    y += 90 * F;
-    [V.dist, V.tempo, V.pace].filter(Boolean).forEach((s, i) => stat(s, 100 + i * 310, y, 66 * F, 'left'));
-    const g0 = y + 170 * F,
+    const g0 = y + 110 * F,
       g1 = H - (post ? 230 : 380);
     const A0 = Math.PI * 0.75,
       A1 = Math.PI * 2.25;
@@ -2417,7 +2413,7 @@ async function desenharCard(cv, c, o) {
     y += 60 * F;
     txt('estimado pelo relógio', 100, y, `600 ${Math.round(40 * F)}px ${FB}`, sub, 'left');
     const g0 = y + 60 * F,
-      g1 = H - (post ? 400 : 600),
+      g1 = H - (post ? 300 : 460),
       R = Math.min(330 * F, (g1 - g0) / 1.8),
       cx = W / 2,
       cy = g0 + R + 50 * F,
@@ -2503,10 +2499,6 @@ async function desenharCard(cv, c, o) {
         'center',
       );
     }
-    const yS = H - (post ? 330 : 470);
-    [V.dist, V.tempo, V.pace]
-      .filter(Boolean)
-      .forEach((s, i, arr) => stat(s, W / 2 + (i - (arr.length - 1) / 2) * 300, yS, 60 * F, 'center'));
     logo(W / 2, H - (post ? 110 : 190), 220);
   } else if (L === 'altimetria' && altDe(c)) {
     // perfil de subidas e descidas do percurso
