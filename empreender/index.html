@@ -30,7 +30,8 @@ h3{font-size:.92rem;margin:0}
 .btn:disabled{opacity:.55;cursor:default}
 .link{background:none;border:0;color:var(--acc);font:700 .84rem Manrope,sans-serif;cursor:pointer;padding:0}
 .link.err{color:var(--err)}
-label.f{display:block;margin-bottom:12px}
+label.f,div.f{display:block;margin-bottom:12px}
+[hidden]{display:none!important}
 label.f>span{display:block;font-size:.8rem;font-weight:700;color:var(--mute);margin-bottom:6px}
 .in{width:100%;border:1px solid var(--line);background:var(--s1);border-radius:12px;padding:12px 13px;font:500 1rem Manrope,sans-serif;color:var(--ink)}
 .in:focus{outline:2px solid color-mix(in srgb,var(--acc) 40%,transparent);background:#fff}
@@ -149,6 +150,7 @@ dialog::backdrop{background:rgba(11,24,52,.45)}
 .fab{position:fixed;right:18px;bottom:18px;z-index:30;border-radius:999px;padding:14px 20px;box-shadow:0 14px 30px -12px rgba(2,132,199,.7)}
 .sec{margin-top:24px}
 .sec-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.row-mes{display:flex;align-items:center;gap:10px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -180,7 +182,7 @@ const mesCurto = (i) => `${MESES[i % 12]}/${String(Math.floor(i / 12)).slice(2)}
 const mesISO = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
 const dataBR = (iso) => { const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y.slice(2)}`; };
 const numDe = (txt) => +String(txt).replace(/\s|R\$/g, '').replace(/\./g, '').replace(',', '.') || 0;
-let senha = null, itens = [], pagos = [];
+let senha = null, itens = [], pagos = [], recs = [];
 let aba = 'geral';
 const filtro = { q: '', st: 'todos', cat: '' };
 const guarda = {
@@ -260,12 +262,15 @@ function telaSenha(criar) {
 async function carregar(s) {
   const { data, error } = await sb.rpc('nx_emp_listar', { p_senha: s });
   if (error || !data || data.erro) { if (data && data.erro) toast(msgErro(data.erro), true); guarda.limpar(); return false; }
-  senha = s; itens = data.itens || []; pagos = data.pagos || []; return true;
+  senha = s; itens = data.itens || []; pagos = data.pagos || [];
+  const r = await sb.rpc('nx_emp_recebimentos_listar', { p_senha: s });
+  recs = (r.data && r.data.recebimentos) || [];
+  return true;
 }
 async function recarregar() { await carregar(senha); desenhar(); }
 
 /* ---------- estrutura ---------- */
-const ABAS = [['geral', 'Visão geral'], ['gastos', 'Gastos'], ['pagamentos', 'Pagamentos'], ['meses', 'Por mês']];
+const ABAS = [['geral', 'Visão geral'], ['assessoria', 'Assessoria'], ['gastos', 'Gastos'], ['pagamentos', 'Gastos pagos'], ['meses', 'Por mês']];
 function desenhar() {
   const y = window.scrollY;
   $raiz.innerHTML = `<header class="topo"><div class="topo-in">
@@ -275,7 +280,9 @@ function desenhar() {
     <main class="wrap" id="corpo"></main>
     <button class="btn fab so-cel" data-acao="novo">+ Gasto</button>`;
   const corpo = document.getElementById('corpo');
-  corpo.innerHTML = aba === 'gastos' ? telaGastos() : aba === 'pagamentos' ? telaPagamentos() : aba === 'meses' ? telaMeses() : telaGeral();
+  corpo.innerHTML = aba === 'assessoria' ? telaAssessoria() : aba === 'gastos' ? telaGastos() : aba === 'pagamentos' ? telaPagamentos() : aba === 'meses' ? telaMeses() : telaGeral();
+  const fm = document.getElementById('rec-mes');
+  if (fm) fm.onchange = () => { recMes = fm.value; desenhar(); };
   $raiz.onclick = cliques;
   const bq = document.getElementById('busca');
   if (bq) bq.oninput = () => { filtro.q = bq.value; atualizarLista(); };
@@ -284,14 +291,16 @@ function desenhar() {
   window.scrollTo(0, y);
 }
 function cliques(e) {
-  const t = e.target.closest('[data-aba],[data-acao],[data-g],[data-st],[data-desf]');
+  const t = e.target.closest('[data-aba],[data-acao],[data-g],[data-st],[data-desf],[data-rec]');
   if (!t) return;
   if (t.dataset.aba) { aba = t.dataset.aba; try { sessionStorage.setItem('nx-emp-aba', aba); } catch {} window.scrollTo(0, 0); return desenhar(); }
   if (t.dataset.st) { filtro.st = t.dataset.st; document.querySelectorAll('[data-st]').forEach((x) => x.classList.toggle('on', x === t)); return atualizarLista(); }
   if (t.dataset.g) return detalhe(itens.find((g) => g.id === t.dataset.g));
   if (t.dataset.desf) return desfazer(pagos.find((x) => x.id === t.dataset.desf));
+  if (t.dataset.rec) return detalheRec(recs.find((x) => x.id === t.dataset.rec));
   const a = t.dataset.acao;
   if (a === 'novo') return formGasto();
+  if (a === 'receber') return formRecebimento();
   if (a === 'paguei') return jaPagueiGeral();
   if (a === 'menu') return menu();
   if (a === 'ver-ant') { const tb = document.getElementById('ant'); tb.hidden = !tb.hidden; t.textContent = tb.hidden ? 'Ver meses anteriores' : 'Esconder anteriores'; }
@@ -420,6 +429,137 @@ function telaMeses() {
       <tbody id="ant" hidden>${antigos.map(linha).join('')}</tbody><tbody>${futuros.map(linha).join('') || '<tr><td colspan="3" class="dim">Nada a pagar daqui pra frente.</td></tr>'}</tbody></table></div>` : '<div class="card vazio">Nenhum gasto ainda.</div>'}`;
 }
 
+
+/* ---------- pagamentos da assessoria (o que os alunos pagam) ----------
+   Cada plano tem nome próprio, para a página saber de quem é o dinheiro:
+   corrida (Essencial e Evolução) é do Gabriel, força é do Orlando e o Integral é dividido na proporção do serviço
+   (corrida R$ 220 x força R$ 100: 68,75% e 31,25%). A taxa do Mercado Pago sai antes da divisão. */
+const PLANOS_REC = {
+  corrida_essencial: { nome: 'Corrida Essencial', tipo: 'corrida', pix: { mensal: 180, trimestral: 175, semestral: 169, anual: 162 }, cartao: { mensal: 188, trimestral: 183, semestral: 177, anual: 169 }, parc: { trimestral: 192, semestral: 197, anual: 206 } },
+  corrida_evolucao: { nome: 'Corrida Evolução', tipo: 'corrida', pix: { mensal: 220, trimestral: 214, semestral: 207, anual: 198 }, cartao: { mensal: 230, trimestral: 223, semestral: 216, anual: 207 }, parc: { trimestral: 235, semestral: 241, anual: 252 } },
+  integral: { nome: 'Integral (Corrida + Força)', tipo: 'integral', pix: { mensal: 309, trimestral: 299, semestral: 289, anual: 279 }, cartao: { mensal: 322, trimestral: 312, semestral: 302, anual: 291 }, parc: { trimestral: 328, semestral: 336, anual: 355 } },
+  forca_online: { nome: 'Força Online', tipo: 'forca', pix: { ciclo: 200 }, cartao: { ciclo: 209 }, parc: { ciclo: 107 } },
+  forca_presencial: { nome: 'Força Presencial', tipo: 'forca', pix: { ciclo: 250 }, cartao: { ciclo: 261 }, parc: { ciclo: 134 } },
+  outro: { nome: 'Outro', tipo: 'outro', pix: {}, cartao: {}, parc: {} },
+};
+const PERIODOS = { mensal: ['Mensal', 1], trimestral: ['Trimestral', 3], semestral: ['Semestral', 6], anual: ['Anual', 12], ciclo: ['Ciclo de 8 semanas', 2], avulso: ['Avulso', 1] };
+const FORMAS = { pix: 'Pix', cartao: 'Cartão (todo mês)', parcelado: 'Cartão parcelado', dinheiro: 'Dinheiro' };
+const PARC_TX = [0, 0, 0.0253, 0.0462, 0.0669, 0.0866, 0.0996, 0.1124, 0.125, 0.1373, 0.1493, 0.1612, 0.1728];
+const taxaDe = (forma, n) => (forma === 'pix' ? 0.0099 : forma === 'cartao' ? 0.0399 : forma === 'parcelado' ? 0.0399 + PARC_TX[Math.max(1, Math.min(12, n || 1))] : 0);
+const pctGabriel = (plano, outro) => (plano === 'outro' ? +outro || 50 : { corrida: 100, integral: 68.75, forca: 0 }[PLANOS_REC[plano].tipo]);
+let recMes = '';
+const mesDe = (iso) => String(iso).slice(0, 7);
+function telaAssessoria() {
+  const meses = [...new Set(recs.map((r) => mesDe(r.recebido_em)))].sort().reverse();
+  const atual = new Date().toISOString().slice(0, 7);
+  if (!meses.includes(atual)) meses.unshift(atual);
+  if (!recMes || !meses.includes(recMes)) recMes = atual;
+  const doMes = recs.filter((r) => mesDe(r.recebido_em) === recMes);
+  const soma = (l, k) => cent(l.reduce((a, r) => a + +r[k], 0));
+  const [ano, mes] = recMes.split('-').map(Number);
+  const nomeMes = (m) => { const [y, mm] = m.split('-').map(Number); return `${MESES[mm - 1]}/${y}`; };
+  const porPlano = Object.entries(PLANOS_REC).map(([k, p]) => [p.nome, doMes.filter((r) => r.plano === k)]).filter(([, l]) => l.length);
+  return `<div class="sec-h"><div><h1>Pagamentos da assessoria</h1><p class="small muted" style="margin:4px 0 0">O que os alunos pagaram, já sem a taxa do Mercado Pago e dividido entre os dois.</p></div><button class="btn" data-acao="receber">+ Pagamento</button></div>
+    <div class="row-mes"><label class="small muted" for="rec-mes">Mês</label><select class="in" id="rec-mes" style="max-width:180px">${meses.map((m) => `<option value="${m}" ${m === recMes ? 'selected' : ''}>${nomeMes(m)}</option>`).join('')}</select></div>
+    <div class="kpis">
+      <div class="card kpi"><span>Recebido em ${MESES[mes - 1]}</span><div class="num">${brl(soma(doMes, 'valor'))}</div><span class="tiny dim">${doMes.length} pagamento${doMes.length === 1 ? '' : 's'}</span></div>
+      <div class="card kpi"><span>Taxas do Mercado Pago</span><div class="num" style="color:var(--err)">${brl(soma(doMes, 'taxa'))}</div><span class="tiny dim">líquido ${brl(soma(doMes, 'liquido'))}</span></div>
+      <div class="card kpi"><span>Parte do Gabriel</span><div class="num" style="color:${COR_SOCIO.Gabriel}">${brl(soma(doMes, 'gabriel'))}</div><span class="tiny dim">corrida e parte do Integral</span></div>
+      <div class="card kpi"><span>Parte do Orlando</span><div class="num" style="color:${COR_SOCIO.Orlando}">${brl(soma(doMes, 'orlando'))}</div><span class="tiny dim">força e parte do Integral</span></div>
+    </div>
+    ${porPlano.length ? `<div class="chips" style="margin-top:12px">${porPlano.map(([n, l]) => `<span class="tag">${esc(n)}: ${l.length} · ${brl(soma(l, 'valor'))}</span>`).join('')}</div>` : ''}
+    <div class="card" style="margin-top:12px;padding:0;overflow:hidden">${doMes.length ? `<table class="tabela"><thead><tr><th>Aluno e plano</th><th class="r so-pc">Recebido</th><th class="r so-pc">Taxa</th><th class="r">Gabriel</th><th class="r">Orlando</th></tr></thead><tbody>${doMes
+      .map((r) => `<tr data-rec="${r.id}"><td class="desc"><b>${esc(r.aluno)}</b><small class="muted">${esc(PLANOS_REC[r.plano].nome)} · ${PERIODOS[r.periodo][0]} · ${FORMAS[r.forma]}${r.forma === 'parcelado' ? ` ${r.parcelas}x` : ''} · ${dataBR(r.recebido_em)}</small></td><td class="r nw so-pc">${brl(r.valor)}</td><td class="r nw so-pc dim">−${brl(r.taxa)}</td><td class="r nw"><b>${brl(r.gabriel)}</b></td><td class="r nw"><b>${brl(r.orlando)}</b></td></tr>`)
+      .join('')}</tbody></table>` : `<div class="vazio">Nenhum pagamento de aluno lançado em ${nomeMes(recMes)}. Toque em <b>+ Pagamento</b>.</div>`}</div>
+    <p class="tiny dim" style="margin-top:10px">Taxas do Mercado Pago usadas na conta: Pix 0,99%; cartão 3,99% (recebimento em 30 dias); cartão parcelado 3,99% + a taxa do número de parcelas. A divisão fica gravada em cada pagamento, então mudar os preços depois não altera o que já foi lançado.</p>`;
+}
+function formRecebimento() {
+  let plano = 'corrida_essencial', periodo = 'mensal', forma = 'pix', n = 3;
+  $dlg.innerHTML = `<p class="eyebrow">Pagamento de aluno</p><h2 style="margin:4px 0 16px">Lançar pagamento</h2>
+    <form id="fr">
+      <label class="f"><span>Aluno</span><input class="in" name="aluno" required maxlength="80" placeholder="Nome do aluno"></label>
+      <label class="f"><span>Plano</span><select class="in" name="plano">${Object.entries(PLANOS_REC).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join('')}</select></label>
+      <div class="f"><span class="small" style="display:block;font-weight:700;color:var(--mute);margin-bottom:6px">Período</span><div class="chips" id="fr-per"></div></div>
+      <div class="f"><span class="small" style="display:block;font-weight:700;color:var(--mute);margin-bottom:6px">Forma de pagamento</span><div class="chips" id="fr-forma">${Object.entries(FORMAS).map(([k, t]) => `<button type="button" class="chip ${k === forma ? 'on' : ''}" data-forma="${k}">${t}</button>`).join('')}</div></div>
+      <label class="f" id="fr-n" hidden><span>Parcelas</span><select class="in" name="parcelas">${Array.from({ length: 11 }, (_, i) => i + 2).map((x) => `<option ${x === n ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="f" id="fr-pct" hidden><span>% do Gabriel (o resto é do Orlando)</span><input class="in" name="pct" inputmode="decimal" value="50"></label>
+      <div class="grid2"><label class="f"><span>Valor que caiu na conta (bruto)</span><input class="in" name="valor" inputmode="decimal" required></label>
+      <label class="f"><span>Data</span><input class="in" type="date" name="data" value="${new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)}"></label></div>
+      <div class="card" id="fr-prev" style="background:var(--s1);margin-bottom:12px"></div>
+      <label class="f"><span>Observação (opcional)</span><input class="in" name="obs" maxlength="200"></label>
+      <div class="grid2"><button type="button" class="btn ghost" id="fr-x">Cancelar</button><button class="btn">Lançar</button></div>
+    </form>`;
+  $dlg.showModal();
+  const f = document.getElementById('fr');
+  const sugerido = () => {
+    const p = PLANOS_REC[plano];
+    if (forma === 'parcelado') return p.parc[periodo] ? p.parc[periodo] * (PERIODOS[periodo][1] === 1 ? n : PERIODOS[periodo][1]) : 0;
+    return (forma === 'cartao' ? p.cartao : p.pix)[periodo] || 0;
+  };
+  const prev = () => {
+    const v = numDe(f.valor.value), tx = cent(v * taxaDe(forma, n)), liq = cent(v - tx), pg = pctGabriel(plano, numDe(f.pct.value));
+    const g = cent((liq * pg) / 100);
+    document.getElementById('fr-prev').innerHTML = v
+      ? `<div class="small" style="display:grid;gap:4px"><div style="display:flex;justify-content:space-between"><span class="muted">Taxa do Mercado Pago</span><b>−${brl(tx)}</b></div><div style="display:flex;justify-content:space-between"><span class="muted">Líquido</span><b>${brl(liq)}</b></div><div style="display:flex;justify-content:space-between"><span style="color:${COR_SOCIO.Gabriel}">Gabriel (${String(pg).replace('.', ',')}%)</span><b>${brl(g)}</b></div><div style="display:flex;justify-content:space-between"><span style="color:${COR_SOCIO.Orlando}">Orlando</span><b>${brl(cent(liq - g))}</b></div></div>`
+      : '<span class="small muted">Digite o valor para ver a divisão.</span>';
+  };
+  const periodos = () => {
+    const tipo = PLANOS_REC[plano].tipo, lista = tipo === 'forca' ? ['ciclo'] : tipo === 'outro' ? ['avulso', 'mensal'] : ['mensal', 'trimestral', 'semestral', 'anual'];
+    if (!lista.includes(periodo)) periodo = lista[0];
+    document.getElementById('fr-per').innerHTML = lista.map((k) => `<button type="button" class="chip ${k === periodo ? 'on' : ''}" data-per="${k}">${PERIODOS[k][0]}</button>`).join('');
+    document.getElementById('fr-pct').hidden = tipo !== 'outro';
+    document.getElementById('fr-n').hidden = forma !== 'parcelado';
+    if (forma === 'parcelado' && PERIODOS[periodo][1] > 1) { n = PERIODOS[periodo][1]; f.parcelas.value = String(n); }
+    const sg = sugerido();
+    if (sg) f.valor.value = String(sg).replace('.', ',');
+    prev();
+  };
+  f.plano.onchange = () => { plano = f.plano.value; periodos(); };
+  f.parcelas.onchange = () => { n = +f.parcelas.value; prev(); };
+  f.valor.oninput = prev; f.pct.oninput = prev;
+  f.onclick = (e) => {
+    const b = e.target.closest('[data-per],[data-forma]');
+    if (!b) return;
+    if (b.dataset.per) periodo = b.dataset.per;
+    if (b.dataset.forma) { forma = b.dataset.forma; f.querySelectorAll('[data-forma]').forEach((x) => x.classList.toggle('on', x === b)); }
+    periodos();
+  };
+  document.getElementById('fr-x').onclick = () => $dlg.close();
+  periodos();
+  f.aluno.focus();
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const bt = f.querySelector('button:not([type])'); bt.disabled = true;
+    const { data, error } = await sb.rpc('nx_emp_recebimento', {
+      p_senha: senha, p_aluno: f.aluno.value, p_plano: plano, p_periodo: periodo, p_forma: forma,
+      p_parcelas: forma === 'parcelado' ? n : 1, p_valor: numDe(f.valor.value), p_recebido_em: f.data.value || null,
+      p_obs: f.obs.value, p_pct_gabriel: plano === 'outro' ? numDe(f.pct.value) : null,
+    });
+    if (error || !data || data.erro) { bt.disabled = false; return toast(msgErro(data && data.erro), true); }
+    $dlg.close(); recMes = mesDe(f.data.value || new Date().toISOString()); aba = 'assessoria'; await recarregar();
+    toast('Pagamento lançado.');
+  };
+}
+function detalheRec(r) {
+  if (!r) return;
+  $dlg.innerHTML = `<p class="eyebrow">Pagamento de aluno</p><h2 style="margin:4px 0 6px">${esc(r.aluno)}</h2>
+    <p class="muted small">${esc(PLANOS_REC[r.plano].nome)} · ${PERIODOS[r.periodo][0]} · ${FORMAS[r.forma]}${r.forma === 'parcelado' ? ` em ${r.parcelas}x` : ''} · ${dataBR(r.recebido_em)}</p>
+    <div class="card" style="margin-top:12px;display:grid;gap:6px">
+      <div style="display:flex;justify-content:space-between"><span class="muted">Recebido</span><b>${brl(r.valor)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span class="muted">Taxa do Mercado Pago</span><b>−${brl(r.taxa)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span class="muted">Líquido</span><b>${brl(r.liquido)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:${COR_SOCIO.Gabriel}">Gabriel</span><b>${brl(r.gabriel)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:${COR_SOCIO.Orlando}">Orlando</span><b>${brl(r.orlando)}</b></div>
+    </div>${r.obs ? `<p class="small" style="margin-top:10px">${esc(r.obs)}</p>` : ''}
+    <div class="grid2" style="margin-top:16px"><button class="btn ghost" id="r-x">Fechar</button><button class="btn ghost" id="r-d" style="color:var(--err)">Desfazer lançamento</button></div>`;
+  $dlg.showModal();
+  document.getElementById('r-x').onclick = () => $dlg.close();
+  document.getElementById('r-d').onclick = async () => {
+    const { data, error } = await sb.rpc('nx_emp_desfazer_recebimento', { p_senha: senha, p_id: r.id });
+    if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
+    $dlg.close(); await recarregar(); toast('Lançamento desfeito.');
+  };
+}
 /* ---------- menu: planilha e sair ---------- */
 function menu() {
   $dlg.innerHTML = `<h2>Opções</h2><div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
@@ -440,6 +580,10 @@ function baixarCSV() {
   linhas.push(['Pagamentos']);
   linhas.push(['Data', 'Sócio', 'Valor', 'Gasto']);
   pagos.forEach((x) => linhas.push([dataBR(x.pago_em), x.socio, n2(x.valor), (itens.find((g) => g.id === x.gasto_id) || {}).descricao || '']));
+  linhas.push([]);
+  linhas.push(['Pagamentos da assessoria']);
+  linhas.push(['Data', 'Aluno', 'Plano', 'Período', 'Forma', 'Recebido', 'Taxa', 'Líquido', 'Gabriel', 'Orlando', 'Observação']);
+  recs.forEach((r) => linhas.push([dataBR(r.recebido_em), r.aluno, PLANOS_REC[r.plano].nome, PERIODOS[r.periodo][0], FORMAS[r.forma] + (r.forma === 'parcelado' ? ` ${r.parcelas}x` : ''), n2(r.valor), n2(r.taxa), n2(r.liquido), n2(r.gabriel), n2(r.orlando), r.obs || '']));
   const csv = '﻿' + linhas.map((l) => l.map(c).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
