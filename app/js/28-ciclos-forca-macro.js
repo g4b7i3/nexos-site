@@ -1757,7 +1757,7 @@ async function ciclosTerminandoHTML(meus, nomes) {
       const c = (x.tipo === 'forca' ? CICLOS_FORCA : CICLOS_CORR).find((k) => k.id === x.ciclo_id);
       const nx = c ? (x.tipo === 'forca' ? proximosForca(c) : proximosCorr(c))[0] : null;
       const prox = somaDias(x.fim, 1);
-      return `<button type="button" class="list-item" data-cicnx="${nx ? nx[0].id : ''}" data-cictipo="${x.tipo}" data-cical="${x.aluno_id}" data-cicini="${prox}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${x.tipo === 'forca' ? HALTER_S : I.run}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(nomes[x.aluno_id] || 'Aluno'))}: ${esc(x.nome || '')}</b><div class="small muted">${x.fim < hoje ? 'Terminou' : 'Termina'} ${fmtCurto(x.fim + 'T12:00:00')}${nx ? ` · próximo sugerido: <b>${esc(nx[0].nome)}</b>` : ''}</div></div>${I.chev}</button>`;
+      return `<button type="button" class="list-item" data-javi="cic:${x.aluno_id}:${x.tipo}:${x.fim}" data-cicnx="${nx ? nx[0].id : ''}" data-cictipo="${x.tipo}" data-cical="${x.aluno_id}" data-cicini="${prox}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${x.tipo === 'forca' ? HALTER_S : I.run}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(nomes[x.aluno_id] || 'Aluno'))}: ${esc(x.nome || '')}</b><div class="small muted">${x.fim < hoje ? 'Terminou' : 'Termina'} ${fmtCurto(x.fim + 'T12:00:00')}${nx ? ` · próximo sugerido: <b>${esc(nx[0].nome)}</b>` : ''}</div></div>${I.chev}</button>`;
     },
   ).join('')}</div></div>`;
 }

@@ -995,7 +995,7 @@ async function faltasEquipe(ids, porId) {
   box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Treinos não feitos</h2>${novas ? `<span class="tag acc">${novas} resposta${novas > 1 ? 's' : ''} nova${novas > 1 ? 's' : ''}</span>` : `<a class="link-btn small" href="#/semanas">Semanas anteriores</a>`}</div><div class="stack">${data
     .map((f) => {
       const m = porId[f.aluno_id] || { nome: 'Aluno' };
-      return `<a class="list-item" href="#/aluno/${f.aluno_id}" data-falta-vista="${f.respondido_em && !f.visto_treinador ? f.id : ''}" style="color:inherit;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${diaSemDe(f.dia)}</b><div class="small muted">${esc((f.treinos || []).join(' e '))}</div>${f.respondido_em ? `<div class="small" style="margin-top:4px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `: ${esc(f.detalhe)}` : ''}</div>` : '<div class="small muted" style="margin-top:4px">Aguardando a resposta do aluno</div>'}</div>${f.respondido_em && !f.visto_treinador ? '<i class="alert-dot"></i>' : ''}</a>`;
+      return `<a class="list-item" href="#/aluno/${f.aluno_id}" data-javi="falta:${f.id}" data-falta-vista="${f.respondido_em && !f.visto_treinador ? f.id : ''}" style="color:inherit;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${diaSemDe(f.dia)}</b><div class="small muted">${esc((f.treinos || []).join(' e '))}</div>${f.respondido_em ? `<div class="small" style="margin-top:4px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `: ${esc(f.detalhe)}` : ''}</div>` : '<div class="small muted" style="margin-top:4px">Aguardando a resposta do aluno</div>'}</div>${f.respondido_em && !f.visto_treinador ? '<i class="alert-dot"></i>' : ''}</a>`;
     })
     .join('')}</div></div>`;
   box.querySelectorAll('[data-falta-vista]').forEach((a) => {
@@ -1024,6 +1024,7 @@ function vigiarRecolhiveis() {
       obsRecolhe.disconnect();
       return;
     }
+    jaViAplicar($app);
     recolhiveis($app);
   };
   obsRecolhe = new MutationObserver(() => {
@@ -1033,6 +1034,7 @@ function vigiarRecolhiveis() {
     }
   });
   obsRecolhe.observe($app, { childList: true, subtree: true });
+  jaViAplicar($app);
   recolhiveis($app);
 }
 function recolhiveis(raiz) {

@@ -512,7 +512,7 @@ async function energiaEquipe(ids, porId) {
       const quais = SINAIS_RED.filter(([k]) => x.sinais[k] && x.sinais[k].st === 'alerta')
         .map(([, l]) => l.toLowerCase())
         .join(', ');
-      return `<a class="list-item" href="#/aluno/${x.m.user_id}/energia" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${x.n} sinais de baixa energia</b><div class="small muted">${esc(quais)}</div></div>${I.chev}</a>`;
+      return `<a class="list-item" href="#/aluno/${x.m.user_id}/energia" data-javi="${jaViChave('energia', x.m.user_id)}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${x.n} sinais de baixa energia</b><div class="small muted">${esc(quais)}</div></div>${I.chev}</a>`;
     })
     .join('')}</div></div>`;
 }

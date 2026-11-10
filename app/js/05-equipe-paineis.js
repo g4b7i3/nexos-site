@@ -188,7 +188,7 @@ async function datasEspeciais(box, ativos) {
       .map((x, i) => {
         const [t, sub] = MARCO_TXT[x.tipo](x);
         const m = porId[x.aluno_id] || x;
-        return `<div class="list-item marco-item">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(x.nome)}</b><span class="small marco-t"><i>${ICO_MARCO[x.tipo] || ''}</i>${esc(t)}${sub ? ' · ' + esc(sub) : ''}</span></div><button class="btn sm" data-marco="${i}">Mensagem pronta</button></div>`;
+        return `<div class="list-item marco-item" data-javi="${jaViChave('marco', x.aluno_id, x.tipo)}">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(x.nome)}</b><span class="small marco-t"><i>${ICO_MARCO[x.tipo] || ''}</i>${esc(t)}${sub ? ' · ' + esc(sub) : ''}</span></div><button class="btn sm" data-marco="${i}">Mensagem pronta</button></div>`;
       })
       .join('')}
     ${prox.length ? `<p class="small muted" style="margin-top:4px">Aniversários desta semana: ${prox.map((m) => `${esc(firstName(m.nome))} (${fmtCurto(hojeISO().slice(0, 4) + m.nascimento.slice(4, 10) + 'T12:00:00')})`).join(', ')}</p>` : ''}</div></div>`;

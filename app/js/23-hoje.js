@@ -53,7 +53,18 @@ async function marcarVisto(b) {
     b.innerHTML = `${I.check} Visto`;
     return toast((data && data.erro) || 'Não foi possível marcar agora.', true);
   }
+  const linha = b.closest('.ativ-row'),
+    guard = document.getElementById('ativ-vistos-l');
   b.outerHTML = `<span class="visto-ok" title="Você já viu">${I.check}</span>`;
+  // na Hoje, o treino visto sai da lista principal e vai para os já vistos
+  if (linha && linha.closest('.card.ativ') && !linha.closest('#ativ-vistos-l')) {
+    linha.classList.add('javi-saindo');
+    setTimeout(() => {
+      if (guard) guard.prepend(linha);
+      else linha.remove();
+      linha.classList.remove('javi-saindo');
+    }, 220);
+  }
   toast('Visto! O aluno foi avisado que você analisou o treino.');
   contarNaoVistos()
     .then(dockStaff)
@@ -72,6 +83,7 @@ async function idsMeusAlunos() {
 }
 async function staffHoje() {
   loading();
+  await jaViCarregar();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   // a Hoje mostra só a semana atual (de segunda a domingo); na segunda tudo zera e o que passou fica em Semanas anteriores
   const semIni = (() => {
@@ -484,7 +496,7 @@ async function staffHoje() {
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><div class="top-acoes">${sinoHTML()}<a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
-    <p class="muted" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
+    <p class="muted" id="al-cont" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
     <div id="cic-term"></div>
     <div id="testes-eq"></div>
     <div id="energia-eq"></div>
@@ -513,7 +525,7 @@ async function staffHoje() {
         : ''
     }
     ${cartaoPushHTML()}
-    <div class="stats"><a class="stat" href="#/alunos" style="color:inherit"><b>${ativos.length}</b><span>alunos ativos</span></a><div class="stat"><b>${treinosSemana}</b><span>treinos em 7 dias</span></div><a class="stat" href="#/financeiro" style="color:inherit"><b>${aReceber ? brl(aReceber).replace(',00', '') : 'R$ 0'}</b><span>a receber no mês</span></a></div>
+    <div class="stats"><a class="stat" href="#/alunos" style="color:inherit"><b>${ativos.length}</b><span>alunos ativos</span></a><div class="stat"><b>${treinosSemana}</b><span>treinos na semana</span></div><a class="stat" href="#/financeiro" style="color:inherit"><b>${aReceber ? brl(aReceber).replace(',00', '') : 'R$ 0'}</b><span>a receber no mês</span></a></div>
     ${(() => {
       const resp = ativos.filter((m) => pronts.some((p) => p.aluno_id === m.user_id));
       const at = pronts.filter((p) => p.alerta && vis.has(p.aluno_id)).length;
@@ -528,7 +540,7 @@ async function staffHoje() {
     <div id="datas-esp"></div>
     ${(() => {
       const card = ({ m, l }) =>
-        `<a class="list-item alerta" href="${l[0].ir}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l
+        `<a class="list-item alerta" href="${l[0].ir}" data-javi="${jaViChave('al', m.user_id, l.map((x) => x.t).join('|'))}" style="color:inherit">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome)} ${modSelos(m)}${!m.treinador_id ? ' <span class="tag warn" style="vertical-align:2px">sem treinador</span>' : ''}</b><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">${l
           .slice(0, 3)
           .map((x) => `<span class="tag ${x.cls}">${esc(x.t)}</span>`)
           .join(
@@ -552,14 +564,23 @@ async function staffHoje() {
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Retornos</a><a class="link-btn" href="#/semanas">Anteriores</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
       <div id="ativ-corpo" ${store.get('nx_ativ_oculta', false) ? 'hidden' : ''}>${
         recentes.length
-          ? `<div class="card ativ">${recentes
-              .slice(0, st.tudo ? 60 : 6)
-              .map(
-                (x) =>
-                  `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-av">${avAluno(x.m || { nome: x.n }, 'sm')}<i class="ativ-tipo" title="${x.tp === 'sessao' ? 'Força' : 'Corrida'}">${x.ic}</i></span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`,
-              )
-              .join('')}
-        ${recentes.length > 6 ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">${st.tudo ? 'Mostrar menos' : `Mostrar mais ${recentes.length - 6}`}</button>` : ''}</div>`
+          ? (() => {
+              // os que você ainda não viu ficam à vista; os já vistos ficam guardados embaixo
+              const linha = (x) =>
+                `<div class="ativ-row"><a class="ativ-l" href="${x.h}"><span class="ativ-av">${avAluno(x.m || { nome: x.n }, 'sm')}<i class="ativ-tipo" title="${x.tp === 'sessao' ? 'Força' : 'Corrida'}">${x.ic}</i></span><div class="grow" style="min-width:0"><b class="ellip">${esc(firstName(x.n))}</b><span class="small muted ellip">${x.d}</span></div>${x.dor ? '<span class="tag err">dor</span>' : ''}<span class="tiny dim">${quando(x.t)}</span></a>${x.novo ? `<button type="button" class="visto-btn" data-visto="${x.tp}|${x.id}">${I.check} Visto</button>` : `<span class="visto-ok" title="Você já viu">${I.check}</span>`}</div>`;
+              const naoV = recentes.filter((x) => x.novo),
+                jaV = recentes.filter((x) => !x.novo);
+              return `<div class="card ativ">${
+                naoV.length
+                  ? naoV
+                      .slice(0, st.tudo ? 60 : 6)
+                      .map(linha)
+                      .join('')
+                  : '<p class="small muted" style="padding:6px 2px">Tudo visto nesta semana.</p>'
+              }
+        ${naoV.length > 6 ? `<button class="link-btn small" id="mais-ativ" style="margin-top:8px">${st.tudo ? 'Mostrar menos' : `Mostrar mais ${naoV.length - 6}`}</button>` : ''}
+        ${jaV.length ? `<button class="link-btn small" id="ativ-vistos" style="margin-top:8px;display:block">${st.vistos ? 'Esconder' : 'Mostrar'} os ${jaV.length} já vistos</button><div id="ativ-vistos-l" ${st.vistos ? '' : 'hidden'}>${jaV.map(linha).join('')}</div>` : ''}</div>`;
+            })()
           : '<div class="empty"><div class="h3">Nenhum treino nesta semana ainda</div><p class="small">A semana começa na segunda. As anteriores ficam em <a href="#/semanas">Semanas anteriores</a>.</p></div>'
       }</div>
       ${store.get('nx_ativ_oculta', false) ? `<p class="small muted" id="ativ-oculta-txt">${recentes.length} ${recentes.length === 1 ? 'atividade oculta' : 'atividades ocultas'}. Toque na seta para mostrar.</p>` : ''}
@@ -594,7 +615,7 @@ async function staffHoje() {
       box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Testes para confirmar</h2><span class="tag acc">${ts.length}</span></div><div class="stack">${ts
         .map((x) => {
           const m = porId[x.c.aluno_id] || { nome: 'Aluno' };
-          return `<button class="list-item" data-tst-aluno="${x.c.aluno_id}" style="color:inherit;text-align:left;width:100%">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} fez o ${esc(x.p.titulo || 'teste')}</b><div class="small muted">${diaSemDe(isoDia(x.c.data))} · confira o resultado e confirme as zonas</div></div>${I.chev}</button>`;
+          return `<button class="list-item" data-javi="teste:${x.c.id || x.c.aluno_id}" data-tst-aluno="${x.c.aluno_id}" style="color:inherit;text-align:left;width:100%">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} fez o ${esc(x.p.titulo || 'teste')}</b><div class="small muted">${diaSemDe(isoDia(x.c.data))} · confira o resultado e confirme as zonas</div></div>${I.chev}</button>`;
         })
         .join('')}</div></div>`;
       box.querySelectorAll('[data-tst-aluno]').forEach((b) => (b.onclick = () => abrirRitmosAluno(b.dataset.tstAluno)));
@@ -683,6 +704,12 @@ async function staffHoje() {
         staffHoje();
       }),
   );
+  const av = document.getElementById('ativ-vistos');
+  if (av)
+    av.onclick = () => {
+      st.vistos = !st.vistos;
+      staffHoje();
+    };
   const ma = document.getElementById('mais-ativ');
   if (ma)
     ma.onclick = () => {
@@ -1040,3 +1067,103 @@ async function staffSemanas() {
       .join('')}</div>
     <p class="small muted" style="margin-top:14px">Mostrando as últimas ${N} semanas. O histórico completo de cada aluno continua na ficha dele.</p>`;
 }
+
+/* ---------- "Já vi": o treinador tira um aviso da Hoje (só para ele; o aluno não recebe nada) ----------
+   Cada aviso tem uma chave. Avisos que dependem da situação (alertas, saúde, datas) levam a semana na chave:
+   se o problema continuar na semana seguinte, ou mudar, o aviso volta a aparecer. */
+const jaViChave = (tipo, id, extra = '') => {
+  let h = 0;
+  for (const ch of String(extra)) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return `${tipo}:${id}:${isoDia(inicioSemana())}${extra ? ':' + (h >>> 0).toString(36) : ''}`;
+};
+async function jaViCarregar(force) {
+  if (S.cache.jaVi && !force) return S.cache.jaVi;
+  const { data } = await sb
+    .from('nx_ocultos')
+    .select('chave')
+    .eq('user_id', S.user.id)
+    .then(
+      (r) => r,
+      () => ({ data: [] }),
+    );
+  S.cache.jaVi = new Set((data || []).map((x) => x.chave));
+  return S.cache.jaVi;
+}
+const JAVI_IC =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+// tira um item da tela e, se a lista ficar vazia, a seção inteira
+function jaViTirar(el) {
+  const sec = el.closest('.section');
+  el.classList.add('javi-saindo');
+  setTimeout(() => {
+    const lista = el.parentElement;
+    el.remove();
+    if (!sec) return;
+    const resta = sec.querySelectorAll('[data-javi]').length;
+    if (!resta) return sec.remove();
+    const tag = sec.querySelector('.section-h .tag');
+    if (tag && /^\d+$/.test(tag.textContent.trim())) tag.textContent = resta;
+    if (lista && !lista.children.length && lista.classList.contains('stack')) lista.remove();
+  }, 220);
+}
+// frase do topo da Hoje: conta só os alertas que ainda estão na tela
+function jaViContar() {
+  const el = document.getElementById('al-cont');
+  if (!el) return;
+  const n = document.querySelectorAll('[data-javi^="al:"]:not(.javi-saindo)').length;
+  el.textContent = n ? `${n} aluno${n > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.';
+}
+function jaViAplicar(raiz) {
+  const vistos = S.cache.jaVi || new Set();
+  raiz.querySelectorAll('[data-javi]:not([data-javi-ok])').forEach((el) => {
+    el.dataset.javiOk = '1';
+    if (vistos.has(el.dataset.javi)) {
+      const sec = el.closest('.section');
+      el.remove();
+      if (sec && !sec.querySelector('[data-javi]')) sec.remove();
+      return;
+    }
+    const b = document.createElement('span');
+    b.className = 'javi-bt';
+    b.setAttribute('role', 'button');
+    b.tabIndex = 0;
+    b.title = 'Já vi: tirar da tela';
+    b.innerHTML = `${JAVI_IC}<span>Já vi</span>`;
+    el.classList.add('com-javi');
+    el.appendChild(b);
+  });
+  jaViContar();
+}
+// toque no "Já vi": não abre o item, guarda a escolha e tira da tela
+document.addEventListener(
+  'click',
+  (e) => {
+    const b = e.target.closest('.javi-bt');
+    if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = b.closest('[data-javi]');
+    if (!el) return;
+    const chave = el.dataset.javi;
+    (S.cache.jaVi = S.cache.jaVi || new Set()).add(chave);
+    jaViTirar(el);
+    setTimeout(jaViContar, 260);
+    sb.from('nx_ocultos')
+      .insert({ user_id: S.user.id, org_id: S.org.id, chave })
+      .then(
+        () => {},
+        () => {},
+      );
+    // treino não feito: marca como visto também (não avisa o aluno)
+    if (chave.startsWith('falta:'))
+      sb.from('nx_faltas')
+        .update({ visto_treinador: true })
+        .eq('id', chave.slice(6))
+        .then(
+          () => {},
+          () => {},
+        );
+    toast('Pronto, saiu da tela.');
+  },
+  true,
+);
