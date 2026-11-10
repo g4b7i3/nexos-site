@@ -889,6 +889,9 @@ function alunoMais() {
       ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
       <span id="mais-dicas" style="display:contents">${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Sono, alimentação, recuperação e prova')}</span>
     </div>
+    <p class="sec-lbl">Entretenimento</p><div class="stack" id="mais-entret">
+      <a class="list-item tv-item" href="#/tv" style="color:inherit"><span class="ativ-ic tv-ic">${TV_IC}</span><div class="grow"><b>TV Nexos</b><div class="small muted">Filmes e documentários de corrida, filmes completos e sala infantil</div></div>${I.chev}</a>
+    </div>
     <p class="sec-lbl">Conta</p><div class="stack" id="mais-conta">
       ${it('#/conexoes', I.watch, 'Conexões', 'Relógio Garmin e outras marcas')}
       ${it('#/pagamentos', I.money, 'Pagamentos e plano', 'Mensalidades e formas de pagamento')}

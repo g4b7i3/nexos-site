@@ -3421,3 +3421,60 @@ body.em-video{overflow:hidden}
 .cal-chuva::before{content:'';display:inline-block;width:8px;height:10px;margin-right:6px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#4a90d9;vertical-align:-1px;opacity:.55}
 .cal-chuva.on{color:var(--ink)}.cal-chuva.on::before{opacity:1}
 .cal-gota{display:block;flex:none;margin-bottom:3px;width:6px;height:8px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#4a90d9}
+/* ===== TV Nexos (Mais › Entretenimento) ===== */
+.tv-ic{background:linear-gradient(135deg,#0b1834,#1d3fbf)!important;color:#fff!important}
+.tv-cab{display:flex;align-items:center;gap:12px}
+.tv-logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;flex:none;color:#fff;background:linear-gradient(135deg,#0b1834,#1d3fbf 60%,var(--acc));box-shadow:0 10px 24px -12px rgba(29,63,191,.7)}
+.tv-logo svg{width:24px;height:24px}
+.tv-hero{position:relative;display:block;width:100%;margin-top:16px;padding:0;border:0;border-radius:22px;overflow:hidden;cursor:pointer;aspect-ratio:16/9;max-height:420px;background:#050c1c;text-align:left;color:#fff;font:inherit;box-shadow:0 22px 50px -28px rgba(5,12,28,.9)}
+.tv-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.tv-hero:hover img{transform:scale(1.03)}
+.tv-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,12,28,0) 30%,rgba(5,12,28,.55) 60%,rgba(5,12,28,.94))}
+.tv-hero-txt{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:18px;display:flex;flex-direction:column;gap:4px}
+.tv-hero-txt b{font-family:var(--f-h);font-size:clamp(1.15rem,3.6vw,1.8rem);line-height:1.15;max-width:640px}
+.tv-hero-txt small{font-size:.85rem;opacity:.8}
+.tv-selo{align-self:flex-start;font-size:.68rem;font-weight:800;letter-spacing:.12em;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.16);backdrop-filter:blur(6px);color:#fff}
+.tv-selo.vivo{background:#e5484d;display:inline-flex;align-items:center;gap:6px}
+.tv-selo.vivo i{width:7px;height:7px;border-radius:50%;background:#fff;animation:tvPisca 1.2s infinite}
+@keyframes tvPisca{50%{opacity:.25}}
+.tv-assistir{align-self:flex-start;margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:#fff;color:#0b1834;font-weight:800;font-size:.92rem}
+.tv-busca{display:flex;gap:8px;margin-top:16px}
+.tv-busca .input{flex:1;min-width:0}
+.tv-chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.tv-chips::-webkit-scrollbar{display:none}
+.tv-chips .chip{flex:none}
+.tv-kids{display:flex;align-items:center;gap:12px;margin-top:16px;padding:10px 14px 10px 10px;border-radius:18px;color:#fff;background:linear-gradient(110deg,#ff8a3d,#f04e98 55%,#7b5cff);box-shadow:0 14px 30px -18px rgba(240,78,152,.8)}
+.tv-kids img{width:84px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;flex:none}
+.tv-kids span{flex:1;min-width:0;display:flex;flex-direction:column}
+.tv-kids b{font-family:var(--f-h);font-size:1.1rem}.tv-kids small{font-size:.8rem;opacity:.9}
+.tv-kids svg{color:#fff}
+.tv-sec{margin-top:22px}
+.tv-sec-t{font-family:var(--f-h);font-size:1.08rem;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.tv-sec-t small{font-family:inherit;font-size:.78rem;font-weight:600;color:var(--mute)}
+.tv-trilho{display:grid;grid-auto-flow:column;grid-auto-columns:min(62%,240px);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:thin}
+.tv-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.tv-card{scroll-snap-align:start;display:flex;flex-direction:column;gap:4px;padding:0;border:0;background:none;text-align:left;color:inherit;font:inherit;cursor:pointer;min-width:0}
+.tv-card b{font-size:.88rem;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tv-card small{font-size:.74rem;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tv-capa{position:relative;display:block;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:var(--s2)}
+.tv-capa img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s}
+.tv-card:hover .tv-capa img{transform:scale(1.05)}
+.tv-capa i{position:absolute;left:8px;bottom:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(5,12,28,.65);color:#fff;backdrop-filter:blur(4px)}
+.tv-capa em{position:absolute;right:6px;bottom:6px;font-style:normal;font-size:.68rem;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(5,12,28,.78);color:#fff}
+.tv-capa u{position:absolute;left:6px;top:6px;text-decoration:none;font-size:.62rem;font-weight:800;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.9);color:#0b1834}
+.tv-capa u.vivo{background:#e5484d;color:#fff}
+.tv-nota{margin-top:22px}
+/* player */
+.tv-player{position:fixed;inset:0;z-index:300;overflow-y:auto;background:var(--bg);padding:max(12px,env(safe-area-inset-top)) 16px 32px;animation:tvEntra .2s ease-out}
+@keyframes tvEntra{from{opacity:0;transform:translateY(12px)}}
+.tv-p-topo{display:flex;align-items:center;gap:10px;max-width:960px;margin:0 auto 10px}
+.tv-p-tela{max-width:960px;margin:0 auto;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#000;box-shadow:0 20px 50px -25px rgba(0,0,0,.8)}
+.tv-p-tela iframe{width:100%;height:100%;border:0;display:block}
+.tv-p-info{max-width:960px;margin:14px auto 0;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.tv-player>.tv-sec-t,.tv-lista{max-width:960px;margin-left:auto;margin-right:auto}
+.tv-lista{display:flex;flex-direction:column;gap:10px}
+.tv-lista button{display:flex;gap:12px;align-items:center;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.tv-lista .tv-capa{width:140px;flex:none;border-radius:10px}
+.tv-lista span:last-child{display:flex;flex-direction:column;min-width:0}
+.tv-lista b{font-size:.88rem;line-height:1.25}.tv-lista small{font-size:.76rem;color:var(--mute)}
+@media (min-width:768px){.tv-trilho{grid-auto-columns:240px}}

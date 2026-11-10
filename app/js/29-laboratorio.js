@@ -1887,6 +1887,9 @@ function staffMais() {
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
       ${it('#/formularios', I.ficha, `Formulários${S.cache.fichasNovas ? ` <span class="tag acc">${S.cache.fichasNovas} nova${S.cache.fichasNovas > 1 ? 's' : ''}</span>` : ''}`, 'Ficha de entrada: gere o link e mande no WhatsApp')}
     </div>
+    <p class="sec-lbl">Entretenimento</p><div class="stack">
+      <a class="list-item tv-item" href="#/tv" style="color:inherit"><span class="ativ-ic tv-ic">${TV_IC}</span><div class="grow"><b>TV Nexos</b><div class="small muted">Filmes e documentários de corrida, filmes completos e sala infantil</div></div>${I.chev}</a>
+    </div>
     <p class="sec-lbl">Assessoria</p><div class="stack">
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
       ${S.me.papel === 'admin' ? `<a class="list-item" href="/empreender/" target="_blank" rel="noopener" style="color:inherit"><span class="ativ-ic">${I.money}</span><div class="grow"><b>Empreender</b><div class="small muted">Gastos da sociedade: parcelas e quanto cada sócio paga por mês</div></div>${I.chev}</a>` : ''}
