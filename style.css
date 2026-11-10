@@ -870,3 +870,8 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .app-lock p b{display:block;font-weight:800;font-size:.95rem}
 .app-lock p small{display:block;font-size:.8rem;color:rgba(255,255,255,.68);margin-top:3px;line-height:1.4}
 @media (max-width:420px){.app-lock{flex-direction:column;align-items:flex-start}.app-tags span{font-size:.74rem;padding:7px 10px}}
+/* tela oficial do app no celular da frente */
+.tela-real{padding:0;background:#1c0411 url(img/app-tela-hoje.jpg) center top/100% auto no-repeat}
+.tela-real .ft-treino{position:absolute;left:4.5%;right:4.5%;top:43%;margin:0;border-radius:14px;padding:10px 11px}
+.tela-real .ft-treino>b{font-size:.98rem}
+@media (max-width:420px){.tela-real .ft-treino{padding:8px 9px}.tela-real .ft-treino li{font-size:.52rem}.tela-real .ft-btn{padding:6px;font-size:.56rem}}
