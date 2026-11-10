@@ -504,7 +504,7 @@ body.com-troca .footer{padding-bottom:96px}
     <h2>O próximo recorde<br>é seu.</h2>
     <p class="lead">Fale com a gente, tire suas dúvidas e comece pela avaliação inicial.</p>
     <div class="hero-cta center">
-      <a class="btn zap" data-msg="Olá! Vi os planos no site e quero começar na Nexos." target="_blank" rel="noopener">Falar no WhatsApp</a>
+      <a class="btn zap" data-msg="Olá! Vim pelo site da Nexos e quero saber mais sobre os planos." target="_blank" rel="noopener">Falar no WhatsApp</a>
       <a href="#escolha" class="btn btn-ghost">Ver planos</a>
     </div>
   </div>
@@ -558,6 +558,15 @@ body.com-troca .footer{padding-bottom:96px}
   var p = 'a', pf = 'a', ver = null;
   try { p = sessionStorage.getItem('nx-plano-per') || 'a'; pf = sessionStorage.getItem('nx-plano-perf') || 'a'; if (!PER[pf]) pf = 'a'; } catch (e) {}
 
+  // mensagem pronta do WhatsApp com plano, período, valores e formas de pagamento
+  function msgPlano(c, k) {
+    var nome = c.nome.replace(' · ', ' (') + (c.top ? ')' : ''), cam = c.cam[k] || 0;
+    var t = 'Olá! Vim pelo site da Nexos e tenho interesse no plano ' + nome + ', ' + PER[k][0] + '.\n\n';
+    t += 'Valor: ' + brl(c.pix[k]) + ' por mês no Pix' + (k === 'm' ? ', sem fidelidade' : ' (no mensal seria ' + brl(c.pix.m) + ')') + '.\n';
+    t += 'No cartão: ' + brl(c.cartao[k]) + ' por mês' + (c.parc[k] ? ', ou parcelado em ' + PER[k][1] + 'x de ' + brl(c.parc[k]) : '') + '.\n';
+    if (cam) t += 'Inclui ' + (cam === 2 ? '2 camisetas oficiais' : '1 camiseta oficial') + ' de presente.\n';
+    return t + '\nComo faço para contratar?';
+  }
   function perHTML() {
     return ['m', 't', 's', 'a'].map(function (k) { return '<button data-p="' + k + '" class="' + (k === p ? 'on' : '') + '">' + PER[k][0][0].toUpperCase() + PER[k][0].slice(1) + '<em>' + (PER[k][2] || '&nbsp;') + '</em></button>'; }).join('');
   }
@@ -567,7 +576,7 @@ body.com-troca .footer{padding-bottom:96px}
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     if (c.id === 'integral') chips += '<span>Contratando separado: ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[p]) + '/mês</span>';
     var ou = 'No cartão: ' + brl(c.cartao[p]) + '/mês' + (c.parc[p] ? ' ou ' + meses + 'x de ' + brl(c.parc[p]) : '');
-    var msg = 'Olá! Vi no site e quero o plano ' + c.nome.replace(' · ', ' (') + (c.top ? ')' : '') + ', ' + PER[p][0] + '.';
+    var msg = msgPlano(c, p);
     return '<article class="pl' + (c.top ? ' top' : '') + '" id="pl-' + c.id + '">' + (c.top ? '<span class="pl-selo">' + c.top + '</span>' : '') +
       '<span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
       (comPer ? '<div class="per" data-per>' + perHTML() + '</div>' : '') +
@@ -589,7 +598,7 @@ body.com-troca .footer{padding-bottom:96px}
       (pf !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
       '<p class="pl-ou">No cartão: ' + brl(c.cartao[pf]) + '/mês' + (c.parc[pf] ? ' ou ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
       '<div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
-      '<a class="btn zap" target="_blank" rel="noopener" data-num="orlando" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ', ' + PER[pf][0] + ', com o Orlando.">' + c.bt + per + '</a></article>';
+      '<a class="btn zap" target="_blank" rel="noopener" data-num="orlando" data-msg="' + msgPlano(c, pf) + '">' + c.bt + per + '</a></article>';
   }
   var ISCA_F = {
     m: 'No plano anual, a Força 100% Online sai por <b>R$ 171/mês</b>, com 2 camisetas oficiais de presente.',
@@ -699,8 +708,7 @@ body.com-troca .footer{padding-bottom:96px}
       (nao ? '<div class="sh-sec"><b>Nos planos mais completos</b><p class="blk-s" style="margin:0">Itens que não fazem parte deste plano. Para tê-los, escolha um dos planos abaixo.</p>' + nao + '</div>' : '') +
       '<div class="sh-sec"><b>Formas de pagamento</b><p class="blk-s" style="margin:0 0 10px">Valores por mês. No Pix o valor é menor porque a taxa da operadora é menor. O parcelamento cobre o período inteiro e vale para o trimestral, o semestral e o anual.</p>' + pg + '</div>' +
       '<div class="sh-sec"><b>Como funcionam os planos</b>' + regras(id === 'integral' ? 'i' : col[0]) + '</div>';
-    var nomeMsg = c.nome.replace(' · ', ' (') + (c.top ? ')' : '');
-    var msg = 'Olá! Vi no site e quero o plano ' + nomeMsg + ', ' + PER[k][0] + (ef ? ', com o Orlando' : '') + '.';
+    var msg = msgPlano(c, k);
     $('#sh-pe').innerHTML = '<span>' + c.curto + ' · ' + PER[k][0] + '<b>' + brl(v) + '/mês</b></span><a class="btn zap" target="_blank" rel="noopener"' + (ef ? ' data-num="orlando"' : '') + ' data-msg="' + msg + '">Prosseguir</a>';
     zap($('#sh-pe .zap'));
     if ($('#sh').hidden) { $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; barra(); }
