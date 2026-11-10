@@ -3487,3 +3487,5 @@ body.em-video{overflow:hidden}
 .corr-ocultar:hover{opacity:1}
 .corr-home.recolhido .corr-det{display:none}
 .corr-home.recolhido .corr-acoes{margin-top:8px!important}
+/* na conversa a bolinha do avatar não vale: a presença (online, ausente, offline) aparece ao lado do nome */
+.cv-chat-h .av::after{display:none}

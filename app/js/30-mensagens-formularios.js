@@ -67,7 +67,7 @@ async function staffMensagens(alunoId) {
     <div class="cv-lista" id="cv-lista">${listaHTML()}</div>`;
   const aluno = alunoId && porId[alunoId];
   const cabChat = aluno
-    ? `<div class="cv-chat-h">${largo ? '' : `<a class="icon-btn sm" href="#/mensagens" aria-label="Voltar">${I.back}</a>`}${avAluno(aluno)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(aluno.nome)}</b><span class="tiny dim">Aluno${aluno.treinador_id && aluno.treinador_id !== S.user.id ? '' : ' seu'}</span></div><a class="btn ghost sm" href="#/aluno/${alunoId}">Ver atleta</a></div><div id="cv-box"></div>`
+    ? `<div class="cv-chat-h">${largo ? '' : `<a class="icon-btn sm" href="#/mensagens" aria-label="Voltar">${I.back}</a>`}${avAluno(aluno)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(aluno.nome)}</b><span data-pres="${alunoId}"></span></div><a class="btn ghost sm" href="#/aluno/${alunoId}">Ver atleta</a></div><div id="cv-box"></div>`
     : '';
   if (largo) {
     $app.innerHTML = `<div class="cv-split"><aside class="cv-side">${painelLista}</aside><section class="cv-main">${aluno ? cabChat : `<div class="cv-vazio">${I.feed}<b>Escolha uma conversa</b><span class="small muted">As mensagens dos alunos aparecem à esquerda, a mais recente em cima.</span></div>`}</section></div>`;
@@ -76,6 +76,7 @@ async function staffMensagens(alunoId) {
   }
   if (aluno) {
     await viewConversa(alunoId, document.getElementById('cv-box'), true);
+    vigiarPresenca(); // online, ausente ou offline do aluno no topo da conversa
     nl[alunoId] = 0;
     S.cache.msgNovas = Object.values(nl).reduce((a, b) => a + b, 0);
     dockStaff();
