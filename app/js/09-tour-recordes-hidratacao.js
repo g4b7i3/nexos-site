@@ -635,7 +635,7 @@ async function montarAgua(box, minTreino) {
       <div class="agua-corpo"><div class="copo-wrap">${COPO_SVG(anim ? Math.max(0, pct - 0.0001) : pct)}</div>
         <div class="agua-info"><b>${fmtL(st.ml)}</b><span>de ${fmtL(meta.ml)}</span><small>${ok ? 'Meta batida hoje!' : `Faltam ${fmtL(meta.ml - st.ml)}`}</small><small class="dim">Meta: ${esc(meta.fonte)}</small></div></div>
       <div class="agua-bts"><button type="button" data-ml="200">${AGUA_IC}<b>+200 ml</b><small>copo</small></button><button type="button" data-ml="500">${AGUA_IC}<b>+500 ml</b><small>garrafa</small></button><button type="button" data-ml="outro"><b>Outro</b><small>valor</small></button></div>
-      <div class="agua-pe">${st.reg.length ? `<button type="button" class="link-btn tiny agua-desf" id="agua-desf">Desfazer o último (${st.reg[st.reg.length - 1].ml} ml)</button>` : '<span></span>'}<button type="button" class="link-btn tiny agua-lemb" id="agua-lemb">${S.me.lembrete_agua === false ? 'Lembretes desligados' : `Lembretes: ${AGUA_INT_TXT(S.me.agua_intervalo_min || 60)}`}</button></div></div>`;
+      <div class="agua-pe">${st.reg.length ? `<button type="button" class="link-btn tiny agua-desf" id="agua-desf">Desfazer (${st.reg[st.reg.length - 1].ml} ml)</button>` : '<span></span>'}<button type="button" class="link-btn tiny agua-lemb" id="agua-lemb">${S.me.lembrete_agua === false ? 'Lembretes desligados' : `Lembretes: ${AGUA_INT_TXT(S.me.agua_intervalo_min || 60)}`}</button></div></div>`;
     const hh = document.getElementById('hh-agua');
     if (hh) {
       hh.hidden = false;
