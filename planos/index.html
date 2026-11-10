@@ -575,7 +575,7 @@ body.com-troca .footer{padding-bottom:96px}
     var t = 'Olá! Vim pelo site da Nexos e tenho interesse no plano ' + nome + ', ' + PER[k][0] + '.\n\n';
     t += 'Valor: ' + brl(c.pix[k]) + ' por mês no Pix' + (k === 'm' ? ', sem fidelidade' : ' (no mensal seria ' + brl(c.pix.m) + ')') + '.\n';
     t += 'No cartão: ' + brl(c.cartao[k]) + ' por mês' + (c.parc[k] ? ', ou parcelado em ' + PER[k][1] + 'x de ' + brl(c.parc[k]) : '') + '.\n';
-    if (k === 'a') t += 'Ou à vista no Pix: ' + brl(c.avista) + ' pelo ano inteiro.\n';
+    if (k === 'a') t += 'Ou à vista no Pix: ' + brl(c.avista) + ' pelo ano inteiro, o equivalente a ' + brl(c.avista / 12) + ' por mês.\n';
     if (cam) t += 'Inclui ' + (cam === 2 ? '2 camisetas oficiais' : '1 camiseta oficial') + ' de presente.\n';
     return t + '\nComo faço para contratar?';
   }
@@ -587,7 +587,7 @@ body.com-troca .footer{padding-bottom:96px}
     if (p !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * PER[p][1]) + ' no ' + PER[p][0] + '</span>';
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     if (c.id === 'integral') chips += '<span>Contratando separado: ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[p]) + '/mês</span>';
-    var ou = 'No cartão: ' + brl(c.cartao[p]) + '/mês' + (c.parc[p] ? ' ou ' + meses + 'x de ' + brl(c.parc[p]) : '') + (p === 'a' ? '</p><p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b> o ano inteiro, 5% a mais de desconto' : '');
+    var ou = 'No cartão: ' + brl(c.cartao[p]) + '/mês' + (c.parc[p] ? ' ou ' + meses + 'x de ' + brl(c.parc[p]) : '') + (p === 'a' ? '</p><p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b>, o equivalente a ' + brl(c.avista / 12) + '/mês (5% a mais de desconto)' : '');
     var msg = msgPlano(c, p);
     return '<article class="pl' + (c.top ? ' top' : '') + '" id="pl-' + c.id + '">' + (c.top ? '<span class="pl-selo">' + c.top + '</span>' : '') +
       '<span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
@@ -609,7 +609,7 @@ body.com-troca .footer{padding-bottom:96px}
       '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
       (pf !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
       '<p class="pl-ou">No cartão: ' + brl(c.cartao[pf]) + '/mês' + (c.parc[pf] ? ' ou ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
-      (pf === 'a' ? '<p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b> o ano inteiro, 5% a mais de desconto</p>' : '') +
+      (pf === 'a' ? '<p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b>, o equivalente a ' + brl(c.avista / 12) + '/mês (5% a mais de desconto)</p>' : '') +
       '<div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-num="orlando" data-msg="' + msgPlano(c, pf) + '">' + c.bt + per + '</a></article>';
   }
@@ -719,13 +719,13 @@ body.com-troca .footer{padding-bottom:96px}
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     var pg = '<div class="tb"><table><tr><th>Período</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' + ['m', 't', 's', 'a'].map(function (q) {
       return '<tr class="' + (q === k ? 'on' : '') + '"><td>' + PER[q][0][0].toUpperCase() + PER[q][0].slice(1) + '</td><td><b>' + c.pix[q] + '</b>/mês</td><td>' + c.cartao[q] + '/mês</td><td>' + (c.parc[q] ? PER[q][1] + 'x de ' + c.parc[q] : '—') + '</td></tr>';
-    }).join('') + '<tr class="' + (k === 'a' ? 'on' : '') + '"><td>Anual à vista</td><td colspan="3"><b>' + brl(c.avista) + '</b> no Pix, o ano inteiro de uma vez</td></tr></table></div>';
+    }).join('') + '<tr class="' + (k === 'a' ? 'on' : '') + '"><td>Anual à vista</td><td colspan="3"><b>' + brl(c.avista) + '</b> no Pix, o ano inteiro de uma vez (' + brl(c.avista / 12) + '/mês)</td></tr></table></div>';
     $('#sh-corpo').innerHTML = '<span class="pl-nm">' + c.nome + '</span><h2 id="sh-t">Tudo sobre o plano</h2><p class="pl-ds">' + c.ds + '</p>' +
       '<div class="per" ' + (ef ? 'data-perf' : 'data-per') + '>' + (ef ? perfHTML() : perHTML()) + '</div>' +
       '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
       (k !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
       '<p class="pl-ou">No cartão: ' + brl(c.cartao[k]) + '/mês' + (c.parc[k] ? ' ou ' + meses + 'x de ' + brl(c.parc[k]) : '') + '</p>' +
-      (k === 'a' ? '<p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b> o ano inteiro, 5% a mais de desconto</p>' : '') + '<div class="pl-chips">' + chips + '</div>' +
+      (k === 'a' ? '<p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b>, o equivalente a ' + brl(c.avista / 12) + '/mês (5% a mais de desconto)</p>' : '') + '<div class="pl-chips">' + chips + '</div>' +
       (id === 'integral' ? '<p class="pl-de" style="margin-top:10px">Contratando separado, no Pix: ' + brl(CORRIDA[1].pix[k] + FORCA[0].pix[k]) + '/mês.</p>' : '') +
       '<div class="sh-sec"><b>Tudo que está incluído</b>' + sim + '<p class="sh-mais">E muito mais.</p></div>' +
       (nao ? '<div class="sh-sec"><b>Nos planos mais completos</b><p class="blk-s" style="margin:0">Itens que não fazem parte deste plano. Para tê-los, escolha um dos planos abaixo.</p>' + nao + '</div>' : '') +
