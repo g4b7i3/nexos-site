@@ -3481,3 +3481,9 @@ body.em-video{overflow:hidden}
 /* Hoje: relógio pequeno embaixo da data */
 .hh-quando{display:flex;flex-direction:column;gap:2px;min-width:0}
 .hh-relogio{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.66rem;letter-spacing:.14em;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums;line-height:1}
+
+/* treino de hoje recolhido pelo aluno (volta inteiro ao abrir o app de novo) */
+.corr-ocultar{background:none;border:1px solid var(--line2);color:inherit;opacity:.85;font-family:inherit;font-weight:600;font-size:12px;line-height:1;padding:6px 10px;border-radius:999px;cursor:pointer}
+.corr-ocultar:hover{opacity:1}
+.corr-home.recolhido .corr-det{display:none}
+.corr-home.recolhido .corr-acoes{margin-top:8px!important}

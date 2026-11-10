@@ -863,8 +863,14 @@ async function alunoHoje() {
   const cardCorr = (p) => {
     const feito = corrSem.find((c) => c.plano_id === p.id);
     const est = estruturaDe(p);
-    return `<div class="card corr-home ${feito ? 'feito' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span>${feito ? `<span class="tag ok">✓ ${isoDia(feito.data) < p.data ? 'antecipada' : 'feita'}</span>` : ''}</div>
+    // o aluno pode recolher o treino; ao abrir o app de novo ele volta a aparecer inteiro
+    let oculto = false;
+    try {
+      oculto = sessionStorage.getItem('nx-hoje-oculto-' + p.id) === '1';
+    } catch {}
+    return `<div class="card corr-home ${feito ? 'feito' : ''} ${oculto ? 'recolhido' : ''}"><div class="row between" style="gap:8px"><span class="eyebrow">${icCorr(S.me)} Corrida</span><div class="row" style="gap:6px">${feito ? `<span class="tag ok">✓ ${isoDia(feito.data) < p.data ? 'antecipada' : 'feita'}</span>` : ''}<button type="button" class="corr-ocultar" data-ocultar="${p.id}" aria-expanded="${!oculto}">${oculto ? 'Mostrar' : 'Ocultar'}</button></div></div>
       <div class="h3" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
+      <div class="corr-det">
       <div style="margin:8px 0 6px">${perfilHTML(est, perfC, true)}</div>
       ${
         est.length
@@ -879,7 +885,8 @@ async function alunoHoje() {
           : ''
       }
       ${p.descricao ? `<p class="obs-t"><b>Obs. do treinador:</b> ${esc(p.descricao)}</p>` : ''}
-      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
+      </div>
+      <div class="row corr-acoes" style="gap:8px;margin-top:12px;flex-wrap:wrap">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
   const cardMusc = prox
     ? muscHoje
@@ -1143,6 +1150,19 @@ async function alunoHoje() {
     };
   }
   $app.onclick = (e) => {
+    const oc = e.target.closest('[data-ocultar]');
+    if (oc) {
+      const card = oc.closest('.corr-home'),
+        fecha = !card.classList.contains('recolhido');
+      card.classList.toggle('recolhido', fecha);
+      oc.textContent = fecha ? 'Mostrar' : 'Ocultar';
+      oc.setAttribute('aria-expanded', String(!fecha));
+      try {
+        if (fecha) sessionStorage.setItem('nx-hoje-oculto-' + oc.dataset.ocultar, '1');
+        else sessionStorage.removeItem('nx-hoje-oculto-' + oc.dataset.ocultar);
+      } catch {}
+      return;
+    }
     const r = e.target.closest('[data-reg]');
     if (r) return registrarCorrida(S.user.id, () => alunoHoje());
     const v = e.target.closest('[data-ver]');
