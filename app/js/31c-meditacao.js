@@ -586,6 +586,17 @@ function medSaida(no, seco = 1, sala = 0.4, pan = 0, dest = null) {
 }
 // gravações reais (créditos e licenças em app/sons/CREDITOS.txt)
 const MED_GRAVADOS = Object.fromEntries(MED_CAT.map(([k]) => [k, `/app/sons/${k}.mp3`]));
+// sons com eventos isolados (um pio, um trovão): uma voz só, para não duplicar o evento
+const MED_ESPARSOS = new Set([
+  'coruja',
+  'baleias',
+  'gaivotas',
+  'trovoada',
+  'sinos-vento',
+  'tigela',
+  'barco-remo',
+  'sapos',
+]);
 const medBufGrav = {};
 function medCarregarGravado(c, k) {
   if (medBufGrav[k] && medBufGrav[k].c === c) return medBufGrav[k].p;
@@ -629,25 +640,45 @@ function medCamada(k, vol = 1, dest = null) {
   } else
     cam.pronto = medCarregarGravado(c, k).then((buf) => {
       if (!cam.vivo) return;
-      const XF = Math.min(3, buf.duration / 4);
-      let px = c.currentTime + 0.05;
+      // som contínuo: em vez de repetir do começo, cada trecho começa num ponto sorteado da gravação, com
+      // andamento levemente diferente, e duas vozes desencontradas se misturam (sons esparsos usam uma voz só).
+      // Assim o ouvido não acha o padrão da repetição.
+      const D = buf.duration,
+        esparso = MED_ESPARSOS.has(k),
+        vozes = esparso ? 1 : 2,
+        ganhoVoz = vozes === 2 ? 0.74 : 1,
+        curva = (sobe) => {
+          const n = 64,
+            a = new Float32Array(n);
+          for (let i = 0; i < n; i++) {
+            const x = i / (n - 1);
+            a[i] = Math.max(0.0001, (sobe ? Math.sin((x * Math.PI) / 2) : Math.cos((x * Math.PI) / 2)) * ganhoVoz);
+          }
+          return a;
+        };
+      const prox = Array.from({ length: vozes }, (_, i) => c.currentTime + 0.05 + (i ? Math.min(D * 0.45, 9) : 0));
+      const trecho = (t) => {
+        const L =
+            D <= 20 ? D * (0.6 + Math.random() * 0.3) : Math.min(D * 0.85, 18 + Math.random() * Math.min(40, D * 0.5)),
+          XF = Math.min(4, L / 3),
+          ini = Math.random() * Math.max(0, D - L),
+          vel = 0.97 + Math.random() * 0.06,
+          dur = L / vel,
+          src = c.createBufferSource(),
+          v = c.createGain();
+        src.buffer = buf;
+        src.playbackRate.value = vel;
+        v.gain.setValueCurveAtTime(curva(true), t, XF);
+        v.gain.setValueAtTime(ganhoVoz, t + XF + 0.001);
+        v.gain.setValueCurveAtTime(curva(false), t + dur - XF, XF);
+        src.connect(v).connect(g);
+        src.start(t, ini, L + 0.05);
+        cam.fontes.push(src);
+        if (cam.fontes.length > 8) cam.fontes.shift();
+        return t + dur - XF;
+      };
       cam.agendar = (ate) => {
-        while (px < ate) {
-          const s = c.createBufferSource(),
-            v = c.createGain(),
-            t = px;
-          s.buffer = buf;
-          v.gain.setValueAtTime(0.0001, t);
-          v.gain.linearRampToValueAtTime(1, t + XF);
-          v.gain.setValueAtTime(1, t + buf.duration - XF);
-          v.gain.linearRampToValueAtTime(0.0001, t + buf.duration);
-          s.connect(v).connect(g);
-          s.start(t);
-          s.stop(t + buf.duration + 0.05);
-          cam.fontes.push(s);
-          if (cam.fontes.length > 4) cam.fontes.shift();
-          px += buf.duration - XF;
-        }
+        for (let i = 0; i < vozes; i++) while (prox[i] < ate) prox[i] = trecho(prox[i]);
       };
       cam.agendar(c.currentTime + 2);
       cam.timer = setInterval(() => cam.vivo && cam.agendar(c.currentTime + 2), 400);
