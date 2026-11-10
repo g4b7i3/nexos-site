@@ -124,6 +124,7 @@ body.com-troca .footer{padding-bottom:96px}
 .sh-sec ul{list-style:none;display:grid;gap:8px}
 .sh-sec li{position:relative;padding-left:26px;font-size:.93rem;line-height:1.4}
 .sh-sec li .s,.sh-sec li .n{position:absolute;left:0;top:1px;width:18px;height:18px;background-size:11px}
+.sh-sec li small.so{color:var(--acc);font-weight:700}
 .sh-sec li.no{color:var(--mute)}
 .sh-sec li.no small{color:var(--acc);font-weight:700}
 .sh-sec .tb table{font-size:.86rem}
@@ -241,7 +242,8 @@ body.com-troca .footer{padding-bottom:96px}
 .ap-g i{font-style:normal;font-family:var(--f-m);font-size:.72rem;letter-spacing:.14em;color:var(--acc)}
 .ap-g b{display:block;font-family:var(--f-h);font-size:.98rem;margin-top:8px;line-height:1.3}
 .ap-g p{color:var(--mute);font-size:.9rem;margin-top:6px}
-.ap-fim{text-align:center;margin-top:22px;color:var(--acc);font-weight:700}
+.ap-fim{text-align:center;margin-top:18px;color:var(--acc);font-weight:700}
+.ap-mais{text-align:center;margin-top:22px}
 
 .pl-final .lead{margin:0 auto}
 
@@ -434,10 +436,11 @@ body.com-troca .footer{padding-bottom:96px}
       <div><i>04</i><b>Seu relógio a seu favor</b><p>Sono, recuperação e condicionamento entram no seu acompanhamento sem você mandar nada.</p></div>
       <div><i>05</i><b>Até onde você pode chegar</b><p>Previsão de tempo de prova e evolução de força, atualizadas conforme você treina.</p></div>
       <div><i>06</i><b>Clima e hidratação</b><p>Calor, chuva e o melhor horário para treinar na sua cidade, e uma meta de água para o seu dia.</p></div>
-      <div><i>07</i><b>Evolução que você enxerga</b><p>Recordes, constância, marcos e a comparação de uma avaliação para a outra.</p></div>
-      <div><i>08</i><b>Para mostrar o seu treino</b><p>Imagens e vídeo do percurso prontos para o Instagram.</p></div>
+      <div><i>07</i><b>Evolução que você enxerga</b><p>Recordes, medalhas, retrospectiva do mês e relatório em PDF. Tudo vira imagem para o Instagram.</p></div>
+      <div><i>08</i><b>TV Nexos</b><p>Filmes e documentários de corrida para assistir no próprio aplicativo, e uma sala infantil para a família.</p></div>
       <div><i>09</i><b>Pensado também para elas</b><p>Acompanhamento que respeita o ciclo menstrual e cada fase da vida.</p></div>
     </div>
+    <div class="ap-mais"><button class="btn btn-ghost" data-app-tudo>Ver tudo o que o aplicativo oferece</button></div>
     <p class="ap-fim">O aplicativo reúne as informações. Quem decide o seu treino é sempre o seu treinador.</p>
   </div>
 </section>
@@ -627,7 +630,11 @@ body.com-troca .footer{padding-bottom:96px}
   var CMP_C = [
     ['TREINO DE CORRIDA', [todos('Avaliação inicial online de 30 minutos'), todos('Teste inicial e reteste a cada ciclo de treino'), todos('Planilha periodizada e personalizada'), todos('Calendário de provas com polimento'), todos('Análise de cada corrida pelo treinador'), todos('Ajustes por dor, cansaço e rotina'), todos('Estratégia de prova com o treinador'), ['Análise biomecânica da corrida por vídeo, a cada 2 meses', 0, 1, 1], ['Relatório técnico com comparação da evolução', 0, 1, 1], ['Videochamadas por mês', '1', '2', '2']]],
     ['TREINO DE FORÇA', [['Avaliação física online com o Orlando', 0, 0, 1], ['Prescrição de exercícios de força', 0, 0, 1], ['Ajustes mensais no treino de força', 0, 0, 1], ['Reavaliação física a cada 8 semanas', 0, 0, 1]]],
-    ['APLICATIVO NEXOS · EM TODOS OS PLANOS', [todos('Treino do dia na tela inicial, com etapas e ritmos'), todos('Leitura de cada corrida: ritmo, frequência cardíaca, parciais e zonas'), todos('Check-in diário de sono, energia, dor e estresse'), todos('Registro de dor com ajuste do treino pelo treinador'), todos('Alerta quando a carga sobe rápido demais'), todos('Sono, recuperação e frequência cardíaca de repouso do relógio'), todos('VO2máx e efeito do treino'), todos('Previsão de tempo para 5 km, 10 km, meia e maratona'), todos('Leitura do tempo: calor, chuva e melhor horário para treinar'), todos('Meta de hidratação com lembretes'), todos('Recordes pessoais, constância e marcos'), todos('Imagens e vídeo do percurso para o Instagram'), todos('Relatório de evolução a cada reteste'), todos('Mensagens e videochamada com o treinador pelo aplicativo'), todos('Acompanhamento para corredoras: ciclo menstrual e fases da vida')]],
+    ['APLICATIVO · O SEU DIA', [todos('Tela Hoje com o treino do dia, as etapas e os ritmos'), todos('Check-in da manhã em 20 segundos: sono, energia, dor e estresse'), todos('Mapa do corpo para marcar onde dói, com o treino ajustado pelo treinador'), todos('Leitura do tempo: calor, chuva e o melhor horário para treinar'), todos('Meta de água pelo seu peso e pelo treino, com lembretes'), todos('Avisos do treino do dia e das mensagens do treinador')]],
+    ['APLICATIVO · TREINOS E CORRIDAS', [todos('Planilha da semana, com o treino completo de cada dia'), todos('Treinos enviados direto para o relógio Garmin'), todos('Cada corrida com mapa, parciais, frequência cardíaca e zonas'), todos('Leitura de cada treino e comentário do treinador'), todos('Percurso animado em vídeo'), todos('Comparação com você mesmo semanas atrás'), todos('Alerta quando a carga sobe rápido demais'), todos('Sono, recuperação e frequência cardíaca de repouso do relógio'), todos('VO2máx e efeito do treino'), todos('Modo prova e plano de prova para o dia da corrida'), ['Treinos de força com vídeo de cada exercício', 0, 0, 1], ['Registro de séries e cargas, com a evolução da força', 0, 0, 1]]],
+    ['APLICATIVO · EVOLUÇÃO', [todos('Previsão de tempo para 5 km, 10 km, meia e maratona'), todos('Testes com as suas zonas de treino'), todos('Recordes pessoais e constância'), todos('Medalhas a cada conquista'), todos('Retrospectiva do mês e do ano'), todos('Relatório do mês em PDF'), todos('Relatório de evolução a cada reteste'), todos('Avaliações físicas e fotos de antes e depois')]],
+    ['APLICATIVO · TREINADOR E SAÚDE', [todos('Mensagens com o treinador, com recados de voz'), todos('Videochamada pelo próprio aplicativo'), todos('Ficha de saúde e histórico de check-ins e dores'), todos('Medidas registradas por você em casa'), todos('Acompanhamento para corredoras: ciclo menstrual e fases da vida')]],
+    ['APLICATIVO · EXTRAS', [todos('Imagens e vídeo do percurso para o Instagram'), todos('Eventos e provas da Nexos'), todos('TV Nexos: filmes e documentários de corrida e uma sala infantil'), todos('Pagamentos pelo aplicativo'), todos('Tema claro ou escuro')]],
     ['RELÓGIOS', [todos('Garmin conectado ao aplicativo'), todos('Coros, Polar, Suunto, Apple Watch e outros'), todos('Sem relógio: treino guiado pelo celular, com GPS, no aplicativo Nexos')]],
     ['PRESENTES', [['Camisetas no plano anual', '2', '2', '2'], ['Camiseta no plano semestral', 0, 0, '1']]],
   ];
@@ -635,7 +642,12 @@ body.com-troca .footer{padding-bottom:96px}
   var CMP_F = [
     ['AVALIAÇÃO FÍSICA', [['Avaliação física com o Orlando', 'Online', 'Presencial'], ['Composição corporal', 1, 1], ['Reavaliação física a cada 8 semanas', 'Online', 'Presencial']]],
     ['PRESCRIÇÃO DE EXERCÍCIOS', [dois('Prescrição de exercícios feita para você'), dois('Treino de força periodizado'), dois('Ajustes mensais no treino'), dois('Cada exercício explicado no aplicativo'), dois('Treino na academia que você preferir')]],
-    ['O QUE O ORLANDO ACOMPANHA PELO APLICATIVO', [dois('Cargas, séries e repetições de cada treino'), dois('A sua evolução de força mês a mês'), dois('O esforço de cada sessão'), dois('Sono, energia, dor muscular e estresse antes do treino'), dois('Dores e desconfortos, com o treino adaptado'), dois('A sua constância de treinos'), dois('Meta de hidratação com lembretes'), dois('Comparação de uma avaliação para a outra'), dois('Mensagens diretas com o Orlando')]],
+    ['O QUE O ORLANDO ACOMPANHA PELO APLICATIVO', [dois('Cargas, séries e repetições de cada treino'), dois('A sua evolução de força mês a mês'), dois('O esforço de cada sessão'), dois('Sono, energia, dor muscular e estresse antes do treino'), dois('Dores e desconfortos, com o treino adaptado'), dois('A sua constância de treinos'), dois('Comparação de uma avaliação para a outra'), dois('Mensagens diretas com o Orlando')]],
+    ['APLICATIVO · O SEU DIA', [dois('Tela Hoje com o treino do dia'), dois('Check-in da manhã em 20 segundos: sono, energia, dor e estresse'), dois('Mapa do corpo para marcar onde dói'), dois('Meta de água pelo seu peso e pelo treino, com lembretes'), dois('Avisos do treino do dia e das mensagens do treinador')]],
+    ['APLICATIVO · TREINOS', [dois('Treinos de força com vídeo de cada exercício'), dois('Registro de cada série e carga durante o treino'), dois('Fase atual do seu treino, dentro da periodização'), dois('Relógio conectado: as suas atividades chegam sozinhas')]],
+    ['APLICATIVO · EVOLUÇÃO', [dois('Evolução das cargas de cada exercício'), dois('Composição corporal em relatório, avaliação após avaliação'), dois('Fotos de antes e depois'), dois('Medalhas a cada conquista'), dois('Retrospectiva do mês e do ano'), dois('Relatório do mês em PDF')]],
+    ['APLICATIVO · TREINADOR E SAÚDE', [dois('Recados de voz do Orlando nas mensagens'), dois('Ficha de saúde e histórico de check-ins e dores'), dois('Medidas registradas por você em casa'), dois('Acompanhamento do ciclo menstrual e das fases da vida')]],
+    ['APLICATIVO · EXTRAS', [dois('Imagens das suas conquistas para o Instagram'), dois('Eventos da Nexos'), dois('TV Nexos: filmes e documentários de corrida e uma sala infantil'), dois('Pagamentos pelo aplicativo'), dois('Tema claro ou escuro')]],
     ['PRESENTES', [['Camisetas no plano anual', '2', '2']]],
   ];
 
@@ -721,6 +733,18 @@ body.com-troca .footer{padding-bottom:96px}
     $('#sh-pe').innerHTML = '<span>Escolheu o seu?</span><button class="btn" data-fechar>Ver os planos</button>';
     $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; barra();
   }
+  function appTudo() {
+    aberto = null;
+    var cor = ver !== 'forca', base = cor ? CMP_C : CMP_F, col = cor ? 1 : 1, h = '';
+    base.forEach(function (g) {
+      if (g[0].indexOf('APLICATIVO') !== 0 && g[0] !== 'RELÓGIOS') return;
+      var it = g[1].filter(function (r) { return r[col] !== 0 || r[cor ? 3 : 2]; }).map(function (r) { return '<li><i class="s"></i>' + r[0] + (r[col] === 0 ? ' <small class="so">no Integral</small>' : '') + '</li>'; });
+      h += '<p class="sh-g">' + g[0].replace('APLICATIVO · ', '') + '</p><ul>' + it.join('') + '</ul>';
+    });
+    $('#sh-corpo').innerHTML = '<span class="pl-nm">Aplicativo Nexos</span><h2 id="sh-t">Tudo o que o aplicativo oferece</h2><p class="pl-ds">Incluído em todos os planos de ' + (cor ? 'corrida' : 'força') + '.</p><div class="sh-sec">' + h + '</div>';
+    $('#sh-pe').innerHTML = '<span>Escolheu o seu?</span><button class="btn" data-fechar>Ver os planos</button>';
+    $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; barra();
+  }
   function fechar() { aberto = null; $('#sh').hidden = true; document.body.style.overflow = ''; barra(); }
   function barra() {
     var t = $('#troca'), esc = $('#escolha').getBoundingClientRect();
@@ -746,6 +770,7 @@ body.com-troca .footer{padding-bottom:96px}
   document.addEventListener('click', function (e) {
     var ab = e.target.closest('[data-abrir]');
     if (ab) return abrir(ab.dataset.abrir);
+    if (e.target.closest('[data-app-tudo]')) return appTudo();
     var cp = e.target.closest('[data-comparar]');
     if (cp) return comparar(cp.dataset.comparar);
     if (e.target.closest('[data-fechar]')) { var vf = ver; fechar(); if (e.target.closest('.sh-pe') && vf) { var al = $('#p-' + vf); if (al) al.scrollIntoView({ behavior: 'smooth' }); } return; }
