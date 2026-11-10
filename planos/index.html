@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Planos · Nexos Performance e Saúde</title>
-<meta name="description" content="Planos de corrida e força da Nexos. Treinador de verdade, aplicativo próprio e treino feito para você. A partir de R$ 162 por mês.">
+<meta name="description" content="Planos de corrida e força da Nexos. Treinador de verdade, aplicativo próprio e treino feito para você. A partir de R$ 90 por mês no plano anual.">
 <meta name="theme-color" content="#050c1c">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Planos Nexos · Corrida e Força">
-<meta property="og:description" content="Treinador de verdade, aplicativo próprio e treino feito para você. A partir de R$ 162 por mês.">
+<meta property="og:description" content="Treinador de verdade, aplicativo próprio e treino feito para você. A partir de R$ 90 por mês no plano anual.">
 <link rel="icon" href="/img/nexos-icon-navy.png">
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -217,7 +217,7 @@
   <h1 class="reveal"><span class="line">SEU MELHOR ANO</span><span class="line accent">COMEÇA AQUI.</span></h1>
   <p class="lead reveal">Treinador de verdade olhando cada treino seu, aplicativo próprio e um plano feito para você. <b>No plano anual, 10% de desconto e a camiseta oficial de presente.</b></p>
   <div class="pl-trust reveal">
-    <div class="tele"><small>CORRIDA A PARTIR DE</small><b>R$ 162</b><em>por mês no anual</em></div>
+    <div class="tele"><small>A PARTIR DE</small><b>R$ 90</b><em>por mês no anual</em></div>
     <div class="tele"><small>NO ANUAL</small><b>Camiseta</b><em>de presente</em></div>
     <div class="tele"><small>SEM RISCO</small><b>7 dias</b><em>para desistir</em></div>
   </div>
@@ -232,7 +232,7 @@
     </button>
     <button class="esc-c" data-ver="forca">
       <span class="esc-f"><img src="/img/treinadores/orlando-retrato.jpg" alt="" width="600" height="400"></span>
-      <span class="esc-b"><small>COM ORLANDO BORGES</small><h3>Força</h3><p>Avaliação completa, 8 semanas de treino periodizado e reavaliação a cada ciclo.</p><span class="de"><b>R$ 200</b> a cada 8 semanas, cerca de R$ 100 por mês</span><span class="vai">Ver planos →</span></span>
+      <span class="esc-b"><small>COM ORLANDO BORGES</small><h3>Força</h3><p>Avaliação completa, 8 semanas de treino periodizado e reavaliação a cada ciclo.</p><span class="de">a partir de <b>R$ 90</b>/mês no plano anual</span><span class="vai">Ver planos →</span></span>
     </button>
   </div>
   <p class="esc-mix reveal">Quer os dois? <button data-ver="corrida" data-ir="integral">Conheça o Integral, corrida + força →</button></p>
@@ -312,7 +312,9 @@
 
   <div class="blk">
     <div class="blk-t"><i>02</i><h3>Escolha como será a sua avaliação</h3></div>
-    <p class="blk-s">O treino é sempre online, pelo aplicativo. O que muda é a avaliação: à distância ou pessoalmente com o Orlando.</p>
+    <p class="blk-s">O treino é sempre online, pelo aplicativo. O que muda é a avaliação: à distância ou pessoalmente com o Orlando. Quanto mais ciclos de compromisso, menor o valor.</p>
+    <div class="per" data-perf></div>
+    <p class="isca" id="isca-f"></p>
     <div class="pl-cards" id="cards-forca"></div>
   </div>
 
@@ -338,7 +340,7 @@
 
   <div class="blk">
     <div class="blk-t"><i>06</i><h3>Formas de pagamento</h3></div>
-    <p class="blk-s">Um pagamento a cada ciclo de 8 semanas, com a avaliação e o treino incluídos.</p>
+    <p class="blk-s">No ciclo avulso, um pagamento a cada 8 semanas. No semestral e no anual, mês a mês no Pix ou no cartão, ou parcelado de uma vez.</p>
     <div class="tb" id="pg-forca"></div>
   </div>
 
@@ -346,7 +348,9 @@
     <div class="blk-t"><i>07</i><h3>Como funcionam os planos</h3></div>
     <div class="rg">
       <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
-      <div><b>Pagamento por ciclo</b><p>Cada ciclo inclui a avaliação e as 8 semanas de treino, pagos a cada 2 meses.</p></div>
+      <div><b>Semestral e anual em ciclos</b><p>O semestral tem 3 ciclos de 8 semanas e o anual tem 6, cada um com avaliação, treino e reavaliação.</p></div>
+      <div><b>Saiu antes do fim?</b><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o ciclo avulso nos ciclos que usou.</p></div>
+      <div><b>Camiseta</b><p>No plano anual, entregue depois do segundo pagamento, conforme o tamanho disponível.</p></div>
       <div><b>Reavaliação abre o próximo ciclo</b><p>No fim das 8 semanas você refaz a avaliação e começa o próximo ciclo com o plano atualizado.</p></div>
       <div><b>Online ou presencial</b><p>A cada ciclo você pode escolher como será a avaliação.</p></div>
       <div><b>Treine onde preferir</b><p>Na academia que você já frequenta, com cada exercício explicado no aplicativo.</p></div>
@@ -418,24 +422,28 @@
   ];
   var INTEGRAL = { id: 'integral', nome: 'Integral · Corrida + Força', curto: 'Integral', ds: 'Corrida e força juntas, com os dois treinadores da Nexos.', top: 'MAIS COMPLETO',
     pix: { m: 309, t: 299, s: 289, a: 279 }, cartao: { m: 322, t: 312, s: 302, a: 291 }, parc: { t: 328, s: 336, a: 355 }, cam: { s: 1, a: 2 },
-    itens: ['Tudo do Corrida Evolução', '<b>Treino de força online</b> com o Orlando', '<b>Avaliação de força</b> a cada 8 semanas', 'Os dois treinadores no mesmo aplicativo', 'Separados, sairia cerca de R$ 320 por mês'] };
+    itens: ['Tudo do Corrida Evolução', '<b>Treino de força online</b> com o Orlando', '<b>Avaliação de força</b> a cada 8 semanas', 'Os dois treinadores no mesmo aplicativo'] };
+  var PERF = { c: ['ciclo avulso', 2, ''], s: ['semestral', 6, '−6%'], a: ['anual', 12, '−10%'] };
   var FORCA = [
-    { id: 'forca-online', nome: 'Força Online', ds: 'Avaliação orientada à distância e treino de força online.', pix: 200, cartao: 209, parc: 107,
+    { id: 'forca-online', nome: 'Força Online', ds: 'Avaliação orientada à distância e treino de força online.',
+      pix: { c: 200, s: 94, a: 90 }, cartao: { c: 209, s: 98, a: 94 }, parc: { c: 107, s: 110, a: 115 }, cic: { s: 188, a: 180 },
       itens: ['Avaliação da composição corporal orientada à distância', 'Testes funcionais feitos por você, com o passo a passo, e analisados pelo Orlando', '8 semanas de treino de força periodizado', 'Cada exercício explicado no aplicativo', 'Reavaliação no fim do ciclo'] },
-    { id: 'forca-presencial', nome: 'Força Presencial', ds: 'O treino é online; a avaliação é feita pessoalmente pelo Orlando.', pix: 250, cartao: 261, parc: 134,
+    { id: 'forca-presencial', nome: 'Força Presencial', ds: 'O treino é online; a avaliação é feita pessoalmente pelo Orlando.',
+      pix: { c: 250, s: 117.5, a: 112.5 }, cartao: { c: 261, s: 123, a: 118 }, parc: { c: 134, s: 137, a: 143 }, cic: { s: 235, a: 225 },
       itens: ['Composição corporal <b>feita pessoalmente</b>', '<b>Todos os testes funcionais</b>, aplicados pelo Orlando', '<b>Análise postural</b>', '8 semanas de treino de força periodizado', 'Reavaliação no fim do ciclo'] },
   ];
-  var brl = function (v) { return 'R$ ' + v.toLocaleString('pt-BR'); };
+  var num = function (v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+  var brl = function (v) { return 'R$ ' + num(v); };
   var li = function (a) { return '<ul>' + a.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul>'; };
-  var p = 'a', ver = null;
-  try { p = sessionStorage.getItem('nx-plano-per') || 'a'; } catch (e) {}
+  var p = 'a', pf = 'a', ver = null;
+  try { p = sessionStorage.getItem('nx-plano-per') || 'a'; pf = sessionStorage.getItem('nx-plano-perf') || 'a'; } catch (e) {}
 
   function perHTML() {
     return ['m', 't', 's', 'a'].map(function (k) { return '<button data-p="' + k + '" class="' + (k === p ? 'on' : '') + '">' + PER[k][0][0].toUpperCase() + PER[k][0].slice(1) + '<em>' + (PER[k][2] || '&nbsp;') + '</em></button>'; }).join('');
   }
   function cardCorrida(c, comPer) {
     var v = c.pix[p], meses = PER[p][1], cam = c.cam[p] || 0, chips = '';
-    if (p !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * 12) + ' por ano</span>';
+    if (p !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * PER[p][1]) + ' no ' + PER[p][0] + '</span>';
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     var ou = 'ou ' + brl(c.cartao[p]) + '/mês no cartão' + (c.parc[p] ? ' · ' + meses + 'x de ' + brl(c.parc[p]) : '');
     var msg = 'Olá! Vi no site e quero o plano ' + c.nome.replace(' · ', ' (') + (c.top ? ')' : '') + ', ' + PER[p][0] + '.';
@@ -444,16 +452,33 @@
       (comPer ? '<div class="per" data-per>' + perHTML() + '</div>' : '') +
       '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
       (p !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[p][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
-      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + li(c.itens) + '<div class="pl-esp"></div>' +
+      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + li(c.id === 'integral' ? c.itens.concat(['Separados, no Pix, sairia ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[{ m: 'c', t: 'c', s: 's', a: 'a' }[p]] / (p === 'm' || p === 't' ? 2 : 1)) + ' por mês']) : c.itens) + '<div class="pl-esp"></div>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</a></article>';
   }
-  function cardForca(c) {
-    return '<article class="pl"><span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
-      '<div class="pl-pr"><small>R$</small><b>' + c.pix + '</b><i>a cada 8 semanas</i></div>' +
-      '<p class="pl-de">no Pix, cerca de ' + brl(Math.round(c.pix / 2)) + ' por mês</p><p class="pl-ou">ou ' + brl(c.cartao) + ' no cartão · 2x de ' + brl(c.parc) + '</p>' +
-      li(c.itens) + '<div class="pl-esp"></div>' +
-      '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ' com o Orlando.">Quero a ' + c.nome + '</a></article>';
+  function perfHTML() {
+    return ['c', 's', 'a'].map(function (k) { return '<button data-pf="' + k + '" class="' + (k === pf ? 'on' : '') + '">' + PERF[k][0][0].toUpperCase() + PERF[k][0].slice(1) + '<em>' + (PERF[k][2] || '&nbsp;') + '</em></button>'; }).join('');
   }
+  function cardForca(c) {
+    var v = c.pix[pf], base = c.pix.c / 2, topo, chips = '';
+    if (pf === 'c') {
+      topo = '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>a cada 8 semanas</i></div>' +
+        '<p class="pl-de">no Pix, cerca de ' + brl(base) + ' por mês</p><p class="pl-ou">ou ' + brl(c.cartao.c) + ' no cartão · 2x de ' + brl(c.parc.c) + '</p>';
+    } else {
+      topo = '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
+        '<p class="pl-de">de <s>' + brl(base) + '</s> no plano ' + PERF[pf][0] + ' · ou ' + brl(c.cic[pf]) + ' por ciclo</p>' +
+        '<p class="pl-ou">ou ' + brl(c.cartao[pf]) + '/mês no cartão · ' + PERF[pf][1] + 'x de ' + brl(c.parc[pf]) + '</p>';
+      chips = '<span>Economia de ' + brl((base - v) * PERF[pf][1]) + ' no ' + PERF[pf][0] + '</span>' + (pf === 'a' ? '<span class="pres">Camiseta de presente</span>' : '');
+    }
+    var per = pf === 'c' ? '' : ' ' + PERF[pf][0];
+    return '<article class="pl"><span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' + topo +
+      '<div class="pl-chips">' + chips + '</div>' + li(c.itens) + '<div class="pl-esp"></div>' +
+      '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + (pf === 'c' ? ', ciclo avulso' : ',' + per) + ', com o Orlando.">Quero a ' + c.nome + per + '</a></article>';
+  }
+  var ISCA_F = {
+    c: 'No plano anual, a Força Online sai por <b>R$ 90/mês</b> e vem com a camiseta oficial.',
+    s: 'Mais 3 ciclos e você chega ao anual: <b>10% de desconto</b> e camiseta de presente.',
+    a: '<b>Melhor preço do ano</b>, camiseta de presente e 7 dias para desistir se não gostar.',
+  };
   var ISCA = {
     m: 'No plano anual, o Essencial sai por <b>R$ 162/mês</b> e vem com a camiseta oficial.',
     t: 'No semestral a mensalidade cai mais e, no Integral, já vem uma camiseta.',
@@ -490,18 +515,21 @@
     var meses = PER[p][1];
     $('#pg-corrida').innerHTML = '<table><tr><th>Plano ' + PER[p][0] + '</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
       CORRIDA.concat([INTEGRAL]).map(function (c) { return '<tr><td>' + c.curto + '</td><td><b>' + c.pix[p] + '</b>/mês</td><td>' + c.cartao[p] + '/mês</td><td>' + (c.parc[p] ? meses + 'x ' + c.parc[p] : 'só no anual, semestral e trimestral') + '</td></tr>'; }).join('') + '</table>';
-    $('#pg-forca').innerHTML = '<table><tr><th>Ciclo de 8 semanas</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
-      FORCA.map(function (c) { return '<tr><td>' + c.nome.replace('Força ', '') + '</td><td><b>' + c.pix + '</b></td><td>' + c.cartao + '</td><td>2x ' + c.parc + '</td></tr>'; }).join('') + '</table>';
+    var cic = pf === 'c';
+    $('#pg-forca').innerHTML = '<table><tr><th>Plano ' + PERF[pf][0] + '</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
+      FORCA.map(function (c) { return '<tr><td>' + c.nome.replace('Força ', '') + '</td><td><b>' + num(c.pix[pf]) + '</b>' + (cic ? '' : '/mês') + '</td><td>' + num(c.cartao[pf]) + (cic ? '' : '/mês') + '</td><td>' + PERF[pf][1] + 'x ' + num(c.parc[pf]) + '</td></tr>'; }).join('') + '</table>';
   }
   function desenhar() {
     $$('[data-per]').forEach(function (el) { if (!el.closest('.pl')) el.innerHTML = perHTML(); });
     $('#isca').innerHTML = ISCA[p];
     $('#cards-corrida').innerHTML = CORRIDA.map(function (c) { return cardCorrida(c); }).join('');
     $$('[data-mix]').forEach(function (el) { el.innerHTML = cardCorrida(INTEGRAL, el.closest('#p-forca')); });
+    $('[data-perf]').innerHTML = perfHTML();
+    $('#isca-f').innerHTML = ISCA_F[pf];
+    $('#cards-forca').innerHTML = FORCA.map(cardForca).join('');
     pagamentos();
     $$('.painel .zap').forEach(zap);
   }
-  $('#cards-forca').innerHTML = FORCA.map(cardForca).join('');
 
   function mostrar(v, ir) {
     ver = v;
@@ -518,6 +546,8 @@
     var b = e.target.closest('[data-ver]');
     if (b) return mostrar(b.dataset.ver, b.dataset.ir);
     var k = e.target.closest('[data-p]');
+    var kf = e.target.closest('[data-pf]');
+    if (kf) { pf = kf.dataset.pf; try { sessionStorage.setItem('nx-plano-perf', pf); } catch (er) {} return desenhar(); }
     if (k) { p = k.dataset.p; try { sessionStorage.setItem('nx-plano-per', p); } catch (er) {} desenhar(); }
   });
   var h = location.hash.slice(1);
