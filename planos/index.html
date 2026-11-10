@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Planos · Nexos Performance e Saúde</title>
-<meta name="description" content="Planos de corrida e força da Nexos. Treinador de verdade, aplicativo próprio e planilha feita para você. A partir de R$ 162 por mês.">
+<meta name="description" content="Planos de corrida e força da Nexos. Treinador de verdade, aplicativo próprio e treino feito para você. A partir de R$ 162 por mês.">
 <meta name="theme-color" content="#050c1c">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Planos Nexos · Corrida e Força">
-<meta property="og:description" content="Treinador de verdade, aplicativo próprio e planilha feita para você. A partir de R$ 162 por mês.">
+<meta property="og:description" content="Treinador de verdade, aplicativo próprio e treino feito para você. A partir de R$ 162 por mês.">
 <link rel="icon" href="/img/nexos-icon-navy.png">
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -24,31 +24,69 @@
 :root[data-theme="light"] .theme-btn .moon{display:none}
 
 /* topo */
-.pl-hero{position:relative;padding:118px clamp(16px,6vw,80px) 40px;text-align:center;overflow:hidden;isolation:isolate}
-.pl-hero h1{font-size:clamp(2rem,8vw,4.2rem)}
+.pl-hero{position:relative;padding:118px clamp(16px,6vw,80px) 30px;text-align:center;overflow:hidden;isolation:isolate}
+.pl-hero h1{font-size:clamp(2rem,7vw,4rem)}
 .pl-hero .lead{margin:16px auto 0}
 .pl-hero .lead b{color:var(--ink)}
-.pl-trust{display:flex;justify-content:center;gap:10px;margin-top:28px;flex-wrap:wrap}
+.pl-trust{display:flex;justify-content:center;gap:10px;margin-top:26px;flex-wrap:wrap}
 .pl-trust .tele{text-align:left}
 .pl-trust .tele b{font-size:1.15rem}
 
-/* seletor de período */
-.sec{padding:clamp(48px,8vw,96px) clamp(16px,6vw,80px);position:relative;z-index:1}
-.sec.alt{background:linear-gradient(180deg,rgba(var(--bg2-rgb),.55),rgba(var(--bg-rgb),0))}
-.sec .sec-head{margin-bottom:26px}
+/* escolha */
+.esc-w{padding:20px clamp(16px,6vw,80px) 10px;position:relative;z-index:1}
+.esc-t{text-align:center;font-family:var(--f-h);font-size:clamp(1.3rem,4.4vw,1.9rem);margin-bottom:18px}
+.esc{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;margin:0 auto}
+.esc-c{position:relative;text-align:left;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:var(--card);transition:border-color .25s,transform .25s,box-shadow .25s;display:flex;flex-direction:column}
+.esc-c:hover{transform:translateY(-3px);border-color:rgba(var(--acc-rgb),.5)}
+.esc-c.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset,0 24px 60px -30px rgba(var(--acc-rgb),.6)}
+.esc-f{position:relative;height:150px;overflow:hidden}
+.esc-f img{width:100%;height:100%;object-fit:cover;object-position:50% 25%}
+.esc-f::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(var(--bg-rgb),.92))}
+.esc-b{padding:0 20px 20px;margin-top:-34px;position:relative;z-index:1;display:flex;flex-direction:column;flex:1}
+.esc-b small{font-family:var(--f-m);font-size:.72rem;letter-spacing:.14em;color:var(--acc)}
+.esc-b h3{font-family:var(--f-h);font-size:1.6rem;margin-top:4px}
+.esc-b .de b{white-space:nowrap}
+.esc-b p{color:var(--mute);font-size:.92rem;margin-top:6px}
+.esc-b .de{margin-top:12px;font-size:.9rem;color:var(--mute)}
+.esc-b .de b{font-family:var(--f-h);font-size:1.25rem;color:var(--ink)}
+.esc-b .vai{margin-top:14px;font-weight:800;color:var(--acc)}
+.esc-c.on .vai::after{content:" ✓"}
+.esc-mix{text-align:center;margin-top:16px;color:var(--mute);font-size:.95rem}
+.esc-mix button{color:var(--acc);font-weight:800}
+
+/* blocos */
+.sec{padding:clamp(40px,7vw,80px) clamp(16px,6vw,80px);position:relative;z-index:1}
+.sec .sec-head{margin-bottom:24px}
 .sec h2{font-size:clamp(1.6rem,5.4vw,2.6rem)}
-.sec-sub{color:var(--mute);margin-top:10px;max-width:620px}
+.sec-sub{color:var(--mute);margin-top:10px;max-width:640px}
 .sec-head.center .sec-sub{margin-inline:auto}
+.blk{max-width:1100px;margin:0 auto}
+.blk + .blk{margin-top:clamp(44px,7vw,72px)}
+.blk-t{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.blk-t i{font-style:normal;font-family:var(--f-m);font-size:.78rem;color:var(--acc);letter-spacing:.1em}
+.blk-t h3{font-family:var(--f-h);font-size:clamp(1.15rem,3.6vw,1.5rem)}
+.blk-s{color:var(--mute);margin:-8px 0 18px;font-size:.95rem}
+.painel[hidden]{display:none}
+
+/* treinador */
+.tr{display:flex;gap:16px;align-items:center;border:1px solid var(--line);border-radius:22px;padding:16px 18px;background:var(--card);max-width:780px;margin:0 auto}
+.tr img{width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid rgba(var(--acc-rgb),.5);flex:none}
+.tr b{font-family:var(--f-h);font-size:1rem}
+.tr ul{list-style:none;margin-top:6px;display:grid;gap:3px}
+.tr li{color:var(--mute);font-size:.86rem;padding-left:14px;position:relative}
+.tr li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--acc)}
+
+/* período */
 .per{display:flex;gap:4px;padding:5px;border:1px solid var(--line);border-radius:999px;background:rgba(var(--bg2-rgb),.7);backdrop-filter:blur(8px);max-width:560px;margin:0 auto}
 .per button{flex:1;padding:10px 6px;border-radius:999px;font-weight:700;font-size:.9rem;color:var(--mute);line-height:1.15;transition:background .2s,color .2s}
 .per button em{display:block;font-style:normal;font-family:var(--f-m);font-size:.7rem;color:var(--acc);font-weight:600;margin-top:2px}
 .per button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc)}
 .per button.on em{color:var(--on-acc);opacity:.85}
-.isca{max-width:560px;margin:14px auto 0;text-align:center;font-size:.92rem;color:var(--mute);min-height:1.5em}
+.isca{max-width:560px;margin:12px auto 0;text-align:center;font-size:.92rem;color:var(--mute)}
 .isca b{color:var(--acc)}
 
-/* cards */
-.pl-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px;align-items:stretch}
+/* cards de plano */
+.pl-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:24px;align-items:stretch;max-width:900px;margin-inline:auto}
 .pl{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:24px;padding:26px 22px 22px;background:var(--card);backdrop-filter:blur(8px)}
 .pl.top{border-color:rgba(var(--acc-rgb),.6);box-shadow:0 0 0 1px rgba(var(--acc-rgb),.35) inset,0 30px 70px -30px rgba(var(--acc-rgb),.45)}
 .pl-selo{position:absolute;top:-12px;left:22px;font-family:var(--f-m);font-size:.68rem;letter-spacing:.1em;padding:5px 12px;border-radius:999px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc);font-weight:700}
@@ -59,32 +97,64 @@
 .pl-pr b{font-family:var(--f-h);font-size:3rem;line-height:1;letter-spacing:-.02em}
 .pl-pr i{font-style:normal;color:var(--mute);font-size:.9rem;align-self:flex-end;margin-bottom:6px}
 .pl-de{color:var(--mute);font-size:.82rem;margin-top:6px}
-.pl-de s{opacity:.8}
 .pl-ou{color:var(--mute);font-size:.84rem;margin-top:2px}
-.pl-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;min-height:28px}
+.pl-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.pl-chips:empty{display:none}
 .pl-chips span{font-size:.76rem;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid rgba(var(--acc-rgb),.35);color:var(--acc);background:rgba(var(--acc-rgb),.08)}
 .pl-chips span.pres{border-color:rgba(255,207,92,.45);color:var(--warn);background:rgba(255,207,92,.08)}
 .pl ul{list-style:none;display:grid;gap:9px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-.pl li{position:relative;padding-left:26px;font-size:.94rem;line-height:1.4}
-.pl li::before{content:"";position:absolute;left:0;top:2px;width:17px;height:17px;border-radius:50%;background:rgba(var(--acc-rgb),.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2346d6ff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/10px no-repeat}
-:root[data-theme="light"] .pl li::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")}
+.pl li,.ck li{position:relative;padding-left:26px;font-size:.94rem;line-height:1.4}
+.pl li::before,.ck li::before{content:"";position:absolute;left:0;top:2px;width:17px;height:17px;border-radius:50%;background:rgba(var(--acc-rgb),.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2346d6ff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/10px no-repeat}
+:root[data-theme="light"] .pl li::before,:root[data-theme="light"] .ck li::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")}
 .pl li b{font-weight:800}
-.pl .btn{margin-top:auto;width:100%}
-.pl ul + .btn,.pl .pl-esp{margin-top:22px}
-.pl-esp{flex:1}
+.pl-esp{flex:1;min-height:22px}
+.pl .btn{width:100%}
 .pl:not(.top) .btn{background:transparent;color:var(--ink);border:1px solid rgba(var(--acc-rgb),.5);box-shadow:none}
 .pl:not(.top) .btn:hover{background:rgba(var(--acc-rgb),.1)}
-:root[data-theme="light"] .pl:not(.top){box-shadow:0 10px 40px rgba(11,35,82,.07)}
+:root[data-theme="light"] .pl:not(.top),:root[data-theme="light"] .esc-c{box-shadow:0 10px 40px rgba(11,35,82,.07)}
 
-/* força */
-.pl-cards.f2{grid-template-columns:repeat(2,minmax(0,380px));justify-content:center}
-.pl-dica{max-width:780px;margin:18px auto 0;border:1px dashed rgba(var(--acc-rgb),.45);border-radius:20px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.pl-dica p{color:var(--mute);font-size:.95rem}
-.pl-dica b{color:var(--ink)}
-.pl-dica a{color:var(--acc);font-weight:800;white-space:nowrap}
+/* integral largo */
+.mix{max-width:900px;margin:0 auto}
+.mix .pl{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px}
+.mix .pl > *{grid-column:1}
+.mix .pl ul{grid-column:2;grid-row:1 / span 6;margin-top:0;border-top:0;padding-top:4px;align-content:start}
+.mix .pl .btn{grid-column:1 / -1;margin-top:18px}
+.mix .pl-esp{display:none}
+.mix .per{margin:14px 0 0;max-width:none}
+.mix .per button{font-size:.8rem;padding:8px 4px}
+
+/* passos */
+.pas{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pa{border:1px solid var(--line);border-radius:20px;padding:20px;background:var(--card)}
+.pa i{font-style:normal;font-family:var(--f-m);font-size:.74rem;color:var(--acc);letter-spacing:.12em}
+.pa b{display:block;font-family:var(--f-h);font-size:1rem;margin-top:8px;line-height:1.3}
+.pa p{color:var(--mute);font-size:.9rem;margin-top:6px}
+
+/* tabelas */
+.tb{border:1px solid var(--line);border-radius:22px;background:var(--card);overflow:hidden}
+.tb table{width:100%;border-collapse:collapse;font-size:.9rem}
+.tb th,.tb td{padding:12px 8px;text-align:center;border-top:1px solid var(--line);vertical-align:middle}
+.tb tr:first-child th{border-top:0}
+.tb th{font-family:var(--f-m);font-size:.68rem;letter-spacing:.08em;color:var(--acc);font-weight:600}
+.tb td:first-child,.tb th:first-child{text-align:left;padding-left:20px}
+.tb.c3 td:first-child{width:52%}
+.tb.c2 td:first-child{width:56%}
+.tb tr.g td{font-family:var(--f-m);font-size:.68rem;letter-spacing:.12em;color:var(--mute);background:rgba(var(--navy-rgb),.35);text-align:left}
+.tb td b{color:var(--ink);font-weight:800}
+.s,.n{display:inline-block;width:20px;height:20px;border-radius:50%;vertical-align:middle}
+.s{background:rgba(26,163,107,.16) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231aa36b' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/12px no-repeat}
+.n{background:rgba(214,69,69,.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d64545' stroke-width='3.4' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7 7 17'/%3E%3C/svg%3E") center/10px no-repeat}
+.tb .c{display:none}
+.tb-obs{color:var(--mute);font-size:.82rem;margin-top:10px}
+
+/* regras */
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.rg div{border:1px solid var(--line);border-radius:18px;padding:16px 18px;background:var(--card)}
+.rg b{font-size:.98rem;font-weight:800}
+.rg p{color:var(--mute);font-size:.88rem;margin-top:4px}
 
 /* aplicativo */
-.ap{border:1px solid var(--line);border-radius:28px;padding:clamp(26px,5vw,48px);background:radial-gradient(ellipse at top,rgba(var(--navy-rgb),.9),rgba(var(--bg2-rgb),.4) 70%)}
+.ap{border:1px solid var(--line);border-radius:28px;padding:clamp(26px,5vw,48px);background:radial-gradient(ellipse at top,rgba(var(--navy-rgb),.9),rgba(var(--bg2-rgb),.4) 70%);max-width:1100px;margin:0 auto}
 .ap-g{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
 .ap-g div{border:1px solid var(--line);border-radius:18px;padding:18px;background:rgba(var(--bg-rgb),.35)}
 .ap-g i{font-style:normal;font-family:var(--f-m);font-size:.72rem;letter-spacing:.14em;color:var(--acc)}
@@ -92,32 +162,22 @@
 .ap-g p{color:var(--mute);font-size:.9rem;margin-top:6px}
 .ap-fim{text-align:center;margin-top:22px;color:var(--acc);font-weight:700}
 
-/* comparação e dúvidas */
-.faq{margin-inline:auto}
-.cmp{overflow:hidden}
-.cmp table{width:100%;border-collapse:collapse;font-size:.88rem}
-.cmp th,.cmp td{padding:11px 8px;text-align:center;border-top:1px solid var(--line);vertical-align:middle}
-.cmp th{font-family:var(--f-m);font-size:.68rem;letter-spacing:.08em;color:var(--acc);font-weight:600}
-.cmp td:first-child,.cmp th:first-child{text-align:left;padding-left:22px;width:52%}
-.cmp tr.g td{font-family:var(--f-m);font-size:.68rem;letter-spacing:.12em;color:var(--mute);background:rgba(var(--navy-rgb),.35);text-align:left}
-.cmp .s,.cmp .n{display:inline-block;width:20px;height:20px;border-radius:50%;vertical-align:middle}
-.cmp .s{background:rgba(26,163,107,.16) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231aa36b' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/12px no-repeat}
-.cmp .n{background:rgba(214,69,69,.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d64545' stroke-width='3.4' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7 7 17'/%3E%3C/svg%3E") center/10px no-repeat}
-.cmp .c{display:none}
-.faq details div.r{padding:0 22px 20px;color:var(--mute)}
-.faq details div.r p{padding:0}
-.pg-t{width:100%;border-collapse:collapse;font-size:.88rem;margin-top:4px}
-.pg-t th,.pg-t td{padding:9px 6px;border-top:1px solid var(--line);text-align:center}
-.pg-t th{font-family:var(--f-m);font-size:.66rem;letter-spacing:.08em;color:var(--acc);font-weight:600}
-.pg-t td:first-child,.pg-t th:first-child{text-align:left}
-.pg-t td b{color:var(--ink)}
-.pl-obs{color:var(--mute);font-size:.82rem;text-align:center;margin-top:18px}
 .pl-final .lead{margin:0 auto}
-.pl-final .tele{display:inline-block;margin-top:18px}
 
-@media (max-width:960px){
-  .pl-cards{grid-template-columns:1fr;max-width:480px;margin-inline:auto}
-  .pl-cards.f2{grid-template-columns:1fr}
+@media (max-width:860px){
+  .esc{grid-template-columns:1fr 1fr;gap:10px}
+  .esc-f{height:110px}
+  .esc-b{padding:0 14px 16px}
+  .esc-b h3{font-size:1.3rem}
+  .esc-b small{font-size:.6rem;letter-spacing:.08em}
+  .esc-b .de{font-size:.8rem}
+  .esc-b p{display:none}
+  .esc-b .de b{font-size:1.05rem}
+  .pl-cards{grid-template-columns:1fr;max-width:480px}
+  .mix{max-width:480px}
+  .mix .pl{display:flex}
+  .mix .pl ul{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+  .pas,.rg{grid-template-columns:1fr}
   .ap-g{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:600px){
@@ -129,10 +189,11 @@
   .per button{font-size:.82rem}
   .ap-g{grid-template-columns:1fr}
   .ap-g div{padding:16px}
-  .cmp .l{display:none}.cmp .c{display:inline}
-  .cmp th,.cmp td{padding:10px 4px}
-  .cmp td:first-child,.cmp th:first-child{padding-left:16px;font-size:.84rem}
-  .pl-dica{flex-direction:column;align-items:flex-start}
+  .tb .l{display:none}.tb .c{display:inline}
+  .tb th,.tb td{padding:10px 4px}
+  .tb td:first-child,.tb th:first-child{padding-left:14px;font-size:.84rem}
+  .tr{align-items:flex-start}
+  .tr img{width:56px;height:56px}
 }
 </style>
 </head>
@@ -145,7 +206,7 @@
       <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
     </button>
-    <a href="#corrida" class="btn btn-sm">Ver planos</a>
+    <a href="#escolha" class="btn btn-sm">Ver planos</a>
   </div>
 </header>
 
@@ -154,110 +215,166 @@
   <div class="hero-grid"></div>
   <p class="eyebrow reveal"><span class="dot"></span>Planos 2027 · Corrida e força · 100% online</p>
   <h1 class="reveal"><span class="line">SEU MELHOR ANO</span><span class="line accent">COMEÇA AQUI.</span></h1>
-  <p class="lead reveal">Treinador de verdade olhando cada treino seu, aplicativo próprio e uma planilha feita para você. <b>No plano anual, 10% de desconto e a camiseta oficial de presente.</b></p>
+  <p class="lead reveal">Treinador de verdade olhando cada treino seu, aplicativo próprio e um plano feito para você. <b>No plano anual, 10% de desconto e a camiseta oficial de presente.</b></p>
   <div class="pl-trust reveal">
-    <div class="tele"><small>A PARTIR DE</small><b>R$ 162</b><em>por mês</em></div>
+    <div class="tele"><small>A PARTIR DE</small><b>R$ 100</b><em>por mês</em></div>
     <div class="tele"><small>NO ANUAL</small><b>Camiseta</b><em>de presente</em></div>
     <div class="tele"><small>SEM RISCO</small><b>7 dias</b><em>para desistir</em></div>
   </div>
 </section>
 
-<section class="sec" id="corrida">
-  <div class="sec-head center reveal">
-    <p class="tag">Corrida</p>
+<section class="esc-w" id="escolha">
+  <p class="esc-t reveal">O que você quer treinar?</p>
+  <div class="esc reveal">
+    <button class="esc-c" data-ver="corrida">
+      <span class="esc-f"><img src="/img/treinadores/gabriel-retrato.jpg" alt="" width="600" height="400"></span>
+      <span class="esc-b"><small>COM GABRIEL VINÍCIUS</small><h3>Corrida</h3><p>Planilha feita para você, análise de cada corrida e videochamadas com o treinador.</p><span class="de">a partir de <b>R$ 162</b>/mês</span><span class="vai">Ver planos →</span></span>
+    </button>
+    <button class="esc-c" data-ver="forca">
+      <span class="esc-f"><img src="/img/treinadores/orlando-retrato.jpg" alt="" width="600" height="400"></span>
+      <span class="esc-b"><small>COM ORLANDO BORGES</small><h3>Força</h3><p>Avaliação completa, 8 semanas de treino periodizado e reavaliação a cada ciclo.</p><span class="de">a partir de <b>R$ 100</b>/mês</span><span class="vai">Ver planos →</span></span>
+    </button>
+  </div>
+  <p class="esc-mix reveal">Quer os dois? <button data-ver="corrida" data-ir="integral">Conheça o Integral, corrida + força →</button></p>
+</section>
+
+<!-- ======== CORRIDA ======== -->
+<section class="sec painel" id="p-corrida" hidden>
+  <div class="sec-head center">
+    <p class="tag">Corrida · 100% online</p>
     <h2>Corrida com Gabriel Vinícius</h2>
-    <p class="sec-sub">Quanto mais tempo de compromisso, menor a mensalidade. Escolha o período:</p>
   </div>
-  <div class="per reveal" id="per" role="tablist" aria-label="Período do plano">
-    <button data-p="m" role="tab">Mensal<em>&nbsp;</em></button>
-    <button data-p="t" role="tab">Trimestral<em>−3%</em></button>
-    <button data-p="s" role="tab">Semestral<em>−6%</em></button>
-    <button data-p="a" role="tab" class="on">Anual<em>−10%</em></button>
+  <div class="tr">
+    <img src="/img/treinadores/gabriel-avatar.jpg" alt="" width="72" height="72">
+    <div><b>Gabriel Vinícius</b><ul><li>Treinador de corrida</li><li>Especialista em Pliometria pelo NAR, São Paulo</li><li>Graduando em Educação Física, bacharelado (Estácio)</li><li>Curso de Fisiologia do Exercício</li></ul></div>
   </div>
-  <p class="isca" id="isca"></p>
-  <div class="pl-cards" id="cards-corrida"></div>
+
+  <div class="blk" style="margin-top:40px">
+    <div class="blk-t"><i>01</i><h3>Escolha o período</h3></div>
+    <p class="blk-s">Quanto mais tempo de compromisso, menor a mensalidade.</p>
+    <div class="per" data-per></div>
+    <p class="isca" id="isca"></p>
+    <div class="pl-cards" id="cards-corrida"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>02</i><h3>Quer corrida e força juntas?</h3></div>
+    <p class="blk-s">O Integral junta os dois treinadores no mesmo aplicativo e sai mais barato que contratar separado.</p>
+    <div class="mix" data-mix></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>03</i><h3>Compare item por item</h3></div>
+    <div class="tb c3" id="cmp-corrida"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>04</i><h3>Formas de pagamento</h3></div>
+    <p class="blk-s">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>
+    <div class="tb" id="pg-corrida"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>05</i><h3>Como funcionam os planos</h3></div>
+    <div class="rg">
+      <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
+      <div><b>Pagamento todo mês</b><p>Em qualquer período, você pode pagar mês a mês no Pix. O desconto vale enquanto durar o compromisso.</p></div>
+      <div><b>Saiu antes do fim?</b><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o mensal nos meses que usou.</p></div>
+      <div><b>Pausa sem perder o plano</b><p>No semestral e no anual, você pode pausar até 30 dias por lesão, doença ou viagem, e o prazo se estende.</p></div>
+      <div><b>Videochamadas</b><p>De até 30 minutos, combinadas e feitas pelo aplicativo. Não acumulam e podem ser remarcadas com 24 horas de aviso.</p></div>
+      <div><b>Camiseta</b><p>Entregue depois do segundo pagamento, conforme o tamanho disponível.</p></div>
+      <div><b>Mudar de plano</b><p>Para subir, a qualquer momento, pagando a diferença. Para descer, no fim do período contratado.</p></div>
+      <div><b>Avaliação presencial no Integral</b><p>O Integral inclui a avaliação de força online. Para fazer a presencial com o Orlando, acrescente R$ 50 por ciclo.</p></div>
+      <div><b>Treino em dia</b><p>A planilha da semana seguinte é liberada com a mensalidade em dia, com 5 dias de tolerância.</p></div>
+    </div>
+  </div>
 </section>
 
-<section class="sec alt" id="forca">
-  <div class="sec-head center reveal">
-    <p class="tag">Força</p>
+<!-- ======== FORÇA ======== -->
+<section class="sec painel" id="p-forca" hidden>
+  <div class="sec-head center">
+    <p class="tag">Força · 100% online</p>
     <h2>Força com Orlando Borges</h2>
-    <p class="sec-sub">Ciclos de 8 semanas com avaliação, treino periodizado e reavaliação. Pagamento a cada ciclo.</p>
   </div>
-  <div class="pl-cards f2" id="cards-forca"></div>
-  <div class="pl-dica reveal"><p><b>Corre e quer força também?</b> O Integral junta os dois treinadores e sai mais barato que contratar separado.</p><a href="#corrida" data-ir="integral">Ver o Integral →</a></div>
+  <div class="tr">
+    <img src="/img/treinadores/orlando-avatar.jpg" alt="" width="72" height="72">
+    <div><b>Orlando Borges</b><ul><li>Bacharel em Educação Física (Pitágoras)</li><li>Pós-graduado em Ciência e Prática em Esportes de Alto Rendimento (NAR, São Paulo)</li><li>Treinador de Alta Performance pelo Athletic Lab (Carolina do Norte, EUA)</li><li>Formação em Força, Velocidade e Potência no Esporte (Ciência da Bola)</li></ul></div>
+  </div>
+
+  <div class="blk" style="margin-top:40px">
+    <div class="blk-t"><i>01</i><h3>Tudo começa por uma avaliação completa</h3></div>
+    <div class="pas">
+      <div class="pa"><i>COMPOSIÇÃO CORPORAL</i><b>A evolução real, além da balança</b><p>Medidas, peso e a proporção entre massa magra e gordura.</p></div>
+      <div class="pa"><i>AVALIAÇÃO FUNCIONAL</i><b>Onde você está forte e onde precisa de atenção</b><p>Força, mobilidade, estabilidade e os pontos que pedem cuidado.</p></div>
+      <div class="pa"><i>8 SEMANAS DE TREINO</i><b>Progressão planejada semana a semana</b><p>O treino é montado a partir da avaliação e ajustado à sua resposta.</p></div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>02</i><h3>Escolha como será a sua avaliação</h3></div>
+    <p class="blk-s">O treino é sempre online, pelo aplicativo. O que muda é a avaliação: à distância ou pessoalmente com o Orlando.</p>
+    <div class="pl-cards" id="cards-forca"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>03</i><h3>Como funciona o ciclo</h3></div>
+    <div class="pas">
+      <div class="pa"><i>INÍCIO</i><b>Avaliação</b><p>Composição corporal e testes. Daqui sai o seu plano.</p></div>
+      <div class="pa"><i>SEMANAS 1 A 8</i><b>Treino de força periodizado</b><p>Você treina e o Orlando acompanha cada sessão, ajustando cargas e volume.</p></div>
+      <div class="pa"><i>SEMANA 8</i><b>Reavaliação</b><p>Comparamos com o início e montamos o próximo ciclo já atualizado.</p></div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>04</i><h3>Corre também?</h3></div>
+    <p class="blk-s">O Integral junta a força com o Orlando e a corrida com o Gabriel Vinícius, com desconto e pagamento mensal.</p>
+    <div class="mix" data-mix></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>05</i><h3>Compare item por item</h3></div>
+    <div class="tb c2" id="cmp-forca"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>06</i><h3>Formas de pagamento</h3></div>
+    <p class="blk-s">Um pagamento a cada ciclo de 8 semanas, com a avaliação e o treino incluídos.</p>
+    <div class="tb" id="pg-forca"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t"><i>07</i><h3>Como funcionam os planos</h3></div>
+    <div class="rg">
+      <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
+      <div><b>Pagamento por ciclo</b><p>Cada ciclo inclui a avaliação e as 8 semanas de treino, pagos a cada 2 meses.</p></div>
+      <div><b>Reavaliação abre o próximo ciclo</b><p>No fim das 8 semanas você refaz a avaliação e começa o próximo ciclo com o plano atualizado.</p></div>
+      <div><b>Online ou presencial</b><p>A cada ciclo você pode escolher como será a avaliação.</p></div>
+      <div><b>Treine onde preferir</b><p>Na academia que você já frequenta, com cada exercício explicado no aplicativo.</p></div>
+      <div><b>Quer correr também?</b><p>Você pode passar para o Integral a qualquer momento e juntar força e corrida.</p></div>
+    </div>
+  </div>
 </section>
 
-<section class="sec" id="app">
-  <div class="ap reveal">
+<!-- ======== APLICATIVO (comum) ======== -->
+<section class="sec painel" id="app" hidden>
+  <div class="ap">
     <div class="sec-head center">
       <p class="tag">Em todos os planos</p>
       <h2>O que o aplicativo Nexos faz por você</h2>
       <p class="sec-sub">Ao entrar na assessoria, você recebe o aplicativo próprio da Nexos, feito por treinadores para os nossos alunos.</p>
     </div>
     <div class="ap-g">
-      <div><i>01</i><b>O treino certo para hoje</b><p>Você abre e já sabe o que fazer, em que ritmo e por quanto tempo. Acordou mal? Seu treinador fica sabendo e ajusta.</p></div>
-      <div><i>02</i><b>Cada corrida lida com cuidado</b><p>Depois de correr, você entende como foi o treino, e o seu treinador comenta o que viu.</p></div>
+      <div><i>01</i><b>O treino certo para hoje</b><p>Você abre e já sabe o que fazer. Acordou mal? Seu treinador fica sabendo e ajusta.</p></div>
+      <div><i>02</i><b>Cada treino lido com cuidado</b><p>Depois de treinar, você entende como foi, e o seu treinador comenta o que viu.</p></div>
       <div><i>03</i><b>Menos risco de lesão</b><p>Percebe quando a carga sobe rápido demais ou quando aparece uma dor, e avisa antes de virar problema.</p></div>
-      <div><i>04</i><b>Seu relógio a seu favor</b><p>Sono, recuperação e condicionamento entram no seu acompanhamento sem você precisar mandar nada.</p></div>
-      <div><i>05</i><b>Até onde você pode chegar</b><p>Previsão de tempo para 5 km, 10 km, meia e maratona, atualizada conforme você evolui.</p></div>
+      <div><i>04</i><b>Seu relógio a seu favor</b><p>Sono, recuperação e condicionamento entram no seu acompanhamento sem você mandar nada.</p></div>
+      <div><i>05</i><b>Até onde você pode chegar</b><p>Previsão de tempo de prova e evolução de força, atualizadas conforme você treina.</p></div>
       <div><i>06</i><b>Clima e hidratação</b><p>Calor, chuva e o melhor horário para treinar na sua cidade, e uma meta de água para o seu dia.</p></div>
-      <div><i>07</i><b>Evolução que você enxerga</b><p>Recordes, constância, marcos e um relatório a cada reteste.</p></div>
+      <div><i>07</i><b>Evolução que você enxerga</b><p>Recordes, constância, marcos e a comparação de uma avaliação para a outra.</p></div>
       <div><i>08</i><b>Para mostrar o seu treino</b><p>Imagens e vídeo do percurso prontos para o Instagram.</p></div>
-      <div><i>09</i><b>Pensado também para elas</b><p>Acompanhamento para corredoras que respeita o ciclo menstrual e cada fase da vida.</p></div>
+      <div><i>09</i><b>Pensado também para elas</b><p>Acompanhamento que respeita o ciclo menstrual e cada fase da vida.</p></div>
     </div>
     <p class="ap-fim">O aplicativo reúne as informações. Quem decide o seu treino é sempre o seu treinador.</p>
-  </div>
-</section>
-
-<section class="sec alt" id="detalhes">
-  <div class="sec-head center reveal">
-    <p class="tag">Detalhes</p>
-    <h2>Tudo explicado</h2>
-  </div>
-  <div class="faq reveal">
-    <details class="cmp"><summary>Comparar os planos de corrida item por item</summary>
-      <table>
-        <tr><th>Incluído</th><th><span class="l">ESSENCIAL</span><span class="c">ESS.</span></th><th><span class="l">EVOLUÇÃO</span><span class="c">EVO.</span></th><th><span class="l">INTEGRAL</span><span class="c">INT.</span></th></tr>
-        <tr class="g"><td colspan="4">TREINO DE CORRIDA</td></tr>
-        <tr><td>Avaliação inicial online de 30 minutos</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Teste de entrada e reteste a cada ciclo</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Planilha periodizada e personalizada</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Calendário de provas com polimento</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Análise de cada corrida pelo treinador</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Ajustes por dor, cansaço e rotina</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Estratégia de prova com o treinador</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Análise biomecânica da corrida por vídeo</td><td><i class="n"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Videochamadas por mês</td><td>1</td><td>3</td><td>3</td></tr>
-        <tr class="g"><td colspan="4">TREINO DE FORÇA</td></tr>
-        <tr><td>Treino de força online com o Orlando</td><td><i class="n"></i></td><td><i class="n"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Avaliação de força a cada 8 semanas</td><td><i class="n"></i></td><td><i class="n"></i></td><td><i class="s"></i></td></tr>
-        <tr class="g"><td colspan="4">APLICATIVO NEXOS</td></tr>
-        <tr><td>Todos os recursos do aplicativo</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Mensagens e videochamada com o treinador</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr class="g"><td colspan="4">RELÓGIOS</td></tr>
-        <tr><td>Garmin conectado ao aplicativo</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Coros, Polar, Suunto, Apple Watch e outros</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr><td>Sem relógio, só com o celular</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
-        <tr class="g"><td colspan="4">PRESENTES</td></tr>
-        <tr><td>Camisetas no plano anual</td><td>1</td><td>1</td><td>2</td></tr>
-        <tr><td>Camiseta no plano semestral</td><td><i class="n"></i></td><td><i class="n"></i></td><td>1</td></tr>
-      </table>
-    </details>
-    <details><summary>Formas de pagamento</summary>
-      <div class="r">
-        <p>Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa da maquininha é menor.</p>
-        <table class="pg-t" id="pg-t"></table>
-      </div>
-    </details>
-    <details><summary>Posso desistir se não gostar?</summary><p>Pode. Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></details>
-    <details><summary>E se eu precisar sair antes do fim do plano?</summary><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o mensal nos meses que usou.</p></details>
-    <details><summary>Posso pausar?</summary><p>Nos planos semestral e anual, você pode pausar até 30 dias por lesão, doença ou viagem, e o prazo se estende.</p></details>
-    <details><summary>Como funcionam as videochamadas?</summary><p>São de até 30 minutos, combinadas e feitas pelo próprio aplicativo. As do mês não acumulam e podem ser remarcadas com 24 horas de aviso.</p></details>
-    <details><summary>Quando recebo a camiseta?</summary><p>Depois do segundo pagamento, conforme o tamanho disponível.</p></details>
-    <details><summary>Posso mudar de plano?</summary><p>Para subir, a qualquer momento, pagando a diferença. Para descer, no fim do período contratado.</p></details>
-    <details><summary>No Integral, a avaliação de força pode ser presencial?</summary><p>Pode. O Integral inclui a avaliação online; para fazer a presencial com o Orlando, acrescente R$ 50 por ciclo de 8 semanas.</p></details>
-    <details><summary>Preciso já correr ou ter relógio?</summary><p>Não. O plano parte do seu nível atual, e dá para treinar só com o celular. Se tiver relógio, melhor ainda: Garmin conecta direto ao aplicativo.</p></details>
   </div>
 </section>
 
@@ -265,10 +382,10 @@
   <div class="cta-inner reveal">
     <p class="tag">Comece esta semana</p>
     <h2>O próximo recorde<br>é seu.</h2>
-    <p class="lead">Fale com a gente, tire suas dúvidas e comece com a avaliação inicial.</p>
+    <p class="lead">Fale com a gente, tire suas dúvidas e comece pela avaliação inicial.</p>
     <div class="hero-cta center">
       <a class="btn zap" data-msg="Olá! Vi os planos no site e quero começar na Nexos." target="_blank" rel="noopener">Falar no WhatsApp</a>
-      <a href="#corrida" class="btn btn-ghost">Ver planos</a>
+      <a href="#escolha" class="btn btn-ghost">Ver planos</a>
     </div>
   </div>
 </section>
@@ -287,107 +404,151 @@
   // número do WhatsApp da Nexos: DDI+DDD+número, só dígitos (o mesmo do site principal)
   var WHATS = '5598900000000';
   function zap(a) { a.href = 'https://wa.me/' + WHATS + '?text=' + encodeURIComponent(a.dataset.msg); }
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s) { return document.querySelectorAll(s); };
 
-  var PER = { m: ['mensal', 1], t: ['trimestral', 3], s: ['semestral', 6], a: ['anual', 12] };
+  var PER = { m: ['mensal', 1, ''], t: ['trimestral', 3, '−3%'], s: ['semestral', 6, '−6%'], a: ['anual', 12, '−10%'] };
   var CORRIDA = [
-    { id: 'essencial', nome: 'Corrida Essencial', ds: 'Para quem quer treinar com método e acompanhamento.',
-      pix: { m: 180, t: 175, s: 169, a: 162 }, cartao: { m: 188, t: 183, s: 177, a: 169 }, parc: { t: 192, s: 197, a: 206 },
-      cam: { a: 1 },
+    { id: 'essencial', nome: 'Corrida Essencial', curto: 'Essencial', ds: 'Para quem quer treinar com método e acompanhamento.',
+      pix: { m: 180, t: 175, s: 169, a: 162 }, cartao: { m: 188, t: 183, s: 177, a: 169 }, parc: { t: 192, s: 197, a: 206 }, cam: { a: 1 },
       itens: ['<b>Avaliação inicial online</b> de 30 minutos', 'Teste de entrada e reteste a cada ciclo', 'Planilha periodizada e personalizada', 'Análise de cada corrida pelo treinador', 'Estratégia de prova', '<b>1 videochamada</b> por mês', 'Todos os recursos do aplicativo Nexos'] },
-    { id: 'evolucao', nome: 'Corrida Evolução', ds: 'Para quem quer o treinador mais perto e correr com uma técnica melhor.',
-      pix: { m: 220, t: 214, s: 207, a: 198 }, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 },
-      cam: { a: 1 },
-      itens: ['Tudo do Essencial', '<b>3 videochamadas</b> por mês', '<b>Análise biomecânica</b> da corrida por vídeo'] },
-    { id: 'integral', nome: 'Integral · Corrida + Força', ds: 'Corrida e força juntas, com os dois treinadores da Nexos.', top: 'MAIS COMPLETO',
-      pix: { m: 309, t: 299, s: 289, a: 279 }, cartao: { m: 322, t: 312, s: 302, a: 291 }, parc: { t: 328, s: 336, a: 355 },
-      cam: { s: 1, a: 2 },
-      itens: ['Tudo do Evolução', '<b>Treino de força online</b> com o Orlando', '<b>Avaliação de força</b> a cada 8 semanas'] },
+    { id: 'evolucao', nome: 'Corrida Evolução', curto: 'Evolução', ds: 'Para quem quer o treinador mais perto e correr com uma técnica melhor.',
+      pix: { m: 220, t: 214, s: 207, a: 198 }, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 }, cam: { a: 1 },
+      itens: ['Tudo do Essencial', '<b>3 videochamadas</b> por mês', '<b>Análise biomecânica</b> da corrida por vídeo: você grava, o treinador analisa a sua passada e postura'] },
   ];
+  var INTEGRAL = { id: 'integral', nome: 'Integral · Corrida + Força', curto: 'Integral', ds: 'Corrida e força juntas, com os dois treinadores da Nexos.', top: 'MAIS COMPLETO',
+    pix: { m: 309, t: 299, s: 289, a: 279 }, cartao: { m: 322, t: 312, s: 302, a: 291 }, parc: { t: 328, s: 336, a: 355 }, cam: { s: 1, a: 2 },
+    itens: ['Tudo do Corrida Evolução', '<b>Treino de força online</b> com o Orlando', '<b>Avaliação de força</b> a cada 8 semanas', 'Os dois treinadores no mesmo aplicativo', 'Separados, sairia cerca de R$ 320 por mês'] };
   var FORCA = [
     { id: 'forca-online', nome: 'Força Online', ds: 'Avaliação orientada à distância e treino de força online.', pix: 200, cartao: 209, parc: 107,
-      itens: ['Avaliação da composição corporal', 'Testes funcionais com passo a passo', '8 semanas de treino periodizado', 'Reavaliação no fim de cada ciclo'] },
+      itens: ['Avaliação da composição corporal orientada à distância', 'Testes funcionais feitos por você, com o passo a passo, e analisados pelo Orlando', '8 semanas de treino de força periodizado', 'Cada exercício explicado no aplicativo', 'Reavaliação no fim do ciclo'] },
     { id: 'forca-presencial', nome: 'Força Presencial', ds: 'O treino é online; a avaliação é feita pessoalmente pelo Orlando.', pix: 250, cartao: 261, parc: 134,
-      itens: ['Composição corporal feita pessoalmente', '<b>Todos os testes funcionais</b>', '<b>Análise postural</b>', '8 semanas de treino periodizado'] },
+      itens: ['Composição corporal <b>feita pessoalmente</b>', '<b>Todos os testes funcionais</b>, aplicados pelo Orlando', '<b>Análise postural</b>', '8 semanas de treino de força periodizado', 'Reavaliação no fim do ciclo'] },
   ];
   var brl = function (v) { return 'R$ ' + v.toLocaleString('pt-BR'); };
-  var p = 'a';
+  var li = function (a) { return '<ul>' + a.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul>'; };
+  var p = 'a', ver = null;
   try { p = sessionStorage.getItem('nx-plano-per') || 'a'; } catch (e) {}
 
-  function cardCorrida(c) {
-    var v = c.pix[p], meses = PER[p][1], eco = (c.pix.m - v) * 12, cam = c.cam[p] || 0, chips = '';
-    if (p !== 'm') chips += '<span>Economia de ' + brl(eco) + ' por ano</span>';
+  function perHTML() {
+    return ['m', 't', 's', 'a'].map(function (k) { return '<button data-p="' + k + '" class="' + (k === p ? 'on' : '') + '">' + PER[k][0][0].toUpperCase() + PER[k][0].slice(1) + '<em>' + (PER[k][2] || '&nbsp;') + '</em></button>'; }).join('');
+  }
+  function cardCorrida(c, comPer) {
+    var v = c.pix[p], meses = PER[p][1], cam = c.cam[p] || 0, chips = '';
+    if (p !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * 12) + ' por ano</span>';
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     var ou = 'ou ' + brl(c.cartao[p]) + '/mês no cartão' + (c.parc[p] ? ' · ' + meses + 'x de ' + brl(c.parc[p]) : '');
     var msg = 'Olá! Vi no site e quero o plano ' + c.nome.replace(' · ', ' (') + (c.top ? ')' : '') + ', ' + PER[p][0] + '.';
     return '<article class="pl' + (c.top ? ' top' : '') + '" id="pl-' + c.id + '">' + (c.top ? '<span class="pl-selo">' + c.top + '</span>' : '') +
       '<span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
+      (comPer ? '<div class="per" data-per>' + perHTML() + '</div>' : '') +
       '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
       (p !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[p][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
-      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' +
-      '<ul>' + c.itens.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul><div class="pl-esp"></div>' +
-      '<a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Quero o ' + c.nome.split(' · ')[0].replace('Corrida ', '') + (p !== 'm' ? ' ' + PER[p][0] : '') + '</a></article>';
+      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + li(c.itens) + '<div class="pl-esp"></div>' +
+      '<a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</a></article>';
   }
   function cardForca(c) {
-    return '<article class="pl reveal"><span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
+    return '<article class="pl"><span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
       '<div class="pl-pr"><small>R$</small><b>' + c.pix + '</b><i>a cada 8 semanas</i></div>' +
       '<p class="pl-de">no Pix, cerca de ' + brl(Math.round(c.pix / 2)) + ' por mês</p><p class="pl-ou">ou ' + brl(c.cartao) + ' no cartão · 2x de ' + brl(c.parc) + '</p>' +
-      '<ul>' + c.itens.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul><div class="pl-esp"></div>' +
+      li(c.itens) + '<div class="pl-esp"></div>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ' com o Orlando.">Quero a ' + c.nome + '</a></article>';
   }
   var ISCA = {
     m: 'No plano anual, o Essencial sai por <b>R$ 162/mês</b> e vem com a camiseta oficial.',
-    t: 'Indo para o semestral, você economiza mais e, no Integral, ganha uma camiseta.',
+    t: 'No semestral a mensalidade cai mais e, no Integral, já vem uma camiseta.',
     s: 'Mais 6 meses e você chega ao anual: <b>10% de desconto</b> e camiseta de presente.',
     a: '<b>Melhor preço do ano</b>, camiseta de presente e 7 dias para desistir se não gostar.',
   };
-  function desenhar() {
-    document.querySelectorAll('#per button').forEach(function (b) { var on = b.dataset.p === p; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
-    document.getElementById('isca').innerHTML = ISCA[p];
-    document.getElementById('cards-corrida').innerHTML = CORRIDA.map(cardCorrida).join('');
-    document.querySelectorAll('#cards-corrida .zap').forEach(zap);
+
+  // tabela de comparação
+  var S = '<i class="s" aria-label="sim"></i>', N = '<i class="n" aria-label="não"></i>';
+  function tabela(cols, curtos, grupos) {
+    var h = '<table><tr><th>Incluído</th>' + cols.map(function (c, i) { return '<th><span class="l">' + c + '</span><span class="c">' + curtos[i] + '</span></th>'; }).join('') + '</tr>';
+    grupos.forEach(function (g) {
+      h += '<tr class="g"><td colspan="' + (cols.length + 1) + '">' + g[0] + '</td></tr>';
+      g[1].forEach(function (r) { h += '<tr><td>' + r[0] + '</td>' + r.slice(1).map(function (x) { return '<td>' + (x === 1 ? S : x === 0 ? N : x) + '</td>'; }).join('') + '</tr>'; });
+    });
+    return h + '</table>';
   }
-  document.getElementById('per').addEventListener('click', function (e) {
-    var b = e.target.closest('button'); if (!b) return;
-    p = b.dataset.p; try { sessionStorage.setItem('nx-plano-per', p); } catch (er) {}
+  var todos = function (t) { return [t, 1, 1, 1]; };
+  $('#cmp-corrida').innerHTML = tabela(['ESSENCIAL', 'EVOLUÇÃO', 'INTEGRAL'], ['ESS.', 'EVO.', 'INT.'], [
+    ['TREINO DE CORRIDA', [todos('Avaliação inicial online de 30 minutos'), todos('Teste de entrada e reteste a cada ciclo'), todos('Planilha periodizada e personalizada'), todos('Calendário de provas com polimento'), todos('Análise de cada corrida pelo treinador'), todos('Ajustes por dor, cansaço e rotina'), todos('Estratégia de prova com o treinador'), ['Análise biomecânica da corrida por vídeo', 0, 1, 1], ['Videochamadas por mês', '1', '3', '3']]],
+    ['TREINO DE FORÇA', [['Treino de força online com o Orlando', 0, 0, 1], ['Avaliação de força a cada 8 semanas', 0, 0, 1]]],
+    ['APLICATIVO NEXOS · EM TODOS OS PLANOS', [todos('Treino do dia na tela inicial, com etapas e ritmos'), todos('Leitura de cada corrida: ritmo, frequência cardíaca, parciais e zonas'), todos('Check-in diário de sono, energia, dor e estresse'), todos('Registro de dor com ajuste do treino pelo treinador'), todos('Alerta quando a carga sobe rápido demais'), todos('Sono, recuperação e frequência cardíaca de repouso do relógio'), todos('VO2máx e efeito do treino'), todos('Previsão de tempo para 5 km, 10 km, meia e maratona'), todos('Leitura do tempo: calor, chuva e melhor horário para treinar'), todos('Meta de hidratação com lembretes'), todos('Recordes pessoais, constância e marcos'), todos('Imagens e vídeo do percurso para o Instagram'), todos('Relatório de evolução a cada reteste'), todos('Mensagens e videochamada com o treinador pelo aplicativo'), todos('Acompanhamento para corredoras: ciclo menstrual e fases da vida')]],
+    ['RELÓGIOS', [todos('Garmin conectado ao aplicativo'), todos('Coros, Polar, Suunto, Apple Watch e outros'), todos('Sem relógio, só com o celular')]],
+    ['PRESENTES', [['Camisetas no plano anual', '1', '1', '2'], ['Camiseta no plano semestral', 0, 0, '1']]],
+  ]);
+  var dois = function (t) { return [t, 1, 1]; };
+  $('#cmp-forca').innerHTML = tabela(['ONLINE', 'PRESENCIAL'], ['ONLINE', 'PRES.'], [
+    ['AVALIAÇÃO', [['Composição corporal', 'À distância', 'Pessoalmente'], ['Testes funcionais', 'Você faz', 'Com o Orlando'], ['Análise postural', 0, 1], dois('Reavaliação a cada 8 semanas')]],
+    ['TREINO', [dois('8 semanas de treino de força periodizado'), dois('Cargas e volume ajustados conforme a sua evolução'), dois('Cada exercício explicado no aplicativo'), dois('Treino na academia que você preferir')]],
+    ['O QUE O ORLANDO ACOMPANHA PELO APLICATIVO', [dois('Cargas, séries e repetições de cada treino'), dois('A sua evolução de força ao longo do ciclo'), dois('O esforço de cada sessão'), dois('Sono, energia, dor muscular e estresse antes do treino'), dois('Dores e desconfortos, com o treino adaptado'), dois('A sua constância de treinos'), dois('Meta de hidratação com lembretes'), dois('Comparação de uma avaliação para a outra'), dois('Mensagens diretas com o Orlando')]],
+  ]);
+
+  function pagamentos() {
+    var meses = PER[p][1];
+    $('#pg-corrida').innerHTML = '<table><tr><th>Plano ' + PER[p][0] + '</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
+      CORRIDA.concat([INTEGRAL]).map(function (c) { return '<tr><td>' + c.curto + '</td><td><b>' + c.pix[p] + '</b>/mês</td><td>' + c.cartao[p] + '/mês</td><td>' + (c.parc[p] ? meses + 'x ' + c.parc[p] : 'só no anual, semestral e trimestral') + '</td></tr>'; }).join('') + '</table>';
+    $('#pg-forca').innerHTML = '<table><tr><th>Ciclo de 8 semanas</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
+      FORCA.map(function (c) { return '<tr><td>' + c.nome.replace('Força ', '') + '</td><td><b>' + c.pix + '</b></td><td>' + c.cartao + '</td><td>2x ' + c.parc + '</td></tr>'; }).join('') + '</table>';
+  }
+  function desenhar() {
+    $$('[data-per]').forEach(function (el) { if (!el.closest('.pl')) el.innerHTML = perHTML(); });
+    $('#isca').innerHTML = ISCA[p];
+    $('#cards-corrida').innerHTML = CORRIDA.map(function (c) { return cardCorrida(c); }).join('');
+    $$('[data-mix]').forEach(function (el) { el.innerHTML = cardCorrida(INTEGRAL, el.closest('#p-forca')); });
+    pagamentos();
+    $$('.painel .zap').forEach(zap);
+  }
+  $('#cards-forca').innerHTML = FORCA.map(cardForca).join('');
+
+  function mostrar(v, ir) {
+    ver = v;
+    $$('.esc-c').forEach(function (b) { b.classList.toggle('on', b.dataset.ver === v); });
+    $('#p-corrida').hidden = v !== 'corrida';
+    $('#p-forca').hidden = v !== 'forca';
+    $('#app').hidden = false;
     desenhar();
+    try { history.replaceState(null, '', '#' + v); } catch (e) {}
+    var alvo = ir ? $('#p-' + v + ' #pl-' + ir) : $('#p-' + v);
+    setTimeout(function () { alvo.scrollIntoView({ behavior: 'smooth', block: ir ? 'center' : 'start' }); }, 40);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ver]');
+    if (b) return mostrar(b.dataset.ver, b.dataset.ir);
+    var k = e.target.closest('[data-p]');
+    if (k) { p = k.dataset.p; try { sessionStorage.setItem('nx-plano-per', p); } catch (er) {} desenhar(); }
   });
-  document.getElementById('cards-forca').innerHTML = FORCA.map(cardForca).join('');
-  document.getElementById('pg-t').innerHTML = '<tr><th>Plano</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
-    ['a', 's', 't', 'm'].map(function (k) {
-      return '<tr><td colspan="4" style="font-family:var(--f-m);font-size:.68rem;letter-spacing:.1em;color:var(--mute)">' + PER[k][0].toUpperCase() + '</td></tr>' +
-        CORRIDA.map(function (c) { return '<tr><td>' + c.nome.split(' · ')[0].replace('Corrida ', '') + '</td><td><b>' + c.pix[k] + '</b></td><td>' + c.cartao[k] + '</td><td>' + (c.parc[k] ? PER[k][1] + 'x ' + c.parc[k] : '·') + '</td></tr>'; }).join('');
-    }).join('') +
-    '<tr><td colspan="4" style="font-family:var(--f-m);font-size:.68rem;letter-spacing:.1em;color:var(--mute)">FORÇA · A CADA 8 SEMANAS</td></tr>' +
-    FORCA.map(function (c) { return '<tr><td>' + c.nome.replace('Força ', '') + '</td><td><b>' + c.pix + '</b></td><td>' + c.cartao + '</td><td>2x ' + c.parc + '</td></tr>'; }).join('');
+  var h = location.hash.slice(1);
+  if (h === 'corrida' || h === 'forca') { ver = h; $$('.esc-c').forEach(function (b) { b.classList.toggle('on', b.dataset.ver === h); }); $('#p-' + h).hidden = false; $('#app').hidden = false; }
+  if (h === 'integral') { ver = 'corrida'; $('#p-corrida').hidden = false; $('#app').hidden = false; }
   desenhar();
-  document.querySelectorAll('.zap').forEach(zap);
-  document.querySelectorAll('[data-ir]').forEach(function (a) {
-    a.addEventListener('click', function () { setTimeout(function () { var el = document.getElementById('pl-' + a.dataset.ir); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60); });
-  });
-  document.getElementById('year').textContent = new Date().getFullYear();
+  $$('.zap').forEach(zap);
+  $('#year').textContent = new Date().getFullYear();
 
   var root = document.documentElement;
   function logos() {
     var light = root.dataset.theme === 'light';
-    document.querySelectorAll('[data-logo]').forEach(function (i) { i.src = '/img/' + i.dataset.logo + (light ? '-navy' : '') + '.png'; });
-    document.querySelector('meta[name=theme-color]').content = light ? '#f5f7fc' : '#050c1c';
+    $$('[data-logo]').forEach(function (i) { i.src = '/img/' + i.dataset.logo + (light ? '-navy' : '') + '.png'; });
+    $('meta[name=theme-color]').content = light ? '#f5f7fc' : '#050c1c';
   }
   logos();
-  document.getElementById('theme-btn').addEventListener('click', function () {
+  $('#theme-btn').addEventListener('click', function () {
     root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
     try { localStorage.setItem('nexos-tema', root.dataset.theme); } catch (e) {}
     logos();
   });
 
-  var nav = document.getElementById('nav'), bar = document.getElementById('progress');
+  var nav = $('#nav'), bar = $('#progress');
   function rolar() {
     nav.classList.toggle('scrolled', scrollY > 20);
-    var h = document.documentElement.scrollHeight - innerHeight;
-    bar.style.width = (h > 0 ? scrollY / h * 100 : 0) + '%';
+    var hh = document.documentElement.scrollHeight - innerHeight;
+    bar.style.width = (hh > 0 ? scrollY / hh * 100 : 0) + '%';
   }
   addEventListener('scroll', rolar, { passive: true }); rolar();
 
-  var els = document.querySelectorAll('.reveal');
+  var els = $$('.reveal');
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: .12 });
     els.forEach(function (el, i) { el.style.transitionDelay = (i % 4) * 70 + 'ms'; io.observe(el); });
