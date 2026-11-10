@@ -24,11 +24,11 @@
 :root[data-theme="light"] .theme-btn .moon{display:none}
 
 /* topo */
-.pl-hero{position:relative;padding:118px clamp(16px,6vw,80px) 30px;text-align:center;overflow:hidden;isolation:isolate}
+.pl-hero{position:relative;padding:118px clamp(16px,6vw,80px) 18px;text-align:center;overflow:hidden;isolation:isolate}
 .pl-hero h1{font-size:clamp(2rem,7vw,4rem)}
 .pl-hero .lead{margin:16px auto 0}
 .pl-hero .lead b{color:var(--ink)}
-.pl-trust{display:flex;justify-content:center;gap:10px;margin-top:26px;flex-wrap:wrap}
+.pl-trust{display:flex;justify-content:center;gap:10px;margin-top:22px;flex-wrap:wrap}
 .pl-trust .tele{text-align:left}
 .pl-trust .tele b{font-size:1.15rem}
 
@@ -91,6 +91,12 @@
 .cmpb .tag{margin-bottom:4px}
 .cmpb h3{font-family:var(--f-h);font-size:1.15rem}
 .cmpb p:not(.tag){color:var(--mute);font-size:.92rem;margin-top:4px}
+/* barra de troca */
+body.com-troca .footer{padding-bottom:96px}
+.troca{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translate(-50%,0);z-index:120;display:flex;gap:4px;padding:5px;border-radius:999px;border:1px solid var(--line);background:rgba(var(--bg2-rgb),.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 14px 40px rgba(0,0,0,.35);transition:opacity .25s,transform .25s}
+.troca[hidden]{display:flex;opacity:0;pointer-events:none;transform:translate(-50%,20px)}
+.troca button{padding:10px 18px;border-radius:999px;font-weight:800;font-size:.9rem;color:var(--mute)}
+.troca button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc)}
 /* folha do plano */
 .sh{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center}
 .sh[hidden]{display:none}
@@ -173,6 +179,7 @@
 :root[data-theme="light"] .pl li::before,:root[data-theme="light"] .ck li::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")}
 .pl li b{font-weight:800}
 .pl-esp{flex:1;min-height:22px}
+.pl-res{color:var(--mute);font-size:.84rem;margin-top:10px;padding-left:26px}
 .pl .btn{width:100%}
 .pl:not(.top) .btn{background:transparent;color:var(--ink);border:1px solid rgba(var(--acc-rgb),.5);box-shadow:none}
 .pl:not(.top) .btn:hover{background:rgba(var(--acc-rgb),.1)}
@@ -231,7 +238,7 @@
 
 @media (max-width:860px){
   .esc{grid-template-columns:1fr 1fr;gap:10px}
-  .esc-f{height:110px}
+  .esc-f{height:96px}
   .esc-b{padding:0 14px 16px}
   .esc-b h3{font-size:1.3rem}
   .esc-b small{font-size:.6rem;letter-spacing:.08em}
@@ -246,8 +253,11 @@
   .ap-g{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:600px){
-  .pl-hero{padding-top:100px}
-  .pl-hero h1{font-size:clamp(1.6rem,8.4vw,2.4rem)}
+  .pl-hero{padding-top:84px;padding-bottom:6px}
+  .pl-hero h1{font-size:clamp(1.45rem,7.4vw,2.2rem)}
+  .pl-hero .lead{font-size:.92rem;margin-top:10px}
+  .esc-w{padding-top:14px}
+  .esc-t{margin-bottom:12px}
   .pl-hero .eyebrow{font-size:.64rem;letter-spacing:.05em}
   .pl-trust .tele{flex:1;min-width:0;padding:10px 12px}
   .pl-trust .tele em{display:block;margin:0}
@@ -281,11 +291,6 @@
   <p class="eyebrow reveal"><span class="dot"></span>Planos 2027 · Corrida e força · 100% online</p>
   <h1 class="reveal"><span class="line">SEU MELHOR ANO</span><span class="line accent">COMEÇA AQUI.</span></h1>
   <p class="lead reveal">Treinador de verdade olhando cada treino seu, aplicativo próprio e um plano feito para você. <b>No plano anual, 10% de desconto e a camiseta oficial de presente.</b></p>
-  <div class="pl-trust reveal">
-    <div class="tele"><small>A PARTIR DE</small><b>R$ 162</b><em>por mês no anual</em></div>
-    <div class="tele"><small>NO ANUAL</small><b>Camiseta</b><em>de presente</em></div>
-    <div class="tele"><small>SEM RISCO</small><b>7 dias</b><em>para desistir</em></div>
-  </div>
 </section>
 
 <section class="esc-w" id="escolha">
@@ -305,6 +310,11 @@
     <span class="esc-ib"><small>QUER OS DOIS? · MAIS COMPLETO</small><h3>Integral · Corrida + Força</h3><span class="de">a partir de <b>R$ 350</b>/mês no plano anual</span></span>
     <span class="vai">Ver plano →</span>
   </button>
+  <div class="pl-trust reveal">
+    <div class="tele"><small>A PARTIR DE</small><b>R$ 162</b><em>por mês no anual</em></div>
+    <div class="tele"><small>NO ANUAL</small><b>Camiseta</b><em>de presente</em></div>
+    <div class="tele"><small>SEM RISCO</small><b>7 dias</b><em>para desistir</em></div>
+  </div>
 </section>
 
 <!-- ======== CORRIDA: planos ======== -->
@@ -450,6 +460,10 @@
   </template>
 </section>
 
+<nav class="troca" id="troca" aria-label="Trocar de modalidade" hidden>
+  <button data-ver="corrida">Corrida</button><button data-ver="forca">Força</button><button data-ver="corrida" data-ir="integral">Integral</button>
+</nav>
+
 <div class="sh" id="sh" hidden>
   <div class="sh-fundo" data-fechar></div>
   <div class="sh-c" role="dialog" aria-modal="true" aria-labelledby="sh-t">
@@ -492,7 +506,7 @@
   var CORRIDA = [
     { id: 'essencial', nome: 'Corrida Essencial', curto: 'Essencial', ds: 'Para quem quer treinar com método e acompanhamento.',
       pix: { m: 180, t: 175, s: 169, a: 162 }, cartao: { m: 188, t: 183, s: 177, a: 169 }, parc: { t: 192, s: 197, a: 206 }, cam: { a: 1 },
-      itens: ['<b>Avaliação inicial online</b> de 30 minutos', 'Teste de entrada e reteste a cada ciclo', 'Planilha periodizada e personalizada', 'Análise de cada corrida pelo treinador', 'Estratégia de prova', '<b>1 videochamada</b> por mês', 'Todos os recursos do aplicativo Nexos'] },
+      itens: ['<b>Avaliação inicial online</b> de 30 minutos', 'Planilha periodizada e personalizada', 'Análise de cada corrida pelo treinador', '<b>1 videochamada</b> por mês', 'Teste de entrada e reteste a cada ciclo', 'Estratégia de prova', 'Todos os recursos do aplicativo Nexos'] },
     { id: 'evolucao', nome: 'Corrida Evolução', curto: 'Evolução', ds: 'Para quem quer o treinador mais perto e correr com uma técnica melhor.',
       pix: { m: 220, t: 214, s: 207, a: 198 }, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 }, cam: { a: 1 },
       itens: ['Tudo do Essencial', '<b>2 videochamadas</b> por mês', '<b>Análise biomecânica</b> da corrida por vídeo: você grava, o treinador analisa a sua passada e postura'] },
@@ -511,6 +525,9 @@
   var num = function (v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
   var brl = function (v) { return 'R$ ' + num(v); };
   var li = function (a) { return '<ul>' + a.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul>'; };
+  var MAX = 4;
+  // no card ficam os 4 primeiros; o resto aparece em "Ver mais sobre o plano"
+  var liCard = function (a) { return li(a.slice(0, MAX)) + (a.length > MAX ? '<p class="pl-res">+ ' + (a.length - MAX) + (a.length - MAX > 1 ? ' benefícios' : ' benefício') + ' em Ver mais</p>' : ''); };
   var p = 'a', pf = 'a', ver = null;
   try { p = sessionStorage.getItem('nx-plano-per') || 'a'; pf = sessionStorage.getItem('nx-plano-perf') || 'a'; if (!PER[pf]) pf = 'a'; } catch (e) {}
 
@@ -521,6 +538,7 @@
     var v = c.pix[p], meses = PER[p][1], cam = c.cam[p] || 0, chips = '';
     if (p !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * PER[p][1]) + ' no ' + PER[p][0] + '</span>';
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
+    if (c.id === 'integral') chips += '<span>Separados, no Pix, sairia ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[p]) + ' por mês</span>';
     var ou = 'ou ' + brl(c.cartao[p]) + '/mês no cartão' + (c.parc[p] ? ' · ' + meses + 'x de ' + brl(c.parc[p]) : '');
     var msg = 'Olá! Vi no site e quero o plano ' + c.nome.replace(' · ', ' (') + (c.top ? ')' : '') + ', ' + PER[p][0] + '.';
     return '<article class="pl' + (c.top ? ' top' : '') + '" id="pl-' + c.id + '">' + (c.top ? '<span class="pl-selo">' + c.top + '</span>' : '') +
@@ -528,7 +546,7 @@
       (comPer ? '<div class="per" data-per>' + perHTML() + '</div>' : '') +
       '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
       (p !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[p][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
-      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + li(c.id === 'integral' ? c.itens.concat(['Separados, no Pix, sairia ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[p]) + ' por mês']) : c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
+      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</a></article>';
   }
   function perfHTML() {
@@ -543,7 +561,7 @@
       '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
       (pf !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[pf][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
       '<p class="pl-ou">ou ' + brl(c.cartao[pf]) + '/mês no cartão' + (c.parc[pf] ? ' · ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
-      '<div class="pl-chips">' + chips + '</div>' + li(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
+      '<div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ', ' + PER[pf][0] + ', com o Orlando.">' + c.bt + per + '</a></article>';
   }
   var ISCA_F = {
@@ -646,7 +664,7 @@
     var msg = 'Olá! Vi no site e quero o plano ' + nomeMsg + ', ' + PER[k][0] + (ef ? ', com o Orlando' : '') + '.';
     $('#sh-pe').innerHTML = '<span>' + c.curto + ' · ' + PER[k][0] + '<b>' + brl(v) + '/mês</b></span><a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Prosseguir</a>';
     zap($('#sh-pe .zap'));
-    if ($('#sh').hidden) { $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; }
+    if ($('#sh').hidden) { $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; barra(); }
   }
   function comparar(v) {
     aberto = null;
@@ -654,9 +672,19 @@
     $('#sh-corpo').innerHTML = '<span class="pl-nm">' + (ef ? 'Força' : 'Corrida') + '</span><h2 id="sh-t">Compare item por item</h2>' +
       '<div class="sh-sec sh-cmp"><div class="tb ' + (ef ? 'c2' : 'c3') + '">' + (ef ? tabela(['100% ONLINE', 'AVALIAÇÃO PRESENCIAL'], ['100% ON.', 'AV. PRES.'], CMP_F) : tabela(['ESSENCIAL', 'EVOLUÇÃO', 'INTEGRAL'], ['ESS.', 'EVO.', 'INT.'], CMP_C)) + '</div></div>';
     $('#sh-pe').innerHTML = '<span>Escolheu o seu?</span><button class="btn" data-fechar>Ver os planos</button>';
-    $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0;
+    $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; barra();
   }
-  function fechar() { aberto = null; $('#sh').hidden = true; document.body.style.overflow = ''; }
+  function fechar() { aberto = null; $('#sh').hidden = true; document.body.style.overflow = ''; barra(); }
+  function barra() {
+    var t = $('#troca'), esc = $('#escolha').getBoundingClientRect();
+    t.hidden = !ver || !$('#sh').hidden || esc.bottom > 0;
+    document.body.classList.toggle('com-troca', !!ver);
+    t.querySelectorAll('button').forEach(function (b) {
+      var integ = !!b.dataset.ir, el = $('#pl-integral'), r = el && el.getBoundingClientRect(), naInt = ver === 'corrida' && r && r.top < innerHeight * 0.6 && r.bottom > innerHeight * 0.3;
+      b.classList.toggle('on', integ ? !!naInt : b.dataset.ver === ver && !naInt);
+    });
+  }
+  addEventListener('scroll', barra, { passive: true });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#sh').hidden) fechar(); });
 
   function mostrar(v, ir) {
