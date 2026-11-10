@@ -745,6 +745,18 @@ function semanasSeguidas(datas) {
   return n;
 }
 
+/* relógio pequeno embaixo da data no topo do Hoje: atualiza a cada segundo enquanto a tela está aberta */
+const horaRelogio = () =>
+  new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+function ligarRelogio() {
+  clearInterval(ligarRelogio.t);
+  ligarRelogio.t = setInterval(() => {
+    const els = document.querySelectorAll('[data-relogio]');
+    if (!els.length) return clearInterval(ligarRelogio.t);
+    const h = horaRelogio();
+    els.forEach((el) => (el.textContent = h));
+  }, 1000);
+}
 async function alunoHoje() {
   loading();
   const hoje = isoDia(new Date());
@@ -917,7 +929,7 @@ async function alunoHoje() {
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><div class="top-acoes">${sinoHTML()}<a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div></div>
     <div id="cham-ativa"></div>
     <section class="hoje-hero">
-      <div class="hh-top"><span class="hh-data">${fmtDiaSem(hoje)}</span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
+      <div class="hh-top"><span class="hh-quando"><span class="hh-data">${fmtDiaSem(hoje)}</span><span class="hh-relogio" data-relogio>${horaRelogio()}</span></span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
       <h1>${saud}, ${esc(firstName(S.me.nome) || 'atleta')}</h1>
       <p>${resumoDia}</p><p class="hh-agua" id="hh-agua" hidden></p>
       <div class="hh-stats">
@@ -958,6 +970,7 @@ async function alunoHoje() {
     )}</div>
     </div></div>
     <button class="fab-reg mini" id="fab-reg" aria-label="Registrar">${I.plus}</button>`;
+  ligarRelogio();
   cartaoChamadaAtiva();
   const pendSec = document.getElementById('pend-sec');
   const mostrarPend = () => {
