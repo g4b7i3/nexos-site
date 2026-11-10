@@ -1242,7 +1242,7 @@ async function desenharCard(cv, c, o) {
     });
     ctx.restore();
     // selo da marca na base
-    if (L === 'icones' || L === 'mapa')
+    if (L === 'icones')
       txt('NEXOS · PERFORMANCE E SAÚDE', W / 2, H - (post ? 44 : 64), `500 22px ${FM}`, sub, 'center', 6);
   };
 
@@ -2792,7 +2792,8 @@ async function desenharCard(cv, c, o) {
   }
   ctx.restore();
   // as faixas e o selo são da marca: saem junto com a logo quando ela é desligada
-  if (o.parte !== 'baixo' && comLogo) assinatura();
+  // no card Só o mapa fica só o símbolo da Nexos, sem as faixas
+  if (o.parte !== 'baixo' && comLogo && L !== 'mapa') assinatura();
 }
 // localização do card: busca no OpenStreetMap (só quando o atleta pede; nada é enviado sozinho)
 const locCurto = (r) => {
