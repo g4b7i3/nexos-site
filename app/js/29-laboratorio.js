@@ -1882,6 +1882,7 @@ function staffMais() {
     </div>
     <p class="sec-lbl">Equipe e comunicação</p><div class="stack">
       <a class="list-item" href="#/videochamadas" style="color:inherit"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>Videochamadas</b><div class="small muted">Ligar para um professor ou para um aluno</div><div class="tiny dim" id="mais-video-uso"></div><div id="mais-video-st"></div></div>${I.chev}</a>
+      ${it('#/aviso', I.bell, 'Aviso para todos os alunos', 'Uma notificação no celular de cada aluno, com atalho para a tela certa')}
       ${it('#/eventos', I.flag, 'Eventos', 'Treinões da Nexos e alunos nas provas')}
       ${it('#/desafio', I.flag, 'Desafio do mês', 'Meta coletiva da equipe com barra de progresso')}
       ${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Textos curtos com base científica para os alunos')}
@@ -2076,4 +2077,76 @@ async function staffBiblioteca(aba) {
     aoTocar: (ex) => formExercicio(ex),
     aoCriar: () => formExercicio(null),
   });
+}
+
+/* ---------- aviso para todos os alunos (central de notificações + celular) ---------- */
+const AVISO_DESTINOS = [
+  ['#/meditacao', 'Meditação'],
+  ['#/', 'Tela Hoje'],
+  ['#/planilha', 'Planilha'],
+  ['#/eventos', 'Eventos e provas'],
+  ['#/dicas', 'Dicas da Nexos'],
+  ['#/tv', 'TV Nexos'],
+  ['#/mais', 'Mais'],
+];
+// primeiro aviso, aprovado pela equipe: o lançamento da Meditação
+const AVISO_SUGERIDO = {
+  titulo: 'Seu treino agora também cuida da mente',
+  corpo:
+    'Chegou a Meditação Nexos: respiração guiada, sessões para antes da prova e para dormir, e sons da natureza. Toque para experimentar.',
+  url: '#/meditacao',
+};
+async function staffAviso() {
+  const sug = store.get('nx-aviso-medit') ? { titulo: '', corpo: '', url: '#/' } : AVISO_SUGERIDO;
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe e comunicação</p><h1 class="h1">Aviso para todos os alunos</h1>
+    <p class="muted small" style="margin-top:6px">Chega no celular de quem ativou as notificações e fica no sininho do app de todos. Ao tocar, o aluno vai direto para a tela escolhida.</p>
+    <form class="card" id="f-aviso" style="margin-top:16px">
+      <label class="field"><span>Título</span><input class="input" name="titulo" maxlength="80" required value="${esc(sug.titulo)}"></label>
+      <label class="field"><span>Texto</span><textarea class="textarea" name="corpo" maxlength="240" rows="4" required>${esc(sug.corpo)}</textarea></label>
+      <label class="field"><span>Ao tocar, abre</span><select class="input" name="url">${AVISO_DESTINOS.map(([u, l]) => `<option value="${u}" ${u === sug.url ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <p class="sec-lbl" style="margin-top:6px">Como o aluno vê</p>
+      <div class="aviso-prev"><img src="${LOGO.s()}" alt=""><div><b id="av-t"></b><span id="av-c"></span></div></div>
+      <p class="small muted" id="av-alc" style="margin-top:12px">Contando os alunos…</p>
+      <button class="btn block" type="submit" style="margin-top:12px">Enviar para todos os alunos</button>
+    </form>`;
+  const f = document.getElementById('f-aviso');
+  const prev = () => {
+    document.getElementById('av-t').textContent = f.titulo.value || 'Título';
+    document.getElementById('av-c').textContent = f.corpo.value || 'Texto do aviso';
+  };
+  f.addEventListener('input', prev);
+  prev();
+  let alc = null;
+  sb.functions
+    .invoke('nx-comunicado', { body: { org_id: S.org.id, contar: true } })
+    .then(({ data }) => {
+      if (!data || !data.ok) return;
+      alc = data;
+      document.getElementById('av-alc').textContent =
+        `Vai para ${data.alunos} alunos ativos, de toda a equipe. ${data.aparelhos} ${data.aparelhos === 1 ? 'aparelho tem' : 'aparelhos têm'} as notificações ativadas.`;
+    })
+    .catch(() => {});
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const n = alc ? alc.alunos : 'todos os';
+    if (!confirm(`Enviar este aviso para ${n} alunos agora?`)) return;
+    const b = f.querySelector('[type=submit]');
+    b.disabled = true;
+    b.textContent = 'Enviando…';
+    const { data, error } = await sb.functions.invoke('nx-comunicado', {
+      body: { org_id: S.org.id, titulo: f.titulo.value, corpo: f.corpo.value, url: f.url.value },
+    });
+    if (error || !data || data.erro) {
+      let m = (data && data.erro) || 'Não foi possível enviar agora.';
+      try {
+        m = (await error.context.json()).erro || m;
+      } catch {}
+      b.disabled = false;
+      b.textContent = 'Enviar para todos os alunos';
+      return toast(m, true);
+    }
+    if (f.titulo.value === AVISO_SUGERIDO.titulo) store.set('nx-aviso-medit', 1);
+    toast(`Aviso enviado para ${data.alunos} alunos (${data.no_celular} no celular).`);
+    trocarRota(location.pathname + '#/mais');
+  };
 }
