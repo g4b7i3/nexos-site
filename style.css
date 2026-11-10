@@ -646,3 +646,46 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 @media (max-width:560px){.hp-g{grid-template-columns:1fr}.hp-c{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:8px}.hp-c small{order:3;width:100%}.hp-c span{margin-left:auto;text-align:right}}
 @media (max-width:480px){.nav-app-m{font-size:.74rem;padding:7px 10px;gap:5px;white-space:nowrap}.nav-app-m svg{width:14px;height:14px}.brand span{font-size:.82rem;letter-spacing:.12em}}
 @media (max-width:420px){.brand span{display:none}}
+
+/* ===== REPAGINADA DO TEMA CLARO: branco limpo, azul-marinho no texto e nos botões, azul só nos detalhes ===== */
+:root[data-theme="light"]{
+  --bg:#ffffff; --bg2:#f4f6f9; --navy:#0b1f44; --line:rgba(11,31,68,.1);
+  --ink:#0b1f44; --mute:#5a6478; --acc:#1d4ed8; --acc2:#1d4ed8; --acc-mid:#1d4ed8;
+  --card:#ffffff; --sp-bg:#ffffff;
+  --bg-rgb:255,255,255; --bg2-rgb:244,246,249; --navy-rgb:11,31,68; --acc-rgb:29,78,216; --acc2-rgb:29,78,216; --ink-rgb:11,31,68;
+  --f-m:'Manrope',system-ui,sans-serif;
+}
+/* fundo sem grade, sem logo gigante animada e sem brilho */
+:root[data-theme="light"] .hero-grid,:root[data-theme="light"] .bg-logo,:root[data-theme="light"] .hero-anim{display:none}
+:root[data-theme="light"] .accent{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--acc);animation:none}
+/* botões: azul-marinho sólido, sem degradê e sem reflexo */
+:root[data-theme="light"] .btn{background:var(--ink);color:#fff;box-shadow:none}
+:root[data-theme="light"] .btn::after{display:none}
+:root[data-theme="light"] .btn:hover{background:#13306a;box-shadow:0 8px 20px rgba(11,31,68,.18)}
+:root[data-theme="light"] .btn-ghost{background:#fff;color:var(--ink);border:1px solid rgba(11,31,68,.18)}
+:root[data-theme="light"] .btn-ghost:hover{background:#fff;border-color:var(--ink);box-shadow:none}
+/* rótulos: texto normal em caixa alta, sem cara de terminal */
+:root[data-theme="light"] .tag,:root[data-theme="light"] .eyebrow,:root[data-theme="light"] .chip{font-weight:700;letter-spacing:.12em}
+:root[data-theme="light"] .eyebrow{border:0;background:var(--bg2);color:var(--ink)}
+:root[data-theme="light"] .chip{border-color:var(--line);color:var(--mute);background:var(--bg2)}
+/* faixa corrida: bloco escuro de marca, letras cheias */
+:root[data-theme="light"] .ticker{background:var(--ink);border:0}
+:root[data-theme="light"] .ticker-track span{color:#fff;-webkit-text-stroke:0;opacity:.95}
+:root[data-theme="light"] .ticker-track span:nth-of-type(3n){color:#fff}
+:root[data-theme="light"] .tk-logo img{filter:brightness(0) invert(1);opacity:.55}
+/* seções alternando branco e cinza bem claro */
+:root[data-theme="light"] .section.alt{background:var(--bg2)}
+/* cartões brancos com sombra curta */
+:root[data-theme="light"] .panel,:root[data-theme="light"] .booking,:root[data-theme="light"] .wk-card,:root[data-theme="light"] .faq details,:root[data-theme="light"] .tele{background:#fff;border-color:var(--line);box-shadow:0 1px 2px rgba(11,31,68,.04),0 8px 24px rgba(11,31,68,.05);backdrop-filter:none}
+:root[data-theme="light"] .tele b{font-family:var(--f-h);color:var(--ink)}
+:root[data-theme="light"] .tabs{background:var(--bg2);border-color:transparent}
+:root[data-theme="light"] .tab-ink{background:var(--ink)!important}
+:root[data-theme="light"] .nav.scrolled{background:rgba(255,255,255,.92)}
+/* fechamento: bloco azul-marinho cheio */
+:root[data-theme="light"] .cta-final{background:var(--ink);color:#fff}
+:root[data-theme="light"] .cta-final h2,:root[data-theme="light"] .cta-final p{color:#fff}
+:root[data-theme="light"] .cta-final img{filter:brightness(0) invert(1)}
+:root[data-theme="light"] .cta-final .btn{background:#fff;color:var(--ink)}
+:root[data-theme="light"] .cta-final .btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+:root[data-theme="light"] .cta-final .btn-ghost:hover{border-color:#fff}
+:root[data-theme="light"] .scroll-hint{display:none}
