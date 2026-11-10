@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planos · Nexos Performance e Saúde</title>
+<meta name="description" content="Planos de corrida e força da Nexos. Treinador de verdade, aplicativo próprio e planilha feita para você. A partir de R$ 162 por mês.">
+<meta name="theme-color" content="#050c1c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Planos Nexos · Corrida e Força">
+<meta property="og:description" content="Treinador de verdade, aplicativo próprio e planilha feita para você. A partir de R$ 162 por mês.">
+<link rel="icon" href="/img/nexos-icon-navy.png">
+<link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem("nexos-tema");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+.nav-r{display:flex;align-items:center;gap:10px}
+.theme-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);display:grid;place-items:center}
+.theme-btn svg{width:18px;height:18px}
+.theme-btn .sun{display:none}
+:root[data-theme="light"] .theme-btn .sun{display:block}
+:root[data-theme="light"] .theme-btn .moon{display:none}
+
+/* topo */
+.pl-hero{position:relative;padding:118px clamp(16px,6vw,80px) 40px;text-align:center;overflow:hidden;isolation:isolate}
+.pl-hero h1{font-size:clamp(2rem,8vw,4.2rem)}
+.pl-hero .lead{margin:16px auto 0}
+.pl-hero .lead b{color:var(--ink)}
+.pl-trust{display:flex;justify-content:center;gap:10px;margin-top:28px;flex-wrap:wrap}
+.pl-trust .tele{text-align:left}
+.pl-trust .tele b{font-size:1.15rem}
+
+/* seletor de período */
+.sec{padding:clamp(48px,8vw,96px) clamp(16px,6vw,80px);position:relative;z-index:1}
+.sec.alt{background:linear-gradient(180deg,rgba(var(--bg2-rgb),.55),rgba(var(--bg-rgb),0))}
+.sec .sec-head{margin-bottom:26px}
+.sec h2{font-size:clamp(1.6rem,5.4vw,2.6rem)}
+.sec-sub{color:var(--mute);margin-top:10px;max-width:620px}
+.sec-head.center .sec-sub{margin-inline:auto}
+.per{display:flex;gap:4px;padding:5px;border:1px solid var(--line);border-radius:999px;background:rgba(var(--bg2-rgb),.7);backdrop-filter:blur(8px);max-width:560px;margin:0 auto}
+.per button{flex:1;padding:10px 6px;border-radius:999px;font-weight:700;font-size:.9rem;color:var(--mute);line-height:1.15;transition:background .2s,color .2s}
+.per button em{display:block;font-style:normal;font-family:var(--f-m);font-size:.7rem;color:var(--acc);font-weight:600;margin-top:2px}
+.per button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc)}
+.per button.on em{color:var(--on-acc);opacity:.85}
+.isca{max-width:560px;margin:14px auto 0;text-align:center;font-size:.92rem;color:var(--mute);min-height:1.5em}
+.isca b{color:var(--acc)}
+
+/* cards */
+.pl-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px;align-items:stretch}
+.pl{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:24px;padding:26px 22px 22px;background:var(--card);backdrop-filter:blur(8px)}
+.pl.top{border-color:rgba(var(--acc-rgb),.6);box-shadow:0 0 0 1px rgba(var(--acc-rgb),.35) inset,0 30px 70px -30px rgba(var(--acc-rgb),.45)}
+.pl-selo{position:absolute;top:-12px;left:22px;font-family:var(--f-m);font-size:.68rem;letter-spacing:.1em;padding:5px 12px;border-radius:999px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc);font-weight:700}
+.pl-nm{font-family:var(--f-m);font-size:.78rem;letter-spacing:.14em;color:var(--acc);text-transform:uppercase}
+.pl-ds{color:var(--mute);font-size:.93rem;margin-top:6px}
+.pl-pr{display:flex;align-items:flex-start;gap:4px;margin-top:18px}
+.pl-pr small{font-weight:800;margin-top:8px}
+.pl-pr b{font-family:var(--f-h);font-size:3rem;line-height:1;letter-spacing:-.02em}
+.pl-pr i{font-style:normal;color:var(--mute);font-size:.9rem;align-self:flex-end;margin-bottom:6px}
+.pl-de{color:var(--mute);font-size:.82rem;margin-top:6px}
+.pl-de s{opacity:.8}
+.pl-ou{color:var(--mute);font-size:.84rem;margin-top:2px}
+.pl-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;min-height:28px}
+.pl-chips span{font-size:.76rem;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid rgba(var(--acc-rgb),.35);color:var(--acc);background:rgba(var(--acc-rgb),.08)}
+.pl-chips span.pres{border-color:rgba(255,207,92,.45);color:var(--warn);background:rgba(255,207,92,.08)}
+.pl ul{list-style:none;display:grid;gap:9px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.pl li{position:relative;padding-left:26px;font-size:.94rem;line-height:1.4}
+.pl li::before{content:"";position:absolute;left:0;top:2px;width:17px;height:17px;border-radius:50%;background:rgba(var(--acc-rgb),.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2346d6ff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/10px no-repeat}
+:root[data-theme="light"] .pl li::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")}
+.pl li b{font-weight:800}
+.pl .btn{margin-top:auto;width:100%}
+.pl ul + .btn,.pl .pl-esp{margin-top:22px}
+.pl-esp{flex:1}
+.pl:not(.top) .btn{background:transparent;color:var(--ink);border:1px solid rgba(var(--acc-rgb),.5);box-shadow:none}
+.pl:not(.top) .btn:hover{background:rgba(var(--acc-rgb),.1)}
+:root[data-theme="light"] .pl:not(.top){box-shadow:0 10px 40px rgba(11,35,82,.07)}
+
+/* força */
+.pl-cards.f2{grid-template-columns:repeat(2,minmax(0,380px));justify-content:center}
+.pl-dica{max-width:780px;margin:18px auto 0;border:1px dashed rgba(var(--acc-rgb),.45);border-radius:20px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pl-dica p{color:var(--mute);font-size:.95rem}
+.pl-dica b{color:var(--ink)}
+.pl-dica a{color:var(--acc);font-weight:800;white-space:nowrap}
+
+/* aplicativo */
+.ap{border:1px solid var(--line);border-radius:28px;padding:clamp(26px,5vw,48px);background:radial-gradient(ellipse at top,rgba(var(--navy-rgb),.9),rgba(var(--bg2-rgb),.4) 70%)}
+.ap-g{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+.ap-g div{border:1px solid var(--line);border-radius:18px;padding:18px;background:rgba(var(--bg-rgb),.35)}
+.ap-g i{font-style:normal;font-family:var(--f-m);font-size:.72rem;letter-spacing:.14em;color:var(--acc)}
+.ap-g b{display:block;font-family:var(--f-h);font-size:.98rem;margin-top:8px;line-height:1.3}
+.ap-g p{color:var(--mute);font-size:.9rem;margin-top:6px}
+.ap-fim{text-align:center;margin-top:22px;color:var(--acc);font-weight:700}
+
+/* comparação e dúvidas */
+.faq{margin-inline:auto}
+.cmp{overflow:hidden}
+.cmp table{width:100%;border-collapse:collapse;font-size:.88rem}
+.cmp th,.cmp td{padding:11px 8px;text-align:center;border-top:1px solid var(--line);vertical-align:middle}
+.cmp th{font-family:var(--f-m);font-size:.68rem;letter-spacing:.08em;color:var(--acc);font-weight:600}
+.cmp td:first-child,.cmp th:first-child{text-align:left;padding-left:22px;width:52%}
+.cmp tr.g td{font-family:var(--f-m);font-size:.68rem;letter-spacing:.12em;color:var(--mute);background:rgba(var(--navy-rgb),.35);text-align:left}
+.cmp .s,.cmp .n{display:inline-block;width:20px;height:20px;border-radius:50%;vertical-align:middle}
+.cmp .s{background:rgba(26,163,107,.16) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231aa36b' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/12px no-repeat}
+.cmp .n{background:rgba(214,69,69,.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d64545' stroke-width='3.4' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7 7 17'/%3E%3C/svg%3E") center/10px no-repeat}
+.cmp .c{display:none}
+.faq details div.r{padding:0 22px 20px;color:var(--mute)}
+.faq details div.r p{padding:0}
+.pg-t{width:100%;border-collapse:collapse;font-size:.88rem;margin-top:4px}
+.pg-t th,.pg-t td{padding:9px 6px;border-top:1px solid var(--line);text-align:center}
+.pg-t th{font-family:var(--f-m);font-size:.66rem;letter-spacing:.08em;color:var(--acc);font-weight:600}
+.pg-t td:first-child,.pg-t th:first-child{text-align:left}
+.pg-t td b{color:var(--ink)}
+.pl-obs{color:var(--mute);font-size:.82rem;text-align:center;margin-top:18px}
+.pl-final .lead{margin:0 auto}
+.pl-final .tele{display:inline-block;margin-top:18px}
+
+@media (max-width:960px){
+  .pl-cards{grid-template-columns:1fr;max-width:480px;margin-inline:auto}
+  .pl-cards.f2{grid-template-columns:1fr}
+  .ap-g{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:600px){
+  .pl-hero{padding-top:100px}
+  .pl-hero h1{font-size:clamp(1.6rem,8.4vw,2.4rem)}
+  .pl-hero .eyebrow{font-size:.64rem;letter-spacing:.05em}
+  .pl-trust .tele{flex:1;min-width:0;padding:10px 12px}
+  .pl-trust .tele em{display:block;margin:0}
+  .per button{font-size:.82rem}
+  .ap-g{grid-template-columns:1fr}
+  .ap-g div{padding:16px}
+  .cmp .l{display:none}.cmp .c{display:inline}
+  .cmp th,.cmp td{padding:10px 4px}
+  .cmp td:first-child,.cmp th:first-child{padding-left:16px;font-size:.84rem}
+  .pl-dica{flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<header class="nav" id="nav">
+  <a href="/" class="brand"><img src="/img/nexos-icon.png" data-logo="nexos-icon" alt=""><span>NEXOS</span></a>
+  <div class="nav-r">
+    <button class="theme-btn" id="theme-btn" aria-label="Trocar tema claro/escuro" title="Trocar cores">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+    <a href="#corrida" class="btn btn-sm">Ver planos</a>
+  </div>
+</header>
+
+<main>
+<section class="pl-hero">
+  <div class="hero-grid"></div>
+  <p class="eyebrow reveal"><span class="dot"></span>Planos 2027 · Corrida e força · 100% online</p>
+  <h1 class="reveal"><span class="line">SEU MELHOR ANO</span><span class="line accent">COMEÇA AQUI.</span></h1>
+  <p class="lead reveal">Treinador de verdade olhando cada treino seu, aplicativo próprio e uma planilha feita para você. <b>No plano anual, 10% de desconto e a camiseta oficial de presente.</b></p>
+  <div class="pl-trust reveal">
+    <div class="tele"><small>A PARTIR DE</small><b>R$ 162</b><em>por mês</em></div>
+    <div class="tele"><small>NO ANUAL</small><b>Camiseta</b><em>de presente</em></div>
+    <div class="tele"><small>SEM RISCO</small><b>7 dias</b><em>para desistir</em></div>
+  </div>
+</section>
+
+<section class="sec" id="corrida">
+  <div class="sec-head center reveal">
+    <p class="tag">Corrida</p>
+    <h2>Corrida com Gabriel Vinícius</h2>
+    <p class="sec-sub">Quanto mais tempo de compromisso, menor a mensalidade. Escolha o período:</p>
+  </div>
+  <div class="per reveal" id="per" role="tablist" aria-label="Período do plano">
+    <button data-p="m" role="tab">Mensal<em>&nbsp;</em></button>
+    <button data-p="t" role="tab">Trimestral<em>−3%</em></button>
+    <button data-p="s" role="tab">Semestral<em>−6%</em></button>
+    <button data-p="a" role="tab" class="on">Anual<em>−10%</em></button>
+  </div>
+  <p class="isca" id="isca"></p>
+  <div class="pl-cards" id="cards-corrida"></div>
+</section>
+
+<section class="sec alt" id="forca">
+  <div class="sec-head center reveal">
+    <p class="tag">Força</p>
+    <h2>Força com Orlando Borges</h2>
+    <p class="sec-sub">Ciclos de 8 semanas com avaliação, treino periodizado e reavaliação. Pagamento a cada ciclo.</p>
+  </div>
+  <div class="pl-cards f2" id="cards-forca"></div>
+  <div class="pl-dica reveal"><p><b>Corre e quer força também?</b> O Integral junta os dois treinadores e sai mais barato que contratar separado.</p><a href="#corrida" data-ir="integral">Ver o Integral →</a></div>
+</section>
+
+<section class="sec" id="app">
+  <div class="ap reveal">
+    <div class="sec-head center">
+      <p class="tag">Em todos os planos</p>
+      <h2>O que o aplicativo Nexos faz por você</h2>
+      <p class="sec-sub">Ao entrar na assessoria, você recebe o aplicativo próprio da Nexos, feito por treinadores para os nossos alunos.</p>
+    </div>
+    <div class="ap-g">
+      <div><i>01</i><b>O treino certo para hoje</b><p>Você abre e já sabe o que fazer, em que ritmo e por quanto tempo. Acordou mal? Seu treinador fica sabendo e ajusta.</p></div>
+      <div><i>02</i><b>Cada corrida lida com cuidado</b><p>Depois de correr, você entende como foi o treino, e o seu treinador comenta o que viu.</p></div>
+      <div><i>03</i><b>Menos risco de lesão</b><p>Percebe quando a carga sobe rápido demais ou quando aparece uma dor, e avisa antes de virar problema.</p></div>
+      <div><i>04</i><b>Seu relógio a seu favor</b><p>Sono, recuperação e condicionamento entram no seu acompanhamento sem você precisar mandar nada.</p></div>
+      <div><i>05</i><b>Até onde você pode chegar</b><p>Previsão de tempo para 5 km, 10 km, meia e maratona, atualizada conforme você evolui.</p></div>
+      <div><i>06</i><b>Clima e hidratação</b><p>Calor, chuva e o melhor horário para treinar na sua cidade, e uma meta de água para o seu dia.</p></div>
+      <div><i>07</i><b>Evolução que você enxerga</b><p>Recordes, constância, marcos e um relatório a cada reteste.</p></div>
+      <div><i>08</i><b>Para mostrar o seu treino</b><p>Imagens e vídeo do percurso prontos para o Instagram.</p></div>
+      <div><i>09</i><b>Pensado também para elas</b><p>Acompanhamento para corredoras que respeita o ciclo menstrual e cada fase da vida.</p></div>
+    </div>
+    <p class="ap-fim">O aplicativo reúne as informações. Quem decide o seu treino é sempre o seu treinador.</p>
+  </div>
+</section>
+
+<section class="sec alt" id="detalhes">
+  <div class="sec-head center reveal">
+    <p class="tag">Detalhes</p>
+    <h2>Tudo explicado</h2>
+  </div>
+  <div class="faq reveal">
+    <details class="cmp"><summary>Comparar os planos de corrida item por item</summary>
+      <table>
+        <tr><th>Incluído</th><th><span class="l">ESSENCIAL</span><span class="c">ESS.</span></th><th><span class="l">EVOLUÇÃO</span><span class="c">EVO.</span></th><th><span class="l">INTEGRAL</span><span class="c">INT.</span></th></tr>
+        <tr class="g"><td colspan="4">TREINO DE CORRIDA</td></tr>
+        <tr><td>Avaliação inicial online de 30 minutos</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Teste de entrada e reteste a cada ciclo</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Planilha periodizada e personalizada</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Calendário de provas com polimento</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Análise de cada corrida pelo treinador</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Ajustes por dor, cansaço e rotina</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Estratégia de prova com o treinador</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Análise biomecânica da corrida por vídeo</td><td><i class="n"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Videochamadas por mês</td><td>1</td><td>3</td><td>3</td></tr>
+        <tr class="g"><td colspan="4">TREINO DE FORÇA</td></tr>
+        <tr><td>Treino de força online com o Orlando</td><td><i class="n"></i></td><td><i class="n"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Avaliação de força a cada 8 semanas</td><td><i class="n"></i></td><td><i class="n"></i></td><td><i class="s"></i></td></tr>
+        <tr class="g"><td colspan="4">APLICATIVO NEXOS</td></tr>
+        <tr><td>Todos os recursos do aplicativo</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Mensagens e videochamada com o treinador</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr class="g"><td colspan="4">RELÓGIOS</td></tr>
+        <tr><td>Garmin conectado ao aplicativo</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Coros, Polar, Suunto, Apple Watch e outros</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr><td>Sem relógio, só com o celular</td><td><i class="s"></i></td><td><i class="s"></i></td><td><i class="s"></i></td></tr>
+        <tr class="g"><td colspan="4">PRESENTES</td></tr>
+        <tr><td>Camisetas no plano anual</td><td>1</td><td>1</td><td>2</td></tr>
+        <tr><td>Camiseta no plano semestral</td><td><i class="n"></i></td><td><i class="n"></i></td><td>1</td></tr>
+      </table>
+    </details>
+    <details><summary>Formas de pagamento</summary>
+      <div class="r">
+        <p>Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa da maquininha é menor.</p>
+        <table class="pg-t" id="pg-t"></table>
+      </div>
+    </details>
+    <details><summary>Posso desistir se não gostar?</summary><p>Pode. Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></details>
+    <details><summary>E se eu precisar sair antes do fim do plano?</summary><p>Sem multa. Você paga só a diferença entre o preço do seu plano e o mensal nos meses que usou.</p></details>
+    <details><summary>Posso pausar?</summary><p>Nos planos semestral e anual, você pode pausar até 30 dias por lesão, doença ou viagem, e o prazo se estende.</p></details>
+    <details><summary>Como funcionam as videochamadas?</summary><p>São de até 30 minutos, combinadas e feitas pelo próprio aplicativo. As do mês não acumulam e podem ser remarcadas com 24 horas de aviso.</p></details>
+    <details><summary>Quando recebo a camiseta?</summary><p>Depois do segundo pagamento, conforme o tamanho disponível.</p></details>
+    <details><summary>Posso mudar de plano?</summary><p>Para subir, a qualquer momento, pagando a diferença. Para descer, no fim do período contratado.</p></details>
+    <details><summary>No Integral, a avaliação de força pode ser presencial?</summary><p>Pode. O Integral inclui a avaliação online; para fazer a presencial com o Orlando, acrescente R$ 50 por ciclo de 8 semanas.</p></details>
+    <details><summary>Preciso já correr ou ter relógio?</summary><p>Não. O plano parte do seu nível atual, e dá para treinar só com o celular. Se tiver relógio, melhor ainda: Garmin conecta direto ao aplicativo.</p></details>
+  </div>
+</section>
+
+<section class="cta-final pl-final">
+  <div class="cta-inner reveal">
+    <p class="tag">Comece esta semana</p>
+    <h2>O próximo recorde<br>é seu.</h2>
+    <p class="lead">Fale com a gente, tire suas dúvidas e comece com a avaliação inicial.</p>
+    <div class="hero-cta center">
+      <a class="btn zap" data-msg="Olá! Vi os planos no site e quero começar na Nexos." target="_blank" rel="noopener">Falar no WhatsApp</a>
+      <a href="#corrida" class="btn btn-ghost">Ver planos</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <img src="/img/nexos-icon.png" data-logo="nexos-icon" alt="">
+  <p>© <span id="year"></span> Nexos Performance e Saúde · São Luís – MA<br>Todos os direitos reservados.</p>
+  <p><a href="/" class="footer-app">Conheça a Nexos →</a></p>
+  <p><a href="/privacidade.html">Política de Privacidade</a></p>
+  <p class="dev">Desenvolvido por <a href="https://www.instagram.com/gabriel_vinicius_jj/" target="_blank" rel="noopener">@gabriel_vinicius_jj</a></p>
+</footer>
+
+<script>
+(function () {
+  // número do WhatsApp da Nexos: DDI+DDD+número, só dígitos (o mesmo do site principal)
+  var WHATS = '5598900000000';
+  function zap(a) { a.href = 'https://wa.me/' + WHATS + '?text=' + encodeURIComponent(a.dataset.msg); }
+
+  var PER = { m: ['mensal', 1], t: ['trimestral', 3], s: ['semestral', 6], a: ['anual', 12] };
+  var CORRIDA = [
+    { id: 'essencial', nome: 'Corrida Essencial', ds: 'Para quem quer treinar com método e acompanhamento.',
+      pix: { m: 180, t: 175, s: 169, a: 162 }, cartao: { m: 188, t: 183, s: 177, a: 169 }, parc: { t: 192, s: 197, a: 206 },
+      cam: { a: 1 },
+      itens: ['<b>Avaliação inicial online</b> de 30 minutos', 'Teste de entrada e reteste a cada ciclo', 'Planilha periodizada e personalizada', 'Análise de cada corrida pelo treinador', 'Estratégia de prova', '<b>1 videochamada</b> por mês', 'Todos os recursos do aplicativo Nexos'] },
+    { id: 'evolucao', nome: 'Corrida Evolução', ds: 'Para quem quer o treinador mais perto e correr com uma técnica melhor.',
+      pix: { m: 220, t: 214, s: 207, a: 198 }, cartao: { m: 230, t: 223, s: 216, a: 207 }, parc: { t: 235, s: 241, a: 252 },
+      cam: { a: 1 },
+      itens: ['Tudo do Essencial', '<b>3 videochamadas</b> por mês', '<b>Análise biomecânica</b> da corrida por vídeo'] },
+    { id: 'integral', nome: 'Integral · Corrida + Força', ds: 'Corrida e força juntas, com os dois treinadores da Nexos.', top: 'MAIS COMPLETO',
+      pix: { m: 309, t: 299, s: 289, a: 279 }, cartao: { m: 322, t: 312, s: 302, a: 291 }, parc: { t: 328, s: 336, a: 355 },
+      cam: { s: 1, a: 2 },
+      itens: ['Tudo do Evolução', '<b>Treino de força online</b> com o Orlando', '<b>Avaliação de força</b> a cada 8 semanas'] },
+  ];
+  var FORCA = [
+    { id: 'forca-online', nome: 'Força Online', ds: 'Avaliação orientada à distância e treino de força online.', pix: 200, cartao: 209, parc: 107,
+      itens: ['Avaliação da composição corporal', 'Testes funcionais com passo a passo', '8 semanas de treino periodizado', 'Reavaliação no fim de cada ciclo'] },
+    { id: 'forca-presencial', nome: 'Força Presencial', ds: 'O treino é online; a avaliação é feita pessoalmente pelo Orlando.', pix: 250, cartao: 261, parc: 134,
+      itens: ['Composição corporal feita pessoalmente', '<b>Todos os testes funcionais</b>', '<b>Análise postural</b>', '8 semanas de treino periodizado'] },
+  ];
+  var brl = function (v) { return 'R$ ' + v.toLocaleString('pt-BR'); };
+  var p = 'a';
+  try { p = sessionStorage.getItem('nx-plano-per') || 'a'; } catch (e) {}
+
+  function cardCorrida(c) {
+    var v = c.pix[p], meses = PER[p][1], eco = (c.pix.m - v) * 12, cam = c.cam[p] || 0, chips = '';
+    if (p !== 'm') chips += '<span>Economia de ' + brl(eco) + ' por ano</span>';
+    if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
+    var ou = 'ou ' + brl(c.cartao[p]) + '/mês no cartão' + (c.parc[p] ? ' · ' + meses + 'x de ' + brl(c.parc[p]) : '');
+    var msg = 'Olá! Vi no site e quero o plano ' + c.nome.replace(' · ', ' (') + (c.top ? ')' : '') + ', ' + PER[p][0] + '.';
+    return '<article class="pl' + (c.top ? ' top' : '') + '" id="pl-' + c.id + '">' + (c.top ? '<span class="pl-selo">' + c.top + '</span>' : '') +
+      '<span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
+      '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
+      (p !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[p][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
+      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' +
+      '<ul>' + c.itens.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul><div class="pl-esp"></div>' +
+      '<a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Quero o ' + c.nome.split(' · ')[0].replace('Corrida ', '') + (p !== 'm' ? ' ' + PER[p][0] : '') + '</a></article>';
+  }
+  function cardForca(c) {
+    return '<article class="pl reveal"><span class="pl-nm">' + c.nome + '</span><p class="pl-ds">' + c.ds + '</p>' +
+      '<div class="pl-pr"><small>R$</small><b>' + c.pix + '</b><i>a cada 8 semanas</i></div>' +
+      '<p class="pl-de">no Pix, cerca de ' + brl(Math.round(c.pix / 2)) + ' por mês</p><p class="pl-ou">ou ' + brl(c.cartao) + ' no cartão · 2x de ' + brl(c.parc) + '</p>' +
+      '<ul>' + c.itens.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul><div class="pl-esp"></div>' +
+      '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ' com o Orlando.">Quero a ' + c.nome + '</a></article>';
+  }
+  var ISCA = {
+    m: 'No plano anual, o Essencial sai por <b>R$ 162/mês</b> e vem com a camiseta oficial.',
+    t: 'Indo para o semestral, você economiza mais e, no Integral, ganha uma camiseta.',
+    s: 'Mais 6 meses e você chega ao anual: <b>10% de desconto</b> e camiseta de presente.',
+    a: '<b>Melhor preço do ano</b>, camiseta de presente e 7 dias para desistir se não gostar.',
+  };
+  function desenhar() {
+    document.querySelectorAll('#per button').forEach(function (b) { var on = b.dataset.p === p; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+    document.getElementById('isca').innerHTML = ISCA[p];
+    document.getElementById('cards-corrida').innerHTML = CORRIDA.map(cardCorrida).join('');
+    document.querySelectorAll('#cards-corrida .zap').forEach(zap);
+  }
+  document.getElementById('per').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    p = b.dataset.p; try { sessionStorage.setItem('nx-plano-per', p); } catch (er) {}
+    desenhar();
+  });
+  document.getElementById('cards-forca').innerHTML = FORCA.map(cardForca).join('');
+  document.getElementById('pg-t').innerHTML = '<tr><th>Plano</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
+    ['a', 's', 't', 'm'].map(function (k) {
+      return '<tr><td colspan="4" style="font-family:var(--f-m);font-size:.68rem;letter-spacing:.1em;color:var(--mute)">' + PER[k][0].toUpperCase() + '</td></tr>' +
+        CORRIDA.map(function (c) { return '<tr><td>' + c.nome.split(' · ')[0].replace('Corrida ', '') + '</td><td><b>' + c.pix[k] + '</b></td><td>' + c.cartao[k] + '</td><td>' + (c.parc[k] ? PER[k][1] + 'x ' + c.parc[k] : '·') + '</td></tr>'; }).join('');
+    }).join('') +
+    '<tr><td colspan="4" style="font-family:var(--f-m);font-size:.68rem;letter-spacing:.1em;color:var(--mute)">FORÇA · A CADA 8 SEMANAS</td></tr>' +
+    FORCA.map(function (c) { return '<tr><td>' + c.nome.replace('Força ', '') + '</td><td><b>' + c.pix + '</b></td><td>' + c.cartao + '</td><td>2x ' + c.parc + '</td></tr>'; }).join('');
+  desenhar();
+  document.querySelectorAll('.zap').forEach(zap);
+  document.querySelectorAll('[data-ir]').forEach(function (a) {
+    a.addEventListener('click', function () { setTimeout(function () { var el = document.getElementById('pl-' + a.dataset.ir); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60); });
+  });
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  var root = document.documentElement;
+  function logos() {
+    var light = root.dataset.theme === 'light';
+    document.querySelectorAll('[data-logo]').forEach(function (i) { i.src = '/img/' + i.dataset.logo + (light ? '-navy' : '') + '.png'; });
+    document.querySelector('meta[name=theme-color]').content = light ? '#f5f7fc' : '#050c1c';
+  }
+  logos();
+  document.getElementById('theme-btn').addEventListener('click', function () {
+    root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
+    try { localStorage.setItem('nexos-tema', root.dataset.theme); } catch (e) {}
+    logos();
+  });
+
+  var nav = document.getElementById('nav'), bar = document.getElementById('progress');
+  function rolar() {
+    nav.classList.toggle('scrolled', scrollY > 20);
+    var h = document.documentElement.scrollHeight - innerHeight;
+    bar.style.width = (h > 0 ? scrollY / h * 100 : 0) + '%';
+  }
+  addEventListener('scroll', rolar, { passive: true }); rolar();
+
+  var els = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: .12 });
+    els.forEach(function (el, i) { el.style.transitionDelay = (i % 4) * 70 + 'ms'; io.observe(el); });
+  } else els.forEach(function (el) { el.classList.add('in'); });
+})();
+</script>
+</body>
+</html>
