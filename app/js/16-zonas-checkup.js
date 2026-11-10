@@ -456,7 +456,8 @@ function formPerfilCorrida(m, onSalvo) {
       <label class="field"><span>Data do teste</span><input class="input" type="date" name="data" value="${esc(c.teste_data || hojeISO())}"></label>
       <div class="grid2"><label class="field"><span>FC máxima medida (opcional)</span><input class="input" name="fcmax" data-mask="num" inputmode="numeric" value="${esc(c.fc_max ?? '')}" placeholder="se souber"></label><label class="field"><span>FC de repouso</span><input class="input" name="fcrep" data-mask="num" inputmode="numeric" value="${esc(c.fc_rep ?? '')}"></label></div>
       <p class="small" id="pc-prev" style="margin:-4px 0 12px;color:var(--acc)"></p>
-      <button class="btn block" type="submit">Salvar perfil</button></form>`,
+      <button class="btn block" type="submit">Salvar perfil</button>
+      ${c.teste_km || c.zonas_auto ? '<button class="btn ghost block" type="button" id="pc-apagar" style="margin-top:8px;color:var(--err)">Apagar teste</button><p class="tiny dim" style="margin-top:6px">Apagando, o aluno fica sem zonas de ritmo até um teste novo, e você pode ligar o modo de esforço (0 a 10).</p>' : ''}</form>`,
     (r) => {
       const f = r.querySelector('#f-pc');
       const prev = () => {
@@ -466,6 +467,35 @@ function formPerfilCorrida(m, onSalvo) {
       };
       f.oninput = prev;
       prev();
+      const ap = r.querySelector('#pc-apagar');
+      if (ap)
+        ap.onclick = async () => {
+          if (!ap.dataset.ok) {
+            ap.dataset.ok = '1';
+            ap.textContent = 'Toque de novo para apagar o teste';
+            return;
+          }
+          ap.disabled = true;
+          // tira o teste e as zonas que vieram dele; FC e ajustes manuais do treinador continuam
+          const { teste_km, teste_seg, teste_data, zonas_auto, vdot, ...resto } = m.corrida || {};
+          const { error } = await sb
+            .from('nx_membros')
+            .update({ corrida: resto })
+            .eq('org_id', S.org.id)
+            .eq('user_id', m.user_id);
+          if (error) {
+            ap.disabled = false;
+            return toast('Não foi possível apagar.', true);
+          }
+          m.corrida = resto;
+          closeSheet();
+          toast(
+            resto.paces_manual
+              ? 'Teste apagado. Os ritmos ajustados por você continuam valendo.'
+              : 'Teste apagado. Agora dá para ligar o modo de esforço.',
+          );
+          onSalvo();
+        };
       f.onsubmit = async (e) => {
         e.preventDefault();
         const corrida = {
