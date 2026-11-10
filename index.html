@@ -10,7 +10,7 @@
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="style.css?v=202611102346">
+<link rel="stylesheet" href="style.css?v=202611102354">
 <script>var t="light";try{t=localStorage.getItem("nexos-tema")||t}catch(e){}document.documentElement.dataset.theme=t</script>
 <script>/* link de "esqueci minha senha" que caiu no site: abre o app com o mesmo endereço */if(/type=recovery|access_token=/.test(location.hash))location.replace("/app/"+location.hash);</script>
 </head>
@@ -57,6 +57,7 @@
     <a href="/planos/">Planos</a>
     <a href="#modalidades">Modalidades</a>
     <a href="#metodo">Método</a>
+    <a href="#app">App</a>
     <a href="#treinadores">Treinadores</a>
     <a href="#avulsa">Aula avulsa</a>
     <a href="#patrocinadores">Parceiros</a>
@@ -205,10 +206,59 @@
   </div>
 </section>
 
+<!-- APP -->
+<section class="section app-s" id="app">
+  <div class="app-g">
+    <div class="app-tx reveal">
+      <p class="tag">03 / App Nexos</p>
+      <h2>Seu treinador<br>no bolso.</h2>
+      <p class="app-lead">Tudo o que você precisa para treinar num aplicativo só, feito pela Nexos para os nossos alunos.</p>
+      <ul class="app-lista">
+        <li><span class="app-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span><span><b>Treino do dia na palma da mão</b><small>Cada trecho com o ritmo certo para você.</small></span></li>
+        <li><span class="app-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span><span><b>Conversa direta com o treinador</b><small>Texto, foto e áudio, sem se perder no WhatsApp.</small></span></li>
+        <li><span class="app-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span><span><b>Sua evolução semana a semana</b><small>Gráficos, recordes e o histórico de cada treino.</small></span></li>
+      </ul>
+      <p class="app-mais"><span>+</span>E muito mais que você só conhece por dentro.</p>
+    </div>
+    <div class="app-vis reveal" aria-hidden="true">
+      <div class="app-glow"></div>
+      <div class="fone fone-tras">
+        <div class="fone-tela tela-evo">
+          <div class="ft-status"><b>9:41</b><span></span></div>
+          <p class="ft-sup">EVOLUÇÃO</p>
+          <p class="ft-h">Volume semanal</p>
+          <div class="evo-num"><b>32,4</b><span>km nesta semana</span><em>+12%</em></div>
+          <div class="evo-bars"><i style="--h:38%"></i><i style="--h:52%"></i><i style="--h:47%"></i><i style="--h:63%"></i><i style="--h:58%"></i><i style="--h:74%"></i><i style="--h:70%"></i><i style="--h:88%"></i></div>
+          <div class="evo-leg"><span>8 semanas</span><span>hoje</span></div>
+          <div class="evo-rec"><span class="ft-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span><span><small>Novo recorde pessoal</small><b>5 km em 23:48</b></span></div>
+        </div>
+      </div>
+      <div class="fone fone-frente">
+        <div class="fone-tela tela-hoje">
+          <div class="ft-status"><b>9:41</b><span></span></div>
+          <p class="ft-sup">TERÇA, 10 DE NOVEMBRO</p>
+          <p class="ft-h">Bom dia!</p>
+          <div class="ft-chips"><span><b>3</b> semanas<br>em sequência</span><span><b>24,6</b> km<br>nesta semana</span></div>
+          <p class="ft-sec">TREINO DE HOJE</p>
+          <div class="ft-treino">
+            <small>INTERVALADO</small>
+            <b>6 × 400 m</b>
+            <ul><li><i class="z2"></i>Aquecimento<span>10 min</span></li><li><i class="z4"></i>6 × 400 m<span>4:10/km</span></li><li><i class="z1"></i>Volta à calma<span>8 min</span></li></ul>
+            <span class="ft-btn">Começar treino</span>
+          </div>
+          <div class="ft-tabs"><span class="on"><i></i>Hoje</span><span class=""><i></i>Planilha</span><span class=""><i></i>Evolução</span><span class=""><i></i>Treinador</span><span class=""><i></i>Mais</span></div>
+        </div>
+      </div>
+      <div class="app-chip c1"><span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span>Treino enviado ao relógio</div>
+      <div class="app-chip c2"><span class="msg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span>Nova mensagem do treinador</div>
+    </div>
+  </div>
+</section>
+
 <!-- TREINADORES -->
 <section class="section" id="treinadores">
   <div class="sec-head reveal">
-    <p class="tag">03 / Treinadores</p>
+    <p class="tag">04 / Treinadores</p>
     <h2>Quem está com você<br>em cada treino.</h2>
   </div>
 
@@ -268,7 +318,7 @@
 <!-- AULA AVULSA -->
 <section class="section alt" id="avulsa">
   <div class="sec-head reveal">
-    <p class="tag">04 / Aula avulsa</p>
+    <p class="tag">05 / Aula avulsa</p>
     <h2>Treine com a gente<br>sem ser aluno.</h2>
     <p class="sub">Escolha o dia do funcional, garanta sua vaga e pague com Pix ou cartão.</p>
   </div>
@@ -378,7 +428,7 @@
     </div>
   </div>
   <div class="kit-txt reveal">
-    <p class="tag">05 / Vista a Nexos</p>
+    <p class="tag">06 / Vista a Nexos</p>
     <h2>Quem treina com a gente veste a camisa.</h2>
     <p>A camisa oficial da equipe, em azul-marinho e branca, nos modelos masculino e baby look. Feita pra treinar, correr prova e representar a Nexos.</p>
     <dl class="kit-spec">
@@ -394,7 +444,7 @@
 <!-- PATROCINADORES -->
 <section class="section sponsors" id="patrocinadores">
   <div class="sec-head center reveal">
-    <p class="tag">06 / Parceiros</p>
+    <p class="tag">07 / Parceiros</p>
     <h2>Quem corre junto.</h2>
   </div>
   <div class="marquee" id="marquee">
@@ -405,7 +455,7 @@
 <!-- FAQ -->
 <section class="section" id="faq">
   <div class="sec-head reveal">
-    <p class="tag">07 / Dúvidas</p>
+    <p class="tag">08 / Dúvidas</p>
     <h2>Perguntas frequentes</h2>
   </div>
   <div class="faq reveal">
@@ -447,6 +497,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="script.js?v=202611102346"></script>
+<script src="script.js?v=202611102354"></script>
 </body>
 </html>
