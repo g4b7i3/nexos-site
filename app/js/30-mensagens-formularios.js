@@ -516,6 +516,7 @@ async function viewFicha(token) {
         '',
         `
         <label class="field"><span>Nome completo *</span><input class="input" name="nome" required value="${esc(info.nome)}" autocomplete="name"></label>
+        <label class="field"><span>CPF${info.plano ? ' *' : ''}</span><input class="input" name="cpf" data-mask="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14"></label>
         <div class="grid2"><label class="field"><span>WhatsApp *</span><input class="input" name="telefone" data-mask="tel" inputmode="numeric" required placeholder="(98) 9 9999-9999" value="${esc(info.telefone)}" autocomplete="tel"></label>
         <label class="field"><span>E-mail *</span><input class="input" type="email" name="email" required inputmode="email" autocomplete="email" placeholder="será o seu login no app"></label></div>
         <div class="grid2"><label class="field"><span>Data de nascimento *</span><input class="input" name="nascimento" data-mask="data" inputmode="numeric" placeholder="dd/mm/aaaa"></label>
@@ -582,8 +583,8 @@ async function viewFicha(token) {
         ${
           info.plano
             ? `<div class="ficha-plano" style="margin-top:14px"><span class="eyebrow">Termo de adesão · seu plano</span><b>${esc(info.plano.nome)} · ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}</b><span class="small muted">${esc(planoCombinadoTxt(info.plano).split(' · ').slice(2).join(' · '))}</span></div>
-        <div class="ficha-termo termo" style="margin-top:8px">${adesaoTexto({ nome: info.nome, email: '', telefone: info.telefone })}</div>
-        <label class="ficha-aceite"><input type="checkbox" name="adesao"><span>Eu, <b class="ad-nome">${esc(info.nome || '(seu nome completo)')}</b>, li e aceito o Termo de Adesão do plano ${esc(info.plano.nome)} ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}. *</span></label>`
+        <div class="ficha-termo termo" style="margin-top:8px">${adesaoTexto({ nome: info.nome, cpf: '', email: '', telefone: info.telefone })}</div>
+        <label class="ficha-aceite"><input type="checkbox" name="adesao"><span>Eu, <b class="ad-nome">${esc(info.nome || '(seu nome completo)')}</b>, CPF <span class="ad-cpf"></span>, li e aceito o Termo de Adesão do plano ${esc(info.plano.nome)} ${esc(COMPROMISSO_NOME[info.plano.periodo] || '')}. *</span></label>`
             : ''
         }
         <div class="field" style="margin-top:12px"><span>Como conheceu a Nexos?</span>${chips('origem', FICHA_ORIGEM, 'radio')}</div>
@@ -610,10 +611,11 @@ async function viewFicha(token) {
     f.querySelectorAll('.ad-nome').forEach((el) => (el.textContent = v('nome') || '(seu nome completo)'));
     f.querySelectorAll('.ad-email').forEach((el) => (el.textContent = v('email')));
     f.querySelectorAll('.ad-tel').forEach((el) => (el.textContent = v('telefone')));
+    f.querySelectorAll('.ad-cpf').forEach((el) => (el.textContent = v('cpf')));
   };
   if (info.plano) {
     ['input', 'change'].forEach((t) =>
-      f.addEventListener(t, (e) => ['nome', 'email', 'telefone'].includes(e.target.name) && setTimeout(adVivo)),
+      f.addEventListener(t, (e) => ['nome', 'cpf', 'email', 'telefone'].includes(e.target.name) && setTimeout(adVivo)),
     );
     adVivo();
   }
@@ -665,6 +667,7 @@ async function viewFicha(token) {
     if (k === '1') {
       if (v('nome').length < 3 || !v('nome').includes(' '))
         return { msg: 'Escreva o seu nome completo.', sel: '[name=nome]' };
+      if ((info.plano || v('cpf')) && !cpfValido(v('cpf'))) return { msg: 'Confira o seu CPF.', sel: '[name=cpf]' };
       if (soDig(v('telefone')).length < 10) return { msg: 'Confira o seu WhatsApp com DDD.', sel: '[name=telefone]' };
       if (!/^\S+@\S+\.\S+$/.test(v('email'))) return { msg: 'Confira o seu e-mail.', sel: '[name=email]' };
       const nas = dataISO(v('nascimento'));
@@ -717,6 +720,7 @@ async function viewFicha(token) {
     const d = {};
     [
       'nome',
+      'cpf',
       'telefone',
       'email',
       'nascimento',
@@ -1319,7 +1323,7 @@ async function staffFichaResposta(id) {
             d.sexo,
           ),
         ),
-      )}${lin('Altura e peso', esc([d.altura && d.altura + ' m', d.peso && d.peso + ' kg'].filter(Boolean).join(' · ')))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
+      )}${lin('CPF', esc(d.cpf || ''))}${lin('Altura e peso', esc([d.altura && d.altura + ' m', d.peso && d.peso + ' kg'].filter(Boolean).join(' · ')))}${lin('Bairro / cidade', esc(d.cidade || ''))}</div>
       <div class="card"><span class="eyebrow">Objetivo</span>${lin('Quer treinar', esc(rs.mods))}${lin('Objetivo', esc(rs.obj))}${lin('Objetivos pessoais', esc(d.meta || ''))}${lin('Prova em vista', esc(d.prova || ''))}</div>
       <div class="card"><span class="eyebrow">Disponibilidade</span>${lin(selo('corrida', 'sm') + ' Corrida', diasT(dp.corrida))}${lin(selo('forca', 'sm') + ' Força', diasT(dp.forca))}${lin('Horário', lista(d.horario, FICHA_HOR))}${lin('Local', lista(d.local, FICHA_LOCAL))}${lin('Comentário', esc(d.disp_obs || ''))}</div>
       <div class="card"><span class="eyebrow">Histórico esportivo</span>${lin('Esportes', lista(d.esportes, FICHA_ESPORTES) + (d.esportes_outros ? ` (${esc(d.esportes_outros)})` : ''))}${lin('Rotina', esc(d.atividade || ''))}${lin('Condicionamento', esc(nome(FICHA_NIVEL, d.nivel)))}${lin('Corrida', esc(nome(FICHA_EXP, d.corrida_exp)))}${lin('Maior distância', esc(d.maior_dist || ''))}${lin('Tempo recente', esc(d.tempo_recente || ''))}${lin('Relógio', esc(d.relogio || ''))}</div>

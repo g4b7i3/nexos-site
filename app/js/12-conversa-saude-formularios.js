@@ -1218,7 +1218,7 @@ async function carregarAdesao(force) {
 }
 // dados do aluno no termo: na ficha, são preenchidos ao vivo com o que ele digitou na etapa 1 (.ad-nome, .ad-email, .ad-tel)
 const adesaoAlunoHTML = (a = {}) =>
-  `<p><b>Aluno(a):</b> <b class="ad-nome">${esc(a.nome || '(seu nome completo)')}</b>${a.email !== undefined ? `, e-mail <span class="ad-email">${esc(a.email || '')}</span>` : ''}${a.telefone !== undefined ? `, WhatsApp <span class="ad-tel">${esc(a.telefone || '')}</span>` : ''}, conforme os dados da ficha de cadastro.</p>`;
+  `<p><b>Aluno(a):</b> <b class="ad-nome">${esc(a.nome || '(seu nome completo)')}</b>${a.cpf !== undefined ? `, CPF <span class="ad-cpf">${esc(a.cpf || '')}</span>` : ''}${a.email !== undefined ? `, e-mail <span class="ad-email">${esc(a.email || '')}</span>` : ''}${a.telefone !== undefined ? `, WhatsApp <span class="ad-tel">${esc(a.telefone || '')}</span>` : ''}, conforme os dados da ficha de cadastro.</p>`;
 function adesaoTexto(aluno) {
   const li = (t) => `<li>${t}</li>`;
   const planos = [
@@ -1298,19 +1298,25 @@ function viewAdesao(ad) {
       <p class="eyebrow">Seu plano</p><h1 class="h1" style="margin-top:4px">Termo de adesão</h1>
       <p class="muted small" style="margin:8px 0 14px">Como o seu plano tem compromisso ${COMPROMISSO_NOME[ad.compromisso] || ''}, estas são as regras combinadas entre você e a Nexos. Leia com calma:</p>
       ${adesaoResumo(ad)}
-      <div class="card termo">${adesaoTexto({ nome: S.me.nome, email: S.me.email || S.user.email || '', telefone: S.me.telefone ? MASCARA.tel(S.me.telefone) : '' })}</div>
+      <div class="card termo">${adesaoTexto({ nome: S.me.nome, cpf: '', email: S.me.email || S.user.email || '', telefone: S.me.telefone ? MASCARA.tel(S.me.telefone) : '' })}</div>
       <form id="f-adesao" style="margin-top:16px">
+        <label class="field"><span>Seu CPF *</span><input class="input" name="cpf" data-mask="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" required></label>
         <label class="aceite"><input type="checkbox" name="a" required><span>Eu, <b>${esc(S.me.nome)}</b>, li e concordo com o Termo de Adesão, com o plano e o período ${COMPROMISSO_NOME[ad.compromisso] || ''}.</span></label>
         <button class="btn block" type="submit" style="margin-top:8px">Aceitar e continuar ${I.arrow}</button>
         <button class="btn ghost block" type="button" id="duvida-ad" style="margin-top:8px">Tenho uma dúvida</button>
       </form>
     </section>`;
   const f = document.getElementById('f-adesao');
+  f.cpf.addEventListener('input', () =>
+    setTimeout(() => $app.querySelectorAll('.ad-cpf').forEach((el) => (el.textContent = f.cpf.value))),
+  );
   f.onsubmit = async (e) => {
     e.preventDefault();
     const b = f.querySelector('[type=submit]');
+    if (!cpfValido(f.cpf.value)) return toast('Confira o seu CPF.', true);
     b.disabled = true;
     const { error } = await sb.from('nx_adesoes').insert({
+      cpf: MASCARA.cpf(f.cpf.value),
       org_id: S.org.id,
       aluno_id: S.user.id,
       versao: ADESAO_VERSAO,
