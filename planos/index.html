@@ -51,8 +51,25 @@
 .esc-b .de b{font-family:var(--f-h);font-size:1.25rem;color:var(--ink)}
 .esc-b .vai{margin-top:14px;font-weight:800;color:var(--acc)}
 .esc-c.on .vai::after{content:" ✓"}
-.esc-mix{text-align:center;margin-top:16px;color:var(--mute);font-size:.95rem}
-.esc-mix button{color:var(--acc);font-weight:800}
+.esc-int{display:flex;align-items:center;gap:16px;width:100%;max-width:900px;margin:16px auto 0;text-align:left;border:1px solid rgba(var(--acc-rgb),.55);border-radius:24px;padding:18px 20px;background:linear-gradient(135deg,rgba(var(--acc-rgb),.12),var(--card) 60%);box-shadow:0 0 0 1px rgba(var(--acc-rgb),.25) inset;transition:transform .25s}
+.esc-int:hover{transform:translateY(-3px)}
+.esc-av{display:flex;flex:none}
+.esc-av img{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--bg)}
+.esc-av img + img{margin-left:-14px}
+.esc-ib{flex:1;min-width:0}
+.esc-ib small{font-family:var(--f-m);font-size:.68rem;letter-spacing:.12em;color:var(--acc)}
+.esc-ib h3{font-family:var(--f-h);font-size:1.25rem;margin-top:2px}
+.esc-ib .de{display:block;margin-top:4px;font-size:.9rem;color:var(--mute)}
+.esc-ib .de b{font-family:var(--f-h);font-size:1.15rem;color:var(--ink);white-space:nowrap}
+.esc-int .vai{font-weight:800;color:var(--acc);flex:none}
+@media (max-width:600px){
+  .esc-int{flex-wrap:wrap;gap:12px;padding:16px}
+  .esc-ib small{font-size:.6rem;letter-spacing:.08em}
+  .esc-ib h3{font-size:1.1rem}
+  .esc-ib .de{font-size:.8rem}
+  .esc-ib .de b{font-size:1.05rem}
+  .esc-int .vai{width:100%}
+}
 
 /* blocos */
 .sec{padding:clamp(40px,7vw,80px) clamp(16px,6vw,80px);position:relative;z-index:1}
@@ -283,7 +300,11 @@
       <span class="esc-b"><small>COM ORLANDO BORGES</small><h3>Força</h3><p>Avaliação física, prescrição de exercícios ajustes mensais e reavaliação a cada 8 semanas.</p><span class="de">a partir de <b>R$ 180</b>/mês no plano anual</span><span class="vai">Ver planos →</span></span>
     </button>
   </div>
-  <p class="esc-mix reveal">Quer os dois? <button data-ver="corrida" data-ir="integral">Conheça o Integral, corrida + força →</button></p>
+  <button class="esc-int reveal" data-ver="corrida" data-ir="integral">
+    <span class="esc-av"><img src="/img/treinadores/gabriel-avatar.jpg" alt="" width="52" height="52"><img src="/img/treinadores/orlando-avatar.jpg" alt="" width="52" height="52"></span>
+    <span class="esc-ib"><small>QUER OS DOIS? · MAIS COMPLETO</small><h3>Integral · Corrida + Força</h3><span class="de">a partir de <b>R$ 359</b>/mês no plano anual</span></span>
+    <span class="vai">Ver plano →</span>
+  </button>
 </section>
 
 <!-- ======== CORRIDA: planos ======== -->
