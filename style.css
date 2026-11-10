@@ -66,6 +66,10 @@ h1 .line{display:block}
 .lead{font-size:clamp(1rem,2.2vw,1.2rem);color:var(--mute);max-width:560px}
 .hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
 .hero-cta.center{justify-content:center}
+.tele{border:1px solid var(--line);background:rgba(var(--bg2-rgb),.6);backdrop-filter:blur(6px);border-radius:14px;padding:10px 16px;min-width:104px}
+.tele small{display:block;font-family:var(--f-m);font-size:.66rem;letter-spacing:.12em;color:var(--mute)}
+.tele b{font-family:var(--f-m);font-size:1.45rem;font-weight:600;color:var(--acc)}
+.tele em{font-style:normal;font-size:.72rem;color:var(--mute);margin-left:4px}
 
 .scroll-hint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);width:24px;height:38px;border:2px solid var(--line);border-radius:14px}
 .scroll-hint span{position:absolute;left:50%;top:7px;width:4px;height:8px;margin-left:-2px;border-radius:2px;background:var(--acc);animation:wheel 1.6s infinite}
@@ -358,7 +362,7 @@ h1{line-height:1.08}h1 .accent{padding-top:.06em;display:inline-block}
 :root[data-theme="light"] .cta-final{background:radial-gradient(ellipse at center,#dfe8fb,var(--bg) 70%)}
 :root[data-theme="light"] .kit-img{box-shadow:0 30px 70px rgba(11,35,82,.18)}
 
-body,.nav,.panel,.wk-card,.booking,.faq details,.lab-in,.lab-out{transition:background-color .4s,color .4s,border-color .4s}
+body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transition:background-color .4s,color .4s,border-color .4s}
 
 /* botão de tema */
 .theme-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink);background:rgba(var(--bg2-rgb),.5);transition:border-color .2s,transform .3s}

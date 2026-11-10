@@ -82,25 +82,21 @@
 .esc-b .de b{font-family:var(--f-h);font-size:1.25rem;color:var(--ink)}
 .esc-b .vai{margin-top:14px;font-weight:800;color:var(--acc)}
 .esc-c.on .vai::after{content:" ✓"}
-.esc-int{display:flex;align-items:center;gap:16px;width:100%;max-width:900px;margin:16px auto 0;text-align:left;border:1px solid rgba(var(--acc-rgb),.55);border-radius:24px;padding:18px 20px;background:linear-gradient(135deg,rgba(var(--acc-rgb),.12),var(--card) 60%);box-shadow:0 0 0 1px rgba(var(--acc-rgb),.25) inset;transition:transform .25s}
-.esc-int:hover{transform:translateY(-3px)}
+.esc-int{display:block;width:100%;max-width:900px;margin:16px auto 0;text-align:left;border:1px solid rgba(var(--acc-rgb),.35);border-radius:24px;padding:20px 22px;background:radial-gradient(120% 140% at 100% 0,rgba(var(--acc-rgb),.1),transparent 55%),var(--card);box-shadow:0 18px 50px -28px rgba(var(--acc-rgb),.45);transition:transform .25s,border-color .25s}
+.esc-int:hover{transform:translateY(-3px);border-color:rgba(var(--acc-rgb),.6)}
+.ei-top{display:flex;align-items:center;gap:12px}
 .esc-av{display:flex;flex:none}
-.esc-av img{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--bg)}
-.esc-av img + img{margin-left:-14px}
-.esc-ib{flex:1;min-width:0}
-.esc-ib small{font-family:var(--f-m);font-size:.68rem;letter-spacing:.12em;color:var(--acc)}
-.esc-ib h3{font-family:var(--f-h);font-size:1.25rem;margin-top:2px}
-.esc-ib .de{display:block;margin-top:4px;font-size:.9rem;color:var(--mute)}
-.esc-ib .de b{font-family:var(--f-h);font-size:1.15rem;color:var(--ink);white-space:nowrap}
-.esc-int .vai{font-weight:800;color:var(--acc);flex:none}
-@media (max-width:600px){
-  .esc-int{flex-wrap:wrap;gap:12px;padding:16px}
-  .esc-ib small{font-size:.6rem;letter-spacing:.08em}
-  .esc-ib h3{font-size:1.1rem}
-  .esc-ib .de{font-size:.8rem}
-  .esc-ib .de b{font-size:1.05rem}
-  .esc-int .vai{width:100%}
-}
+.esc-av img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid var(--bg2);box-shadow:0 4px 12px rgba(var(--ink-rgb),.12)}
+.esc-av img + img{margin-left:-12px}
+.ei-top small{font-family:var(--f-m);font-size:.66rem;letter-spacing:.12em;color:var(--acc);line-height:1.4}
+.esc-int h3{font-family:var(--f-h);font-size:1.6rem;margin-top:12px}
+.ei-sub{display:block;color:var(--mute);font-size:.92rem;margin-top:4px}
+.ei-pe{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.ei-pe .de{font-size:.86rem;color:var(--mute);line-height:1.3}
+.ei-pe .de b{font-family:var(--f-h);font-size:1.3rem;color:var(--ink);white-space:nowrap}
+.ei-pe .vai{flex:none;padding:9px 16px;border-radius:999px;background:rgba(var(--acc-rgb),.1);color:var(--acc);font-weight:800;font-size:.88rem;white-space:nowrap}
+.esc-int:hover .vai{background:var(--acc);color:var(--on-acc)}
+@media (max-width:600px){.ei-an{display:block}.esc-int{padding:16px}.esc-av img{width:38px;height:38px}.ei-top small{font-size:.58rem;letter-spacing:.08em}.esc-int h3{font-size:1.35rem;margin-top:10px}.ei-sub{font-size:.84rem}.ei-pe{margin-top:12px;padding-top:12px}.ei-pe .de{font-size:.78rem}.ei-pe .de b{font-size:1.1rem}.ei-pe .vai{padding:8px 13px;font-size:.8rem}}
 
 /* blocos */
 .sec{padding:clamp(40px,7vw,80px) clamp(16px,6vw,80px);position:relative;z-index:1}
@@ -368,9 +364,10 @@ body.com-troca .footer{padding-bottom:96px}
     </button>
   </div>
   <button class="esc-int reveal" data-ver="corrida" data-ir="integral">
-    <span class="esc-av"><img src="/img/treinadores/gabriel-avatar.jpg" alt="" width="52" height="52"><img src="/img/treinadores/orlando-avatar.jpg" alt="" width="52" height="52"></span>
-    <span class="esc-ib"><small>QUER OS DOIS? · MAIS COMPLETO</small><h3>Integral · Corrida + Força</h3><span class="de">a partir de <b>R$ 350</b>/mês no plano anual</span></span>
-    <span class="vai">Ver plano →</span>
+    <span class="ei-top"><span class="esc-av"><img src="/img/treinadores/gabriel-avatar.jpg" alt="" width="52" height="52"><img src="/img/treinadores/orlando-avatar.jpg" alt="" width="52" height="52"></span><small>QUER OS DOIS? · MAIS COMPLETO</small></span>
+    <h3>Integral</h3>
+    <span class="ei-sub">Corrida com o Gabriel e força com o Orlando, num plano só.</span>
+    <span class="ei-pe"><span class="de">a partir de <b>R$ 350</b>/mês <span class="ei-an">no plano anual</span></span><span class="vai">Ver plano →</span></span>
   </button>
   <div class="pl-trust reveal">
     <div class="tele"><small>A PARTIR DE</small><b>R$ 162</b><em>por mês no anual</em></div>
