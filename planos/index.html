@@ -67,6 +67,51 @@
 .blk-t h3{font-family:var(--f-h);font-size:clamp(1.15rem,3.6vw,1.5rem)}
 .blk-s{color:var(--mute);margin:-8px 0 18px;font-size:.95rem}
 .painel[hidden]{display:none}
+/* ver mais */
+.pl-mais{display:block;width:100%;margin-bottom:10px;padding:12px;border-radius:999px;font-weight:800;color:var(--acc);border:1px dashed rgba(var(--acc-rgb),.45);transition:background .2s}
+.pl-mais:hover{background:rgba(var(--acc-rgb),.08)}
+.cmpb{max-width:900px;margin:0 auto;border:1px solid var(--line);border-radius:24px;padding:22px 24px;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.cmpb .tag{margin-bottom:4px}
+.cmpb h3{font-family:var(--f-h);font-size:1.15rem}
+.cmpb p:not(.tag){color:var(--mute);font-size:.92rem;margin-top:4px}
+/* folha do plano */
+.sh{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center}
+.sh[hidden]{display:none}
+.sh-fundo{position:absolute;inset:0;background:rgba(2,6,16,.7);backdrop-filter:blur(4px)}
+.sh-c{position:relative;width:min(760px,100%);max-height:92vh;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.5);animation:shIn .28s cubic-bezier(.2,.7,.2,1)}
+@keyframes shIn{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+.sh-x{position:absolute;top:12px;right:12px;z-index:2;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:rgba(var(--bg2-rgb),.9);font-size:.95rem}
+.sh-corpo{overflow-y:auto;padding:26px 24px 18px;-webkit-overflow-scrolling:touch}
+.sh-corpo h2{font-family:var(--f-h);font-size:1.45rem;margin-top:4px;padding-right:40px}
+.sh-corpo .pl-ds{margin-top:6px}
+.sh-corpo .per{margin:16px 0 0;max-width:none}
+.sh-corpo .per button{font-size:.8rem;padding:8px 4px}
+.sh-sec{margin-top:24px}
+.sh-sec > b{display:block;font-family:var(--f-m);font-size:.72rem;letter-spacing:.12em;color:var(--acc);text-transform:uppercase;margin-bottom:10px}
+.sh-g{font-family:var(--f-m);font-size:.66rem;letter-spacing:.12em;color:var(--mute);margin:14px 0 8px}
+.sh-sec ul{list-style:none;display:grid;gap:8px}
+.sh-sec li{position:relative;padding-left:26px;font-size:.93rem;line-height:1.4}
+.sh-sec li .s,.sh-sec li .n{position:absolute;left:0;top:1px;width:18px;height:18px;background-size:11px}
+.sh-sec li.no{color:var(--mute)}
+.sh-sec li.no small{color:var(--acc);font-weight:700}
+.sh-sec .tb table{font-size:.86rem}
+.sh-sec .tb tr.on td{background:rgba(var(--acc-rgb),.1)}
+.sh-sec .rg{grid-template-columns:1fr 1fr;gap:10px}
+.sh-sec .rg div{padding:14px 16px}
+.sh-pe{border-top:1px solid var(--line);padding:14px 24px calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:14px;background:rgba(var(--bg2-rgb),.92)}
+.sh-pe span{font-size:.85rem;color:var(--mute);line-height:1.3}
+.sh-pe span b{display:block;font-family:var(--f-h);font-size:1.25rem;color:var(--ink)}
+.sh-pe .btn{flex:none}
+.sh-cmp .tb{margin-top:6px}
+@media (max-width:600px){
+  .sh{align-items:flex-end}
+  .sh-c{border-radius:24px 24px 0 0;max-height:94vh}
+  .sh-corpo{padding:22px 18px 16px}
+  .sh-sec .rg{grid-template-columns:1fr}
+  .sh-pe{padding-inline:18px}
+  .sh-pe .btn{padding:13px 18px;font-size:.92rem}
+  .cmpb .btn{width:100%}
+}
 .sub-t{font-family:var(--f-m);font-size:.74rem;letter-spacing:.12em;color:var(--mute);text-transform:uppercase;margin:4px 0 10px}
 .pas + .sub-t{margin-top:22px}
 .blk .tr{margin:0}
@@ -342,25 +387,13 @@
   </div>
 </section>
 
-<!-- ======== CORRIDA: detalhes ======== -->
+<!-- ======== CORRIDA: comparar ======== -->
 <section class="sec painel" id="d-corrida" data-v="corrida" hidden>
-  <div class="sec-head center">
-    <p class="tag">Detalhes</p>
-    <h2>Tudo sobre os planos de corrida</h2>
+  <div class="cmpb">
+    <div><p class="tag">Ainda em dúvida?</p><h3>Veja os planos de corrida lado a lado</h3><p>Cada item, cada plano, num quadro só.</p></div>
+    <button class="btn btn-ghost" data-comparar="corrida">Comparar os planos</button>
   </div>
-  <div class="blk" style="margin-top:8px">
-    <div class="blk-t"><i>01</i><h3>Compare item por item</h3></div>
-    <div class="tb c3" id="cmp-corrida"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>02</i><h3>Formas de pagamento</h3></div>
-    <p class="blk-s">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>
-    <div class="tb" id="pg-corrida"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>03</i><h3>Como funcionam os planos</h3></div>
+  <template id="rg-corrida">
     <div class="rg">
       <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
       <div><b>Pagamento todo mês</b><p>Em qualquer período, você pode pagar mês a mês no Pix. O desconto vale enquanto durar o compromisso.</p></div>
@@ -372,29 +405,16 @@
       <div><b>Avaliação presencial no Integral</b><p>O Integral inclui a avaliação física online. Para fazer a presencial com o Orlando, acrescente R$ 50 por mês.</p></div>
       <div><b>Treino em dia</b><p>A planilha da semana seguinte é liberada com a mensalidade em dia, com 5 dias de tolerância.</p></div>
     </div>
-  </div>
-
+  </template>
 </section>
 
-<!-- ======== FORÇA: detalhes ======== -->
+<!-- ======== FORÇA: comparar ======== -->
 <section class="sec painel" id="d-forca" data-v="forca" hidden>
-  <div class="sec-head center">
-    <p class="tag">Detalhes</p>
-    <h2>Tudo sobre os planos de força</h2>
+  <div class="cmpb">
+    <div><p class="tag">Ainda em dúvida?</p><h3>Veja os planos de força lado a lado</h3><p>Cada item, cada plano, num quadro só.</p></div>
+    <button class="btn btn-ghost" data-comparar="forca">Comparar os planos</button>
   </div>
-  <div class="blk" style="margin-top:8px">
-    <div class="blk-t"><i>01</i><h3>Compare item por item</h3></div>
-    <div class="tb c2" id="cmp-forca"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>02</i><h3>Formas de pagamento</h3></div>
-    <p class="blk-s">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>
-    <div class="tb" id="pg-forca"></div>
-  </div>
-
-  <div class="blk">
-    <div class="blk-t"><i>03</i><h3>Como funcionam os planos</h3></div>
+  <template id="rg-forca">
     <div class="rg">
       <div><b>7 dias para desistir</b><p>Nos primeiros 7 dias, se não for o que você esperava, devolvemos o valor pago.</p></div>
       <div><b>Pagamento todo mês</b><p>Em qualquer período, você pode pagar mês a mês no Pix. O desconto vale enquanto durar o compromisso.</p></div>
@@ -406,9 +426,17 @@
       <div><b>Treine onde preferir</b><p>Na academia que você já frequenta, com cada exercício explicado no aplicativo.</p></div>
       <div><b>Quer correr também?</b><p>Você pode passar para o Integral a qualquer momento e juntar força e corrida.</p></div>
     </div>
-  </div>
-
+  </template>
 </section>
+
+<div class="sh" id="sh" hidden>
+  <div class="sh-fundo" data-fechar></div>
+  <div class="sh-c" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <button class="sh-x" data-fechar aria-label="Fechar">✕</button>
+    <div class="sh-corpo" id="sh-corpo"></div>
+    <div class="sh-pe" id="sh-pe"></div>
+  </div>
+</div>
 
 <section class="cta-final pl-final">
   <div class="cta-inner reveal">
@@ -479,7 +507,7 @@
       (comPer ? '<div class="per" data-per>' + perHTML() + '</div>' : '') +
       '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
       (p !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[p][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
-      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + li(c.id === 'integral' ? c.itens.concat(['Separados, no Pix, sairia ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[p]) + ' por mês']) : c.itens) + '<div class="pl-esp"></div>' +
+      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + li(c.id === 'integral' ? c.itens.concat(['Separados, no Pix, sairia ' + brl(CORRIDA[1].pix[p] + FORCA[0].pix[p]) + ' por mês']) : c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</a></article>';
   }
   function perfHTML() {
@@ -494,7 +522,7 @@
       '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
       (pf !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[pf][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
       '<p class="pl-ou">ou ' + brl(c.cartao[pf]) + '/mês no cartão' + (c.parc[pf] ? ' · ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
-      '<div class="pl-chips">' + chips + '</div>' + li(c.itens) + '<div class="pl-esp"></div>' +
+      '<div class="pl-chips">' + chips + '</div>' + li(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<a class="btn zap" target="_blank" rel="noopener" data-msg="Olá! Vi no site e quero o plano ' + c.nome + ', ' + PER[pf][0] + ', com o Orlando.">' + c.bt + per + '</a></article>';
   }
   var ISCA_F = {
@@ -521,27 +549,20 @@
     return h + '</table>';
   }
   var todos = function (t) { return [t, 1, 1, 1]; };
-  $('#cmp-corrida').innerHTML = tabela(['ESSENCIAL', 'EVOLUÇÃO', 'INTEGRAL'], ['ESS.', 'EVO.', 'INT.'], [
+  var CMP_C = [
     ['TREINO DE CORRIDA', [todos('Avaliação inicial online de 30 minutos'), todos('Teste de entrada e reteste a cada ciclo'), todos('Planilha periodizada e personalizada'), todos('Calendário de provas com polimento'), todos('Análise de cada corrida pelo treinador'), todos('Ajustes por dor, cansaço e rotina'), todos('Estratégia de prova com o treinador'), ['Análise biomecânica da corrida por vídeo', 0, 1, 1], ['Videochamadas por mês', '1', '2', '2']]],
     ['TREINO DE FORÇA', [['Avaliação física online com o Orlando', 0, 0, 1], ['Prescrição de exercícios de força', 0, 0, 1], ['Ajustes mensais no treino de força', 0, 0, 1], ['Reavaliação física a cada 8 semanas', 0, 0, 1]]],
     ['APLICATIVO NEXOS · EM TODOS OS PLANOS', [todos('Treino do dia na tela inicial, com etapas e ritmos'), todos('Leitura de cada corrida: ritmo, frequência cardíaca, parciais e zonas'), todos('Check-in diário de sono, energia, dor e estresse'), todos('Registro de dor com ajuste do treino pelo treinador'), todos('Alerta quando a carga sobe rápido demais'), todos('Sono, recuperação e frequência cardíaca de repouso do relógio'), todos('VO2máx e efeito do treino'), todos('Previsão de tempo para 5 km, 10 km, meia e maratona'), todos('Leitura do tempo: calor, chuva e melhor horário para treinar'), todos('Meta de hidratação com lembretes'), todos('Recordes pessoais, constância e marcos'), todos('Imagens e vídeo do percurso para o Instagram'), todos('Relatório de evolução a cada reteste'), todos('Mensagens e videochamada com o treinador pelo aplicativo'), todos('Acompanhamento para corredoras: ciclo menstrual e fases da vida')]],
     ['RELÓGIOS', [todos('Garmin conectado ao aplicativo'), todos('Coros, Polar, Suunto, Apple Watch e outros'), todos('Sem relógio, só com o celular')]],
     ['PRESENTES', [['Camisetas no plano anual', '1', '1', '2'], ['Camiseta no plano semestral', 0, 0, '1']]],
-  ]);
+  ];
   var dois = function (t) { return [t, 1, 1]; };
-  $('#cmp-forca').innerHTML = tabela(['100% ONLINE', 'AVALIAÇÃO PRESENCIAL'], ['100% ON.', 'AV. PRES.'], [
+  var CMP_F = [
     ['AVALIAÇÃO FÍSICA', [['Avaliação física com o Orlando', 'Online', 'Presencial'], ['Composição corporal', 1, 1], ['Reavaliação física a cada 8 semanas', 'Online', 'Presencial']]],
     ['PRESCRIÇÃO DE EXERCÍCIOS', [dois('Prescrição de exercícios feita para você'), dois('Treino de força periodizado'), dois('Ajustes mensais no treino'), dois('Cada exercício explicado no aplicativo'), dois('Treino na academia que você preferir')]],
     ['O QUE O ORLANDO ACOMPANHA PELO APLICATIVO', [dois('Cargas, séries e repetições de cada treino'), dois('A sua evolução de força mês a mês'), dois('O esforço de cada sessão'), dois('Sono, energia, dor muscular e estresse antes do treino'), dois('Dores e desconfortos, com o treino adaptado'), dois('A sua constância de treinos'), dois('Meta de hidratação com lembretes'), dois('Comparação de uma avaliação para a outra'), dois('Mensagens diretas com o Orlando')]],
-  ]);
+  ];
 
-  function pagamentos() {
-    var meses = PER[p][1];
-    $('#pg-corrida').innerHTML = '<table><tr><th>Plano ' + PER[p][0] + '</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
-      CORRIDA.concat([INTEGRAL]).map(function (c) { return '<tr><td>' + c.curto + '</td><td><b>' + c.pix[p] + '</b>/mês</td><td>' + c.cartao[p] + '/mês</td><td>' + (c.parc[p] ? meses + 'x ' + c.parc[p] : 'só no anual, semestral e trimestral') + '</td></tr>'; }).join('') + '</table>';
-    $('#pg-forca').innerHTML = '<table><tr><th>Plano ' + PER[pf][0] + '</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' +
-      FORCA.map(function (c) { return '<tr><td>' + c.curto + '</td><td><b>' + c.pix[pf] + '</b>/mês</td><td>' + c.cartao[pf] + '/mês</td><td>' + (c.parc[pf] ? PER[pf][1] + 'x ' + c.parc[pf] : 'só no anual, semestral e trimestral') + '</td></tr>'; }).join('') + '</table>';
-  }
   function desenhar() {
     $$('[data-per]').forEach(function (el) { if (!el.closest('.pl')) el.innerHTML = perHTML(); });
     $('#isca').innerHTML = ISCA[p];
@@ -550,9 +571,72 @@
     $('[data-perf]').innerHTML = perfHTML();
     $('#isca-f').innerHTML = ISCA_F[pf];
     $('#cards-forca').innerHTML = FORCA.map(cardForca).join('');
-    pagamentos();
+    if (aberto) abrir(aberto);
     $$('.painel .zap').forEach(zap);
   }
+
+  // folha "ver mais sobre o plano"
+  var aberto = null;
+  var PLANOS = {};
+  CORRIDA.concat([INTEGRAL], FORCA).forEach(function (c) { PLANOS[c.id] = c; });
+  var COL = { essencial: ['c', 1], evolucao: ['c', 2], integral: ['c', 3], 'forca-online': ['f', 1], 'forca-presencial': ['f', 2] };
+  var DONO = { evolucao: 'Evolução', integral: 'Integral' };
+  function regras(tipo) {
+    var d = document.createElement('div');
+    d.innerHTML = $('#rg-' + (tipo === 'f' ? 'forca' : 'corrida')).innerHTML;
+    if (tipo === 'i') {
+      var f = document.createElement('div'); f.innerHTML = $('#rg-forca').innerHTML;
+      f.querySelectorAll('.rg > div').forEach(function (x) { var t = x.querySelector('b').textContent; if (t === 'Reavaliação a cada 8 semanas' || t === 'Treine onde preferir') d.querySelector('.rg').appendChild(x); });
+    }
+    return d.innerHTML;
+  }
+  function abrir(id) {
+    var c = PLANOS[id], col = COL[id], ef = col[0] === 'f', k = ef ? pf : p, grupos = ef ? CMP_F : CMP_C, sim = '', nao = '';
+    aberto = id;
+    grupos.forEach(function (g) {
+      var sl = [];
+      g[1].forEach(function (r) {
+        var x = r[col[1]];
+        if (x === 0) {
+          var onde = [];
+          if (!ef) { if (r[2] && id === 'essencial') onde.push('Evolução'); if (r[3] && id !== 'integral') onde.push('Integral'); }
+          nao += '<li class="no"><i class="n"></i>' + r[0] + (onde.length ? ' <small>no ' + onde.join(' e no ') + '</small>' : '') + '</li>';
+        } else sl.push('<li><i class="s"></i>' + r[0] + (x === 1 ? '' : ': <b>' + x + '</b>') + '</li>');
+      });
+      if (sl.length) sim += '<p class="sh-g">' + g[0] + '</p><ul>' + sl.join('') + '</ul>';
+    });
+    var v = c.pix[k], meses = PER[k][1], chips = '', cam = c.cam[k] || 0;
+    if (k !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * meses) + ' no ' + PER[k][0] + '</span>';
+    if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
+    var pg = '<div class="tb"><table><tr><th>Período</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' + ['m', 't', 's', 'a'].map(function (q) {
+      return '<tr class="' + (q === k ? 'on' : '') + '"><td>' + PER[q][0][0].toUpperCase() + PER[q][0].slice(1) + '</td><td><b>' + c.pix[q] + '</b>/mês</td><td>' + c.cartao[q] + '/mês</td><td>' + (c.parc[q] ? PER[q][1] + 'x ' + c.parc[q] : '·') + '</td></tr>';
+    }).join('') + '</table></div>';
+    $('#sh-corpo').innerHTML = '<span class="pl-nm">' + c.nome + '</span><h2 id="sh-t">Tudo sobre o plano</h2><p class="pl-ds">' + c.ds + '</p>' +
+      '<div class="per" ' + (ef ? 'data-perf' : 'data-per') + '>' + (ef ? perfHTML() : perHTML()) + '</div>' +
+      '<div class="pl-pr"><small>R$</small><b>' + num(v) + '</b><i>/mês no Pix</i></div>' +
+      (k !== 'm' ? '<p class="pl-de">de <s>' + brl(c.pix.m) + '</s> no plano ' + PER[k][0] + '</p>' : '<p class="pl-de">sem compromisso de tempo</p>') +
+      '<p class="pl-ou">ou ' + brl(c.cartao[k]) + '/mês no cartão' + (c.parc[k] ? ' · ' + meses + 'x de ' + brl(c.parc[k]) : '') + '</p><div class="pl-chips">' + chips + '</div>' +
+      (id === 'integral' ? '<p class="pl-de" style="margin-top:10px">Separados, no Pix, sairia ' + brl(CORRIDA[1].pix[k] + FORCA[0].pix[k]) + ' por mês.</p>' : '') +
+      '<div class="sh-sec"><b>Tudo que está incluído</b>' + sim + '</div>' +
+      (nao ? '<div class="sh-sec"><b>Não está neste plano</b><ul>' + nao + '</ul></div>' : '') +
+      '<div class="sh-sec"><b>Formas de pagamento</b><p class="blk-s" style="margin:0 0 10px">Pix, cartão todo mês ou cartão parcelado. No Pix o valor é menor porque a taxa é menor.</p>' + pg + '</div>' +
+      '<div class="sh-sec"><b>Como funcionam os planos</b>' + regras(id === 'integral' ? 'i' : col[0]) + '</div>';
+    var nomeMsg = c.nome.replace(' · ', ' (') + (c.top ? ')' : '');
+    var msg = 'Olá! Vi no site e quero o plano ' + nomeMsg + ', ' + PER[k][0] + (ef ? ', com o Orlando' : '') + '.';
+    $('#sh-pe').innerHTML = '<span>' + c.curto + ' · ' + PER[k][0] + '<b>' + brl(v) + '/mês</b></span><a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Prosseguir</a>';
+    zap($('#sh-pe .zap'));
+    if ($('#sh').hidden) { $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0; }
+  }
+  function comparar(v) {
+    aberto = null;
+    var ef = v === 'forca';
+    $('#sh-corpo').innerHTML = '<span class="pl-nm">' + (ef ? 'Força' : 'Corrida') + '</span><h2 id="sh-t">Compare item por item</h2>' +
+      '<div class="sh-sec sh-cmp"><div class="tb ' + (ef ? 'c2' : 'c3') + '">' + (ef ? tabela(['100% ONLINE', 'AVALIAÇÃO PRESENCIAL'], ['100% ON.', 'AV. PRES.'], CMP_F) : tabela(['ESSENCIAL', 'EVOLUÇÃO', 'INTEGRAL'], ['ESS.', 'EVO.', 'INT.'], CMP_C)) + '</div></div>';
+    $('#sh-pe').innerHTML = '<span>Escolheu o seu?</span><button class="btn" data-fechar>Ver os planos</button>';
+    $('#sh').hidden = false; document.body.style.overflow = 'hidden'; $('#sh-corpo').scrollTop = 0;
+  }
+  function fechar() { aberto = null; $('#sh').hidden = true; document.body.style.overflow = ''; }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#sh').hidden) fechar(); });
 
   function mostrar(v, ir) {
     ver = v;
@@ -564,6 +648,11 @@
     setTimeout(function () { alvo.scrollIntoView({ behavior: 'smooth', block: ir ? 'center' : 'start' }); }, 40);
   }
   document.addEventListener('click', function (e) {
+    var ab = e.target.closest('[data-abrir]');
+    if (ab) return abrir(ab.dataset.abrir);
+    var cp = e.target.closest('[data-comparar]');
+    if (cp) return comparar(cp.dataset.comparar);
+    if (e.target.closest('[data-fechar]')) { var vf = ver; fechar(); if (e.target.closest('.sh-pe') && vf) { var al = $('#p-' + vf); if (al) al.scrollIntoView({ behavior: 'smooth' }); } return; }
     var b = e.target.closest('[data-ver]');
     if (b) return mostrar(b.dataset.ver, b.dataset.ir);
     var k = e.target.closest('[data-p]');
