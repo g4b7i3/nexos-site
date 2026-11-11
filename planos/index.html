@@ -372,6 +372,7 @@ body.com-troca .footer{padding-bottom:96px}
 @media (max-width:600px){.esc-q{max-width:calc(100% - 16px)}}
 @media (max-width:620px){.pix-pe{flex-direction:column;align-items:stretch;gap:10px}.pix-val{flex-direction:row;align-items:baseline;gap:6px}.pix-cta{width:100%;text-align:center;white-space:normal}}
 @media (max-width:600px){.esc-q{font-size:.58rem;padding:4px 8px 4px 6px;gap:5px;border-radius:10px}.esc-q i{width:6px;height:6px}}
+.pl-atd{margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(var(--acc-rgb),.07);font-size:.8rem;line-height:1.45;color:var(--mute)}.pl-atd b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -692,7 +693,7 @@ body.com-troca .footer{padding-bottom:96px}
       (comPer ? '<div class="per" data-per>' + perHTML() + '</div>' : '') +
       '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
       (p !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
-      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
+      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<p class="pl-atd"><b>Resposta do treinador em até 12 horas úteis.</b> Horários completos em "Ver mais sobre o plano".</p><div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<button type="button" class="btn" data-pg="' + c.id + '" data-k="' + p + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</button></article>';
   }
   function perfHTML() {
