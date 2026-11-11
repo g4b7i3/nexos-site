@@ -812,7 +812,7 @@ body.com-troca .footer{padding-bottom:96px}
       if (it.length) nao += '<p class="sh-g">' + (up[1] === 2 && ef ? 'NA FORÇA ONLINE COM AVALIAÇÃO PRESENCIAL' : ui ? up[0].toUpperCase() + ': TUDO DO ' + lista[ui - 1][0].toUpperCase() + ' E MAIS' : up[0].toUpperCase() + ' INCLUI') + '</p><ul>' + it.join('') + '</ul>';
     });
     var v = c.pix[k], meses = PER[k][1], chips = '', cam = c.cam[k] || 0;
-    if (cam) sim += '<p class="sh-g">PRESENTES</p><ul><li><i class="s"></i>Presente somente nos planos semestral e anual: 1 camiseta no semestral e 2 no anual</li></ul>';
+    sim += '<p class="sh-g">PRESENTES</p><ul><li><i class="' + (cam ? 's' : 'n') + '"></i>' + (cam ? (cam === 2 ? '2 camisetas oficiais' : '1 camiseta oficial') + ' de presente neste plano' : 'Aqui não está incluso. Somente no plano semestral (1 camiseta) e no anual (2 camisetas)') + '</li></ul>';
     if (k !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * meses) + ' no ' + PER[k][0] + '</span>';
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     var pg = '<div class="tb"><table><tr><th>Período</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' + ['m', 't', 's', 'a'].map(function (q) {
