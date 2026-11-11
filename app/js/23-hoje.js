@@ -35,12 +35,12 @@ function comentarTreino(c, al) {
     <div class="fb-conteudo">
       <header class="fb-topo"><img src="icons/wordmark.svg" alt="Nexos Performance e Saúde"></header>
       <div class="fb-card">
-        <p class="fb-eyebrow">Feedback do treinador</p>
+        <p class="fb-eyebrow">Análise do treinador</p>
         <div class="fb-nome">${esc(nome)}</div>
         <div class="fb-treino">${esc(titulo)}${dia ? ` · ${esc(fmtDia(dia))}` : ''}</div>
         ${stats.length ? `<div class="fb-stats">${stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join('')}</div>` : ''}
         <div class="fb-texto"><span class="fb-aspas" aria-hidden="true">“</span>
-          <textarea id="ct-txt" rows="5" placeholder="Escreva o seu feedback sobre o treino" autofocus>${esc(c.comentario_treinador || '')}</textarea></div>
+          <textarea id="ct-txt" rows="5" placeholder="Escreva a sua análise sobre o treino" autofocus>${esc(c.comentario_treinador || '')}</textarea></div>
         <div class="fb-assina"><img src="icons/simbolo.svg" alt=""><div><b>${esc(assina)}</b><span>Treinador · Nexos Performance e Saúde</span></div></div>
       </div>
       <div class="fb-acoes"><button class="btn block" id="ct-salvar">${tinha ? 'Salvar comentário' : 'Enviar comentário'}</button>
