@@ -787,6 +787,7 @@ body.com-troca .footer{padding-bottom:96px}
     var c = PLANOS[id], col = COL[id], ef = col[0] === 'f', k = ef ? pf : p, grupos = ef ? CMP_F : CMP_C, sim = '', nao = '';
     aberto = id;
     grupos.forEach(function (g) {
+      if (g[0] === 'PRESENTES') return; // presente aparece à parte, só nos períodos que têm
       var sl = [];
       g[1].forEach(function (r) {
         var x = r[col[1]];
@@ -800,6 +801,7 @@ body.com-troca .footer{padding-bottom:96px}
     (ACIMA[id] || []).forEach(function (up, ui, lista) {
       var it = [];
       grupos.forEach(function (g) {
+        if (g[0] === 'PRESENTES') return;
         g[1].forEach(function (r) {
           var meu = r[col[1]], dele = r[up[1]];
           if (dele === 0 || dele === meu || visto[r[0] + '|' + dele]) return;
@@ -810,6 +812,7 @@ body.com-troca .footer{padding-bottom:96px}
       if (it.length) nao += '<p class="sh-g">' + (up[1] === 2 && ef ? 'NA FORÇA ONLINE COM AVALIAÇÃO PRESENCIAL' : ui ? up[0].toUpperCase() + ': TUDO DO ' + lista[ui - 1][0].toUpperCase() + ' E MAIS' : up[0].toUpperCase() + ' INCLUI') + '</p><ul>' + it.join('') + '</ul>';
     });
     var v = c.pix[k], meses = PER[k][1], chips = '', cam = c.cam[k] || 0;
+    if (cam) sim += '<p class="sh-g">PRESENTES</p><ul><li><i class="s"></i>Presente somente ' + (c.cam.s ? 'nos planos semestral e anual' : 'no plano anual') + '</li></ul>';
     if (k !== 'm') chips += '<span>Economia de ' + brl((c.pix.m - v) * meses) + ' no ' + PER[k][0] + '</span>';
     if (cam) chips += '<span class="pres">' + (cam === 2 ? '2 camisetas' : 'Camiseta') + ' de presente</span>';
     var pg = '<div class="tb"><table><tr><th>Período</th><th>Pix</th><th>Cartão</th><th>Parcelado</th></tr>' + ['m', 't', 's', 'a'].map(function (q) {
