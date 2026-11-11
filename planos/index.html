@@ -13,7 +13,7 @@
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="/style.css?v=202611110012">
+<link rel="stylesheet" href="/style.css?v=202611110019">
 <script>var t="light";try{t=sessionStorage.getItem("nexos-tema")||t}catch(e){}document.documentElement.dataset.theme=t</script>
 <style>
 .nav-r{display:flex;align-items:center;gap:10px}
@@ -349,6 +349,24 @@ body.com-troca .footer{padding-bottom:96px}
 .esc-int{position:relative}
 .esc-int::after{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:conic-gradient(from var(--hx-ang),transparent 0 70%,rgba(59,130,246,.9) 82%,rgba(52,211,153,.8) 88%,transparent 96%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);animation:hxGiro 6s linear infinite;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.esc-int::after{animation:none}}
+.pg{position:fixed;inset:0;z-index:300;display:flex;align-items:flex-end;justify-content:center}
+.pg[hidden]{display:none}
+.pg-fundo{position:absolute;inset:0;background:rgba(2,6,16,.55);backdrop-filter:blur(4px)}
+.pg-c{position:relative;width:min(480px,100%);margin:0 auto;padding:22px 18px calc(18px + env(safe-area-inset-bottom));border-radius:26px 26px 0 0;background:var(--bg);box-shadow:0 -20px 60px rgba(0,0,0,.25);animation:pgIn .28s cubic-bezier(.2,.8,.2,1)}
+@media (min-width:620px){.pg{align-items:center}.pg-c{border-radius:26px;padding:26px 24px}}
+@keyframes pgIn{from{transform:translateY(30px);opacity:0}}
+.pg-x{position:absolute;right:14px;top:14px;width:34px;height:34px;border-radius:50%;background:var(--bg2);color:var(--ink);font-size:.9rem}
+.pg-sup{display:block;font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+.pg-c h3{font-family:var(--f-h);font-size:1.3rem;margin-top:4px;padding-right:40px}
+.pg-ops{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.pg-op{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--card);transition:border-color .2s,transform .2s}
+.pg-op:hover{border-color:var(--acc);transform:translateY(-1px)}
+.pg-op b{display:block;font-weight:800;font-size:.95rem;color:var(--ink)}
+.pg-op small{display:block;font-size:.76rem;color:var(--mute);margin-top:2px}
+.pg-op em{font-style:normal;font-family:var(--f-h);font-size:.98rem;color:var(--ink);white-space:nowrap}
+.pg-op i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#fff;font-size:.85rem}
+:root:not([data-theme="light"]) .pg-op i{background:var(--acc);color:var(--on-acc)}
+.pg-n{margin-top:12px;font-size:.78rem;color:var(--mute);text-align:center}
 </style>
 </head>
 <body>
@@ -669,7 +687,7 @@ body.com-troca .footer{padding-bottom:96px}
       '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
       (p !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
       '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
-      '<a class="btn zap" target="_blank" rel="noopener" data-msg="' + msg + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</a></article>';
+      '<button type="button" class="btn" data-pg="' + c.id + '" data-k="' + p + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</button></article>';
   }
   function perfHTML() {
     return ['m', 't', 's', 'a'].map(function (k) { return '<button data-pf="' + k + '" class="' + (k === pf ? 'on' : '') + '">' + PER[k][0][0].toUpperCase() + PER[k][0].slice(1) + '<em>' + (PER[k][2] || '&nbsp;') + '</em></button>'; }).join('');
@@ -685,7 +703,7 @@ body.com-troca .footer{padding-bottom:96px}
       '<p class="pl-ou">No cartão: ' + brl(c.cartao[pf]) + '/mês' + (c.parc[pf] ? ' ou ' + meses + 'x de ' + brl(c.parc[pf]) : '') + '</p>' +
       (pf === 'a' ? '<p class="pl-ou pl-av">À vista no Pix: <b>' + brl(c.avista) + '</b>, o equivalente a ' + brl(c.avista / 12) + '/mês (5% a mais de desconto)</p>' : '') +
       '<div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
-      '<a class="btn zap" target="_blank" rel="noopener" data-num="orlando" data-msg="' + msgPlano(c, pf) + '">' + c.bt + per + '</a></article>';
+      '<button type="button" class="btn" data-pg="' + c.id + '" data-k="' + pf + '">' + c.bt + per + '</button></article>';
   }
   var ISCA_F = {
     m: 'No plano anual, a Força 100% Online sai por <b>R$ 171/mês</b>, com 2 camisetas oficiais de presente.',
@@ -806,8 +824,7 @@ body.com-troca .footer{padding-bottom:96px}
       '<div class="sh-sec"><b>Formas de pagamento</b><p class="blk-s" style="margin:0 0 10px">Valores por mês. No Pix o valor é menor porque a taxa da operadora é menor. O parcelamento cobre o período inteiro e vale para o trimestral, o semestral e o anual.</p>' + pg + '</div>' +
       '<div class="sh-sec"><b>Como funcionam os planos</b>' + regras(id === 'integral' ? 'i' : col[0]) + '</div>';
     var msg = msgPlano(c, k);
-    $('#sh-pe').innerHTML = '<span>' + c.curto + ' · ' + PER[k][0] + '<b>' + brl(v) + '/mês</b></span><a class="btn zap" target="_blank" rel="noopener"' + (ef ? ' data-num="orlando"' : '') + ' data-msg="' + msg + '">Prosseguir</a>';
-    zap($('#sh-pe .zap'));
+    $('#sh-pe').innerHTML = '<span>' + c.curto + ' · ' + PER[k][0] + '<b>' + brl(v) + '/mês</b></span><button type="button" class="btn" data-pg="' + id + '" data-k="' + k + '">Prosseguir</button>';
     abrirFolha();
   }
   function comparar(v) {
@@ -877,7 +894,32 @@ body.com-troca .footer{padding-bottom:96px}
     var alvo = ir ? $('#p-' + v + ' #pl-' + ir) : $('#p-' + v);
     setTimeout(function () { alvo.scrollIntoView({ behavior: 'smooth', block: ir ? 'center' : 'start' }); }, 40);
   }
+  // antes do WhatsApp: a pessoa escolhe como quer pagar, e a mensagem sai curta, só com o plano e a forma de pagamento
+  function escolherPg(id, k) {
+    var c = PLANOS[id]; if (!c || !PER[k]) return;
+    var ef = id.indexOf('forca') === 0, meses = PER[k][1];
+    var nome = c.nome.replace(' · ', ' (') + (c.top ? ')' : '');
+    var plano = 'plano ' + nome + ' ' + PER[k][0];
+    var ops = [['Mensalidade no Pix', brl(c.pix[k]) + '/mês', k === 'm' ? 'Sem fidelidade' : 'Todo mês, com o desconto do ' + PER[k][0], 'com mensalidade no Pix (' + brl(c.pix[k]) + ' por mês)']];
+    if (k === 'a') ops.push(['À vista no Pix', brl(c.avista), 'O ano inteiro de uma vez, com mais 5% de desconto', 'à vista no Pix (' + brl(c.avista) + ' pelo ano inteiro)']);
+    ops.push(['Mensalidade no cartão', brl(c.cartao[k]) + '/mês', 'Cobrança mensal, sem prender o limite do cartão', 'com mensalidade no cartão (' + brl(c.cartao[k]) + ' por mês)']);
+    if (c.parc[k]) ops.push(['Parcelado no cartão', meses + 'x de ' + brl(c.parc[k]), 'O ' + PER[k][0] + ' inteiro parcelado', 'parcelado no cartão (' + meses + 'x de ' + brl(c.parc[k]) + ')']);
+    var num = ef ? WHATS_ORLANDO : WHATS;
+    var el = $('#pg'); if (!el) { el = document.createElement('div'); el.id = 'pg'; el.className = 'pg'; document.body.appendChild(el); }
+    el.innerHTML = '<div class="pg-fundo" data-pg-x></div><div class="pg-c" role="dialog" aria-modal="true" aria-labelledby="pg-t"><button type="button" class="pg-x" data-pg-x aria-label="Fechar">✕</button>' +
+      '<small class="pg-sup">' + c.curto + ' · ' + PER[k][0] + '</small><h3 id="pg-t">Como você quer pagar?</h3><div class="pg-ops">' +
+      ops.map(function (o) {
+        var msg = 'Olá! Vim pelo site da Nexos. Tenho interesse no ' + plano + ' e quero pagar ' + o[3] + '.';
+        return '<a class="pg-op" target="_blank" rel="noopener" href="https://wa.me/' + num + '?text=' + encodeURIComponent(msg) + '"><span><b>' + o[0] + '</b><small>' + o[2] + '</small></span><em>' + o[1] + '</em><i>→</i></a>';
+      }).join('') + '</div><p class="pg-n">Você continua a conversa no WhatsApp com ' + (ef ? 'o Orlando' : 'o Gabriel') + '.</p></div>';
+    el.hidden = false;
+  }
   document.addEventListener('click', function (e) {
+    var pgB = e.target.closest('[data-pg]');
+    if (pgB) { e.preventDefault(); return escolherPg(pgB.dataset.pg, pgB.dataset.k); }
+    var pgE = $('#pg');
+    if (pgE && e.target.closest('[data-pg-x]')) { pgE.hidden = true; return; }
+    if (pgE && e.target.closest('.pg-op')) { setTimeout(function () { pgE.hidden = true; }, 400); return; }
     if (e.target.closest('[data-pix-anual]')) { e.preventDefault(); return pixAnual(); }
     var px = e.target.closest('[data-pixv]');
     if (px) {
