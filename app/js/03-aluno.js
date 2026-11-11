@@ -476,6 +476,7 @@ function abrirProntidao(aoSalvar) {
 // respostas completas de um check-in (toque numa linha da tabela de prontidão)
 const PRONT_ROWS = new Map();
 function prontDetalhe(x) {
+  if (!S.staff) return prontDetalheAluno(x);
   const [n] = prontNivel(x.total);
   const motivos = [
     ...PRONT_Q.filter(([k]) => x[k] === 1).map(([k, , op]) => `${PRONT_CURTO[k]}: “${op[0]}”`),
@@ -546,6 +547,31 @@ function prontDetalhe(x) {
       if (a) a.style.strokeDashoffset = a.style.getPropertyValue('--md-fim');
     }, 120),
   );
+}
+// aluno vê as respostas do jeito simples; a tela de monitor é só do treinador
+function prontDetalheAluno(x) {
+  const [n, cls] = prontNivel(x.total);
+  const motivos = [
+    ...PRONT_Q.filter(([k]) => x[k] === 1).map(([k, , op]) => `${PRONT_CURTO[k]}: “${op[0]}”`),
+    ...(x.dor <= 2 && x.dor !== 1 ? ['Dor muscular marcada como “Dor”'] : []),
+    ...(x.total <= 10 ? ['Soma de 10 ou menos'] : []),
+  ];
+  const hora = x.criado_em
+    ? new Date(x.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : '';
+  openSheet(`<p class="eyebrow">Check-in da manhã</p><div class="h2" style="margin-top:4px">${fmtDia(x.dia)}${hora ? ` · ${hora}` : ''}</div>
+    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><span class="tag ${cls}">Prontidão ${n.toLowerCase()}: ${x.total} de 20</span>${x.alerta ? '<span class="tag err">Em alerta</span>' : ''}</div>
+    <div class="stack" style="margin-top:14px;gap:12px">${PRONT_Q.map(
+      ([
+        k,
+        t,
+        op,
+      ]) => `<div class="pd-q"><div class="row between" style="gap:8px"><b>${t}</b><span class="pd-v" style="background:${PRONT_COR[x[k] - 1]}">${x[k]} de 5</span></div>
+      <div class="pd-op">${op.map((o, i) => `<span class="${i + 1 === x[k] ? 'on' : ''}" style="${i + 1 === x[k] ? `border-color:${PRONT_COR[i]};background:color-mix(in srgb,${PRONT_COR[i]} 18%,transparent)` : ''}">${o}</span>`).join('')}</div>
+      ${k === 'dor' && (x.dor_locais || []).length ? `<p class="small" style="margin-top:6px;color:var(--err)">Onde dói${x.dor_int != null ? ` (${x.dor_int}/10)` : ''}: ${x.dor_locais.map((d) => esc(nomeRegDor(d))).join(', ')}</p>` : ''}</div>`,
+    ).join('')}</div>
+    ${x.obs ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Comentário do aluno</span><p style="margin-top:6px">${esc(x.obs)}</p></div>` : ''}
+    <div class="card" style="margin-top:12px"><span class="eyebrow">Como ler</span><p class="small" style="margin-top:6px">A prontidão é a soma das 4 respostas (de 4 a 20). <b>Boa</b>: 16 a 20 · <b>Moderada</b>: 12 a 15 · <b>Baixa</b>: 11 ou menos.${motivos.length ? ` Em alerta por: ${motivos.join('; ')}.` : ''}</p></div>`);
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-pront]');
