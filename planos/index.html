@@ -373,6 +373,17 @@ body.com-troca .footer{padding-bottom:96px}
 @media (max-width:620px){.pix-pe{flex-direction:column;align-items:stretch;gap:10px}.pix-val{flex-direction:row;align-items:baseline;gap:6px}.pix-cta{width:100%;text-align:center;white-space:normal}}
 @media (max-width:600px){.esc-q{font-size:.58rem;padding:4px 8px 4px 6px;gap:5px;border-radius:10px}.esc-q i{width:6px;height:6px}}
 .pl-atd{margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(var(--acc-rgb),.07);font-size:.8rem;line-height:1.45;color:var(--mute)}.pl-atd b{color:var(--ink)}
+.pl-dots{display:none}
+@media (max-width:700px){
+  .pl-cards{display:flex;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;max-width:none;margin-left:-16px;margin-right:-16px;padding:4px 16px 8px;scroll-padding:0 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .pl-cards::-webkit-scrollbar{display:none}
+  .pl-cards>.pl{flex:0 0 84%;scroll-snap-align:start}
+  .pl-dots{display:flex;align-items:center;justify-content:center;gap:6px;margin:14px 0 -10px}
+  .pl-dots i{width:7px;height:7px;border-radius:50%;background:rgba(var(--ink-rgb),.18);transition:width .25s,background .25s}
+  .pl-dots i.on{width:20px;border-radius:4px;background:var(--acc)}
+  .pl-dots span{margin-left:8px;font-size:.74rem;color:var(--mute)}
+  .pl-dots:empty{display:none}
+}
 </style>
 </head>
 <body>
@@ -770,6 +781,19 @@ body.com-troca .footer{padding-bottom:96px}
     $('#cards-forca').innerHTML = FORCA.map(cardForca).join('');
     if (aberto) abrir(aberto);
     $$('.painel .zap').forEach(zap);
+    pontosCards();
+  }
+  // no celular os cards ficam lado a lado, arrastando; as bolinhas mostram em qual a pessoa está
+  function pontosCards() {
+    $$('.pl-cards').forEach(function (g) {
+      var n = g.querySelectorAll('.pl').length, d = g.previousElementSibling;
+      if (!d || !d.classList.contains('pl-dots')) { d = document.createElement('div'); d.className = 'pl-dots'; g.parentNode.insertBefore(d, g); }
+      d.innerHTML = n > 1 ? Array.apply(null, Array(n)).map(function (_, i) { return '<i class="' + (i ? '' : 'on') + '"></i>'; }).join('') + '<span>Arraste para ver o outro plano</span>' : '';
+      g.onscroll = function () {
+        var i = Math.round(g.scrollLeft / (g.scrollWidth / n));
+        d.querySelectorAll('i').forEach(function (b, k) { b.classList.toggle('on', k === i); });
+      };
+    });
   }
 
   // folha "ver mais sobre o plano"
