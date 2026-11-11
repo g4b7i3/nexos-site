@@ -71,7 +71,7 @@ function applyLogos() {
 }
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
-  try { localStorage.setItem('nexos-tema', t); } catch (e) {}
+  try { sessionStorage.setItem('nexos-tema', t); } catch (e) {}
   readColors(); applyLogos();
 }
 $('#theme-btn').addEventListener('click', () => {

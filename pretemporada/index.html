@@ -14,8 +14,8 @@
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="/style.css?v=202611110002">
-<script>var t="light";try{t=localStorage.getItem("nexos-tema")||t}catch(e){}document.documentElement.dataset.theme=t</script>
+<link rel="stylesheet" href="/style.css?v=202611110004">
+<script>var t="light";try{t=sessionStorage.getItem("nexos-tema")||t}catch(e){}document.documentElement.dataset.theme=t</script>
 <style>
 .nav-r{display:flex;align-items:center;gap:10px}
 .theme-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);display:grid;place-items:center}
@@ -201,7 +201,7 @@
   logos();
   document.getElementById('theme-btn').addEventListener('click', function () {
     root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
-    try { localStorage.setItem('nexos-tema', root.dataset.theme); } catch (e) {}
+    try { sessionStorage.setItem('nexos-tema', root.dataset.theme); } catch (e) {}
     logos();
   });
 
