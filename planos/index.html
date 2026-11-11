@@ -906,7 +906,7 @@ body.com-troca .footer{padding-bottom:96px}
     var ef = id.indexOf('forca') === 0, meses = PER[k][1];
     var nome = c.nome.replace(' · ', ' (') + (c.top ? ')' : '');
     var plano = 'plano ' + nome + ' ' + PER[k][0];
-    var ops = [['Mensalidade no Pix', brl(c.pix[k]) + '/mês', k === 'm' ? 'Sem fidelidade' : 'Todo mês, com o desconto do ' + PER[k][0], 'com mensalidade no Pix (' + brl(c.pix[k]) + ' por mês)']];
+    var ops = [[k === 'm' ? 'Mensalidade no Pix' : 'Pix parcelado', brl(c.pix[k]) + '/mês', k === 'm' ? 'Sem fidelidade' : 'Todo mês, com o desconto do ' + PER[k][0], (k === 'm' ? 'com mensalidade no Pix (' : 'no Pix parcelado (') + brl(c.pix[k]) + ' por mês)']];
     if (k === 'a') ops.push(['À vista no Pix', brl(c.avista), 'O ano inteiro de uma vez, com mais 5% de desconto', 'à vista no Pix (' + brl(c.avista) + ' pelo ano inteiro)']);
     ops.push(['Mensalidade no cartão', brl(c.cartao[k]) + '/mês', 'Cobrança mensal, sem prender o limite do cartão', 'com mensalidade no cartão (' + brl(c.cartao[k]) + ' por mês)']);
     if (c.parc[k]) ops.push(['Parcelado no cartão', meses + 'x de ' + brl(c.parc[k]), 'O ' + PER[k][0] + ' inteiro parcelado', 'parcelado no cartão (' + meses + 'x de ' + brl(c.parc[k]) + ')']);
