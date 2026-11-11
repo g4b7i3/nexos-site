@@ -3676,3 +3676,46 @@ body.em-video{overflow:hidden}
 .atend-t b{display:block;font-size:.9rem}
 .atend-t span{display:block;font-size:.85rem;color:var(--mute)}
 .atend p{margin-top:10px;line-height:1.5}
+
+/* feedback do treinador em tela cheia (pronto para o print do Instagram) */
+.fb-tela{position:fixed;inset:0;z-index:1600;background:#040a18;color:#eaf3ff;overflow-y:auto;-webkit-overflow-scrolling:touch;opacity:0;transition:opacity .22s ease}
+.fb-tela.on{opacity:1}
+.fb-fundo{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+.fb-grade{position:absolute;inset:-2px;background-image:linear-gradient(rgba(70,214,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(70,214,255,.07) 1px,transparent 1px);background-size:34px 34px;-webkit-mask-image:radial-gradient(ellipse at 50% 38%,#000 0%,transparent 72%);mask-image:radial-gradient(ellipse at 50% 38%,#000 0%,transparent 72%)}
+.fb-luz{position:absolute;border-radius:50%;filter:blur(70px)}
+.fb-luz.a{width:420px;height:420px;left:-140px;top:-120px;background:rgba(70,214,255,.30)}
+.fb-luz.b{width:460px;height:460px;right:-180px;bottom:-160px;background:rgba(37,99,235,.38)}
+.fb-marca{position:absolute;width:150%;max-width:1100px;left:50%;top:56%;transform:translate(-50%,-50%) rotate(-8deg);opacity:.045}
+.fb-linha{position:absolute;left:0;right:0;bottom:9%;width:100%;height:110px;opacity:.5}
+.fb-linha path{fill:none;stroke:#46d6ff;stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 0 6px rgba(70,214,255,.9));stroke-dasharray:900;stroke-dashoffset:900;animation:fbLinha 2.4s .2s ease-out forwards}
+@keyframes fbLinha{to{stroke-dashoffset:0}}
+.fb-dado{position:absolute;font-family:var(--f-m);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(70,214,255,.55);border:1px solid rgba(70,214,255,.22);padding:4px 8px;border-radius:6px;background:rgba(4,10,24,.4)}
+.fb-dado.d3{bottom:calc(9% + 118px);left:50%;transform:translateX(-50%);white-space:nowrap}
+.fb-x{position:fixed;top:calc(12px + env(safe-area-inset-top));right:12px;z-index:3;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#eaf3ff;display:grid;place-items:center;font-size:1.3rem;cursor:pointer;backdrop-filter:blur(8px)}
+.fb-x svg{width:20px;height:20px}
+.fb-conteudo{position:relative;z-index:2;max-width:520px;margin:0 auto;padding:calc(30px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));min-height:100%;display:flex;flex-direction:column}
+.fb-topo{display:flex;flex-direction:column;align-items:center;gap:8px;margin:10px 0 22px}
+.fb-topo img{width:min(210px,58vw);height:auto;filter:drop-shadow(0 0 18px rgba(70,214,255,.35))}
+.fb-topo span{font-family:var(--f-m);font-size:.62rem;letter-spacing:.42em;text-transform:uppercase;color:rgba(234,243,255,.55);padding-left:.42em}
+.fb-card{position:relative;border-radius:22px;padding:22px 20px 18px;background:linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 60px -20px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.fb-card:before{content:"";position:absolute;left:20px;right:20px;top:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,#46d6ff,transparent)}
+.fb-eyebrow{font-family:var(--f-m);font-size:.66rem;letter-spacing:.24em;text-transform:uppercase;color:#46d6ff}
+.fb-nome{font-family:var(--f-h);font-weight:800;font-size:clamp(1.7rem,7.5vw,2.2rem);line-height:1.08;margin-top:8px;letter-spacing:-.01em}
+.fb-treino{font-size:.88rem;color:rgba(234,243,255,.68);margin-top:4px}
+.fb-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:8px;margin-top:16px}
+.fb-stats div{border-radius:12px;padding:9px 10px;background:rgba(4,10,24,.45);border:1px solid rgba(70,214,255,.14)}
+.fb-stats b{display:block;font-family:var(--f-h);font-size:1.05rem;font-weight:700;color:#fff}
+.fb-stats span{display:block;font-family:var(--f-m);font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,243,255,.5);margin-top:2px}
+.fb-texto{position:relative;margin-top:18px;padding-left:26px}
+.fb-aspas{position:absolute;left:-2px;top:-14px;font-family:Georgia,serif;font-size:3.4rem;line-height:1;color:#46d6ff;opacity:.85}
+.fb-texto textarea{width:100%;min-height:120px;resize:none;overflow:hidden;border:0;outline:0;background:transparent;color:#f4f9ff;font-family:var(--f-b);font-size:1.08rem;line-height:1.55;padding:0;caret-color:#46d6ff}
+.fb-texto textarea::placeholder{color:rgba(234,243,255,.35)}
+.fb-assina{display:flex;align-items:center;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.fb-assina img{width:46px;height:auto;opacity:.95}
+.fb-assina b{display:block;font-size:.9rem}
+.fb-assina span{display:block;font-size:.72rem;color:rgba(234,243,255,.55)}
+.fb-acoes{margin-top:auto;padding-top:22px}
+.fb-acoes .btn{box-shadow:0 12px 30px -10px rgba(70,214,255,.55)}
+.fb-apagar{display:block;margin:14px auto 0;background:none;border:0;color:rgba(234,243,255,.6);font-size:.85rem;text-decoration:underline;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.fb-linha path{animation:none;stroke-dashoffset:0}.fb-tela{transition:none}}
+body:has(.fb-tela) .toast{z-index:1700}

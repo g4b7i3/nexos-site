@@ -5,43 +5,107 @@
 /* ================= HOJE: o que pede atenção ================= */
 /** treinador marca o treino como visto: o aluno recebe "Seu treinador analisou seu treino" */
 // comentário do treinador sobre um treino (fica no treino, não vai para o chat)
+// abre em tela cheia com a identidade da Nexos: pronto para virar print e ir para o Instagram
 function comentarTreino(c, al) {
   const tinha = !!c.comentario_treinador;
-  openSheet(
-    `<p class="eyebrow">Comentário sobre o treino</p><div class="h2" style="margin-top:4px">${esc(firstName((al && al.nome) || 'Aluno'))} · ${fmtKm(c.distancia_m)}</div>
-    <p class="small muted" style="margin-top:6px">Aparece para o aluno dentro deste treino. Não vai para o chat.</p>
-    <textarea class="textarea" id="ct-txt" rows="5" style="margin-top:12px" placeholder="Ex.: ótimo controle no ritmo dos tiros. Na recuperação, segure um pouco mais." autofocus>${esc(c.comentario_treinador || '')}</textarea>
-    <button class="btn block" id="ct-salvar" style="margin-top:12px">${tinha ? 'Salvar comentário' : 'Enviar comentário'}</button>
-    ${tinha ? '<button class="link-btn small" id="ct-apagar" style="margin:12px auto 0;display:block">Remover comentário</button>' : ''}`,
-    (r) => {
-      const enviar = async (texto) => {
-        const bt = r.querySelector('#ct-salvar');
-        bt.disabled = true;
-        bt.textContent = 'Enviando…';
-        const { data, error } = await sb.functions.invoke('nx-push', {
-          body: { acao: 'visto', tipo: 'corrida', id: c.id, comentario: texto },
-        });
-        if (error || (data && data.erro)) {
-          bt.disabled = false;
-          bt.textContent = 'Tentar de novo';
-          return toast((data && data.erro) || 'Não foi possível salvar agora.', true);
-        }
-        closeSheet();
-        toast(texto ? 'Comentário enviado! O aluno vê no treino.' : 'Comentário removido.');
-        contarNaoVistos()
-          .then(dockStaff)
-          .catch(() => {});
-        router();
-      };
-      r.querySelector('#ct-salvar').onclick = () => {
-        const t = r.querySelector('#ct-txt').value.trim();
-        if (!t) return toast('Escreva o comentário.', true);
-        enviar(t);
-      };
-      const ap = r.querySelector('#ct-apagar');
-      if (ap) ap.onclick = () => confirm('Remover o comentário deste treino?') && enviar('');
-    },
-  );
+  const nome = (al && al.nome) || 'Aluno';
+  const titulo =
+    c.titulo || (typeof nomeTipo === 'function' && c.tipo && c.tipo !== 'livre' ? nomeTipo(c.tipo) : 'Corrida');
+  const dia = c.data || c.inicio;
+  const pace = typeof ehCorr === 'function' && ehCorr(c) && c.distancia_m > 0 && c.duracao_s ? fmtPace(paceDe(c)) : '';
+  const stats = [
+    c.distancia_m > 0 ? [fmtKm(c.distancia_m, 1), 'distância'] : null,
+    c.duracao_s ? [fmtDur(c.duracao_s), 'tempo'] : null,
+    pace ? [pace.replace('/km', ''), 'pace /km'] : null,
+    c.fc_media ? [`${Math.round(c.fc_media)}`, 'FC média'] : null,
+  ].filter(Boolean);
+  const assina = S.me && S.me.nome ? S.me.nome.split(' ').slice(0, 2).join(' ') : 'Treinador Nexos';
+  document.querySelector('.fb-tela')?.remove();
+  const el = document.createElement('div');
+  el.className = 'fb-tela';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', 'Comentário sobre o treino');
+  el.innerHTML = `<div class="fb-fundo" aria-hidden="true">
+      <div class="fb-grade"></div><div class="fb-luz a"></div><div class="fb-luz b"></div>
+      <img class="fb-marca" src="icons/simbolo.svg" alt="">
+      <svg class="fb-linha" viewBox="0 0 400 120" preserveAspectRatio="none"><path d="M0 92 L38 88 L62 90 L80 60 L92 96 L104 34 L118 84 L150 78 L178 80 L196 52 L208 90 L220 26 L234 82 L270 76 L300 79 L318 48 L330 88 L342 30 L356 80 L400 74"/></svg>
+      <span class="fb-dado d3">${c.distancia_m > 0 ? esc(fmtKm(c.distancia_m, 1)) : 'Nexos'}${pace ? ` · ${esc(pace)}` : ''}${c.fc_media ? ` · ${Math.round(c.fc_media)} bpm` : ''}</span>
+    </div>
+    <button class="fb-x" aria-label="Fechar">${I.x || '×'}</button>
+    <div class="fb-conteudo">
+      <header class="fb-topo"><img src="icons/wordmark.svg" alt="Nexos Performance e Saúde"></header>
+      <div class="fb-card">
+        <p class="fb-eyebrow">Feedback do treinador</p>
+        <div class="fb-nome">${esc(nome)}</div>
+        <div class="fb-treino">${esc(titulo)}${dia ? ` · ${esc(fmtDia(dia))}` : ''}</div>
+        ${stats.length ? `<div class="fb-stats">${stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join('')}</div>` : ''}
+        <div class="fb-texto"><span class="fb-aspas" aria-hidden="true">“</span>
+          <textarea id="ct-txt" rows="5" placeholder="Escreva o seu feedback sobre o treino" autofocus>${esc(c.comentario_treinador || '')}</textarea></div>
+        <div class="fb-assina"><img src="icons/simbolo.svg" alt=""><div><b>${esc(assina)}</b><span>Treinador · Nexos Performance e Saúde</span></div></div>
+      </div>
+      <div class="fb-acoes"><button class="btn block" id="ct-salvar">${tinha ? 'Salvar comentário' : 'Enviar comentário'}</button>
+      ${tinha ? '<button class="fb-apagar" id="ct-apagar">Remover comentário</button>' : ''}</div>
+    </div>`;
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+  const ta = el.querySelector('#ct-txt');
+  // a caixa cresce com o texto: o print mostra o comentário inteiro, sem barra de rolagem
+  const ajustar = () => {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  };
+  ta.addEventListener('input', ajustar);
+  requestAnimationFrame(() => {
+    el.classList.add('on');
+    ajustar();
+  });
+  setTimeout(() => ta.focus({ preventScroll: true }), 300);
+  // o "voltar" do celular fecha a tela, como os outros painéis
+  try {
+    history.pushState({ ...(history.state || {}), nxFeedback: 1 }, '');
+  } catch {}
+  let fechada = false;
+  const fechar = (semVoltar) => {
+    if (fechada) return;
+    fechada = true;
+    window.removeEventListener('popstate', aoVoltar);
+    document.removeEventListener('keydown', aoTecla);
+    el.classList.remove('on');
+    document.body.style.overflow = '';
+    setTimeout(() => el.remove(), 220);
+    if (!semVoltar && history.state && history.state.nxFeedback) history.back();
+  };
+  const aoVoltar = () => fechar(true);
+  const aoTecla = (e) => e.key === 'Escape' && fechar();
+  window.addEventListener('popstate', aoVoltar);
+  document.addEventListener('keydown', aoTecla);
+  el.querySelector('.fb-x').onclick = () => fechar();
+  const enviar = async (texto) => {
+    const bt = el.querySelector('#ct-salvar');
+    bt.disabled = true;
+    bt.textContent = 'Enviando…';
+    const { data, error } = await sb.functions.invoke('nx-push', {
+      body: { acao: 'visto', tipo: 'corrida', id: c.id, comentario: texto },
+    });
+    if (error || (data && data.erro)) {
+      bt.disabled = false;
+      bt.textContent = 'Tentar de novo';
+      return toast((data && data.erro) || 'Não foi possível salvar agora.', true);
+    }
+    fechar();
+    toast(texto ? 'Comentário enviado! O aluno vê no treino.' : 'Comentário removido.');
+    contarNaoVistos()
+      .then(dockStaff)
+      .catch(() => {});
+    setTimeout(router, 60);
+  };
+  el.querySelector('#ct-salvar').onclick = () => {
+    const t = ta.value.trim();
+    if (!t) return toast('Escreva o comentário.', true);
+    enviar(t);
+  };
+  const ap = el.querySelector('#ct-apagar');
+  if (ap) ap.onclick = () => confirm('Remover o comentário deste treino?') && enviar('');
 }
 async function marcarVisto(b) {
   const [tipo, id] = b.dataset.visto.split('|');
