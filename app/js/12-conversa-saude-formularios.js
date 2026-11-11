@@ -43,7 +43,7 @@ async function atendimentoHoje() {
   const resp = S.me.treinador_id && eq.find((p) => p.user_id === S.me.treinador_id);
   const com = (resp ? [resp] : eq).filter((p) => ATENDIMENTO[p.user_id]);
   if (!com.length || !document.body.contains(box)) return;
-  box.innerHTML = `<details class="atend-mini"><summary><span class="atend-mini-ic">${ATEND_IC}</span><b>Horário de atendimento</b><span class="atend-mini-seta">${I.chev}</span></summary>
+  box.innerHTML = `<details class="atend-mini"><summary><span class="atend-mini-ic">${ATEND_IC}</span><b>Horário de atendimento do treinador</b><span class="atend-mini-seta">${I.chev}</span></summary>
     <div class="atend-mini-c">${com
       .map(
         (p) =>
