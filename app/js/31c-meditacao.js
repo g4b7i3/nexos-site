@@ -1132,7 +1132,7 @@ async function viewMeditacao(id) {
       (x) =>
         `<a href="#/meditacao/p-${x.id}" class="med-pz-c" style="--c1:${x.cor[0]};--c2:${x.cor[1]}"><img class="med-pz-img" src="${medFoto(x, 420)}" alt="" loading="lazy" onerror="this.remove()"><span class="med-pz-ic">${I.play}</span><b>${esc(x.nome)}</b><small>${esc(x.camadas.map((c) => medNomeSom(c[0])).join(' · '))}</small></a>`,
     ).join('')}</div>
-    <div class="stack" style="margin-top:10px">${medCard('#/meditacao/mix', 'Monte a sua mistura', `Combine os ${MED_CAT.length} sons do jeito que você gosta, com o volume de cada um.`)}</div>
+    <div class="stack" style="margin-top:10px">${medCard('#/meditacao/mix', 'Personalize seu som', `Combine até 6 dos ${MED_CAT.length} sons e ajuste o volume de cada um.`)}</div>
     <details class="med-todos"><summary>Todos os sons (${MED_CAT.length})</summary>${[
       ...new Set(MED_CAT.map((x) => x[2])),
     ]
