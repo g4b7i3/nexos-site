@@ -4,6 +4,40 @@
 
 /* ================= HOJE: o que pede atenção ================= */
 /** treinador marca o treino como visto: o aluno recebe "Seu treinador analisou seu treino" */
+// tela cheia da Nexos (análise do treino, boletim de prontidão): fecha pelo X, pelo "voltar" do celular ou pelo Esc
+function telaCheia(cls, rotulo, html) {
+  document.querySelectorAll('.fb-tela').forEach((x) => x.remove());
+  const el = document.createElement('div');
+  el.className = 'fb-tela ' + cls;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', rotulo);
+  el.innerHTML = html;
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => el.classList.add('on'));
+  try {
+    history.pushState({ ...(history.state || {}), nxTela: 1 }, '');
+  } catch {}
+  let fechada = false;
+  const fechar = (semVoltar) => {
+    if (fechada) return;
+    fechada = true;
+    window.removeEventListener('popstate', aoVoltar);
+    document.removeEventListener('keydown', aoTecla);
+    el.classList.remove('on');
+    document.body.style.overflow = '';
+    setTimeout(() => el.remove(), 220);
+    if (!semVoltar && history.state && history.state.nxTela) history.back();
+  };
+  const aoVoltar = () => fechar(true);
+  const aoTecla = (e) => e.key === 'Escape' && fechar();
+  window.addEventListener('popstate', aoVoltar);
+  document.addEventListener('keydown', aoTecla);
+  const x = el.querySelector('.fb-x');
+  if (x) x.onclick = () => fechar();
+  el.fechar = fechar;
+  return el;
+}
 // comentário do treinador sobre um treino (fica no treino, não vai para o chat)
 // abre em tela cheia com a identidade da Nexos: pronto para virar print e ir para o Instagram
 function comentarTreino(c, al) {

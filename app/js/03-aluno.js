@@ -476,7 +476,7 @@ function abrirProntidao(aoSalvar) {
 // respostas completas de um check-in (toque numa linha da tabela de prontidão)
 const PRONT_ROWS = new Map();
 function prontDetalhe(x) {
-  const [n, cls] = prontNivel(x.total);
+  const [n] = prontNivel(x.total);
   const motivos = [
     ...PRONT_Q.filter(([k]) => x[k] === 1).map(([k, , op]) => `${PRONT_CURTO[k]}: “${op[0]}”`),
     ...(x.dor <= 2 && x.dor !== 1 ? ['Dor muscular marcada como “Dor”'] : []),
@@ -485,19 +485,67 @@ function prontDetalhe(x) {
   const hora = x.criado_em
     ? new Date(x.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     : '';
-  openSheet(`<p class="eyebrow">Check-in da manhã</p><div class="h2" style="margin-top:4px">${fmtDia(x.dia)}${hora ? ` · ${hora}` : ''}</div>
-    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><span class="tag ${cls}">Prontidão ${n.toLowerCase()}: ${x.total} de 20</span>${x.alerta ? '<span class="tag err">Em alerta</span>' : ''}</div>
-    <div class="stack" style="margin-top:14px;gap:12px">${PRONT_Q.map(
-      ([
-        k,
-        t,
-        op,
-      ]) => `<div class="pd-q"><div class="row between" style="gap:8px"><b>${t}</b><span class="pd-v" style="background:${PRONT_COR[x[k] - 1]}">${x[k]} de 5</span></div>
-      <div class="pd-op">${op.map((o, i) => `<span class="${i + 1 === x[k] ? 'on' : ''}" style="${i + 1 === x[k] ? `border-color:${PRONT_COR[i]};background:color-mix(in srgb,${PRONT_COR[i]} 18%,transparent)` : ''}">${o}</span>`).join('')}</div>
-      ${k === 'dor' && (x.dor_locais || []).length ? `<p class="small" style="margin-top:6px;color:var(--err)">Onde dói${x.dor_int != null ? ` (${x.dor_int}/10)` : ''}: ${x.dor_locais.map((d) => esc(nomeRegDor(d))).join(', ')}</p>` : ''}</div>`,
-    ).join('')}</div>
-    ${x.obs ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Comentário do aluno</span><p style="margin-top:6px">${esc(x.obs)}</p></div>` : ''}
-    <div class="card" style="margin-top:12px"><span class="eyebrow">Como ler</span><p class="small" style="margin-top:6px">A prontidão é a soma das 4 respostas (de 4 a 20). <b>Boa</b>: 16 a 20 · <b>Moderada</b>: 12 a 15 · <b>Baixa</b>: 11 ou menos.${motivos.length ? ` Em alerta por: ${motivos.join('; ')}.` : ''}</p></div>`);
+  const nome = x._nome || (!S.staff && S.me ? S.me.nome : '') || 'Atleta';
+  // cor e situação no estilo de um boletim clínico
+  const nivel = x.alerta ? 'alerta' : x.total >= 16 ? 'boa' : x.total >= 12 ? 'mod' : 'alerta';
+  const SIT = {
+    boa: ['Pronto para treinar', '#3ef0b0'],
+    mod: ['Atenção ao volume', '#f5c04a'],
+    alerta: ['Em alerta', '#ff5d6c'],
+  }[nivel];
+  const pct = Math.max(0, Math.min(1, (x.total - 4) / 16));
+  const R = 54;
+  const C = 2 * Math.PI * R;
+  const codigo = `${String(x.dia || '').replace(/-/g, '')}${hora ? '·' + hora.replace(':', '') : ''}`;
+  const bat = 'M0 60 L40 60 L50 54 L58 60 L72 60 L78 66 L86 14 L94 90 L102 60 L128 60 L140 50 L154 60 L200 60';
+  const ecg = [0, 200, 400, 600]
+    .map((dx) => bat.replace(/(\d+) (\d+)/g, (_, a, b) => `${+a + dx} ${b}`))
+    .join(' ')
+    .replace(/ M/g, ' L');
+  const el = telaCheia(
+    'md-tela',
+    'Check-in de prontidão',
+    `<div class="md-fundo" aria-hidden="true"><div class="md-papel"></div><div class="md-luz"></div>
+      <img class="md-marca" src="icons/simbolo.svg" alt="">
+      <div class="md-ecg"><svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="${ecg}"/></svg></div>
+      <div class="md-ecg b"><svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="${ecg}"/></svg></div>
+      <div class="fb-scan md-scan"></div></div>
+    <button class="fb-x" aria-label="Fechar">${I.x}</button>
+    <div class="fb-conteudo">
+      <header class="fb-topo md-topo"><img src="icons/wordmark.svg" alt="Nexos Performance e Saúde"><span><b class="md-vivo"></b>Boletim de prontidão</span></header>
+      <div class="md-card" style="--md:${SIT[1]}">
+        <div class="md-cab"><div><p class="md-rot">Atleta</p><div class="md-nome">${esc(nome)}</div>
+          <div class="md-quando">Check-in da manhã · ${esc(fmtDia(x.dia))}${hora ? ` · ${hora}` : ''}</div></div>
+          <span class="md-cod">Nº ${esc(codigo)}</span></div>
+        <div class="md-geral">
+          <div class="md-anel"><svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="${R}" class="md-trilho"/><circle cx="64" cy="64" r="${R}" class="md-arco" style="stroke-dasharray:${C};--md-fim:${C * (1 - pct)};stroke-dashoffset:${C}"/></svg>
+            <div class="md-num"><b>${x.total}</b><span>de 20</span></div></div>
+          <div class="md-sit"><p class="md-rot">Situação</p><div class="md-sit-v"><i></i>${SIT[0]}</div>
+            <p class="md-sit-d">Prontidão ${n.toLowerCase()}${motivos.length ? `. Em alerta por: ${esc(motivos.join('; '))}` : ''}.</p></div>
+        </div>
+        <div class="md-sinais">${PRONT_Q.map(([k, t, op]) => {
+          const v = x[k];
+          const cor = PRONT_COR[v - 1];
+          return `<div class="md-sinal" style="--c:${cor}"><p class="md-rot">${PRONT_CURTO[k]}</p><div class="md-v"><b>${v}</b><span>/5</span></div>
+            <div class="md-seg">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= v ? 'on' : ''}"></i>`).join('')}</div><p class="md-resp">${esc(op[v - 1])}</p></div>`;
+        }).join('')}</div>
+        ${
+          (x.dor_locais || []).length
+            ? `<div class="md-dor"><p class="md-rot">Onde dói</p><div class="md-dor-l">${x.dor_locais.map((d) => `<span>${esc(nomeRegDor(d))}</span>`).join('')}</div>
+          ${x.dor_int != null ? `<div class="md-int"><div class="md-int-b"><i style="width:${x.dor_int * 10}%;background:${x.dor_int <= 3 ? '#3ef0b0' : x.dor_int <= 6 ? '#f5c04a' : '#ff5d6c'}"></i></div><b>${x.dor_int}/10</b></div>` : ''}</div>`
+            : ''
+        }
+        ${x.obs ? `<div class="md-obs"><p class="md-rot">Relato do atleta</p><p>“${esc(x.obs)}”</p></div>` : ''}
+        <div class="md-rodape"><img src="icons/simbolo.svg" alt=""><span>Escala de bem-estar de Hooper e McLean: 4 perguntas de 1 a 5, total de 4 a 20. Boa de 16 a 20 · moderada de 12 a 15 · baixa até 11.</span></div>
+      </div>
+    </div>`,
+  );
+  requestAnimationFrame(() =>
+    setTimeout(() => {
+      const a = el.querySelector('.md-arco');
+      if (a) a.style.strokeDashoffset = a.style.getPropertyValue('--md-fim');
+    }, 120),
+  );
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-pront]');
@@ -525,7 +573,7 @@ async function prontStaffHTML(m) {
     <div class="ps-cab tiny dim"><span></span><span>Sono</span><span>Energia</span><span>Dor</span><span>Estresse</span><span>Total</span></div>
     ${rows
       .map((x) => {
-        PRONT_ROWS.set(x.id, x);
+        PRONT_ROWS.set(x.id, { ...x, _nome: m.nome });
         const [n, cls] = prontNivel(x.total);
         return `<div class="ps-lin${x.alerta ? ' alerta' : ''}" data-pront="${x.id}" role="button" tabindex="0"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`;
       })
