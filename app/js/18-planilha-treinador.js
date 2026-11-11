@@ -651,7 +651,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
   openSheet(
     `<p class="eyebrow">${sessao ? 'Editar treino' : 'Novo treino'} · ${fmtDia(base.data)}</p>
     <div class="grid2" style="margin-top:12px"><label class="field"><span>Nome do treino</span><input class="input" id="t-nome" value="${esc(t.titulo || '')}" placeholder="Ex.: 6 × 800 m"></label><label class="field"><span>Tipo</span><select class="input" id="t-tipo">${TIPOS_CORRIDA.map(([k, l]) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-    <p class="small muted sobre-ed" id="t-sobre">${esc(sobreTreino(t.tipo))}</p>
+    <label class="field sobre-ed-f" style="margin-top:10px"><span>Explicação do treino para o aluno</span><textarea class="textarea sobre-ed" id="t-sobre" rows="2" placeholder="Ex.: forte e contínuo, sem parar">${esc(sobreDoTreino(t))}</textarea><span class="tiny dim">Já vem com o texto padrão do tipo. Pode mudar só para este treino ou apagar.</span></label>
     <div class="card perf-card"><div id="perf"></div><div class="row between" style="margin-top:8px"><span class="small" id="tot"></span><span class="legenda">${Object.entries(
       ZONAS_INFO,
     )
@@ -747,9 +747,15 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
         t.titulo = r.querySelector('#t-nome').value.trim();
         t.tipo = r.querySelector('#t-tipo').value;
         t.descricao = r.querySelector('#t-desc').value.trim();
+        const sb_ = r.querySelector('#t-sobre').value.trim();
+        t.sobre = sb_ === sobreTreino(t.tipo) ? null : sb_; // igual ao padrão: guarda vazio e segue o padrão
       };
+      // ao trocar o tipo, a explicação acompanha, a não ser que o treinador já tenha escrito a dele
+      let tipoAnt = r.querySelector('#t-tipo').value;
       r.querySelector('#t-tipo').addEventListener('change', (e) => {
-        r.querySelector('#t-sobre').textContent = sobreTreino(e.target.value);
+        const ta = r.querySelector('#t-sobre');
+        if (ta.value.trim() === sobreTreino(tipoAnt) || !ta.value.trim()) ta.value = sobreTreino(e.target.value);
+        tipoAnt = e.target.value;
       });
       const linha = () => {
         lerTopo();
@@ -766,6 +772,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
           duracao_min: Math.round(rs.seg / 60),
           zona: zs[0] ? (zs[0].z === 'rec' ? 'leve' : zs[0].z) : null,
           descricao: t.descricao || null,
+          sobre: t.sobre,
         };
       };
       let escopoC = null; // 'dia' ou 'semanas'
@@ -952,7 +959,7 @@ function verTreinoPlanilha(p, perfil, feito) {
   };
   openSheet(
     `<p class="eyebrow">${fmtDia(p.data)} · ${esc(nomeTipo(p.tipo))}</p><div class="h2" style="margin-top:4px">${esc(p.titulo || nomeTipo(p.tipo))}</div>
-    ${sobreTreino(p.tipo) ? `<p class="small muted" style="margin-top:6px">${esc(sobreTreino(p.tipo))}</p>` : ''}
+    ${sobreDoTreino(p) ? `<p class="small muted" style="margin-top:6px">${esc(sobreDoTreino(p))}</p>` : ''}
     <div class="card perf-card" style="margin-top:12px">${perfilHTML(est, perfil, true)}<p class="small" style="margin-top:8px">${(() => {
       const t = estimaTotal(est, perfil);
       return `<b>${t.soDist ? '' : '≈ '}${t.km}</b> · ${t.soTempo ? '' : '≈ '}${t.tempo}`;

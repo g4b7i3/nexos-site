@@ -64,6 +64,8 @@ const SOBRE_TREINO = {
   teste: 'Corra no seu máximo para essa distância. O resultado ajusta os seus paces.',
 };
 const sobreTreino = (k) => SOBRE_TREINO[k] || '';
+// texto que o aluno vê sobre o treino: o que o treinador escreveu nesse treino ou, se não escreveu, o padrão do tipo
+const sobreDoTreino = (p) => (p && p.sobre != null ? p.sobre : sobreTreino(p && p.tipo));
 const nomeTipo = (k) => (TIPOS_CORRIDA.find((t) => t[0] === k) || [, k || 'Corrida'])[1];
 const fmtKm = (m, d = 2) =>
   m == null ? '–' : (m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: d }) + ' km';

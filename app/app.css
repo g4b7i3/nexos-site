@@ -1327,7 +1327,7 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .nx-atual b{color:var(--acc)}
 
 .sobre-ed{margin:8px 0 4px;padding:8px 12px;border-radius:12px;background:var(--s1);border:1px solid var(--line)}
-.sobre-ed:empty{display:none}
+.sobre-ed-f .sobre-ed{margin:0;resize:vertical;font:inherit;color:var(--ink);min-height:58px}
 .pend-mod{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(var(--p1r),.1);border:1px solid rgba(var(--p1r),.3);font-size:.95rem}
 .pend-ic{display:inline-flex;gap:4px}
 /* análise da corrida */

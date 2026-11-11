@@ -141,7 +141,7 @@ function garminItem(p, perfil) {
       .filter(Boolean)
       .join('\n\n');
   // o Garmin aceita até 500 letras: o texto sobre o tipo de treino sai primeiro se não couber
-  let desc = montar(sobreTreino(p.tipo));
+  let desc = montar(sobreDoTreino(p));
   if (desc.length > 500) desc = montar('');
   return {
     plano_id: p.id,
