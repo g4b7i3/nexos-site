@@ -693,7 +693,7 @@ body.com-troca .footer{padding-bottom:96px}
       (comPer ? '<div class="per" data-per>' + perHTML() + '</div>' : '') +
       '<div class="pl-pr"><small>R$</small><b>' + v + '</b><i>/mês no Pix</i></div>' +
       (p !== 'm' ? '<p class="pl-de"><s>' + brl(c.pix.m) + '</s> no mensal</p>' : '<p class="pl-de">sem fidelidade</p>') +
-      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<p class="pl-atd"><b>Resposta do treinador em até 12 horas úteis.</b> Horários completos em "Ver mais sobre o plano".</p><div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
+      '<p class="pl-ou">' + ou + '</p><div class="pl-chips">' + chips + '</div>' + liCard(c.itens) + '<p class="pl-atd"><b>Resposta do treinador ' + (c.id === 'integral' ? 'Gabriel, na corrida, ' : '') + 'em até 12 horas úteis.</b> Horários completos em "Ver mais sobre o plano".</p><div class="pl-esp"></div><button class="pl-mais" data-abrir="' + c.id + '">Ver mais sobre o plano</button>' +
       '<button type="button" class="btn" data-pg="' + c.id + '" data-k="' + p + '">Quero o ' + c.curto + (p !== 'm' ? ' ' + PER[p][0] : '') + '</button></article>';
   }
   function perfHTML() {
@@ -784,6 +784,8 @@ body.com-troca .footer{padding-bottom:96px}
     if (tipo === 'i') {
       var f = document.createElement('div'); f.innerHTML = $('#rg-forca').innerHTML;
       f.querySelectorAll('.rg > div').forEach(function (x) { var t = x.querySelector('b').textContent; if (t === 'Reavaliação física' || t === 'Onde treinar') d.querySelector('.rg').appendChild(x); });
+      var at = [].find.call(d.querySelectorAll('.rg > div'), function (x) { return x.querySelector('b').textContent === 'Atendimento'; });
+      if (at) at.querySelector('p').innerHTML = at.querySelector('p').innerHTML.replace('Treinador Gabriel Vinícius:', 'Na corrida, treinador Gabriel Vinícius:');
     }
     return d.innerHTML;
   }
