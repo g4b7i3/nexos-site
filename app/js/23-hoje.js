@@ -28,8 +28,11 @@ function comentarTreino(c, al) {
   el.innerHTML = `<div class="fb-fundo" aria-hidden="true">
       <div class="fb-grade"></div><div class="fb-luz a"></div><div class="fb-luz b"></div>
       <img class="fb-marca" src="icons/simbolo.svg" alt="">
-      <svg class="fb-linha" viewBox="0 0 400 120" preserveAspectRatio="none"><path d="M0 92 L38 88 L62 90 L80 60 L92 96 L104 34 L118 84 L150 78 L178 80 L196 52 L208 90 L220 26 L234 82 L270 76 L300 79 L318 48 L330 88 L342 30 L356 80 L400 74"/></svg>
-      <span class="fb-dado d3">${c.distancia_m > 0 ? esc(fmtKm(c.distancia_m, 1)) : 'Nexos'}${pace ? ` · ${esc(pace)}` : ''}${c.fc_media ? ` · ${Math.round(c.fc_media)} bpm` : ''}</span>
+      <div class="fb-ecg"><svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="M0 70 L40 70 L52 62 L60 70 L74 70 L80 78 L88 20 L96 96 L104 70 L130 70 L142 58 L156 70 L200 70 L200 70 L240 70 L252 62 L260 70 L274 70 L280 78 L288 20 L296 96 L304 70 L330 70 L342 58 L356 70 L400 70 L400 70 L440 70 L452 62 L460 70 L474 70 L480 78 L488 20 L496 96 L504 70 L530 70 L542 58 L556 70 L600 70 L600 70 L640 70 L652 62 L660 70 L674 70 L680 78 L688 20 L696 96 L704 70 L730 70 L742 58 L756 70 L800 70"/></svg></div>
+      <div class="fb-ecg b"><svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="M0 70 L40 70 L52 62 L60 70 L74 70 L80 78 L88 20 L96 96 L104 70 L130 70 L142 58 L156 70 L200 70 L200 70 L240 70 L252 62 L260 70 L274 70 L280 78 L288 20 L296 96 L304 70 L330 70 L342 58 L356 70 L400 70 L400 70 L440 70 L452 62 L460 70 L474 70 L480 78 L488 20 L496 96 L504 70 L530 70 L542 58 L556 70 L600 70 L600 70 L640 70 L652 62 L660 70 L674 70 L680 78 L688 20 L696 96 L704 70 L730 70 L742 58 L756 70 L800 70"/></svg></div>
+      <div class="fb-scan"></div>
+      ${Array.from({ length: 16 }, (_, k) => `<i class="fb-pt" style="left:${(k * 37 + 11) % 100}%;animation-delay:-${(k * 1.7) % 12}s;animation-duration:${9 + (k % 5) * 2}s"></i>`).join('')}
+      <span class="fb-dado d3"><b class="fb-vivo"></b>${c.distancia_m > 0 ? esc(fmtKm(c.distancia_m, 1)) : 'Nexos'}${pace ? ` · ${esc(pace)}` : ''}${c.fc_media ? ` · ${Math.round(c.fc_media)} bpm` : ''}</span>
     </div>
     <button class="fb-x" aria-label="Fechar">${I.x || '×'}</button>
     <div class="fb-conteudo">
