@@ -17,6 +17,22 @@ async function contarMsgNovas() {
   });
   return l;
 }
+// horário de atendimento de cada treinador (pelo id); quem não tem horário definido não aparece
+const ATENDIMENTO = {
+  '5ded98d7-0c4f-4044-ba0c-98ae7eee62d9': ['Segunda a sexta, das 9h às 21h', 'Sábado, das 9h às 12h'],
+};
+const ATEND_REGRA =
+  'Respondemos em até 12 horas úteis. Mensagens enviadas fora do horário são respondidas no próximo período de atendimento. Aos domingos e feriados, atendemos apenas relatos de dor ou lesão e dúvidas de véspera de prova. Horário sujeito a alterações.';
+function atendimentoHTML(equipe) {
+  const com = equipe.filter((p) => ATENDIMENTO[p.user_id]);
+  if (!com.length) return '';
+  return `<details class="card atend"><summary><b>Horário de atendimento</b><span class="tiny dim">${com.map((p) => esc(firstName(p.nome))).join(' · ')}</span></summary>${com
+    .map(
+      (p) =>
+        `<div class="atend-t"><b>Treinador ${esc(p.nome)}</b>${ATENDIMENTO[p.user_id].map((l) => `<span>${l}</span>`).join('')}</div>`,
+    )
+    .join('')}<p class="tiny dim">${ATEND_REGRA}</p></details>`;
+}
 async function viewConversa(alunoId, box, staff, sessaoId) {
   let ref = null;
   if (sessaoId) {
@@ -53,7 +69,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
             .join('')}</div>`
         : ''
     }<div class="grow" style="min-width:0"><h1 class="h2">${equipe.length ? esc(nomesEq.length > 1 ? nomesEq.slice(0, -1).join(', ') + ' e ' + nomesEq[nomesEq.length - 1] : nomesEq[0]) : 'Seu treinador'}</h1><p class="small muted">${equipe.length > 1 ? 'Treinadores da Nexos' : 'Seu treinador na Nexos'}</p><div class="row" style="gap:10px;flex-wrap:wrap;margin-top:4px">${equipe.map((p) => `<span data-pres="${p.user_id}" data-pres-pre="${equipe.length > 1 ? esc(firstName(p.nome)) + ': ' : ''}"></span>`).join('')}</div></div></div>
-    <p class="small muted" style="margin-top:12px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>`
+    <p class="small muted" style="margin-top:12px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>${atendimentoHTML(equipe)}`
   }
     <div class="chat" id="chat">${esqBloco('chat')}</div>
     <form class="composer" id="f-msg">

@@ -1743,7 +1743,7 @@ html{touch-action:manipulation}
 .erro-it.ok{opacity:.72}
 .erro-msg{display:block;word-break:break-word;line-height:1.35}
 .erro-det{margin-top:10px}
-.erro-det summary{cursor:pointer;color:var(--muted,inherit)}
+.erro-det summary{cursor:pointer;color:var(--mute)}
 .erro-det pre{margin-top:8px;padding:10px;border-radius:10px;background:color-mix(in srgb,currentColor 6%,transparent);font:12px/1.45 "JetBrains Mono",ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto}
 .erro-acoes{display:flex;gap:14px;align-items:center;justify-content:flex-end;margin-top:10px}
 .erro-acoes [data-copiar-erro]{margin-right:auto;display:inline-flex;align-items:center;gap:6px}
@@ -3667,3 +3667,12 @@ body.em-video{overflow:hidden}
 /* corrida por fora (não ligada a treino) */
 .avulsa-card{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
 .avulsa-card .grow{min-width:180px}
+
+/* horário de atendimento na conversa */
+.atend{margin-top:10px;padding:12px 14px}
+.atend summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.atend summary::-webkit-details-marker{display:none}
+.atend-t{margin-top:10px}
+.atend-t b{display:block;font-size:.9rem}
+.atend-t span{display:block;font-size:.85rem;color:var(--mute)}
+.atend p{margin-top:10px;line-height:1.5}
