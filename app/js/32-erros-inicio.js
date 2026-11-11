@@ -110,7 +110,7 @@ async function staffErros() {
     const pessoas = (e.usuarios || []).map((u) => nomes[u] || 'alguém de fora').slice(0, 4);
     return `<div class="card erro-it ${e.resolvido ? 'ok' : ''}" data-id="${e.id}">
       <div class="erro-top"><span class="erro-ic ${e.resolvido ? 'ok' : ''}">${e.resolvido ? I.okc : I.alerta}</span><div class="grow"><b class="erro-msg">${esc(erroPT(e.msg) || e.msg)}</b>
-        <div class="small muted">${e.vezes}× · ${pessoas.length ? esc(pessoas.join(', ')) + ((e.usuarios || []).length > 4 ? ` e mais ${(e.usuarios || []).length - 4}` : '') : 'sem login'} · área do ${e.area === 'treinador' ? 'treinador' : 'aluno'}</div>
+        <div class="small muted">${e.vezes}× · ${pessoas.length ? esc(pessoas.join(', ')) + ((e.usuarios || []).length > 4 ? ` e mais ${(e.usuarios || []).length - 4}` : '') : 'sem login'} · ${e.area === 'site' ? 'site público' : 'área do ' + (e.area === 'treinador' ? 'treinador' : 'aluno')}</div>
         <div class="tiny dim">Última vez ${quando(e.ultimo_em)}${e.vezes > 1 ? ` · primeira ${quando(e.primeiro_em)}` : ''} · tela ${esc(e.url || '#/')} · ${esc(aparelhoTxt(e.ua))}</div></div></div>
       <details class="erro-det"><summary class="tiny">Detalhes técnicos</summary><pre>${esc(e.msg)}${e.stack ? '\n\n' + esc(e.stack) : ''}</pre></details>
       <div class="erro-acoes"><button type="button" class="link-btn small" data-copiar-erro="${e.id}">${I.copy || ''}Copiar erro</button>${e.resolvido ? `<button type="button" class="link-btn small" data-reabrir="${e.id}">Reabrir</button>` : `<button type="button" class="btn sm" data-resolver="${e.id}">Resolvido</button>`}<button type="button" class="link-btn small" data-apagar-erro="${e.id}">Apagar</button></div></div>`;
@@ -131,7 +131,7 @@ async function staffErros() {
         '',
         `Resumo: ${erroPT(e.msg) || e.msg}`,
         `Mensagem: ${e.msg}`,
-        `Tela: ${e.url || '#/'} (área do ${e.area === 'treinador' ? 'treinador' : 'aluno'})`,
+        `Tela: ${e.url || '#/'} (${e.area === 'site' ? 'site público' : 'área do ' + (e.area === 'treinador' ? 'treinador' : 'aluno')})`,
         `Aparelho: ${aparelhoTxt(e.ua)} — ${e.ua || 'desconhecido'}`,
         `Aconteceu ${e.vezes}× com ${pessoas.length ? pessoas.join(', ') : 'quem estava sem login'}`,
         `Primeira vez: ${quando(e.primeiro_em)} · Última: ${quando(e.ultimo_em)} · Versão ${e.versao || '?'} · Código do erro #${e.id}`,
