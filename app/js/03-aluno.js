@@ -497,7 +497,8 @@ function prontDetalhe(x) {
   const pct = Math.max(0, Math.min(1, (x.total - 4) / 16));
   const R = 54;
   const C = 2 * Math.PI * R;
-  const codigo = `${String(x.dia || '').replace(/-/g, '')}${hora ? '·' + hora.replace(':', '') : ''}`;
+  // número do atleta na assessoria (ordem de entrada), como numa matrícula
+  const mat = x._mat || (!S.staff && S.me ? S.me.matricula : null);
   const bat = 'M0 60 L40 60 L50 54 L58 60 L72 60 L78 66 L86 14 L94 90 L102 60 L128 60 L140 50 L154 60 L200 60';
   const ecg = [0, 200, 400, 600]
     .map((dx) => bat.replace(/(\d+) (\d+)/g, (_, a, b) => `${+a + dx} ${b}`))
@@ -517,7 +518,7 @@ function prontDetalhe(x) {
       <div class="md-card" style="--md:${SIT[1]}">
         <div class="md-cab"><div><p class="md-rot">Atleta</p><div class="md-nome">${esc(nome)}</div>
           <div class="md-quando">Check-in da manhã · ${esc(fmtDia(x.dia))}${hora ? ` · ${hora}` : ''}</div></div>
-          <span class="md-cod">Nº ${esc(codigo)}</span></div>
+          ${mat ? `<span class="md-cod"><small>Nexos</small>Nº ${String(mat).padStart(3, '0')}</span>` : ''}</div>
         <div class="md-geral">
           <div class="md-anel"><svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="${R}" class="md-trilho"/><circle cx="64" cy="64" r="${R}" class="md-arco" style="stroke-dasharray:${C};--md-fim:${C * (1 - pct)};stroke-dashoffset:${C}"/></svg>
             <div class="md-num"><b>${x.total}</b><span>de 20</span></div></div>
@@ -599,7 +600,7 @@ async function prontStaffHTML(m) {
     <div class="ps-cab tiny dim"><span></span><span>Sono</span><span>Energia</span><span>Dor</span><span>Estresse</span><span>Total</span></div>
     ${rows
       .map((x) => {
-        PRONT_ROWS.set(x.id, { ...x, _nome: m.nome });
+        PRONT_ROWS.set(x.id, { ...x, _nome: m.nome, _mat: m.matricula });
         const [n, cls] = prontNivel(x.total);
         return `<div class="ps-lin${x.alerta ? ' alerta' : ''}" data-pront="${x.id}" role="button" tabindex="0"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`;
       })
