@@ -875,3 +875,6 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .tela-real .ft-treino{position:absolute;left:4.5%;right:4.5%;top:43%;margin:0;border-radius:14px;padding:10px 11px}
 .tela-real .ft-treino>b{font-size:.98rem}
 @media (max-width:420px){.tela-real .ft-treino{padding:8px 9px}.tela-real .ft-treino li{font-size:.52rem}.tela-real .ft-btn{padding:6px;font-size:.56rem}}
+.app-tags .app-tag-mais{background:var(--ink);color:#fff;border-color:var(--ink)}
+:root:not([data-theme="light"]) .app-tags .app-tag-mais{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
+.tela-real .ft-treino{top:41%}.tela-real .ft-treino ul{gap:4px}
