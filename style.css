@@ -878,3 +878,60 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .app-tags .app-tag-mais{background:var(--ink);color:#fff;border-color:var(--ink)}
 :root:not([data-theme="light"]) .app-tags .app-tag-mais{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
 .tela-real .ft-treino{top:41%}.tela-real .ft-treino ul{gap:4px}
+/* três celulares: avaliação, hoje (oficial) e check-in */
+.app-vis .fone{width:228px}
+.fone-tras{left:0;top:14%;transform:rotate(-8deg) scale(.9);z-index:1}
+.fone-frente{left:31%;top:3%;transform:none;z-index:3;animation:foneC 7s ease-in-out infinite}
+.fone-dir{left:62%;top:14%;transform:rotate(8deg) scale(.9);z-index:2;animation:foneD 8s ease-in-out infinite .8s}
+@keyframes foneC{50%{transform:translateY(-10px)}}
+@keyframes foneB{50%{transform:rotate(-8deg) scale(.9) translateY(8px)}}
+@keyframes foneD{50%{transform:rotate(8deg) scale(.9) translateY(8px)}}
+.av-tag{display:inline-block;margin-top:8px;padding:3px 8px;border-radius:999px;background:rgba(52,211,153,.15);color:#6ee7b7;font-size:.5rem;font-weight:800;letter-spacing:.06em}
+.av-anel{position:relative;width:120px;height:120px;margin:14px auto 0}
+.av-anel svg{width:100%;height:100%;transform:rotate(-90deg)}
+.av-anel circle{fill:none;stroke-width:9}
+.av-anel .a0{stroke:rgba(255,255,255,.1)}
+.av-anel .a1{stroke:url(#x);stroke:#60a5fa;stroke-linecap:round;stroke-dasharray:264;stroke-dashoffset:215}
+.av-anel div{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.av-anel b{font-family:var(--f-h);font-size:1.25rem}
+.av-anel small{font-size:.52rem;color:rgba(255,255,255,.6)}
+.av-dif{text-align:center;font-size:.55rem;font-weight:700;color:#34d399;margin-top:8px}
+.av-g{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+.av-g span{padding:8px;border-radius:11px;background:rgba(255,255,255,.07)}
+.av-g small{display:block;font-size:.46rem;color:rgba(255,255,255,.55)}
+.av-g b{display:block;font-family:var(--f-h);font-size:.8rem;margin-top:2px}
+.ck-l{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:8px}
+.ck-l li{padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.07)}
+.ck-l li>span{display:block;font-size:.58rem;font-weight:700}
+.ck-l i{display:flex;gap:4px;margin-top:6px}
+.ck-l i b{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.12)}
+.ck-l i b.on{background:linear-gradient(90deg,#60a5fa,#34d399)}
+.ck-ok{display:flex;align-items:center;gap:8px;margin-top:12px;padding:9px;border-radius:12px;background:rgba(52,211,153,.12)}
+.ck-ok>span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#10b981;flex:none}
+.ck-ok svg{width:13px;height:13px;color:#fff}
+.ck-ok b{display:block;font-size:.62rem}
+.ck-ok small{display:block;font-size:.48rem;color:rgba(255,255,255,.6)}
+.ck-btn{background:#fff!important;color:#0b1f44!important}
+.app-chip.c1{left:-2%;bottom:8%}
+.app-chip.c2{right:-2%;top:-2%}
+@media (max-width:900px){
+  .app-vis .fone{width:190px}
+  .fone-tras{left:0;top:16%}.fone-frente{left:27%;top:5%}.fone-dir{left:54%;top:16%}
+}
+@media (max-width:420px){
+  .app-vis{height:400px}
+  .app-vis .fone{width:150px;border-radius:30px;padding:6px}
+  .app-vis .fone::before{top:12px;width:46px;height:13px}
+  .app-vis .fone-tela{border-radius:24px;padding:32px 9px 0}
+  .tela-real{padding:0!important}
+  .ft-status{top:11px;left:18px;right:16px;font-size:.5rem}
+  .fone-tras{left:-1%;top:20%}.fone-frente{left:28%;top:6%}.fone-dir{left:57%;top:20%}
+  .app-chip.c1{bottom:2%;left:0}.app-chip.c2{top:-3%;right:0}
+  .ft-h{font-size:.8rem}.ft-sup{font-size:.42rem}
+  .av-anel{width:84px;height:84px}.av-anel b{font-size:.9rem}
+  .av-g b{font-size:.62rem}.av-g span{padding:6px}
+  .ck-l li{padding:6px 7px}.ck-l li>span{font-size:.48rem}.ck-l{gap:5px}
+  .ck-ok{padding:6px}.ck-ok b{font-size:.5rem}
+  .tela-real .ft-treino{padding:6px 7px;border-radius:10px}.tela-real .ft-treino>b{font-size:.72rem}.tela-real .ft-treino li{font-size:.42rem}.tela-real .ft-treino small{font-size:.38rem}
+  .app-chip{font-size:.62rem;padding:6px 10px 6px 6px}.app-chip span{width:20px;height:20px}
+}
