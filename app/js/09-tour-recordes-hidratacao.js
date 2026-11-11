@@ -944,6 +944,7 @@ async function alunoHoje() {
         ${fC ? `<div><span class="hh-ic">${icCorr(S.me)}</span><span><b>${kmSem ? f1(kmSem) : '0'}</b> km<small>nesta semana</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosSem}</b> ${nTreinosSem === 1 ? 'treino' : 'treinos'}<small>nesta semana</small></span></div>`}
       </div>
     </section>
+    <div id="atend-hoje" class="atend-hoje"></div>
     <div class="hoje-grid"><div class="hoje-main">
     ${S.me.sexo === 'F' ? faseVidaCardHTML(S.me, false) : ''}
     ${fC ? '<div id="calor-hoje"></div>' : ''}
@@ -975,7 +976,6 @@ async function alunoHoje() {
       ativSem.map((x) => x.iniciado_em),
       'Sua semana',
     )}</div>
-    <div id="atend-hoje"></div>
     </div></div>
     <button class="fab-reg mini" id="fab-reg" aria-label="Registrar">${I.plus}</button>`;
   ligarRelogio();

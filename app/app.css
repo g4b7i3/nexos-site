@@ -3795,6 +3795,8 @@ body:has(.fb-tela) .toast{z-index:1700}
 .md-rodape span{font-size:.66rem;line-height:1.45;color:rgba(232,251,245,.5)}
 
 /* horário de atendimento na Hoje do aluno: cartão pequeno, sempre fechado */
+.atend-hoje:empty{display:none}
+.atend-hoje .atend-mini{margin:12px 0 10px}
 .atend-mini{margin-top:12px;border:1px solid var(--line);border-radius:14px;background:var(--s1);padding:0}
 .atend-mini summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:.86rem}
 .atend-mini summary::-webkit-details-marker{display:none}
