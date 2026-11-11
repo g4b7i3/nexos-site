@@ -3793,3 +3793,18 @@ body:has(.fb-tela) .toast{z-index:1700}
 .md-rodape{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}
 .md-rodape img{width:38px;flex:none;opacity:.9}
 .md-rodape span{font-size:.66rem;line-height:1.45;color:rgba(232,251,245,.5)}
+
+/* horário de atendimento na Hoje do aluno: cartão pequeno, sempre fechado */
+.atend-mini{margin-top:12px;border:1px solid var(--line);border-radius:14px;background:var(--s1);padding:0}
+.atend-mini summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:.86rem}
+.atend-mini summary::-webkit-details-marker{display:none}
+.atend-mini summary b{flex:1;font-weight:700}
+.atend-mini-ic{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc);flex:none}
+.atend-mini-ic svg{width:15px;height:15px}
+.atend-mini-seta{display:grid;color:var(--mute);transition:transform .2s}
+.atend-mini-seta svg{width:16px;height:16px}
+.atend-mini[open] .atend-mini-seta{transform:rotate(90deg)}
+.atend-mini-c{padding:0 12px 12px 48px}
+.atend-mini-c .atend-t{margin-top:0}
+.atend-mini-c .atend-t+.atend-t{margin-top:8px}
+.atend-mini-c p{margin-top:8px;line-height:1.5}

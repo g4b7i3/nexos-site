@@ -33,6 +33,25 @@ function atendimentoHTML(equipe) {
     )
     .join('')}<p class="tiny dim">${ATEND_REGRA}</p></details>`;
 }
+// cartão pequeno na tela Hoje do aluno: fica sempre fechado, toca para ver o horário do seu treinador
+const ATEND_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+async function atendimentoHoje() {
+  const box = document.getElementById('atend-hoje');
+  if (!box || S.staff) return;
+  const eq = await carregarEquipe();
+  const resp = S.me.treinador_id && eq.find((p) => p.user_id === S.me.treinador_id);
+  const com = (resp ? [resp] : eq).filter((p) => ATENDIMENTO[p.user_id]);
+  if (!com.length || !document.body.contains(box)) return;
+  box.innerHTML = `<details class="atend-mini"><summary><span class="atend-mini-ic">${ATEND_IC}</span><b>Horário de atendimento</b><span class="atend-mini-seta">${I.chev}</span></summary>
+    <div class="atend-mini-c">${com
+      .map(
+        (p) =>
+          `<div class="atend-t">${com.length > 1 ? `<b>${esc(firstName(p.nome))}</b>` : ''}${ATENDIMENTO[p.user_id].map((l) => `<span>${l}</span>`).join('')}</div>`,
+      )
+      .join('')}
+    <p class="tiny dim">Respondemos em até 12 horas úteis. Domingos e feriados: só relatos de dor ou lesão e dúvidas de véspera de prova. Horário sujeito a alterações.</p></div></details>`;
+}
 async function viewConversa(alunoId, box, staff, sessaoId) {
   let ref = null;
   if (sessaoId) {

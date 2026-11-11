@@ -975,10 +975,12 @@ async function alunoHoje() {
       ativSem.map((x) => x.iniciado_em),
       'Sua semana',
     )}</div>
+    <div id="atend-hoje"></div>
     </div></div>
     <button class="fab-reg mini" id="fab-reg" aria-label="Registrar">${I.plus}</button>`;
   ligarRelogio();
   cartaoChamadaAtiva();
+  atendimentoHoje().catch(() => {});
   const pendSec = document.getElementById('pend-sec');
   const mostrarPend = () => {
     if (pendSec) pendSec.hidden = !document.querySelector('#pend .card,#pend .list-item,#pend .auto-aluno');
