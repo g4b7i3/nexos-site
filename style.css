@@ -981,3 +981,15 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 }
 [data-theme="light"] .depo{background:#fff;box-shadow:0 24px 50px -28px rgba(11,35,82,.28)}
 [data-theme="light"] .depo-foto::after{display:none}
+/* depoimento compacto no topo dos planos */
+.depo-sec{padding-top:8px;padding-bottom:8px}
+.depo-lista.compacto{max-width:760px;margin:0 auto}
+.depo-lista.compacto.varios{grid-auto-columns:min(100%,560px)}
+.depo-c{display:block;padding:22px 24px}
+.depo-c-top{display:flex;align-items:center;gap:14px}
+.depo-c-foto{width:76px;height:76px;border-radius:50%;object-fit:cover;object-position:50% 25%;border:2px solid var(--acc);flex:none}
+.depo-c figcaption{margin:0;padding:0;border:0}
+.depo-c .depo-conq{margin-top:14px}
+.depo-c-txt{margin:14px 0 0;font-size:1rem;line-height:1.6;color:var(--ink);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.depo-c-txt.aberto{display:block;-webkit-line-clamp:unset}
+.depo-c-mais{margin-top:8px;background:none;border:0;padding:0;color:var(--acc2);font:inherit;font-weight:700;font-size:.9rem;cursor:pointer}

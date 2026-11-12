@@ -11,7 +11,7 @@
 <link rel="preload" href="/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="style.css?v=202611112330">
+<link rel="stylesheet" href="style.css?v=202611112345">
 <script>var t="light";try{t=sessionStorage.getItem("nexos-tema")||t}catch(e){}document.documentElement.dataset.theme=t</script>
 <script>/* link de "esqueci minha senha" que caiu no site: abre o app com o mesmo endereço */if(/type=recovery|access_token=/.test(location.hash))location.replace("/app/"+location.hash);</script>
 </head>
@@ -119,10 +119,19 @@
   </div>
 </div>
 
+<!-- DEPOIMENTOS -->
+<section class="section" id="depoimentos">
+  <div class="sec-head reveal">
+    <p class="tag">01 / Depoimentos</p>
+    <h2>Quem treina com a Nexos<br>conta como é.</h2>
+  </div>
+  <div class="depo-lista reveal" data-depoimentos></div>
+</section>
+
 <!-- MODALIDADES -->
 <section class="section" id="modalidades">
   <div class="sec-head reveal">
-    <p class="tag">01 / Modalidades</p>
+    <p class="tag">02 / Modalidades</p>
     <h2>Três frentes.<br>Um só sistema.</h2>
   </div>
 
@@ -192,7 +201,7 @@
 <!-- MÉTODO -->
 <section class="section alt" id="metodo">
   <div class="sec-head reveal">
-    <p class="tag">02 / Método Nexos</p>
+    <p class="tag">03 / Método Nexos</p>
     <h2>Treino com começo,<br>meio e dado.</h2>
   </div>
   <div class="steps" id="steps">
@@ -208,7 +217,7 @@
 <section class="section app-s" id="app">
   <div class="app-g">
     <div class="app-tx reveal">
-      <p class="tag">03 / App Nexos</p>
+      <p class="tag">04 / App Nexos</p>
       <h2>Seu treinador<br>no bolso.</h2>
       <p class="app-lead">Tudo o que você precisa para treinar num aplicativo só, feito pela Nexos para os nossos alunos.</p>
       <ul class="app-lista">
@@ -243,7 +252,7 @@
 <!-- TREINADORES -->
 <section class="section" id="treinadores">
   <div class="sec-head reveal">
-    <p class="tag">04 / Treinadores</p>
+    <p class="tag">05 / Treinadores</p>
     <h2>Quem está com você<br>em cada treino.</h2>
   </div>
 
@@ -302,17 +311,9 @@
 
 <!-- AULA AVULSA -->
 <!-- aula avulsa escondida até o funcional começar: para voltar, tire o "hidden" -->
-<section class="section alt" id="depoimentos">
-  <div class="sec-head reveal">
-    <p class="tag">05 / Depoimentos</p>
-    <h2>Quem treina com a Nexos<br>conta como é.</h2>
-  </div>
-  <div class="depo-lista reveal" data-depoimentos></div>
-</section>
-
 <section class="section alt" id="avulsa" hidden>
   <div class="sec-head reveal">
-    <p class="tag">05 / Aula avulsa</p>
+    <p class="tag">06 / Aula avulsa</p>
     <h2>Treine com a gente<br>sem ser aluno.</h2>
     <p class="sub">Escolha o dia do funcional, garanta sua vaga e pague com Pix ou cartão.</p>
   </div>
@@ -504,7 +505,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="/depoimentos.js?v=20261111"></script>
+<script src="/depoimentos.js?v=20261112"></script>
 <script src="script.js?v=202611110030"></script>
 </body>
 </html>

@@ -24,8 +24,25 @@
         <figcaption><b>${esc(d.nome)}</b><span>${esc(d.quem || '')}</span></figcaption>
       </div>
     </figure>`;
+  // versão compacta (topo da página de planos): texto em poucas linhas, com "Ler o depoimento completo"
+  const compacto = (d) => `<figure class="depo depo-c">
+      <div class="depo-c-top">${d.foto ? `<img class="depo-c-foto" src="${esc(d.foto)}" alt="${esc(d.nome)}" loading="lazy">` : ''}
+        <figcaption><b>${esc(d.nome)}</b><span>${esc(d.quem || '')}</span></figcaption></div>
+      ${d.conquistas && d.conquistas.length ? `<ul class="depo-conq">${d.conquistas.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+      <blockquote class="depo-c-txt">“${esc(d.texto)}”</blockquote>
+      <button type="button" class="depo-c-mais">Ler o depoimento completo</button>
+    </figure>`;
   document.querySelectorAll('[data-depoimentos]').forEach((box) => {
+    const c = box.classList.contains('compacto');
     box.classList.toggle('varios', DEPOIMENTOS.length > 1);
-    box.innerHTML = DEPOIMENTOS.map(card).join('');
+    box.innerHTML = DEPOIMENTOS.map(c ? compacto : card).join('');
+    box.querySelectorAll('.depo-c-mais').forEach((b) => {
+      const t = b.previousElementSibling;
+      if (t.scrollHeight <= t.clientHeight + 2) return b.remove();
+      b.onclick = () => {
+        const ab = t.classList.toggle('aberto');
+        b.textContent = ab ? 'Mostrar menos' : 'Ler o depoimento completo';
+      };
+    });
   });
 })();
