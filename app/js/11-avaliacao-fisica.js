@@ -707,7 +707,7 @@ async function viewRelatorio(avId) {
   document.getElementById('imprimir').onclick = () => window.print();
   const sgA = document.getElementById('sug-aval');
   if (sgA)
-    montarSugestao(sgA, {
+    cartaoSugestao(sgA, {
       chave: 'sug:aval:' + av.id,
       titulo: 'Sugestão de recado do avaliador',
       texto: sugestaoAvaliacao(av, r, ant, ra, nome),

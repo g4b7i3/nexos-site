@@ -1190,7 +1190,7 @@ async function abrirFaltaStaff(id) {
     <div id="sug-falta"></div>
     <div class="stack" style="margin-top:14px"><a class="btn block" href="#/aluno/${f.aluno_id}/conversa">Responder na conversa</a><a class="btn block ghost" href="#/aluno/${f.aluno_id}">Ver aluno</a></div>`,
     (r) =>
-      montarSugestao(r.querySelector('#sug-falta'), {
+      cartaoSugestao(r.querySelector('#sug-falta'), {
         chave: 'sug:falta:' + f.id + (f.respondido_em ? ':r' : ''),
         titulo: 'Sugestão de resposta',
         texto: sugestaoFalta(f, m && m.nome),

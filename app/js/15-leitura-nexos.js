@@ -757,7 +757,7 @@ async function viewCorrida(id) {
   // sugestão de comentário (só a equipe): Usar abre a Análise do treinador já preenchida, para editar e enviar
   const sgBox = document.getElementById('sug-corr');
   if (sgBox && niR)
-    montarSugestao(sgBox, {
+    cartaoSugestao(sgBox, {
       chave: 'sug:corrida:' + c.id,
       texto: sugestaoCorrida(niR.fatos, nome && nome.nome, c.id),
       destino: 'Abre a Análise do treinador para você editar e enviar.',

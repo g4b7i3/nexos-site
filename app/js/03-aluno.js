@@ -544,7 +544,7 @@ function prontDetalhe(x) {
     </div>`,
   );
   if (x.aluno_id)
-    montarSugestao(el.querySelector('#sug-pront'), {
+    cartaoSugestao(el.querySelector('#sug-pront'), {
       chave: 'sug:pront:' + x.id,
       titulo: 'Sugestão de mensagem para o aluno',
       texto: sugestaoProntidao(x, nome),
