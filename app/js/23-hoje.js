@@ -94,6 +94,86 @@ function sugestaoFalta(f, nomeAluno) {
   return `Tudo bem${n}. Quando quiser conversar, estou por aqui. Bora retomar a semana.`;
 }
 
+// sugestão para o treino de força: exercícios feitos, esforço (PSE 0-10, Foster), recuperação de chegada (PSR) e dor
+function sugestaoForca(x, nomeAluno) {
+  const nome = nomeAluno ? firstName(nomeAluno) : '';
+  const T = x.treino_titulo || 'Treino';
+  const p = [];
+  const tot = x.total_itens || 0,
+    feitos = (x.itens_feitos || []).length;
+  if (x.dor)
+    p.push(
+      `vi que você sentiu dor${x.dor_local ? ` (${String(x.dor_local).toLowerCase()})` : ''} no ${T}. Me conta: foi em algum exercício específico? Vou ajustar para não forçar essa região.`,
+    );
+  else if (tot && feitos >= tot) p.push(`${T} completo, todos os exercícios feitos!`);
+  else if (tot)
+    p.push(
+      `você fez ${feitos} de ${tot} exercícios do ${T}. Se faltou tempo ou algum exercício incomodou, me avisa que eu ajusto.`,
+    );
+  else p.push(`${T} registrado, boa!`);
+  if (x.psr != null && x.psr <= 4)
+    p.push('Você chegou com a recuperação baixa e fez bem em treinar com as cargas mais leves de hoje.');
+  else if (x.esforco != null) {
+    if (x.esforco >= 9) p.push('O esforço foi muito alto: capricha no sono e na alimentação para recuperar bem.');
+    else if (x.esforco >= 7) p.push('Esforço na medida certa para evoluir.');
+    else if (x.esforco <= 4)
+      p.push('Pelo esforço que você marcou, o treino ficou leve. Na próxima a gente pode subir um pouco a carga.');
+  }
+  if (!x.dor) p.push('Segue firme!');
+  const t = p.join(' ');
+  if (!nome) return t.charAt(0).toUpperCase() + t.slice(1);
+  return /^(você|vi) /.test(t) ? `${nome}, ${t}` : `Boa, ${nome}! ${t}`;
+}
+// sugestão depois de confirmar um teste de corrida: o resultado e os ritmos novos (zona leve e limiar)
+function sugestaoTeste(resumo, antes, depois, nomeAluno) {
+  const nome = nomeAluno ? firstName(nomeAluno) : '';
+  const fx = (pf, k) => {
+    const f = pf && pf.paces && pf.paces[k];
+    return f ? `${fmtPace(f[0]).replace('/km', '')} a ${fmtPace(f[1])}` : '';
+  };
+  const lv = fx(depois, 'leve'),
+    lm = fx(depois, 'limiar');
+  const melhorou =
+    antes && antes.paces && antes.paces.limiar && depois && depois.paces && depois.paces.limiar
+      ? antes.paces.limiar[0] - depois.paces.limiar[0]
+      : null;
+  let t = `Oi${nome ? ', ' + nome : ''}! Analisei o seu teste${resumo ? ` (${resumo})` : ''} e já atualizei os seus ritmos na planilha.`;
+  if (melhorou != null && melhorou >= 3)
+    t += ` Seu ritmo de limiar melhorou ${fmtSeg(melhorou)} por km: é a evolução aparecendo!`;
+  else if (melhorou != null && melhorou <= -3)
+    t +=
+      ' Os ritmos ficaram um pouco mais leves que antes: isso acontece em fases de mais cansaço, e treinar no ritmo certo é o que faz voltar a evoluir.';
+  if (lv || lm)
+    t += ` A partir de agora:${lv ? ` treinos leves em ${lv}` : ''}${lv && lm ? ';' : ''}${lm ? ` limiar em ${lm}` : ''}.`;
+  return t + ' Qualquer dúvida, me chama.';
+}
+// sugestão de recado de evolução (antes e depois): compara o primeiro mês com os últimos 30 dias
+function sugestaoEvolucao(A, B, r0, r1, meses, nomeAluno) {
+  const nome = nomeAluno ? firstName(nomeAluno) : '';
+  const bons = [];
+  const pct = (a, b) => Math.round(((b - a) / a) * 100);
+  if (A.kmSem && B.kmSem && B.kmSem > A.kmSem * 1.1)
+    bons.push(`o volume subiu de ${fN(A.kmSem)} para ${fN(B.kmSem)} km por semana`);
+  if (A.pace && B.pace && A.pace - B.pace >= 5) bons.push(`o pace médio melhorou ${fmtSeg(A.pace - B.pace)} por km`);
+  if (A.ef && B.ef && pct(A.ef, B.ef) >= 3)
+    bons.push(
+      `a eficiência aeróbia subiu ${pct(A.ef, B.ef)}%, ou seja, corre mais rápido com o mesmo esforço do coração`,
+    );
+  if (A.forcaSem != null && B.forcaSem > A.forcaSem + 0.4)
+    bons.push(`a frequência na força subiu para ${fN(B.forcaSem)} treinos por semana`);
+  if (r1 && r0.gordura != null && r1.gordura != null && r0.gordura - r1.gordura >= 0.5)
+    bons.push(`a gordura corporal caiu de ${fN(r0.gordura)}% para ${fN(r1.gordura)}%`);
+  if (r1 && r0.massa_magra != null && r1.massa_magra != null && r1.massa_magra - r0.massa_magra >= 0.5)
+    bons.push(`ganhou ${fN(r1.massa_magra - r0.massa_magra)} kg de massa magra`);
+  const lista = (l) => (l.length > 1 ? l.slice(0, -1).join('; ') + '; e ' + l[l.length - 1] : l[0]);
+  let t = `${nome ? nome + ', ' : ''}${meses} ${meses === 1 ? 'mês' : 'meses'} de Nexos!`;
+  t += bons.length
+    ? ` Comparando o seu primeiro mês com agora: ${lista(bons)}. Isso é resultado da sua constância.`
+    : ' Os números ainda estão parecidos com o início, e isso é normal: evolução de verdade leva tempo e vem com constância.';
+  t += ' Próximo objetivo: seguir firme no plano e a gente compara de novo no próximo mês.';
+  return t;
+}
+
 // tela cheia da Nexos (análise do treino, boletim de prontidão): fecha pelo X, pelo "voltar" do celular ou pelo Esc
 function telaCheia(cls, rotulo, html) {
   document.querySelectorAll('.fb-tela').forEach((x) => x.remove());

@@ -1014,9 +1014,17 @@ async function faltasEquipe(ids, porId) {
   box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Treinos não feitos</h2>${novas ? `<span class="tag acc">${novas} resposta${novas > 1 ? 's' : ''} nova${novas > 1 ? 's' : ''}</span>` : `<a class="link-btn small" href="#/semanas">Semanas anteriores</a>`}</div><div class="stack">${data
     .map((f) => {
       const m = porId[f.aluno_id] || { nome: 'Aluno' };
-      return `<a class="list-item" href="#/aluno/${f.aluno_id}" data-javi="falta:${f.id}" data-falta-vista="${f.respondido_em && !f.visto_treinador ? f.id : ''}" style="color:inherit;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${diaSemDe(f.dia)}</b><div class="small muted">${esc((f.treinos || []).join(' e '))}</div>${f.respondido_em ? `<div class="small" style="margin-top:4px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `: ${esc(f.detalhe)}` : ''}</div>` : '<div class="small muted" style="margin-top:4px">Aguardando a resposta do aluno</div>'}</div>${f.respondido_em && !f.visto_treinador ? '<i class="alert-dot"></i>' : ''}</a>`;
+      return `<a class="list-item" href="#/aluno/${f.aluno_id}" data-falta-abrir="${f.id}" data-javi="falta:${f.id}" data-falta-vista="${f.respondido_em && !f.visto_treinador ? f.id : ''}" style="color:inherit;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(firstName(m.nome))} · ${diaSemDe(f.dia)}</b><div class="small muted">${esc((f.treinos || []).join(' e '))}</div>${f.respondido_em ? `<div class="small" style="margin-top:4px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `: ${esc(f.detalhe)}` : ''}</div>` : '<div class="small muted" style="margin-top:4px">Aguardando a resposta do aluno</div>'}</div>${f.respondido_em && !f.visto_treinador ? '<i class="alert-dot"></i>' : ''}</a>`;
     })
     .join('')}</div></div>`;
+  // tocar no treino não feito abre o painel com o motivo, a sugestão de resposta e os atalhos (conversa e ficha do aluno)
+  box.querySelectorAll('[data-falta-abrir]').forEach((a) =>
+    a.addEventListener('click', (e) => {
+      if (e.target.closest('.javi-bt')) return;
+      e.preventDefault();
+      abrirFaltaStaff(a.dataset.faltaAbrir);
+    }),
+  );
   box.querySelectorAll('[data-falta-vista]').forEach((a) => {
     if (!a.dataset.faltaVista) return;
     a.addEventListener('click', () => {
@@ -2549,6 +2557,7 @@ async function viewAntesDepois(alunoId) {
       ${r1 ? linha('Gordura corporal', r0.gordura, r1.gordura, (v) => f1(v), false, '%') + linha('Massa magra', r0.massa_magra, r1.massa_magra, (v) => f1(v), true, ' kg') + linha('Peso', num(av0.peso), num(av1.peso), (v) => f1(v), false, ' kg') : ''}
       <p class="tiny dim" style="margin-top:8px">Eficiência aeróbia = metros por minuto a cada batimento: subir esse número é correr mais rápido com o mesmo esforço cardíaco. Verde é melhora.</p></div>
     ${f0 && f1x ? `<div class="ad-fotos" id="ad-fotos"><figure><img alt="Antes"><figcaption>${fmtDia(f0.data)}</figcaption></figure><figure><img alt="Depois"><figcaption>${fmtDia(f1x.data)}</figcaption></figure></div>` : ''}
+    ${staff && !mb.recado_evolucao ? '<div id="sug-evol"></div>' : ''}
     <div class="card ad-recado"><span class="eyebrow">Recado do treinador</span>${staff ? `<textarea class="textarea" id="ad-rec" rows="4" placeholder="Escreva o que você viu de evolução e o próximo objetivo. O aluno vê aqui.">${esc(mb.recado_evolucao || '')}</textarea><button class="btn sm" id="ad-salvar" style="margin-top:8px">Salvar recado</button>` : `<p style="margin-top:6px;white-space:pre-line">${mb.recado_evolucao ? esc(mb.recado_evolucao) : 'Seu treinador vai deixar um recado aqui sobre a sua evolução.'}</p>`}</div>
     ${staff ? '' : `<button class="btn block" id="ad-story" style="margin-top:12px">Gerar card para o story</button>`}`;
   if (f0 && f1x) {
@@ -2563,6 +2572,20 @@ async function viewAntesDepois(alunoId) {
       })
       .catch(() => {});
   }
+  const sgE = document.getElementById('sug-evol');
+  if (sgE)
+    cartaoSugestao(sgE, {
+      chave: 'sug:evol:' + id + ':' + Math.round(dd / 30),
+      titulo: 'Sugestão de recado do treinador',
+      texto: sugestaoEvolucao(A, B, r0, r1, Math.round(dd / 30), mb.nome),
+      destino: 'Vai para o Recado do treinador, para você editar e salvar.',
+      usar: (t) => {
+        const ta = document.getElementById('ad-rec');
+        ta.value = t;
+        ta.focus();
+        ta.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      },
+    });
   const sv = document.getElementById('ad-salvar');
   if (sv)
     sv.onclick = async () => {

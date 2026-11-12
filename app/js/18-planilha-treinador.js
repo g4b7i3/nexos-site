@@ -1833,6 +1833,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       if (!x) return;
       if (b.dataset.tstMao != null) return formTesteCampo(m, recarregar);
       b.disabled = true;
+      const antesPf = perfilCorrida(m);
       try {
         if (b.dataset.tstOk != null) await confirmarTeste(m, x);
         else await descartarTeste(m, x);
@@ -1842,6 +1843,26 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         return toast('Não foi possível salvar. Tente de novo.', true);
       }
       st.testes = tPend.filter((y) => y !== x);
+      // depois de confirmar: sugestão de mensagem com o resultado e os ritmos novos
+      if (b.dataset.tstOk != null && x.r)
+        setTimeout(
+          () =>
+            openSheet(
+              `<p class="eyebrow">Teste confirmado</p><div class="h2" style="margin-top:4px">Avisar ${esc(firstName(m.nome))}?</div><div id="sug-teste"></div><button class="btn ghost block" data-close style="margin-top:10px">Agora não</button>`,
+              (r) =>
+                cartaoSugestao(r.querySelector('#sug-teste'), {
+                  chave: 'sug:teste:' + x.c.id,
+                  titulo: 'Sugestão de mensagem para o aluno',
+                  texto: sugestaoTeste(resumoTeste(x), antesPf, perfilCorrida(m), m.nome),
+                  destino: 'Abre a conversa com o aluno com a mensagem no campo, para você editar e enviar.',
+                  usar: (t) => {
+                    closeSheet(true);
+                    abrirConversaCom(m.user_id, t);
+                  },
+                }),
+            ),
+          400,
+        );
       toast(
         b.dataset.tstOk != null
           ? 'Zonas confirmadas. O aluno já vê os novos ritmos.'

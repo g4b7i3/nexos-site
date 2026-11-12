@@ -57,7 +57,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
   if (sessaoId) {
     const { data } = await sb
       .from('nx_sessoes')
-      .select('id,treino_titulo,iniciado_em,comentario,esforco')
+      .select('id,treino_titulo,iniciado_em,comentario,esforco,psr,dor,dor_local,itens_feitos,total_itens')
       .eq('id', sessaoId)
       .maybeSingle();
     ref = data;
@@ -91,6 +91,7 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
     <p class="small muted" style="margin-top:12px">Dúvidas, ajustes no treino ou como você está se sentindo.</p>${atendimentoHTML(equipe)}`
   }
     <div class="chat" id="chat">${esqBloco('chat')}</div>
+    ${staff && ref ? '<div id="sug-conv" style="margin-bottom:10px"></div>' : ''}
     <form class="composer" id="f-msg">
       <div id="ref-box"></div>
       <div class="row" style="gap:8px;align-items:flex-end"><textarea class="textarea" name="texto" rows="1" maxlength="2000" placeholder="${staff ? 'Escreva para o aluno…' : 'Escreva para o seu treinador…'}" required></textarea>${staff ? botaoAudioHTML() : ''}<button class="btn send" aria-label="Enviar">${I.arrow}</button></div>
@@ -107,6 +108,21 @@ async function viewConversa(alunoId, box, staff, sessaoId) {
       setTimeout(() => f.texto.focus(), 300);
     }
   } catch {}
+  // treino de força aberto pelo "Responder": sugestão de resposta, que vai para o campo de texto
+  if (staff && ref)
+    cartaoSugestao(box.querySelector('#sug-conv'), {
+      chave: 'sug:forca:' + ref.id,
+      titulo: 'Sugestão de resposta',
+      texto: sugestaoForca(ref, (porId[alunoId] || {}).nome),
+      destino: 'Vai para o campo de mensagem, para você editar e enviar.',
+      usar: (t) => {
+        f.texto.value = t;
+        f.texto.dispatchEvent(new Event('input'));
+        f.texto.focus();
+        const sg = box.querySelector('#sug-conv');
+        if (sg) sg.innerHTML = '';
+      },
+    });
   const drawRef = () => {
     box.querySelector('#ref-box').innerHTML = ref
       ? `<div class="ref-chip"><span>Respondendo ao check-in: <b>${esc(ref.treino_titulo || 'Treino')}</b> · ${fmtData(ref.iniciado_em)}</span><button type="button" class="icon-btn" id="ref-x" aria-label="Remover">${I.x}</button></div>`
