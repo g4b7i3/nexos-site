@@ -955,3 +955,29 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .faq details p a{color:var(--acc);font-weight:700}
 @media (max-width:560px){.faq summary{font-size:.94rem;padding:16px 50px 16px 18px}.faq summary::after{right:18px}.faq details p{padding:0 18px 16px;font-size:.92rem}}
 .app-fim{max-width:1180px;margin:clamp(20px,4vw,40px) auto 0;text-align:center;font-family:var(--f-h);font-weight:800;font-size:clamp(1.25rem,3vw,2rem);line-height:1.2;color:var(--ink);text-wrap:balance}
+/* depoimentos de alunos (site e planos) */
+.depo-lista{display:grid;gap:20px}
+.depo-lista.varios{grid-auto-flow:column;grid-auto-columns:min(100%,880px);overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+.depo-lista.varios .depo{scroll-snap-align:start}
+.depo{margin:0;display:grid;grid-template-columns:minmax(220px,340px) 1fr;border-radius:24px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(160deg,rgba(var(--navy-rgb),.55),rgba(var(--bg2-rgb),.35));box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
+.depo-foto{position:relative;min-height:320px}
+.depo-foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+.depo-foto::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 60%,rgba(var(--bg-rgb),.35))}
+.depo-corpo{position:relative;padding:64px 40px 32px}
+.depo-aspas{position:absolute;top:8px;left:34px;font-family:Georgia,serif;font-size:6rem;line-height:1;color:var(--acc);opacity:.35}
+.depo blockquote{margin:0;position:relative;font-size:1.08rem;line-height:1.7;color:var(--ink)}
+.depo-conq{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 0;padding:0}
+.depo-conq li{font-family:var(--f-m);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;padding:7px 12px;border-radius:999px;border:1px solid rgba(var(--acc-rgb),.4);color:var(--acc);background:rgba(var(--acc-rgb),.08)}
+.depo figcaption{margin-top:22px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.depo figcaption b{font-size:1.05rem}
+.depo figcaption span{font-size:.88rem;color:var(--mute)}
+@media (max-width:720px){
+  .depo{grid-template-columns:1fr}
+  .depo-foto{min-height:0;aspect-ratio:1/1}
+  .depo-foto::after{background:linear-gradient(180deg,transparent 60%,rgba(var(--bg-rgb),.35))}
+  .depo-corpo{padding:58px 22px 24px}
+  .depo-aspas{left:18px}
+  .depo blockquote{font-size:1rem}
+}
+[data-theme="light"] .depo{background:#fff;box-shadow:0 24px 50px -28px rgba(11,35,82,.28)}
+[data-theme="light"] .depo-foto::after{display:none}
