@@ -942,6 +942,26 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
   );
 }
 
+// quem tem Garmin conectado treina com o relógio (o carro-chefe): o "Treinar pelo celular" perde o destaque
+// e fica do mesmo tamanho do "Registrar"; para quem tem outro relógio ou nenhum, continua em destaque
+let GARMIN_CONECTADO = null;
+function gpsSemDestaqueGarmin(raiz) {
+  const bts = raiz ? raiz.querySelectorAll('.gps-pri') : [];
+  if (!bts.length || S.staff) return;
+  if (!GARMIN_CONECTADO)
+    GARMIN_CONECTADO = sb
+      .from('nx_integracoes')
+      .select('provedor')
+      .eq('user_id', S.user.id)
+      .eq('provedor', 'garmin')
+      .limit(1)
+      .then(
+        ({ data }) => !!(data && data.length),
+        () => false,
+      );
+  GARMIN_CONECTADO.then((tem) => tem && bts.forEach((b) => b.classList.add('ghost')));
+}
+
 /* ---------- detalhe do treino para o aluno ---------- */
 function verTreinoPlanilha(p, perfil, feito) {
   const est = estruturaDe(p);
@@ -970,7 +990,7 @@ function verTreinoPlanilha(p, perfil, feito) {
       feito
         ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:16px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>`
         : !S.staff && est.length && !semCorrida(p)
-          ? `<a class="btn block" href="#/gps/${p.id}" data-close style="margin-top:16px">${I.play} Treinar pelo celular</a>
+          ? `<a class="btn block gps-pri" href="#/gps/${p.id}" data-close style="margin-top:16px">${I.play} Treinar pelo celular</a>
     ${p.data < hojeISO() ? '<p class="tiny dim" style="margin-top:6px;text-align:center">Treino de outro dia? Pode fazer agora: ele conta para este treino da planilha.</p>' : ''}
     <button class="btn ghost block" id="reg-agora" style="margin-top:8px">${I.plus} Já corri: registrar</button>`
           : `<button class="btn block" id="reg-agora" style="margin-top:16px">${I.plus} Registrar esta corrida</button>`
@@ -978,6 +998,7 @@ function verTreinoPlanilha(p, perfil, feito) {
     ${!feito && !S.staff && p.data >= hojeISO() && est.length ? `<button class="btn ghost block gar-btn" id="gar-env" style="margin-top:8px" hidden>${RELOGIO_IC} ${p.garmin_enviado_em ? 'Já está no seu relógio ✓ · reenviar' : 'Enviar para o meu relógio'}</button>` : ''}
     <button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`,
     (r) => {
+      gpsSemDestaqueGarmin(r);
       const b = r.querySelector('#reg-agora');
       if (b)
         b.onclick = () =>

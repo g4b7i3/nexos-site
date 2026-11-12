@@ -886,7 +886,7 @@ async function alunoHoje() {
       }
       ${p.descricao ? `<p class="obs-t"><b>Obs. do treinador:</b> ${esc(p.descricao)}</p>` : ''}
       </div>
-      <div class="row corr-acoes" style="gap:8px;margin-top:12px;flex-wrap:wrap">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
+      <div class="row corr-acoes" style="gap:8px;margin-top:12px;flex-wrap:wrap">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm gps-pri" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
   const cardMusc = prox
     ? muscHoje
@@ -981,6 +981,7 @@ async function alunoHoje() {
   ligarRelogio();
   cartaoChamadaAtiva();
   atendimentoHoje().catch(() => {});
+  gpsSemDestaqueGarmin($app);
   const pendSec = document.getElementById('pend-sec');
   const mostrarPend = () => {
     if (pendSec) pendSec.hidden = !document.querySelector('#pend .card,#pend .list-item,#pend .auto-aluno');
