@@ -3810,3 +3810,5 @@ body:has(.fb-tela) .toast{z-index:1700}
 .atend-mini-c .atend-t{margin-top:0}
 .atend-mini-c .atend-t+.atend-t{margin-top:8px}
 .atend-mini-c p{margin-top:8px;line-height:1.5}
+.falta-pular{display:block;margin:12px auto 0;background:none;border:0;color:var(--mute);font:inherit;font-size:.88rem;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px 10px}
+.falta-pular:disabled{opacity:.5}

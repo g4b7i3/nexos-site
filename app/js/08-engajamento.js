@@ -938,7 +938,9 @@ function responderFalta(f, depois) {
     <div class="chips" id="fm-ch" style="margin-top:14px;flex-wrap:wrap;overflow:visible">${FALTA_MOT.map(([k, t]) => `<button type="button" class="chip" data-m="${k}">${t}</button>`).join('')}</div>
     <label class="field" style="margin-top:14px"><span>Quer contar mais? (opcional)</span><textarea class="input" id="fm-det" rows="3" maxlength="400" placeholder="Ex.: dor no joelho direito desde quarta"></textarea></label>
     <p class="small" id="fm-fiz" hidden style="margin-top:8px">Depois de enviar, registre o treino em <b>Histórico</b> para ele contar na sua evolução.</p>
-    <button class="btn block" id="fm-ok" style="margin-top:14px" disabled>Enviar para o treinador</button>`,
+    <button class="btn block" id="fm-ok" style="margin-top:14px" disabled>Enviar para o treinador</button>
+    <button type="button" class="falta-pular" id="fm-pular">Prefiro não responder</button>
+    <p class="tiny dim" style="text-align:center;margin-top:4px">O aviso sai da sua tela. Seu treinador vê apenas que você preferiu não comentar.</p>`,
     (r) => {
       const ok = r.querySelector('#fm-ok');
       r.querySelectorAll('#fm-ch [data-m]').forEach((c) => {
@@ -949,6 +951,23 @@ function responderFalta(f, depois) {
           r.querySelector('#fm-fiz').hidden = mot !== 'fiz';
         };
       });
+      // o aluno pode encerrar o aviso sem dar explicação: fica registrado como "Preferiu não responder", sem notificar ninguém
+      const pular = r.querySelector('#fm-pular');
+      pular.onclick = async () => {
+        pular.disabled = true;
+        const { error } = await sb
+          .from('nx_faltas')
+          .update({ motivo: 'Preferiu não responder', detalhe: null, respondido_em: new Date().toISOString() })
+          .eq('id', f.id)
+          .eq('aluno_id', S.user.id);
+        if (error) {
+          pular.disabled = false;
+          return toast('Não foi possível agora. Tente de novo.', true);
+        }
+        closeSheet();
+        toast('Tudo bem. O aviso foi encerrado.');
+        if (depois) depois();
+      };
       ok.onclick = async () => {
         if (!mot) return;
         ok.disabled = true;
@@ -1164,7 +1183,7 @@ async function abrirFaltaStaff(id) {
         () => {},
         () => {},
       );
-  openSheet(`<p class="eyebrow">Treino de ${diaSemDe(f.dia)} · ${fmtCurto(f.dia + 'T12:00:00')}</p><div class="h2" style="margin-top:4px">${esc(nome)} ${f.respondido_em ? 'explicou a falta' : 'ainda não respondeu'}</div>
+  openSheet(`<p class="eyebrow">Treino de ${diaSemDe(f.dia)} · ${fmtCurto(f.dia + 'T12:00:00')}</p><div class="h2" style="margin-top:4px">${esc(nome)} ${f.respondido_em ? (f.motivo === 'Preferiu não responder' ? 'preferiu não comentar a falta' : 'explicou a falta') : 'ainda não respondeu'}</div>
     <p class="small muted" style="margin-top:6px">${esc((f.treinos || []).join(' e '))}</p>
     ${f.respondido_em ? `<div class="card" style="margin-top:14px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `<p style="margin-top:6px">${esc(f.detalhe)}</p>` : ''}</div>` : ''}
     <div class="stack" style="margin-top:14px"><a class="btn block" href="#/aluno/${f.aluno_id}/conversa">Responder na conversa</a><a class="btn block ghost" href="#/aluno/${f.aluno_id}">Ver aluno</a></div>`);
