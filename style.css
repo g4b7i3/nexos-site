@@ -975,7 +975,7 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .depo-conq{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:auto 0 0;padding:18px 0 0}
 .depo-conq li{font-family:var(--f-m);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid rgba(var(--acc-rgb),.4);color:var(--acc);background:rgba(var(--acc-rgb),.08)}
 @media (max-width:1020px){.depo{flex-basis:calc((100% - 24px)/2)}}
-@media (max-width:640px){.depo-lista{gap:14px;--g:clamp(16px,6vw,80px);margin-inline:calc(var(--g)*-1);padding-inline:var(--g);scroll-padding-inline:var(--g)}.depo-lista.compacto{margin-inline:calc(var(--g)*-1)}.depo{flex-basis:86%}.depo-corpo{padding:20px 18px 18px}}
+@media (max-width:640px){.depo-lista{gap:14px;--g:clamp(16px,6vw,80px);margin-inline:calc(var(--g)*-1);padding-inline:var(--g);scroll-padding-inline:var(--g)}.depo-lista.compacto{margin-inline:calc(var(--g)*-1);max-width:none}.depo{flex-basis:86%}.depo-corpo{padding:20px 18px 18px}}
 [data-theme="light"] .depo{background:#fff;box-shadow:0 14px 34px -22px rgba(11,35,82,.28)}
 .depo-head{max-width:none}
 /* navegação do carrossel */
@@ -991,15 +991,21 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .depo-seta:disabled{opacity:.35;cursor:default}
 /* depoimento compacto no topo dos planos */
 .depo-sec{padding-top:8px;padding-bottom:8px}
-.depo-lista.compacto{max-width:760px;margin:-4px auto -24px}
-.depo-c{flex-basis:100%;display:block;padding:22px 24px}
-.depo-c-top{display:flex;align-items:center;gap:14px}
-.depo-c-foto{width:72px;height:72px;border-radius:50%;object-fit:cover;object-position:50% 25%;border:2px solid var(--acc);flex:none}
-.depo-c figcaption{display:flex;flex-direction:column;gap:2px}
-.depo-c figcaption b{font-size:1.05rem}
-.depo-c figcaption span{font-size:.86rem;color:var(--mute)}
-.depo-c .depo-conq{margin:0;padding-top:14px}
-.depo-c blockquote{margin-top:14px;font-size:1rem;-webkit-line-clamp:4}
+.depo-sec-t{text-align:center;margin:6px 0 26px}
+.depo-lista.compacto{max-width:1080px;margin:-4px auto -24px}
+.depo-c{flex-basis:calc((100% - 48px)/3);padding:24px 22px 20px}
+.depo-c .depo-aspas{width:24px;height:18px;margin-bottom:10px}
+.depo-c blockquote{font-size:.95rem;line-height:1.6;-webkit-line-clamp:5}
+.depo-c-top{margin-top:auto;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.depo-c .depo-mais{margin:8px 0 16px}
+.depo-c .depo-mais[hidden]+.depo-c-top{margin-top:auto}
+.depo-c blockquote+.depo-mais[hidden]{display:none}
+.depo-c-foto{width:48px;height:48px;border-radius:50%;object-fit:cover;object-position:50% 25%;flex:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px rgba(var(--acc-rgb),.55)}
+.depo-c figcaption{display:flex;flex-direction:column;gap:1px;min-width:0}
+.depo-c figcaption b{font-size:.98rem}
+.depo-c figcaption span{font-size:.82rem;color:var(--mute)}
+@media (max-width:1020px){.depo-c{flex-basis:calc((100% - 24px)/2)}}
+@media (max-width:640px){.depo-c{flex-basis:86%}.depo-lista.compacto{margin-inline:calc(var(--g)*-1)}}
 /* depoimento completo em janela */
 .depo-modal{position:fixed;inset:0;z-index:200;background:rgba(3,10,26,.72);backdrop-filter:blur(6px);display:grid;place-items:center;padding:20px;animation:depoIn .2s ease}
 @keyframes depoIn{from{opacity:0}}
@@ -1011,5 +1017,5 @@ body,.nav,.panel,.tele,.wk-card,.booking,.faq details,.lab-in,.lab-out{transitio
 .depo-modal-quem{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
 .depo-modal-quem span{font-size:.88rem;color:var(--mute)}
 .depo-fechar{position:absolute;top:12px;right:12px;z-index:5;width:38px;height:38px;border-radius:50%;border:0;background:rgba(3,10,26,.6);color:#fff;font-size:1.5rem;line-height:1;cursor:pointer}
-@media (max-width:700px){.depo-modal-box{grid-template-columns:1fr}.depo-modal-box .depo-foto{min-height:0;aspect-ratio:4/3}.depo-modal-txt{padding:24px 20px}}
+@media (max-width:700px){.depo-modal-box{display:block}.depo-modal-box .depo-foto{min-height:0;height:auto;aspect-ratio:4/3;flex:none}.depo-modal-txt{padding:24px 20px}}
 [data-theme="light"] .depo-modal-box{background:#fff}

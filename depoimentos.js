@@ -30,6 +30,8 @@
         'Gosto muito da metodologia Nexos, principalmente pela maneira como vocês conversam com o atleta, procuram entender a rotina e adaptam os treinos de acordo com a realidade de cada um. Uma coisa que considero muito importante é o equilíbrio na distribuição das cargas, dando a devida importância ao descanso e à recuperação. Outro ponto é a preocupação da equipe em sempre procurar saber como foi o treino, como o atleta se sentiu e se conseguiu executar o que foi proposto. Isso faz muita diferença, porque mostra que não é simplesmente passar uma planilha, mas acompanhar de verdade a evolução do atleta.',
     },
   ];
+  const ASPAS =
+    'M0 24V14C0 6 4 1.5 12 0l1.5 3.5C9 5 7 8 7 11h6v13H0zm19 0V14c0-8 4-12.5 12-14l1.5 3.5C28 5 26 8 26 11h6v13H19z';
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const selos = (d) =>
@@ -45,19 +47,19 @@
       <div class="depo-topo">${fotos(d)}
         <figcaption><b>${esc(d.nome)}</b><span>${esc(d.quem || '')}</span></figcaption></div>
       <div class="depo-corpo">
-        <svg class="depo-aspas" viewBox="0 0 32 24" aria-hidden="true"><path d="M0 24V14C0 6 4 1.5 12 0l1.5 3.5C9 5 7 8 7 11h6v13H0zm19 0V14c0-8 4-12.5 12-14l1.5 3.5C28 5 26 8 26 11h6v13H19z"/></svg>
+        <svg class="depo-aspas" viewBox="0 0 32 24" aria-hidden="true"><path d="${ASPAS}"/></svg>
         <blockquote>${esc(d.texto)}</blockquote>
         <button type="button" class="depo-mais">Ler o depoimento completo</button>
         ${selos(d)}
       </div>
     </figure>`;
-  // versão compacta (topo da página de planos)
+  // versão compacta (topo da página de planos): depoimento curto em cima, pessoa embaixo
   const compacto = (d, i) => `<figure class="depo depo-c" data-i="${i}">
+      <svg class="depo-aspas" viewBox="0 0 32 24" aria-hidden="true"><path d="${ASPAS}"/></svg>
+      <blockquote>${esc(d.texto)}</blockquote>
+      <button type="button" class="depo-mais">Ler o depoimento completo</button>
       <div class="depo-c-top">${d.foto ? `<img class="depo-c-foto" src="${esc(d.foto)}" alt="${esc(d.nome)}" loading="lazy">` : ''}
         <figcaption><b>${esc(d.nome)}</b><span>${esc(d.quem || '')}</span></figcaption></div>
-      ${selos(d)}
-      <blockquote>“${esc(d.texto)}”</blockquote>
-      <button type="button" class="depo-mais">Ler o depoimento completo</button>
     </figure>`;
   // depoimento inteiro numa janela por cima da página
   const abrir = (d) => {
@@ -67,7 +69,7 @@
         <button type="button" class="depo-fechar" aria-label="Fechar">×</button>
         ${fotos(d)}
         <div class="depo-modal-txt">
-          <svg class="depo-aspas" viewBox="0 0 32 24" aria-hidden="true"><path d="M0 24V14C0 6 4 1.5 12 0l1.5 3.5C9 5 7 8 7 11h6v13H0zm19 0V14c0-8 4-12.5 12-14l1.5 3.5C28 5 26 8 26 11h6v13H19z"/></svg>
+          <svg class="depo-aspas" viewBox="0 0 32 24" aria-hidden="true"><path d="${ASPAS}"/></svg>
           <blockquote>${esc(d.texto)}</blockquote>${selos(d)}
           <p class="depo-modal-quem"><b>${esc(d.nome)}</b><span>${esc(d.quem || '')}</span></p>
         </div></div>`;
