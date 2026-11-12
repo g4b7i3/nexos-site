@@ -203,6 +203,7 @@ const SINAIS_RED = [
   ['cansaco', 'Cansaço'],
   ['osso', 'Dor em osso'],
   ['peso', 'Peso'],
+  ['quest', 'Triagem de energia'],
 ];
 /** busca tudo o que os sinais precisam, de um aluno ou da equipe inteira, em poucas consultas */
 async function sinaisEnergia(ids) {
@@ -210,7 +211,7 @@ async function sinaisEnergia(ids) {
   if (!ids || !ids.length) return out;
   const d = (n) => new Date(Date.now() - n * 864e5).toISOString();
   const q = (p) => p.then((r) => r.data || []).catch(() => []);
-  const [ms, pr, co, se, av, ci, ini] = await Promise.all([
+  const [ms, pr, co, se, av, ci, ini, smq] = await Promise.all([
     q(
       sb
         .from('nx_membros')
@@ -236,6 +237,7 @@ async function sinaisEnergia(ids) {
     q(sb.from('nx_avaliacoes').select('aluno_id,data,peso').in('aluno_id', ids).gte('data', d(150).slice(0, 10))),
     q(sb.from('nx_ciclo').select('aluno_id,ativo,situacao,duracao_ciclo').in('aluno_id', ids)),
     q(sb.from('nx_ciclo_inicios').select('aluno_id,data').in('aluno_id', ids).order('data', { ascending: false })),
+    q(sb.from('nx_saude_mulher').select('aluno_id,energia').in('aluno_id', ids)),
   ]);
   const hoje = hojeISO();
   for (const m of ms) {
@@ -320,6 +322,23 @@ async function sinaisEnergia(ids) {
             t: diasOsso.size
               ? `Dor nessas regiões em ${diasOsso.size} dia(s), abaixo do sinal`
               : 'Sem dor em regiões de osso',
+          };
+    // 6) triagem de energia respondida pela aluna (área Saúde da mulher), válida por 4 meses
+    const tq = (smq.find((x) => x.aluno_id === id) || {}).energia;
+    sinais.quest =
+      tq && Date.now() - Date.parse(tq.em) < 120 * 864e5
+        ? tq.nivel === 'alerta'
+          ? {
+              st: 'alerta',
+              t: `Ela marcou: ${tq.sinais.join(', ') || 'sinais de alerta'} (${new Date(tq.em).toLocaleDateString('pt-BR')})`,
+            }
+          : { st: 'ok', t: tq.n ? `1 sinal na triagem (${tq.sinais.join(', ')})` : 'Triagem sem sinais' }
+        : {
+            st: 'na',
+            t:
+              m.sexo === 'F'
+                ? 'Ela ainda não respondeu a triagem nos últimos 4 meses'
+                : 'Triagem feita só pelas alunas',
           };
     // 5) peso: perdeu 5% ou mais entre avaliações, sem ser o objetivo
     const avs = av.filter((x) => x.aluno_id === id && x.peso).sort((a2, b2) => (a2.data < b2.data ? -1 : 1));
@@ -483,6 +502,7 @@ async function viewSaudeAtleta(box, m) {
     : '';
   const rs = rel ? relogioResumoHTML(rel, `#/aluno/${m.user_id}/relogio`, false) : '';
   box.innerHTML = `${rs}${sinaisEnergiaHTML(sin[m.user_id])}${fv}${fem ? (c ? cicloTreinoHTML(ct, false) : `<div class="card sa-card"><div class="sa-top"><span class="sa-ic">${I.run}</span><div class="sa-txt"><span class="eyebrow">Ciclo e treino</span><b>Ela não acompanha o ciclo no app</b><span>Quando ela ativar o acompanhamento do ciclo, aqui aparece como cada fase muda os treinos dela.</span></div></div></div>`) : ''}`;
+  if (fem) smCardTreinador(box, m).catch(() => {});
   box
     .querySelectorAll('[data-fv-ed]')
     .forEach((b) => (b.onclick = () => editarFaseVida(m, () => viewSaudeAtleta(box, m))));

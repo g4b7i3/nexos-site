@@ -885,7 +885,8 @@ function alunoMais() {
       ${it('#/agua', AGUA_IC, 'Hidratação', 'Sua semana, meta e lembretes')}
       ${it('#/prontidao', PRONT_IC, 'Check-in e dores', 'Sono, energia, dor e estresse dos últimos dias')}
       ${it('#/relogio', I.watch, 'Dados do relógio', 'Sono, VFC, frequência de repouso e mais')}
-      ${S.me.sexo === 'F' ? `<a class="list-item" id="mais-ciclo" href="#/ciclo" style="color:inherit"><span class="ativ-ic" style="color:#e85d75">${I.cal}</span><div class="grow"><b>Ciclo menstrual</b><div class="small muted">Fase, calendário, sintomas e autocuidado</div></div>${I.chev}</a>` : ''}
+      ${S.me.sexo === 'F' ? `<a class="list-item" id="mais-ciclo" href="#/mulher" style="color:inherit"><span class="ativ-ic" style="color:#e85d75">${FV_IC}</span><div class="grow"><b>Saúde da mulher</b><div class="small muted">Ciclo, energia, assoalho pélvico, ferro e mais</div></div>${I.chev}</a>` : ''}
+      ${it('#/seguranca', SM_IC.escudo, 'Corrida segura', S.me.contato_seguro ? `Link ao vivo para ${esc(firstName(S.me.contato_seguro.nome) || S.me.contato_seguro.nome)}` : 'Alguém de confiança acompanha o seu treino pelo link')}
       ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
       <span id="mais-dicas" style="display:contents">${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Sono, alimentação, recuperação e prova')}</span>
     </div>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b1a3a">
+<title>Corrida ao vivo · Nexos</title>
+<link rel="icon" href="/img/nexos-icon.png">
+<link rel="stylesheet" href="/app/vendor/maplibre-gl.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#0b1a3a;color:#eaf2ff;display:flex;flex-direction:column}
+#mapa{flex:1;min-height:45vh}
+.painel{padding:18px 18px calc(18px + env(safe-area-inset-bottom));background:#0b1a3a;border-top:1px solid rgba(255,255,255,.08)}
+.marca{display:flex;align-items:center;gap:10px;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#9fb4dc}
+.marca img{height:22px}
+h1{font-size:1.5rem;line-height:1.2;margin-top:10px}
+.st{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:6px 12px;border-radius:999px;font-weight:700;font-size:.85rem;background:rgba(255,255,255,.08)}
+.st i{width:9px;height:9px;border-radius:50%;background:#9fb4dc}
+.st.correndo i{background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulso 1.6s infinite}
+.st.pausado i{background:#f5b301}.st.fim i{background:#9fb4dc}
+@keyframes pulso{70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+.num{display:flex;gap:22px;margin-top:14px}
+.num div{display:flex;flex-direction:column}
+.num b{font-size:1.3rem}
+.num span{font-size:.75rem;color:#9fb4dc}
+.alerta{margin-top:14px;padding:12px 14px;border-radius:14px;background:rgba(232,93,117,.16);border:1px solid rgba(232,93,117,.5);color:#ffd2da;font-weight:600;line-height:1.4}
+.obs{margin-top:12px;font-size:.78rem;color:#7f93ba;line-height:1.45}
+.vazio{padding:40px 22px;text-align:center}
+.vazio h1{font-size:1.3rem}
+.vazio p{margin-top:10px;color:#9fb4dc;line-height:1.5}
+.eu{width:20px;height:20px;border-radius:50%;background:#1f6feb;border:3px solid #fff;box-shadow:0 0 0 6px rgba(31,111,235,.3)}
+</style>
+</head>
+<body>
+<div id="mapa"></div>
+<div class="painel" id="painel"><div class="marca"><img src="/img/nexos-icon.png" alt="">Corrida segura</div><h1>Carregando…</h1></div>
+<script src="/app/vendor/maplibre-gl.js"></script>
+<script>
+(function () {
+  var URL_SB = 'https://gbcshtmesawpokuwiaxb.supabase.co';
+  var CHAVE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiY3NodG1lc2F3cG9rdXdpYXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDg2MjYsImV4cCI6MjEwODk4NDYyNn0.ZR4vHBDAa_yMA8pSCWUriKAoh8OsEUKXO7WgZnR89Ak';
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var painel = document.getElementById('painel');
+  var mapa = null, marca = null, primeiro = true;
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var hora = function (iso) { return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+  var min = function (a, b) { return Math.floor((Date.parse(a) - Date.parse(b)) / 60000); };
+  var dur = function (s) { s = Math.max(0, Math.round(s)); var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? h + 'h' + String(m).padStart(2, '0') : m + ' min'; };
+  function vazio(t, p) {
+    document.getElementById('mapa').style.display = 'none';
+    painel.innerHTML = '<div class="vazio"><div class="marca" style="justify-content:center"><img src="/img/nexos-icon.png" alt="">Corrida segura</div><h1 style="margin-top:14px">' + t + '</h1><p>' + p + '</p></div>';
+  }
+  function iniciarMapa(c) {
+    if (!window.maplibregl) return;
+    mapa = new maplibregl.Map({ container: 'mapa', style: 'https://tiles.openfreemap.org/styles/liberty', center: [c[1], c[0]], zoom: 15, attributionControl: false });
+    mapa.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'OpenFreeMap' }));
+    var el = document.createElement('div'); el.className = 'eu';
+    marca = new maplibregl.Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(mapa);
+  }
+  function desenharRota(rota) {
+    if (!mapa || !rota || rota.length < 2) return;
+    var geo = { type: 'Feature', geometry: { type: 'LineString', coordinates: rota.map(function (p) { return [p[1], p[0]]; }) } };
+    var aplicar = function () {
+      if (mapa.getSource('rota')) mapa.getSource('rota').setData(geo);
+      else {
+        mapa.addSource('rota', { type: 'geojson', data: geo });
+        mapa.addLayer({ id: 'rota', type: 'line', source: 'rota', paint: { 'line-color': '#1f6feb', 'line-width': 5, 'line-opacity': .85 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+      }
+    };
+    if (mapa.isStyleLoaded()) aplicar(); else mapa.once('load', aplicar);
+  }
+  function atualizar() {
+    if (token.length < 20) return vazio('Link inválido', 'Confira se o link foi copiado inteiro.');
+    fetch(URL_SB + '/rest/v1/rpc/nx_ao_vivo_ver', { method: 'POST', headers: { apikey: CHAVE, Authorization: 'Bearer ' + CHAVE, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_token: token }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.criado_em) return vazio('Este link expirou', 'O acompanhamento ao vivo fica disponível por 12 horas depois que a corrida é compartilhada.');
+        var nome = esc(d.nome || 'A corredora');
+        var est = d.estado;
+        var titulo = est === 'fim' ? nome + ' terminou o treino' : est === 'correndo' ? nome + ' está correndo' : est === 'pausado' ? nome + ' pausou o treino' : nome + ' vai começar a correr';
+        var stTxt = est === 'fim' ? 'Terminou às ' + hora(d.fim) : est === 'correndo' ? 'Ao vivo' : est === 'pausado' ? 'Pausado' : 'Ainda não começou';
+        var alertas = [];
+        if (est !== 'fim' && d.pos_em) {
+          var semSinal = min(d.agora, d.pos_em);
+          var parada = d.mov_em ? min(d.agora, d.mov_em) : 0;
+          if (semSinal >= 3) alertas.push('O celular não manda a posição há ' + semSinal + ' minutos. Pode ser só o celular bloqueado ou sem internet. Se ficar preocupado, ligue para ela.');
+          else if (parada >= 5 && est !== 'pronto') alertas.push('Sem se mover há ' + parada + ' minutos. Pode ser uma parada para água ou descanso. Se ficar preocupado, ligue para ela.');
+        }
+        var tempo = d.inicio ? (Date.parse(est === 'fim' && d.fim ? d.fim : d.agora) - Date.parse(d.inicio)) / 1000 : 0;
+        painel.innerHTML = '<div class="marca"><img src="/img/nexos-icon.png" alt="">Corrida segura</div>' +
+          '<h1>' + titulo + '</h1><span class="st ' + esc(est) + '"><i></i>' + stTxt + '</span>' +
+          (d.inicio ? '<div class="num"><div><b>' + ((d.dist_m || 0) / 1000).toFixed(2).replace('.', ',') + ' km</b><span>Distância</span></div><div><b>' + dur(tempo) + '</b><span>Desde o início</span></div>' + (d.pos_em ? '<div><b>' + hora(d.pos_em) + '</b><span>Última posição</span></div>' : '') + '</div>' : '') +
+          alertas.map(function (a) { return '<div class="alerta">' + a + '</div>'; }).join('') +
+          '<p class="obs">A página atualiza sozinha. A posição chega enquanto ela estiver com a tela do treino aberta no app da Nexos.</p>';
+        if (d.lat != null && d.lng != null) {
+          var c = [d.lat, d.lng];
+          if (!mapa) iniciarMapa(c);
+          else { marca.setLngLat([c[1], c[0]]); if (est !== 'fim') mapa.easeTo({ center: [c[1], c[0]] }); }
+          desenharRota(d.rota);
+          primeiro = false;
+        } else if (!mapa) document.getElementById('mapa').style.minHeight = '0';
+      })
+      .catch(function () { if (primeiro) vazio('Não foi possível carregar', 'Verifique a internet e abra o link de novo.'); });
+  }
+  atualizar();
+  setInterval(atualizar, 20000);
+})();
+</script>
+</body>
+</html>

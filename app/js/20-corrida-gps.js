@@ -188,6 +188,7 @@ async function viewGps(id, modo) {
   const salvar = () => {
     st.salvoEm = Date.now();
     store.set(GPS_KEY, st);
+    if (!est) seguroSync(st); // corrida segura: posição e estado para o link ao vivo
   };
   const movAgora = () => st.mov + (st.estado === 'correndo' && marcaMov ? Date.now() - marcaMov : 0);
 
@@ -212,12 +213,14 @@ async function viewGps(id, modo) {
       ${est ? '<div class="est-local" id="g-local"></div>' : ''}
       <div class="g2-bts" id="g-bts"></div>
       <p class="g2-dica" id="g-dica"></p>
+      ${est ? '' : '<div id="g-seg"></div>'}
       <div class="g2-opc" id="g-opc" hidden></div>
     </div>
     <div class="gps-trava" id="g-trava" hidden><div class="gps-trava-c"><div class="h3">Tela travada</div><p class="small" style="margin:6px 0 18px">Os toques estão desligados para não atrapalhar a corrida.</p><button class="btn ghost" id="g-dest">Segure para destravar</button></div></div>
   </div>`;
   const tela = {};
   $app._gps = tela;
+  if (!est) seguroGpsMontar(st);
   const minha = () => $app._gps === tela; // outra tela do treino abriu: esta para de mexer na página
   const $ = (s) => document.getElementById(s);
 
@@ -891,6 +894,7 @@ async function viewGps(id, modo) {
         r.querySelector('#t-desc').onclick = () => {
           if (!confirm('Descartar? A corrida não será salva.')) return;
           closeSheet(true);
+          seguroFim(st);
           encerrar();
           store.del(GPS_KEY);
           location.hash = '#/';
@@ -993,6 +997,7 @@ async function viewGps(id, modo) {
     salvar();
     const plano = p ? [p] : [];
     formCorrida(S.user.id, d, plano, (novo) => {
+      seguroFim(st);
       encerrar();
       store.del(GPS_KEY);
       setTimeout(() => {

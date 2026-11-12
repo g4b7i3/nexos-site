@@ -3872,3 +3872,56 @@ body:has(.fb-tela) .toast{z-index:1700}
 .md-tela .sug-card .tiny{color:rgba(232,251,245,.55)}
 .md-tela .sug-ic{background:rgba(62,240,176,.16);color:#3ef0b0}
 .md-tela .sug-tag{color:rgba(232,251,245,.5)}
+
+/* saúde da mulher */
+.sm-grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+@media(min-width:760px){.sm-grade{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sm-card{display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:18px;background:var(--s1);border:1px solid var(--line);color:inherit;text-decoration:none;position:relative;min-height:150px;transition:transform .15s,border-color .15s}
+.sm-card:active{transform:scale(.98)}
+.sm-card:hover{border-color:color-mix(in srgb,var(--sc) 50%,var(--line))}
+.sm-card b{font-size:.98rem;line-height:1.2;margin-top:6px}
+.sm-card small{font-size:.78rem;color:var(--mute);line-height:1.35}
+.sm-ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--sc) 16%,transparent);color:var(--sc);flex:none}
+.sm-ic svg{width:20px;height:20px}
+.sm-st{align-self:flex-start;margin-top:auto;padding:4px 9px;border-radius:999px;font-size:.7rem;font-weight:800;background:color-mix(in srgb,var(--ink) 7%,transparent);color:var(--mute)}
+.sm-card .sm-st{margin-top:10px}
+.sm-st.novo{background:color-mix(in srgb,var(--p2) 14%,transparent);color:var(--p2)}
+.sm-st.ok{background:rgba(22,163,74,.13);color:#16a34a}
+.sm-st.atencao{background:rgba(217,154,0,.15);color:#b07d00}
+.sm-st.alerta{background:rgba(232,93,117,.15);color:#d13a57}
+.sm-form{gap:12px}
+.sm-q{padding:14px;border-radius:16px;background:var(--s1);border:1px solid var(--line);transition:border-color .2s}
+.sm-q.falta{border-color:#e85d75}
+.sm-q>b{display:flex;gap:10px;font-size:.95rem;line-height:1.35}
+.sm-q>b span{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:.72rem;background:color-mix(in srgb,var(--p2) 14%,transparent);color:var(--p2)}
+.sm-ops{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;padding-left:32px}
+.sm-ops button{padding:9px 13px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-size:.86rem;cursor:pointer}
+.sm-ops button.on{background:var(--p2);border-color:var(--p2);color:#fff;font-weight:700}
+.sm-res{margin-top:12px;border-left:4px solid var(--line)}
+.sm-res.ok{border-left-color:#16a34a}.sm-res.atencao{border-left-color:#d99a00}.sm-res.alerta{border-left-color:#e85d75}
+.sm-res p{line-height:1.55;font-size:.92rem}
+.sm-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sm-tags span{padding:4px 10px;border-radius:999px;font-size:.76rem;font-weight:700;background:rgba(232,93,117,.13);color:#d13a57}
+.sm-info{margin-top:12px}
+.sm-info b{display:block;margin-top:4px}
+.sm-info b+p,.sm-info b+ul{margin-top:4px}
+.sm-info p{font-size:.9rem;line-height:1.55;color:var(--ink)}
+.sm-info ul{margin:4px 0 10px 18px;font-size:.9rem;line-height:1.55}
+.sm-info li{margin-top:4px}
+.sm-rot{width:100%;margin-top:12px}
+.sm-teste{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--s1);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.sm-teste.on{border-color:rgba(22,163,74,.5)}
+.sm-teste.on .apr-ck{background:#16a34a;border-color:#16a34a}
+.sm-teste:disabled{opacity:.55;cursor:default}
+.sm-tr-l{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.sm-tr-l .sm-st{margin-top:0}
+.sm-tr-l .grow{display:flex;flex-direction:column;min-width:0}
+.sm-ic-p{width:32px;height:32px;border-radius:10px}
+.sm-ic-p svg{width:17px;height:17px}
+/* corrida segura na tela do GPS */
+.g-seg{display:flex;align-items:center;gap:8px;width:100%;margin-top:10px;padding:10px 14px;border-radius:14px;border:1px solid color-mix(in srgb,var(--p2) 35%,transparent);background:color-mix(in srgb,var(--p2) 10%,transparent);color:var(--ink);font:inherit;font-size:.86rem;font-weight:700;text-align:left;cursor:pointer}
+.g-seg svg{width:18px;height:18px;flex:none;color:var(--p2)}
+.g-seg.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.4);cursor:default}
+.g-seg.on svg{color:#16a34a}
+.g-seg span{flex:1}
+.g-seg button{background:none;border:0;color:var(--p2);font-weight:800;font:inherit;font-size:.8rem;cursor:pointer;padding:0}
