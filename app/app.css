@@ -2585,18 +2585,20 @@ svg.selo{box-shadow:none!important;border-radius:0!important;background:none!imp
 .cic-hero .eyebrow{color:#cfe6ff;display:flex;align-items:center;gap:8px}
 .cic-pt{width:9px;height:9px;border-radius:50%;background:var(--cf);display:inline-block}
 .cic-grande{font-family:var(--f-h);font-size:2.1rem;font-weight:700;line-height:1.1;margin-top:10px}
-.cic-barra{position:relative;display:flex;gap:3px;height:12px;margin-top:22px}
-.cic-barra span{border-radius:999px;opacity:.9}
+.cic-fbarra{position:relative;display:flex;gap:3px;height:12px;margin-top:22px}
+.cic-fbarra span{border-radius:999px;opacity:.9}
 .cic-hoje{position:absolute;top:-6px;width:4px;height:24px;margin-left:-2px;border-radius:3px;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.25)}
 .cic-hoje em{position:absolute;top:28px;left:50%;transform:translateX(-50%);font-style:normal;font-size:.7rem;font-weight:800;background:#fff;color:#0a1838;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .cic-leg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:40px;font-size:.75rem;opacity:.85}
+.cic-hero .cic-leg{margin-top:40px;font-size:.75rem;color:inherit;opacity:.85}
+.cic-hero .cic-leg i{border-radius:50%}
 .cic-leg span{display:inline-flex;align-items:center;gap:6px}
 .cic-leg i{width:9px;height:9px;border-radius:50%;display:inline-block}
 .cic-leg.cal{margin-top:10px;color:var(--mute);opacity:1}
 .cic-leg.cal i.m{background:#e85d75}.cic-leg.cal i.p{border:2px dashed #e85d75;width:7px;height:7px}.cic-leg.cal i.r{background:var(--acc,var(--p2));width:6px;height:6px}
 .cic-cal{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:10px}
-.cic-sem,.cic-grade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
-.cic-sem span{font-size:.72rem;font-weight:700;color:var(--dim);padding:4px 0}
+.cic-dsem,.cic-grade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cic-dsem span{font-size:.72rem;font-weight:700;color:var(--dim);padding:4px 0}
 .cic-d{position:relative;aspect-ratio:1;border-radius:12px;border:0;background:none;color:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
 .cic-d b{font-weight:700;font-size:.92rem}
 .cic-d.fut{color:var(--dim)}

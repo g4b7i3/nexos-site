@@ -828,7 +828,7 @@ async function viewCicloAluna(mesSel) {
         : `para a próxima menstruação · ~${fmtCurto(inf.prox + 'T12:00:00')}`;
     hero = `<div class="cic-hero" style="--cf:${fa[1]}"><p class="eyebrow"><i class="cic-pt"></i>${fa[0]} · dia ${inf.dia} do ciclo</p>
       <div class="cic-grande">${grande}</div><p class="small" style="opacity:.82;margin-top:4px">${sub}</p>
-      <div class="cic-barra">${seg.map(([k, n]) => `<span style="flex:${n};background:${FASES_CICLO[k][1]}"></span>`).join('')}<b class="cic-hoje" style="left:${Math.min(100, ((inf.dia - 0.5) / cl) * 100)}%"><em>Hoje</em></b></div>
+      <div class="cic-fbarra">${seg.map(([k, n]) => `<span style="flex:${n};background:${FASES_CICLO[k][1]}"></span>`).join('')}<b class="cic-hoje" style="left:${Math.min(100, ((inf.dia - 0.5) / cl) * 100)}%"><em>Hoje</em></b></div>
       <div class="cic-leg">${seg.map(([k]) => `<span><i style="background:${FASES_CICLO[k][1]}"></i>${FASES_CICLO[k][0].replace('Fase ', '')}</span>`).join('')}</div>
       <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn sm" id="cic-reg">${hojeR ? 'Editar o registro de hoje' : 'Registrar como estou hoje'}</button><button class="btn ghost sm" id="cic-ini">Menstruação começou</button></div></div>
       <div class="card" style="margin-top:12px"><b style="color:${fa[1]}">${fa[0]}</b><p class="small muted" style="margin-top:6px">${FASE_TXT[inf.fase]}</p></div>`;
@@ -862,7 +862,7 @@ async function viewCicloAluna(mesSel) {
         verAno
           ? anoCicloHTML(c, mensDias, porDia, inf)
           : `<div class="section-h" style="margin-top:12px"><h2 class="h2">${nomeMes}</h2><div class="row" style="gap:6px"><a class="icon-btn sm" href="#/ciclo/${mesAnt}" aria-label="Mês anterior">${I.back}</a><a class="icon-btn sm" href="#/ciclo/${mesProx}" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</a></div></div>
-      <div class="cic-cal"><div class="cic-sem">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cic-grade">${cel.join('')}</div></div>`
+      <div class="cic-cal"><div class="cic-dsem">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cic-grade">${cel.join('')}</div></div>`
       }
       <div class="cic-leg cal"><span><i class="m"></i>Menstruação</span><span><i class="p"></i>Previsão</span><span><i class="r"></i>Registro do dia</span></div>
       ${verAno ? '' : '<p class="tiny dim" style="margin-top:6px">Toque em um dia para registrar ou ver como você estava.</p>'}</div>
