@@ -2879,6 +2879,36 @@ svg.selo{box-shadow:none!important;border-radius:0!important;background:none!imp
 .apr-lista.pratica{list-style:none;padding-left:0}
 .apr-lista.pratica li{position:relative;padding-left:26px}
 .apr-lista.pratica li::before{content:"";position:absolute;left:0;top:3px;width:16px;height:16px;border-radius:5px;border:2px solid var(--p2)}
+/* especialização */
+.apr-esp-hero{display:block;margin-top:18px;padding:20px;border:1px solid rgba(var(--p2r),.45);background:linear-gradient(140deg,rgba(var(--p2r),.16),rgba(var(--p1r,var(--p2r)),.04) 70%)}
+.apr-esp-ir{display:inline-flex;align-items:center;gap:4px;margin-top:12px;font-weight:800;font-size:.88rem;color:var(--p2)}
+.apr-esp-ir svg{width:16px;height:16px}
+.apr-disc{display:block}
+.apr-disc.breve{opacity:.62}
+.apr-disc.ok{border-color:rgba(22,163,74,.45)}
+.apr-st{flex:none;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:5px 9px;border-radius:999px;background:rgba(var(--p2r),.1);color:var(--p2);white-space:nowrap}
+.apr-st.ok{background:rgba(22,163,74,.12);color:#16a34a}.apr-st.and{background:rgba(217,154,0,.14);color:#b07d00}.apr-st.breve{background:rgba(127,127,127,.14);color:var(--dim)}
+.apr-checks{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:10px}
+.apr-checks li{display:flex;gap:10px;align-items:flex-start;font-size:.92rem}
+.apr-checks li div{display:flex;flex-direction:column;gap:2px}
+.apr-ck{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;color:#fff}
+.apr-ck svg{width:13px;height:13px}
+.apr-checks li.ok .apr-ck{background:#16a34a;border-color:#16a34a}
+.apr-aula-it{display:flex;align-items:center;gap:12px}
+.apr-num-aula{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:800;background:rgba(var(--p2r),.12);color:var(--p2)}
+.apr-num-aula.ok{background:#16a34a;color:#fff}
+.apr-art summary,.apr-caso summary{cursor:pointer;line-height:1.45;font-size:.9rem}
+.apr-caso summary{margin-top:10px;color:var(--p2);font-weight:700;font-size:.88rem}
+.apr-art p,.apr-caso p{margin-top:10px;line-height:1.6;font-size:.9rem;color:var(--ink)}
+.apr-caso .apr-lista{margin-top:10px}
+.apr-rot{display:block;font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--p2);margin-bottom:2px}
+.apr-aula p{font-size:1rem;line-height:1.75}
+.apr-cert{margin-top:14px}
+.apr-cert.ok{border-color:rgba(22,163,74,.45)}
+.apr-cert-doc{max-width:640px;margin:8vh auto 0;padding:40px 28px;text-align:center;border-radius:20px;background:#fff;color:#0b2352;border:6px double #0b2352}
+.apr-cert-doc h2{font-size:1.8rem;margin:14px 0 6px}.apr-cert-doc h3{font-size:1.2rem;margin:6px 0 10px}
+.apr-cert-doc p{margin-top:8px;line-height:1.5}
+.apr-cert-logo{height:54px;margin:0 auto 12px;display:block}
 
 /* Evolução > Atividades */
 .atv{display:block;padding:14px}
