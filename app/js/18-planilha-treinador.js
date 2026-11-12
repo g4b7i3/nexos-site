@@ -966,7 +966,15 @@ function verTreinoPlanilha(p, perfil, feito) {
     })()}</p></div>
     <div class="stack" style="margin-top:12px">${est.map((s) => (s.k === 'rep' ? `<div class="serie-v"><b>Repita ${s.n} vezes:</b>${(s.passos || []).map((x) => passoH(x)).join('')}</div>` : passoH(s))).join('')}</div>
     ${p.descricao ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Observação do treinador</span><p style="margin-top:6px;white-space:pre-line">${esc(p.descricao)}</p></div>` : ''}
-    ${feito ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:16px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>` : `<button class="btn block" id="reg-agora" style="margin-top:16px">${I.plus} Registrar esta corrida</button>`}
+    ${
+      feito
+        ? `<a class="btn ghost block" href="#/corrida/${feito.id}" style="margin-top:16px">✓ Feito: ${fmtKm(feito.distancia_m, 1)} · ${fmtPace(paceDe(feito))}</a>`
+        : !S.staff && est.length && !semCorrida(p)
+          ? `<a class="btn block" href="#/gps/${p.id}" data-close style="margin-top:16px">${I.play} Treinar pelo celular</a>
+    ${p.data < hojeISO() ? '<p class="tiny dim" style="margin-top:6px;text-align:center">Treino de outro dia? Pode fazer agora: ele conta para este treino da planilha.</p>' : ''}
+    <button class="btn ghost block" id="reg-agora" style="margin-top:8px">${I.plus} Já corri: registrar</button>`
+          : `<button class="btn block" id="reg-agora" style="margin-top:16px">${I.plus} Registrar esta corrida</button>`
+    }
     ${!feito && !S.staff && p.data >= hojeISO() && est.length ? `<button class="btn ghost block gar-btn" id="gar-env" style="margin-top:8px" hidden>${RELOGIO_IC} ${p.garmin_enviado_em ? 'Já está no seu relógio ✓ · reenviar' : 'Enviar para o meu relógio'}</button>` : ''}
     <button class="btn ghost block" data-close style="margin-top:8px">Fechar</button>`,
     (r) => {

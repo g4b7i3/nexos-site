@@ -1158,11 +1158,20 @@ async function viewGps(id, modo) {
   };
   const abrirTreinos = async () => {
     if (st.estado !== 'pronto') return;
+    // a semana atual e os treinos dos últimos 7 dias que ainda não foram feitos (dá para fazer um treino atrasado)
     const ini = inicioSemana(),
       fim = new Date(ini);
     fim.setDate(ini.getDate() + 6);
-    const pl = (await buscarPlano(S.user.id, isoDia(ini), isoDia(fim)).catch(() => [])).filter(
-      (x) => !semCorrida(x) && estruturaDe(x).length,
+    const desde = new Date();
+    desde.setDate(desde.getDate() - 7);
+    const de = isoDia(desde < ini ? desde : ini);
+    const [plano, { data: feitas }] = await Promise.all([
+      buscarPlano(S.user.id, de, isoDia(fim)).catch(() => []),
+      sb.from('nx_corridas').select('plano_id').eq('aluno_id', S.user.id).gte('data', de).not('plano_id', 'is', null),
+    ]);
+    const jaFeito = new Set((feitas || []).map((c) => c.plano_id));
+    const pl = plano.filter(
+      (x) => !semCorrida(x) && estruturaDe(x).length && (x.data >= isoDia(ini) || !jaFeito.has(x.id)),
     );
     const hoje = hojeISO(),
       suf = est ? '/esteira' : '';
