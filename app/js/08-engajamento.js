@@ -1183,10 +1183,24 @@ async function abrirFaltaStaff(id) {
         () => {},
         () => {},
       );
-  openSheet(`<p class="eyebrow">Treino de ${diaSemDe(f.dia)} · ${fmtCurto(f.dia + 'T12:00:00')}</p><div class="h2" style="margin-top:4px">${esc(nome)} ${f.respondido_em ? (f.motivo === 'Preferiu não responder' ? 'preferiu não comentar a falta' : 'explicou a falta') : 'ainda não respondeu'}</div>
+  openSheet(
+    `<p class="eyebrow">Treino de ${diaSemDe(f.dia)} · ${fmtCurto(f.dia + 'T12:00:00')}</p><div class="h2" style="margin-top:4px">${esc(nome)} ${f.respondido_em ? (f.motivo === 'Preferiu não responder' ? 'preferiu não comentar a falta' : 'explicou a falta') : 'ainda não respondeu'}</div>
     <p class="small muted" style="margin-top:6px">${esc((f.treinos || []).join(' e '))}</p>
     ${f.respondido_em ? `<div class="card" style="margin-top:14px"><b>${esc(f.motivo || '')}</b>${f.detalhe ? `<p style="margin-top:6px">${esc(f.detalhe)}</p>` : ''}</div>` : ''}
-    <div class="stack" style="margin-top:14px"><a class="btn block" href="#/aluno/${f.aluno_id}/conversa">Responder na conversa</a><a class="btn block ghost" href="#/aluno/${f.aluno_id}">Ver aluno</a></div>`);
+    <div id="sug-falta"></div>
+    <div class="stack" style="margin-top:14px"><a class="btn block" href="#/aluno/${f.aluno_id}/conversa">Responder na conversa</a><a class="btn block ghost" href="#/aluno/${f.aluno_id}">Ver aluno</a></div>`,
+    (r) =>
+      montarSugestao(r.querySelector('#sug-falta'), {
+        chave: 'sug:falta:' + f.id + (f.respondido_em ? ':r' : ''),
+        titulo: 'Sugestão de resposta',
+        texto: sugestaoFalta(f, m && m.nome),
+        destino: 'Abre a conversa com o aluno com a mensagem no campo, para você editar e enviar.',
+        usar: (t) => {
+          closeSheet(true);
+          abrirConversaCom(f.aluno_id, t);
+        },
+      }),
+  );
 }
 /** rola até uma seção que carrega depois da tela (espera até 4 s) */
 function rolarAte(id) {

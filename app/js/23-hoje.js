@@ -4,6 +4,96 @@
 
 /* ================= HOJE: o que pede atenção ================= */
 /** treinador marca o treino como visto: o aluno recebe "Seu treinador analisou seu treino" */
+// sugestão pronta para o treinador (só a equipe vê): Usar abre o espaço de resposta já preenchido, para editar e enviar;
+// Ignorar some com ela só para quem ignorou (fica em nx_ocultos, como o "Já vi")
+const SUG_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>';
+async function montarSugestao(box, { chave, texto, destino, usar, titulo }) {
+  if (!box || !S.staff || !texto) return;
+  const vistos = await jaViCarregar();
+  if (vistos.has(chave) || !document.body.contains(box)) return;
+  box.innerHTML = `<div class="sug-card"><div class="sug-h"><span class="sug-ic">${SUG_IC}</span><b>${esc(titulo || 'Sugestão para o aluno')}</b><span class="sug-tag">Só a equipe vê</span></div>
+    <p class="sug-txt">${esc(texto)}</p>
+    <div class="sug-acoes"><button type="button" class="btn ghost sm" data-sug-ig>Ignorar</button><button type="button" class="btn sm" data-sug-usa>Usar e editar</button></div>
+    ${destino ? `<p class="tiny dim" style="margin-top:8px">${esc(destino)} A última palavra é sua.</p>` : ''}</div>`;
+  box.querySelector('[data-sug-usa]').onclick = () => usar(texto);
+  box.querySelector('[data-sug-ig]').onclick = () => {
+    vistos.add(chave);
+    const card = box.firstElementChild;
+    card.classList.add('javi-saindo');
+    setTimeout(() => (box.innerHTML = ''), 240);
+    sb.from('nx_ocultos')
+      .insert({ user_id: S.user.id, org_id: S.org.id, chave })
+      .then(
+        () => {},
+        () => {},
+      );
+  };
+}
+
+// abre a conversa com o aluno já com o texto no campo, para o treinador editar e enviar
+function abrirConversaCom(alunoId, texto) {
+  try {
+    sessionStorage.setItem('nx-rasc-' + alunoId, texto);
+  } catch {}
+  location.hash = '#/aluno/' + alunoId + '/conversa';
+}
+// sugestão a partir do check-in de prontidão (escala de Hooper e McLean: 1 pior, 5 melhor)
+function sugestaoProntidao(x, nomeAluno) {
+  const nome = nomeAluno ? firstName(nomeAluno) : '';
+  const oi = `Oi${nome ? ', ' + nome : ''}!`;
+  const baixos = ['sono', 'energia', 'dor', 'estresse'].filter((k) => x[k] <= 2);
+  const locs = (x.dor_locais || []).map((d) =>
+    (typeof nomeRegDor === 'function' ? nomeRegDor(d) : d).replace(/\s*\((.*?)\)/, ' $1').toLowerCase(),
+  );
+  const dorLoc = locs.length > 1 ? locs.slice(0, -1).join(', ') + ' e ' + locs[locs.length - 1] : locs[0] || '';
+  const p = [];
+  if (!baixos.length && x.total >= 16)
+    return `${oi} Vi seu check-in: corpo pronto. Pode fazer o treino como está na planilha. Bom treino!`;
+  p.push(`${oi} Vi seu check-in.`);
+  if (x.dor <= 2 || dorLoc) {
+    p.push(
+      `Você marcou dor${dorLoc ? `: ${dorLoc}` : ''}${x.dor_int != null ? `, intensidade ${x.dor_int} de 10` : ''}.`,
+    );
+    p.push(
+      x.dor_int >= 7
+        ? 'Hoje é melhor não forçar essa região. Me conta como começou que eu ajusto o treino.'
+        : 'Se a dor aumentar no aquecimento, para e me avisa. Vou deixar o treino mais leve para não piorar.',
+    );
+  }
+  if (x.sono <= 2 && x.energia <= 2)
+    p.push('Sono ruim e energia baixa derrubam o rendimento: hoje faz o treino mais leve e tenta dormir mais cedo.');
+  else if (x.sono <= 2) p.push('Sono ruim derruba o rendimento: hoje faz o treino mais leve e tenta dormir mais cedo.');
+  else if (x.energia <= 2)
+    p.push('Com a energia baixa, vale reduzir um pouco a intensidade hoje. Treino bem feito, mesmo mais leve, conta.');
+  if (x.estresse <= 2) p.push('Com o estresse alto, um treino leve ajuda a aliviar. Sem cobrança de ritmo hoje.');
+  if (p.length === 1) p.push('Faz o treino com atenção: se sentir pesado, reduz um pouco a intensidade e me avisa.');
+  p.push('Como você está se sentindo?');
+  return p.join(' ');
+}
+// sugestão de resposta para o treino não feito, pelo motivo que o aluno escolheu
+function sugestaoFalta(f, nomeAluno) {
+  const nome = nomeAluno ? firstName(nomeAluno) : '';
+  const n = nome ? ', ' + nome : '';
+  if (!f.respondido_em)
+    return `Oi${n}! Vi que o treino de ${diaSemDe(f.dia)} ficou para trás. Está tudo bem? Se precisar, a gente ajusta a semana.`;
+  const m = (f.motivo || '').toLowerCase();
+  if (m.startsWith('dor'))
+    return `Obrigado por avisar${n}. Onde está doendo e desde quando? Vou ajustar a semana para não forçar essa região.`;
+  if (m.startsWith('cansaço') || m.startsWith('dormi'))
+    return `Tudo bem${n}. Descanso também é treino. Vou ajustar a semana para você recuperar bem e voltar com tudo.`;
+  if (m.startsWith('doença'))
+    return `Melhoras${n}! Foca em se recuperar. Quando estiver melhor, a gente volta com calma.`;
+  if (m.startsWith('trabalho') || m.startsWith('compromisso'))
+    return `Tranquilo${n}, acontece. Vou reorganizar a semana para encaixar o treino num dia melhor para você.`;
+  if (m.startsWith('chuva'))
+    return `Tranquilo${n}! Quando chover, uma opção é a esteira ou trocar o dia. Vou ajustar a semana.`;
+  if (m.startsWith('esqueci'))
+    return `Acontece${n}! Que tal deixar um lembrete no celular no horário do treino? Bora retomar.`;
+  if (m.startsWith('fiz')) return `Boa${n}! Registra no app para o treino contar na sua evolução.`;
+  return `Tudo bem${n}. Quando quiser conversar, estou por aqui. Bora retomar a semana.`;
+}
+
 // tela cheia da Nexos (análise do treino, boletim de prontidão): fecha pelo X, pelo "voltar" do celular ou pelo Esc
 function telaCheia(cls, rotulo, html) {
   document.querySelectorAll('.fb-tela').forEach((x) => x.remove());
@@ -40,7 +130,7 @@ function telaCheia(cls, rotulo, html) {
 }
 // comentário do treinador sobre um treino (fica no treino, não vai para o chat)
 // abre em tela cheia com a identidade da Nexos: pronto para virar print e ir para o Instagram
-function comentarTreino(c, al) {
+function comentarTreino(c, al, sugerido) {
   const tinha = !!c.comentario_treinador;
   const nome = (al && al.nome) || 'Aluno';
   const titulo =
@@ -77,7 +167,7 @@ function comentarTreino(c, al) {
         <div class="fb-treino">${esc(titulo)}${dia ? ` · ${esc(fmtDia(dia))}` : ''}</div>
         ${stats.length ? `<div class="fb-stats">${stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join('')}</div>` : ''}
         <div class="fb-texto"><span class="fb-aspas" aria-hidden="true">“</span>
-          <textarea id="ct-txt" rows="5" placeholder="Escreva a sua análise sobre o treino" autofocus>${esc(c.comentario_treinador || '')}</textarea></div>
+          <textarea id="ct-txt" rows="5" placeholder="Escreva a sua análise sobre o treino" autofocus>${esc(c.comentario_treinador || sugerido || '')}</textarea></div>
         <div class="fb-assina"><img src="icons/simbolo.svg" alt=""><div><b>${esc(assina)}</b><span>Treinador · Nexos Performance e Saúde</span></div></div>
       </div>
       <div class="fb-acoes"><button class="btn block" id="ct-salvar">${tinha ? 'Salvar comentário' : 'Enviar comentário'}</button>

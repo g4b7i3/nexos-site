@@ -108,6 +108,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   const sec = { exe: [], ritmo: [], fc: [], tec: [], cond: [], comp: [] }; // detalhes do "Ver mais"
   const frases = [];
   let dica = '';
+  const F = { km, pace, misto, leve: leveP, tipo }; // fatos para a sugestão de comentário do treinador
   // só usa % da FC máxima quando a máxima foi medida (a estimativa pela idade erra muito de pessoa para pessoa)
   const fcMax = perfil.fc_max || null;
   // ---------- esforço geral: só afirma quando as fontes concordam ----------
@@ -144,6 +145,11 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
       fim = media(pE.slice(-Math.min(2, Math.floor(pE.length / 2))));
     const queda = (fim - ini) / ini;
     const alvoPasso = repPl && (repPl.passos || []).find((p) => p.k === 'co');
+    F.tiros = {
+      feitos: E.length,
+      plan: nPl,
+      dist: queda > 0.04 ? 'caiu' : queda < -0.02 ? 'negativo' : spread / pm < 0.04 ? 'regular' : 'variou',
+    };
     if (!misto) {
       misto = true;
     }
@@ -179,12 +185,16 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
             `Os tiros saíram ${fmtSeg(rap - pm)}/km mais rápidos que a zona pedida (${ZONAS_INFO[alvoPasso.z].n}: ${faixaPace(fx)}).`,
           );
           dica = dica || `o alvo dos tiros na planilha é ${faixaPace(fx)}`;
+          F.tiros.zona = 'rapido';
         } else if (pm > len + 4) {
           sec.exe.push(
             `Os tiros ficaram ${fmtSeg(pm - len)}/km mais lentos que a zona pedida (${ZONAS_INFO[alvoPasso.z].n}: ${faixaPace(fx)}).`,
           );
           dica = dica || `o alvo dos tiros na planilha é ${faixaPace(fx)}`;
-        } else sec.exe.push(`Os tiros ficaram dentro da zona pedida (${ZONAS_INFO[alvoPasso.z].n}: ${faixaPace(fx)}).`);
+          F.tiros.zona = 'lento';
+        } else
+          ((F.tiros.zona = 'dentro'),
+            sec.exe.push(`Os tiros ficaram dentro da zona pedida (${ZONAS_INFO[alvoPasso.z].n}: ${faixaPace(fx)}).`));
       }
     }
     if (nPl && E.length < nPl && !(repPl && plano.titulo)) {
@@ -203,6 +213,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
       sec.fc.push(
         `FC média nos tiros: ${Math.round(media(fE))} bpm${pico ? ` (pico de ${pico})` : ''}; nas recuperações: ${Math.round(media(fR))} bpm.`,
       );
+      F.tiros.recFC = queda2 < 8 ? 'pouca' : 'boa';
       if (queda2 < 8)
         sec.fc.push(
           `A frequência quase não baixou nas recuperações (${queda2 > 0 ? Math.round(queda2) + ' bpm' : 'ficou igual'}).`,
@@ -231,6 +242,17 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     else if (cv < 0.03) r = 'ritmo muito consistente do início ao fim';
     else if (dif > 0.04) r = 'começou forte e foi caindo';
     else r = 'ritmo regular';
+    if (!misto)
+      F.ritmo =
+        dif < -0.02
+          ? 'negativo'
+          : mFim > med * 1.05
+            ? 'perdeu'
+            : cv < 0.03
+              ? 'consistente'
+              : dif > 0.04
+                ? 'caiu'
+                : 'regular';
     abertura += `; ${r}`;
     sec.ritmo.push(
       `Primeira metade em ${fmtPace(m1)} e segunda em ${fmtPace(m2)} (${m2 > m1 ? '+' : '−'}${fmtSeg(m2 - m1)}/km). Km mais rápido: o ${rapido.km}º em ${fmtPace(rapido.seg)}; mais lento: o ${lento.km}º em ${fmtPace(lento.seg)}.`,
@@ -248,6 +270,8 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
       sec.fc.push(
         `Desacoplamento aeróbico de ${N1(dec * 100)}% (relação entre ritmo e frequência da 1ª para a 2ª metade). ${dec < 0.05 ? 'Abaixo de 5%: boa base aeróbica para esse ritmo e distância.' : 'Acima de 5%: o coração precisou trabalhar mais para manter o ritmo no fim.'}`,
       );
+      if (dec < 0.05) F.aerobico = true;
+      if (dec >= 0.08 && km >= 8) F.deriva = true;
       if (dec >= 0.08 && km >= 8)
         frases.push(
           `A frequência subiu ${Math.round(media(f2.map((p) => p.fc)) - media(f1.map((p) => p.fc)))} bpm na segunda metade sem ganho de ritmo (deriva cardíaca).`,
@@ -262,6 +286,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   );
   if (zf) {
     sec.fc.push(`Tempo em cada zona de FC: ${zf.map((x, i) => `Z${i + 1} ${Math.round(x * 100)}%`).join(' · ')}.`);
+    if (leveP && zf[2] + zf[3] + zf[4] > 0.35) F.leveForte = true;
     if (leveP && zf[2] + zf[3] + zf[4] > 0.35)
       frases.push(
         `Num treino leve, ${Math.round((zf[2] + zf[3] + zf[4]) * 100)}% do tempo ficou acima da Z2 de frequência.`,
@@ -271,6 +296,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
       `FC média de ${c.fc_media} bpm, cerca de ${Math.round(pctFc * 100)}% da sua máxima${c.fc_max ? `; pico de ${c.fc_max}` : ''}.`,
     );
   if (leveP && perfil.paces && perfil.paces.leve && pace < Math.min(...perfil.paces.leve) - 5) {
+    F.leveForte = true;
     frases.push(
       `O ritmo médio (${fmtPace(pace)}) ficou mais rápido que a sua zona leve (${faixaPace(perfil.paces.leve)}).`,
     );
@@ -314,6 +340,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     const prev = Number(plano.distancia_km) || 0;
     if (prev) {
       const pc = km / prev;
+      F.planoPc = pc;
       planTxt =
         pc >= 0.95
           ? pc > 1.15
@@ -399,6 +426,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     if (c.cadencia > 100 && cads.length >= 3) {
       const mc = Math.round(media(cads)),
         dc = Math.round(c.cadencia - mc);
+      F.cadDif = dc;
       if (Math.abs(dc) >= 4)
         sec.comp.push(
           `Cadência de ${Math.round(c.cadencia)} passos por minuto, ${Math.abs(dc)} ${dc > 0 ? 'acima' : 'abaixo'} da sua média (${mc}).${misto ? ' Em treinos com tiros ela costuma subir.' : ''}`,
@@ -426,6 +454,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     const mx30 = ult30.length >= 3 ? Math.max(...ult30.map((x) => x.distancia_m / 1000)) : 0;
     if (mx30 >= 3 && km > mx30 * 1.1) {
       const pc = Math.round((km / mx30 - 1) * 100);
+      F.salto = pc;
       sec.comp.push(
         `Este treino foi ${pc}% maior que o mais longo dos 30 dias anteriores (${N1(mx30)} km). Saltos acima de 10% num treino isolado aumentaram o risco de lesão no maior estudo sobre o tema; se for proposital, capriche na recuperação.`,
       );
@@ -484,7 +513,103 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     ['Condições', sec.cond],
     ['Comparado com você mesmo', sec.comp],
   ].filter(([, l]) => l.length);
-  return { txt: txt.charAt(0).toUpperCase() + txt.slice(1), det };
+  Object.assign(F, {
+    marco,
+    ef: dEf,
+    dor: c.dor ? c.dor_local || true : null,
+    cansaco: c.cansaco,
+    sono: c.sono,
+    rpe: c.rpe,
+  });
+  return { txt: txt.charAt(0).toUpperCase() + txt.slice(1), det, fatos: F };
+}
+// sugestão de comentário do treinador, a partir dos fatos da Leitura Nexos: frases curtas, em tom de conversa
+function escolhaFixa(lista, semente) {
+  let h = 0;
+  for (const ch of String(semente || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return lista[h % lista.length];
+}
+function sugestaoCorrida(F, nomeAluno, semente) {
+  if (!F) return '';
+  const nome = nomeAluno ? firstName(nomeAluno) : '';
+  const partes = [];
+  const T = F.tiros;
+  if (F.dor)
+    partes.push(
+      `Vi que você sentiu dor${typeof F.dor === 'string' ? ` (${F.dor.toLowerCase()})` : ''}. Como está hoje? Se continuar, me avisa que a gente ajusta os próximos treinos.`,
+    );
+  if (T) {
+    const faltou = T.plan && T.feitos < T.plan;
+    let a = faltou
+      ? `Você fez ${T.feitos} de ${T.plan} tiros`
+      : T.zona === 'dentro'
+        ? escolhaFixa(
+            [
+              'Treino muito bem executado! Os tiros saíram na zona certa',
+              'Que treino! Os tiros ficaram certinhos na zona pedida',
+            ],
+            semente,
+          )
+        : T.zona === 'rapido'
+          ? 'Treino forte! Os tiros saíram mais rápidos que a zona pedida'
+          : T.zona === 'lento'
+            ? 'Treino feito! Os tiros ficaram um pouco abaixo do ritmo pedido'
+            : escolhaFixa(['Treino muito bem feito', 'Bom treino de tiros'], semente);
+    if (!faltou && (T.zona === 'dentro' || !T.zona)) {
+      if (T.dist === 'negativo') a += ', e você terminou mais forte do que começou';
+      else if (T.dist === 'regular') a += ', bem regulares do início ao fim';
+    }
+    partes.push(a + (faltou || T.zona === 'lento' ? '.' : '!'));
+    if (T.recFC === 'boa')
+      partes.push('A frequência baixou bem nas recuperações, sinal de que o corpo está assimilando a carga.');
+    if (T.zona === 'rapido')
+      partes.push(
+        'Da próxima vez, segura um pouco: a ideia é fazer a série inteira no ritmo certo, sem passar do ponto.',
+      );
+    else if (T.zona === 'lento') partes.push('Normal dependendo do dia. Vamos acompanhando.');
+    if (T.dist === 'caiu') partes.push('Os últimos caíram um pouco, sinal de que a intensidade estava no limite.');
+  } else {
+    if (F.leveForte)
+      partes.push(
+        `Bom treino! Só um detalhe: ${F.tipo === 'longao' ? 'o longão é para ser no ritmo leve' : 'esse era um treino leve'}, então pode segurar mais o ritmo. É no leve que a base aeróbica cresce.`,
+      );
+    else if (F.ritmo === 'negativo')
+      partes.push('Treino muito bem feito! Terminou mais forte do que começou, ótimo controle de ritmo.');
+    else if (F.ritmo === 'consistente')
+      partes.push(
+        escolhaFixa(
+          [
+            'Treino muito bem feito! Ritmo constante do início ao fim.',
+            'Que treino constante! Ritmo bem controlado do início ao fim.',
+          ],
+          semente,
+        ),
+      );
+    else if (F.ritmo === 'perdeu')
+      partes.push(
+        'Treino feito! No final o ritmo caiu um pouco. Vale cuidar da hidratação e começar um pouco mais leve.',
+      );
+    else if (F.ritmo === 'caiu')
+      partes.push('Treino feito! Começou forte e foi caindo. Da próxima, começa um pouco mais leve e cresce no fim.');
+    else partes.push(escolhaFixa(['Bom treino!', 'Treino feito, muito bom!', 'Boa, treino cumprido!'], semente));
+    if (F.aerobico && !F.leveForte) partes.push('A frequência ficou controlada, sinal de boa base aeróbica.');
+    if (F.deriva) partes.push('A frequência subiu bastante no fim: calor e hidratação contam muito nesses dias.');
+  }
+  if (F.marco) partes.push(`E foi ${F.marco}!`);
+  else if (F.ef != null && F.ef > 0.03)
+    partes.push('Seu corpo está respondendo bem: o ritmo para a mesma frequência melhorou.');
+  if (F.planoPc != null && F.planoPc < 0.8 && !(T && T.plan && T.feitos < T.plan))
+    partes.push('Ficou um pouco abaixo da distância prevista. Se teve algum motivo, me conta.');
+  if (F.salto >= 10) partes.push('Foi bem mais longo que o normal, então capricha no descanso nos próximos dias.');
+  if (!F.dor && (F.cansaco === 2 || F.sono === 2))
+    partes.push('Vi que você marcou cansaço ou sono ruim: prioriza o descanso esses dias.');
+  // no máximo 4 frases, para não virar relatório
+  const corpo = partes.slice(0, 4).join(' ');
+  const fim = escolhaFixa(
+    ['Segue firme!', 'Continua assim!', 'Bora para o próximo!', 'Parabéns pelo treino!'],
+    semente + 'f',
+  );
+  return `${nome && !F.dor ? nome + ', ' + corpo.charAt(0).toLowerCase() + corpo.slice(1) : corpo} ${F.dor ? '' : fim}`.trim();
 }
 const NI_LOGO = '<span class="ni-logo" aria-hidden="true"><i></i><i></i><i></i></span>';
 function nexosIntHTML(r) {
@@ -556,6 +681,7 @@ async function viewCorrida(id) {
   const pMin = parc.length ? Math.min(...parc.map(pk)) : 0,
     pMax = parc.length ? Math.max(...parc.map(pk)) : 0;
   const voltar = S.staff ? `#/aluno/${c.aluno_id}/corrida` : '#/historico/corrida';
+  const niR = ehCorr(c) ? nexosInteligencia(c, { plano, perfil: pc, hist: hist90 }) : null;
   $app.innerHTML = `
     <div class="row between"><a class="back" href="${voltar}" style="margin:0">${I.back} ${S.staff ? esc(nome.nome || 'Aluno') : 'Corridas'}</a>${S.staff ? `<div class="row" style="gap:6px">${c.visto_treinador ? `<span class="tag ok">${I.check} Visto</span>` : `<button class="btn sm visto-btn grande" data-visto="corrida|${c.id}">${I.check} Visto</button>`}<button class="btn ghost sm" id="coment-tr">${I.feed} Comentar</button></div>` : c.comentario_treinador ? `<span class="tag ok">${I.check} Analisado e comentado pelo treinador</span>` : c.visto_treinador ? `<span class="tag ok">${I.check} Analisado pelo treinador</span>` : ''}</div>
     <p class="eyebrow" style="margin-top:16px">${esc((TIPOS_ATIV.find((t) => t[0] === c.tipo) || [, nomeAtiv(c)])[1])} · ${fmtDia(c.data)} · ${fmtHora(c.data)}${c.fonte === 'garmin' ? ' · Garmin' : ''}</p>
@@ -572,7 +698,8 @@ async function viewCorrida(id) {
       ${c.cadencia ? `<div class="metric"><span>Cadência</span><b>${c.cadencia}<small>ppm</small></b></div>` : ''}
       ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
     </div>
-    ${ehCorr(c) ? nexosIntHTML(nexosInteligencia(c, { plano, perfil: pc, hist: hist90 })) : ''}
+    ${ehCorr(c) ? nexosIntHTML(niR) : ''}
+    ${S.staff && !c.comentario_treinador ? '<div id="sug-corr"></div>' : ''}
     ${c.dor ? `<div class="card" style="margin-top:12px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor${c.dor_local ? ': ' + esc(c.dor_local) : ''}</span></div>` : ''}
     ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
     ${c.comentario ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Como foi</span><p style="margin-top:6px">“${esc(c.comentario)}”</p></div>` : ''}
@@ -627,6 +754,15 @@ async function viewCorrida(id) {
     const e = document.getElementById(k);
     if (e) e.onclick = () => comentarTreino(c, nome);
   });
+  // sugestão de comentário (só a equipe): Usar abre a Análise do treinador já preenchida, para editar e enviar
+  const sgBox = document.getElementById('sug-corr');
+  if (sgBox && niR)
+    montarSugestao(sgBox, {
+      chave: 'sug:corrida:' + c.id,
+      texto: sugestaoCorrida(niR.fatos, nome && nome.nome, c.id),
+      destino: 'Abre a Análise do treinador para você editar e enviar.',
+      usar: (t) => comentarTreino(c, nome, t),
+    });
   if (c.analise) bindGraficos($app, c);
   document.getElementById('apagar-c').onclick = async () => {
     if (!confirm('Apagar esta corrida?')) return;

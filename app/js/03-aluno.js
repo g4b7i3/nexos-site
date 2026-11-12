@@ -540,8 +540,20 @@ function prontDetalhe(x) {
         ${x.obs ? `<div class="md-obs"><p class="md-rot">Relato do atleta</p><p>“${esc(x.obs)}”</p></div>` : ''}
         <div class="md-rodape"><img src="icons/simbolo.svg" alt=""><span>Escala de bem-estar de Hooper e McLean: 4 perguntas de 1 a 5, total de 4 a 20. Boa de 16 a 20 · moderada de 12 a 15 · baixa até 11.</span></div>
       </div>
+      <div id="sug-pront"></div>
     </div>`,
   );
+  if (x.aluno_id)
+    montarSugestao(el.querySelector('#sug-pront'), {
+      chave: 'sug:pront:' + x.id,
+      titulo: 'Sugestão de mensagem para o aluno',
+      texto: sugestaoProntidao(x, nome),
+      destino: 'Abre a conversa com o aluno com a mensagem no campo, para você editar e enviar.',
+      usar: (t) => {
+        el.fechar(true);
+        abrirConversaCom(x.aluno_id, t);
+      },
+    });
   requestAnimationFrame(() =>
     setTimeout(() => {
       const a = el.querySelector('.md-arco');
