@@ -949,7 +949,7 @@ async function alunoHoje() {
     ${S.me.sexo === 'F' ? faseVidaCardHTML(S.me, false) : ''}
     ${fC ? '<div id="calor-hoje"></div>' : ''}
     <div id="momentos" class="stack mom-box"></div>
-    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="falta-pend"></div><div id="pront-pend"></div><div id="ck-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
+    <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="falta-pend"></div><div id="pront-pend"></div><div id="ck-pend"></div><div id="sm-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
     <div id="desafio-box"></div>
     <div id="meta-hoje"></div>
     <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
@@ -1006,6 +1006,17 @@ async function alunoHoje() {
       },
       () => {},
     );
+  // Saúde da mulher: pede a triagem de energia até ela responder (e de novo depois de 90 dias)
+  if (!S.staff && S.me.sexo === 'F')
+    smBuscar(S.user.id).then((row) => {
+      const en = row && row.energia;
+      if (en && smDiasDesde(en.em) <= 90) return;
+      const b = document.getElementById('sm-pend');
+      if (!b) return;
+      b.innerHTML = `<a class="list-item" href="#/mulher/energia" style="color:inherit"><span class="ativ-ic">${FV_IC}</span><div class="grow"><b>${en ? 'Hora de refazer a triagem de saúde da mulher' : 'Triagem de saúde da mulher'}</b><div class="small muted">8 perguntas rápidas sobre energia, ciclo e alimentação. Leva 2 minutos e ajuda seu treinador a cuidar melhor de você.</div></div>${I.chev}</a>`;
+      const ps = document.getElementById('pend-sec');
+      if (ps) ps.hidden = false;
+    });
   {
     const ab = document.getElementById('agua-box'),
       sm = document.getElementById('agua-slot-m');
