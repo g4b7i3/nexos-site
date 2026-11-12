@@ -21,6 +21,14 @@
       texto:
         'Sempre fui totalmente sedentária, mas hoje, aos 27, senti que precisava cuidar melhor da minha saúde. Ter um acompanhamento profissional tem sido essencial para eu não desistir. Depois de 2 meses, sinto uma enorme diferença no meu dia a dia, com mais força e fôlego para explorar coisas novas: da academia até a minha primeira trilha! Muito obrigada à equipe Nexos pela dedicação, disponibilidade e por estar sempre me orientando no que posso melhorar.',
     },
+    {
+      nome: 'Robenilson Muniz',
+      quem: 'Aluno · Icatu (MA)',
+      foto: '/img/depoimentos/robenilson.jpg',
+      conquistas: ['Treino adaptado à rotina', 'Acompanhamento treino a treino'],
+      texto:
+        'Gosto muito da metodologia Nexos, principalmente pela maneira como vocês conversam com o atleta, procuram entender a rotina e adaptam os treinos de acordo com a realidade de cada um. Uma coisa que considero muito importante é o equilíbrio na distribuição das cargas, dando a devida importância ao descanso e à recuperação. Outro ponto é a preocupação da equipe em sempre procurar saber como foi o treino, como o atleta se sentiu e se conseguiu executar o que foi proposto. Isso faz muita diferença, porque mostra que não é simplesmente passar uma planilha, mas acompanhar de verdade a evolução do atleta.',
+    },
   ];
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
