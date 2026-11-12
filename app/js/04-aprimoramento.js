@@ -4,7 +4,7 @@
 
 /* ================= APRIMORAMENTO INTELECTUAL (só treinadores) ================= */
 // banco de questões em app/aprimoramento/*.json (cada questão com explicação e fonte); respostas em nx_quiz_respostas
-const APR_AREAS = ['corrida', 'triatlo', 'forca', 'anatomia', 'sistemas', 'fisiologia', 'casos'];
+const APR_AREAS = ['preparacao', 'corrida', 'triatlo', 'forca', 'anatomia', 'sistemas', 'fisiologia', 'casos'];
 const APR_NIVEL = { 1: ['Básico', 'ok'], 2: ['Intermediário', 'acc'], 3: ['Avançado', 'warn'] };
 const APR_IC =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h5"/></svg>';
@@ -67,7 +67,7 @@ function aprSorteio(ids, ult, n) {
     ...emb(ids.filter((i) => ult[i] === true)),
   ].slice(0, n);
 }
-async function viewAprimoramento(area, tema) {
+async function viewAprimoramento(area, tema, sub) {
   loading();
   dockStaff();
   const [B, ult] = await Promise.all([aprCarregar(), aprRespostas()]);
@@ -87,6 +87,8 @@ async function viewAprimoramento(area, tema) {
   const ar = B.areas.find((x) => x.id === area);
   if (ar && tema) {
     const t = ar.temas.find((x) => x.id === tema);
+    // módulo de trilha: abre o estudo; as questões ficam em .../questoes
+    if (t && t.estudo && sub !== 'questoes') return aprEstudo(ar, t, ult);
     if (t)
       return aprQuiz(
         aprSorteio(
@@ -95,7 +97,7 @@ async function viewAprimoramento(area, tema) {
           10,
         ),
         t.titulo,
-        `#/aprimoramento/${ar.id}`,
+        t.estudo ? `#/aprimoramento/${ar.id}/${t.id}` : `#/aprimoramento/${ar.id}`,
       );
     if (tema === 'simulado')
       return aprQuiz(
@@ -110,15 +112,17 @@ async function viewAprimoramento(area, tema) {
   }
   if (ar) {
     const idsA = ar.temas.flatMap((x) => x.q.map((q) => q.id));
-    $app.innerHTML = `<a class="back" href="#/aprimoramento">${I.back} Aprimoramento Intelectual</a><p class="eyebrow">Área</p><h1 class="h1">${esc(ar.titulo)}</h1><p class="muted" style="margin-top:6px">${esc(ar.desc)}</p>
-      <div class="card apr-resumo">${aprBarra(aprStats(idsA, ult))}<a class="btn block" href="#/aprimoramento/${ar.id}/simulado" style="margin-top:12px">Simulado da área (15 questões)</a></div>
-      <p class="sec-lbl">Temas</p><div class="stack">${ar.temas
-        .map((t) => {
+    $app.innerHTML = `<a class="back" href="#/aprimoramento">${I.back} Aprimoramento Intelectual</a><p class="eyebrow">${ar.trilha ? 'Trilha de estudo' : 'Área'}</p><h1 class="h1">${esc(ar.titulo)}</h1><p class="muted" style="margin-top:6px">${esc(ar.desc)}</p>
+      ${ar.plano ? `<div class="apr-plano">${esc(ar.plano)}</div>` : ''}
+      <div class="card apr-resumo">${aprBarra(aprStats(idsA, ult))}<a class="btn block" href="#/aprimoramento/${ar.id}/simulado" style="margin-top:12px">Simulado ${ar.trilha ? 'da trilha' : 'da área'} (15 questões)</a></div>
+      <p class="sec-lbl">${ar.trilha ? 'Módulos' : 'Temas'}</p><div class="stack">${ar.temas
+        .map((t, k) => {
           const st = aprStats(
             t.q.map((q) => q.id),
             ult,
           );
-          return `<a class="card apr-tema" href="#/aprimoramento/${ar.id}/${t.id}" style="color:inherit"><div class="row between" style="gap:10px"><b>${esc(t.titulo)}</b>${I.chev}</div>${aprBarra(st)}</a>`;
+          const feito = st.resp === st.total && st.pct >= 80;
+          return `<a class="card apr-tema" href="#/aprimoramento/${ar.id}/${t.id}" style="color:inherit"><div class="row between" style="gap:10px"><div class="grow" style="min-width:0">${ar.trilha ? `<span class="apr-mod${feito ? ' ok' : ''}">Módulo ${k + 1}${feito ? ' · concluído' : ''}</span>` : ''}<b style="display:block">${esc(t.titulo)}</b></div>${I.chev}</div>${aprBarra(st)}</a>`;
         })
         .join('')}</div>`;
     return;
@@ -140,13 +144,47 @@ async function viewAprimoramento(area, tema) {
     <p class="muted" style="margin-top:6px">${todasIds.length} questões com base científica, cada uma com explicação e fonte. Escolha uma área, responda e acompanhe o seu aproveitamento.</p>
     <div class="card apr-resumo"><span class="eyebrow">Seu aproveitamento geral</span>${aprBarra(geral)}
       <div class="grid2" style="margin-top:12px;gap:8px"><a class="btn sm" href="#/aprimoramento/simulado">Simulado geral (20)</a><a class="btn sm ghost" href="#/aprimoramento/erros" ${nErros ? '' : 'aria-disabled="true" style="opacity:.5;pointer-events:none"'}>Revisar erros${nErros ? ` (${nErros})` : ''}</a></div></div>
+    ${
+      B.areas.some((ar) => ar.trilha)
+        ? `<p class="sec-lbl">Trilhas de estudo</p><div class="stack">${B.areas
+            .filter((ar) => ar.trilha)
+            .map((ar) => {
+              const ids = ar.temas.flatMap((x) => x.q.map((q) => q.id));
+              return `<a class="card apr-area apr-trilha" href="#/aprimoramento/${ar.id}" style="color:inherit"><span class="apr-mod">${ar.temas.length} módulos · estudo, prática e questões</span><div class="row between" style="gap:10px;align-items:flex-start"><b class="h3">${esc(ar.titulo)}</b>${I.chev}</div>${aprBarra(aprStats(ids, ult))}</a>`;
+            })
+            .join('')}</div>`
+        : ''
+    }
     <p class="sec-lbl">Áreas</p><div class="stack">${B.areas
+      .filter((ar) => !ar.trilha)
       .map((ar) => {
         const ids = ar.temas.flatMap((x) => x.q.map((q) => q.id));
         return `<a class="card apr-area" href="#/aprimoramento/${ar.id}" style="color:inherit"><div class="row between" style="gap:10px;align-items:flex-start"><div class="grow" style="min-width:0"><b class="h3">${esc(ar.titulo)}</b><p class="small muted" style="margin-top:4px">${ar.temas.length} temas · ${esc(ar.desc)}</p></div>${I.chev}</div>${aprBarra(aprStats(ids, ult))}</a>`;
       })
       .join('')}</div>
     <p class="sec-lbl">Equipe</p><a class="list-item" href="#/aprimoramento/reportes" style="color:inherit;margin-bottom:8px"><span class="ativ-ic">${I.alerta}</span><div class="grow"><b>Questões reportadas <span id="apr-nrep"></span></b><div class="small muted">O que a equipe marcou para revisar</div></div>${I.chev}</a><a class="list-item" href="#/aprimoramento/equipe" style="color:inherit"><span class="ativ-ic">${TROFEU_IC}</span><div class="grow"><b>Aproveitamento da equipe</b><div class="small muted">Quantas questões cada treinador respondeu e acertou</div></div>${I.chev}</a>`;
+}
+// tela de estudo de um módulo da trilha: objetivo, resumo, pontos-chave, leituras, prática e questões
+function aprEstudo(ar, t, ult) {
+  const k = ar.temas.indexOf(t),
+    e = t.estudo,
+    st = aprStats(
+      t.q.map((q) => q.id),
+      ult,
+    ),
+    prox = ar.temas[k + 1],
+    ant = ar.temas[k - 1];
+  const lista = (l, cls) => `<ul class="apr-lista ${cls || ''}">${l.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  $app.innerHTML = `<a class="back" href="#/aprimoramento/${ar.id}">${I.back} ${esc(ar.titulo)}</a>
+    <p class="eyebrow">Módulo ${k + 1} de ${ar.temas.length}</p><h1 class="h1">${esc(t.titulo)}</h1>
+    <div class="apr-objetivo"><span class="eyebrow">Objetivo</span><p>${esc(e.objetivo)}</p></div>
+    <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Resumo</p>${e.resumo.map((x) => `<p>${esc(x)}</p>`).join('')}</div>
+    <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Pontos-chave</p>${lista(e.pontos, 'chave')}</div>
+    <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Para ler</p>${lista(e.leituras, 'refs')}</div>
+    <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Aplicar na Nexos</p>${lista(e.pratica, 'pratica')}</div>
+    <div class="card apr-resumo"><span class="eyebrow">Questões do módulo</span>${aprBarra(st)}<a class="btn block" href="#/aprimoramento/${ar.id}/${t.id}/questoes" style="margin-top:12px">${st.resp ? 'Responder de novo' : 'Responder as questões'} (${t.q.length})</a></div>
+    <div class="grid2" style="gap:8px;margin-top:12px">${ant ? `<a class="btn ghost sm" href="#/aprimoramento/${ar.id}/${ant.id}">${I.back} Módulo ${k}</a>` : '<span></span>'}${prox ? `<a class="btn ghost sm" href="#/aprimoramento/${ar.id}/${prox.id}">Módulo ${k + 2} ${I.chev}</a>` : ''}</div>`;
+  window.scrollTo(0, 0);
 }
 function aprQuiz(ids, titulo, voltar) {
   const B = S.cache.apr,
@@ -242,15 +280,13 @@ function aprReportar(q) {
       el.querySelector('#f-rep').onsubmit = async (e) => {
         e.preventDefault();
         const f = e.target;
-        const { error } = await sb
-          .from('nx_quiz_reportes')
-          .insert({
-            org_id: S.org.id,
-            user_id: S.user.id,
-            questao: q.id,
-            motivo: f.motivo.value,
-            comentario: f.comentario.value.trim() || null,
-          });
+        const { error } = await sb.from('nx_quiz_reportes').insert({
+          org_id: S.org.id,
+          user_id: S.user.id,
+          questao: q.id,
+          motivo: f.motivo.value,
+          comentario: f.comentario.value.trim() || null,
+        });
         if (error) return toast('Não foi possível enviar.', true);
         closeSheet();
         toast('Questão reportada. Ela vai para a lista de revisão.');
