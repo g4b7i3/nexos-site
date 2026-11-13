@@ -210,6 +210,7 @@ async function viewGps(id, modo) {
     <div class="g2-folha" id="g-folha">
       <button class="g2-grip" id="g-grip" aria-label="Opções do treino"></button>
       <div id="g-rec"></div>
+      <div id="g-onde"></div>
       ${est ? '<div class="est-local" id="g-local"></div>' : ''}
       <div class="g2-bts" id="g-bts"></div>
       <p class="g2-dica" id="g-dica"></p>
@@ -444,6 +445,10 @@ async function viewGps(id, modo) {
       E === 'pronto' && outro
         ? `<div class="g2-rec"><b>Você tem um treino em andamento</b><p class="small muted">${esc(outro.titulo)} · ${fmtKm(outro.dist, 2)} · ${fmtDurLongo(outro.mov / 1000)}</p><div class="row" style="gap:8px;margin-top:8px"><a class="btn sm" href="#/gps/${outro.id}${outro.est ? '/esteira' : ''}">Continuar</a><button class="btn ghost sm" id="g-desc">Descartar</button></div></div>`
         : '';
+    $('g-onde').innerHTML =
+      E === 'pronto'
+        ? `<div class="g2-onde" role="radiogroup" aria-label="Onde você vai correr"><button type="button" role="radio" aria-checked="${!est}" data-onde="rua" class="${est ? '' : 'on'}">${I.run}<span><b>Na rua</b><small>GPS e mapa</small></span></button><button type="button" role="radio" aria-checked="${est}" data-onde="esteira" class="${est ? 'on' : ''}">${GPS_IC.esteira}<span><b>Na esteira</b><small>Sem GPS</small></span></button></div>`
+        : '';
     $('g-bts').innerHTML =
       E === 'pronto'
         ? circ('g-tipo', est ? GPS_IC.esteira : I.run, est ? 'Esteira' : 'Na rua', 'on') +
@@ -475,7 +480,7 @@ async function viewGps(id, modo) {
             : aproxDesde && Date.now() - aproxDesde > 8000
               ? 'O celular está dando só a localização aproximada para a Nexos. Ative a localização precisa: toque e segure o ícone da Nexos, Informações do app, Permissões, Localização e ligue "Usar localização precisa". Se abrir pelo Chrome, faça o mesmo no app Chrome.'
               : podeSemSinal
-                ? 'Sinal fraco (dentro de casa ou entre prédios). Dá para começar: a distância passa a contar quando o sinal melhorar.'
+                ? 'Sinal fraco. Se você vai correr na esteira, toque em Na esteira, porque o GPS não mede corrida parada no lugar. Na rua, dá para começar e a distância passa a contar quando o sinal melhorar.'
                 : 'Procurando o GPS. Ao ar livre ele acha o sinal mais rápido.'
         : E === 'pausado'
           ? st.auto
@@ -536,6 +541,17 @@ async function viewGps(id, modo) {
     b('g-vlt', () => marcarVolta());
     b('g-treino', abrirTreinos);
     b('g-tipo', abrirTipo);
+    document.querySelectorAll('#g-onde [data-onde]').forEach(
+      (x) =>
+        (x.onclick = () => {
+          const quer = x.dataset.onde === 'esteira';
+          store.set('nx-gps-onde', x.dataset.onde);
+          try {
+            sessionStorage.setItem('nx-gps-onde-' + id, '1');
+          } catch {}
+          if (quer !== est) irPara('#/gps/' + id + (quer ? '/esteira' : ''));
+        }),
+    );
     b('g-vozb', () => {
       st.voz = !st.voz;
       salvar();
@@ -918,7 +934,12 @@ async function viewGps(id, modo) {
     } catch {}
   };
   const finalizar = () => {
-    if (!est) return salvarTreino();
+    if (!est) {
+      const mov0 = Math.round(movAgora() / 1000);
+      // menos de 3 km/h de média por mais de 5 minutos: quase sempre é esteira com o GPS ligado
+      if (mov0 > 300 && st.dist / mov0 < 0.83) return perguntarEsteira(mov0);
+      return salvarTreino();
+    }
     const mov = Math.round(movAgora() / 1000);
     if (mov < 30) return toast('O treino ficou curto demais para salvar.', true);
     const estim = st.dist > 0 ? String(+(st.dist / 1000).toFixed(2)).replace('.', ',') : '';
@@ -960,7 +981,42 @@ async function viewGps(id, modo) {
       },
     );
   };
-  const salvarTreino = () => {
+  const perguntarEsteira = (mov) => {
+    openSheet(
+      `<p class="eyebrow">Antes de salvar</p><div class="h2" style="margin-top:4px">Você correu na esteira?</div>
+      <p class="small muted" style="margin-top:6px">O GPS marcou só <b>${fmtKm(st.dist, 2)}</b> em <b>${fmtDurLongo(mov)}</b>. Isso acontece quando a corrida é na esteira, porque o celular fica parado no lugar.</p>
+      <form id="f-est" style="margin-top:14px"><label class="field"><span>Distância do painel da esteira (km)</span><input class="input" name="km" data-mask="dec" data-int="3" inputmode="decimal" placeholder="Ex.: 2,8"></label>
+      <button class="btn block" type="submit">${I.check} Sim, foi na esteira</button></form>
+      <button class="btn ghost block" id="f-rua" style="margin-top:8px">Não, foi na rua</button>
+      <p class="tiny dim" style="margin-top:10px">Da próxima vez, escolha Na esteira antes de começar.</p>`,
+      (r) => {
+        const f = r.querySelector('#f-est');
+        aplicarMascaras(f);
+        r.querySelector('#f-rua').onclick = () => {
+          closeSheet(true);
+          salvarTreino();
+        };
+        f.onsubmit = (e) => {
+          e.preventDefault();
+          const km = parseFloat(String(f.km.value).replace(/\./g, '').replace(',', '.'));
+          if (!(km > 0.05 && km < 100)) return toast('Digite a distância do painel, por exemplo 2,8.', true);
+          const novo = km * 1000;
+          st.dist = novo;
+          st.serie = {
+            t: [0, mov],
+            d: [0, Math.round(novo)],
+            vel: [+(novo / mov).toFixed(2), +(novo / mov).toFixed(2)],
+          };
+          st.voltas = [];
+          st.pIni = { t: 0, d: 0 };
+          st.parciais = [];
+          st.rota = [];
+          salvarTreino(true);
+        };
+      },
+    );
+  };
+  const salvarTreino = (viraEsteira = false) => {
     const mov = Math.round(movAgora() / 1000);
     if (st.dist < 100 || mov < 30) return toast('O treino ficou curto demais para salvar (menos de 100 m).', true);
     // última parte em andamento entra como volta
@@ -970,7 +1026,7 @@ async function viewGps(id, modo) {
       rota = st.rota.filter((_, i) => i % passo === 0 || i === st.rota.length - 1);
     const d = {
       data: st.inicio,
-      tipo: est ? 'esteira' : 'corrida',
+      tipo: est || viraEsteira ? 'esteira' : 'corrida',
       distancia_m: Math.round(st.dist),
       duracao_s: mov,
       rota: rota.length > 1 ? rota : null,
@@ -986,7 +1042,11 @@ async function viewGps(id, modo) {
         serie: st.serie,
         voltas,
         extras: {
-          dispositivo: est ? `Celular (esteira, ${st.local === 'mao' ? 'na mão' : 'no corpo'})` : 'Celular (GPS)',
+          dispositivo: est
+            ? `Celular (esteira, ${st.local === 'mao' ? 'na mão' : 'no corpo'})`
+            : viraEsteira
+              ? 'Celular (esteira, distância do painel)'
+              : 'Celular (GPS)',
           total_s: Math.round((Date.now() - new Date(st.inicio)) / 1000),
           lacunas: st.lacunas,
           ...(est ? { passos: st.passos } : {}),
@@ -1191,17 +1251,27 @@ async function viewGps(id, modo) {
       },
     );
   };
-  const abrirTipo = () => {
+  const abrirTipo = (primeira) => {
     if (st.estado !== 'pronto') return;
     const base = '#/gps/' + id;
+    const ultima = store.get('nx-gps-onde', '');
     openSheet(
-      `<p class="eyebrow">Treinar pelo celular</p><div class="h2" style="margin-top:4px">Onde você vai correr?</div>
-      <div class="stack" style="margin-top:14px">
-        <button type="button" class="list-item" data-ir="${base}" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${I.run}</span><div class="grow"><b>Na rua</b><div class="small muted">GPS com mapa, distância e pace</div></div>${!est ? I.check : I.chev}</button>
-        <button type="button" class="list-item" data-ir="${base}/esteira" style="width:100%;text-align:left;color:inherit"><span class="ativ-ic">${GPS_IC.esteira}</span><div class="grow"><b>Na esteira</b><div class="small muted">Sensor de movimento conta os passos; no fim você confirma a distância do painel</div></div>${est ? I.check : I.chev}</button>
+      `<p class="eyebrow">${esc(titulo)}</p><div class="h2" style="margin-top:4px">Onde você vai correr?</div>
+      <div class="g2-onde-op" style="margin-top:16px">
+        <button type="button" data-ir="${base}" data-o="rua" class="${primeira ? '' : !est ? 'on' : ''}"><span class="g2-onde-ic">${I.run}</span><b>Na rua</b><small>O GPS mede a distância e o pace e mostra o mapa.</small>${ultima === 'rua' ? '<i>Última vez</i>' : ''}</button>
+        <button type="button" data-ir="${base}/esteira" data-o="esteira" class="${primeira ? '' : est ? 'on' : ''}"><span class="g2-onde-ic">${GPS_IC.esteira}</span><b>Na esteira</b><small>O GPS não funciona parado no lugar. O celular conta os passos e no fim você digita a distância do painel.</small>${ultima === 'esteira' ? '<i>Última vez</i>' : ''}</button>
       </div>`,
       (r) => {
-        r.querySelectorAll('[data-ir]').forEach((x) => (x.onclick = () => irPara(x.dataset.ir)));
+        r.querySelectorAll('[data-ir]').forEach(
+          (x) =>
+            (x.onclick = () => {
+              store.set('nx-gps-onde', x.dataset.o);
+              try {
+                sessionStorage.setItem('nx-gps-onde-' + id, '1');
+              } catch {}
+              irPara(x.dataset.ir);
+            }),
+        );
       },
     );
   };
@@ -1267,6 +1337,12 @@ async function viewGps(id, modo) {
   ligarGPS();
   desenha();
   iniciarMapa();
+  // ainda não escolheu onde vai correr neste treino: pergunta logo, antes de começar
+  let jaEscolheu = false;
+  try {
+    jaEscolheu = sessionStorage.getItem('nx-gps-onde-' + id) === '1';
+  } catch {}
+  if (!est && modo !== 'esteira' && st.estado === 'pronto' && !st.inicio && !outro && !jaEscolheu) abrirTipo(true);
   setTimeout(() => {
     podeSemSinal = true;
     if (document.getElementById('g-bts')) desenha();
