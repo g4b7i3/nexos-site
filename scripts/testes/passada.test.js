@@ -63,7 +63,18 @@ function joelho(H, A, L1, L2, dir) {
 }
 
 // 2. corredor de lado, na esteira, indo para a direita: cadência 170, tronco a 7°, quadril sobe e desce 20 px
-function corredorLado({ cad = 170, dir = 1, fps = 60, seg = 3, tronco = 7, osc = 20, frente = 70 } = {}) {
+function corredorLado({
+  cad = 170,
+  dir = 1,
+  fps = 60,
+  seg = 3,
+  tronco = 7,
+  osc = 20,
+  frente = 70,
+  cotovelo = 90,
+  bracoF = 35,
+  bracoT = 25,
+} = {}) {
   const ciclo = 120 / cad,
     L1 = 210,
     L2 = 210,
@@ -98,11 +109,14 @@ function corredorLado({ cad = 170, dir = 1, fps = 60, seg = 3, tronco = 7, osc =
       p[L === 'E' ? PS_P.tornE : PS_P.tornD] = [A[0], A[1], vis];
       p[L === 'E' ? PS_P.calcE : PS_P.calcD] = [A[0] - dir * 15, A[1] + 10, vis];
       p[L === 'E' ? PS_P.pontaE : PS_P.pontaD] = [A[0] + dir * 30, A[1] + 10, vis];
-      p[L === 'E' ? PS_P.ombroE : PS_P.ombroD] = [
-        H[0] + (L === 'E' ? 0 : 6) + dir * 250 * Math.sin(rad(tronco)),
-        H[1] - 250 * Math.cos(rad(tronco)),
-        vis,
-      ];
+      const O = [H[0] + (L === 'E' ? 0 : 6) + dir * 250 * Math.sin(rad(tronco)), H[1] - 250 * Math.cos(rad(tronco))];
+      p[L === 'E' ? PS_P.ombroE : PS_P.ombroD] = [O[0], O[1], vis];
+      // braço balança ao contrário da perna do mesmo lado: de bracoT para trás até bracoF à frente
+      const a = rad((bracoF - bracoT) / 2 + ((bracoF + bracoT) / 2) * Math.cos(2 * Math.PI * f));
+      const b = a + rad(180 - cotovelo);
+      const C = [O[0] + dir * 120 * Math.sin(a), O[1] + 120 * Math.cos(a)];
+      p[L === 'E' ? PS_P.cotoveloE : PS_P.cotoveloD] = [C[0], C[1], vis];
+      p[L === 'E' ? PS_P.punhoE : PS_P.punhoD] = [C[0] + dir * 110 * Math.sin(b), C[1] + 110 * Math.cos(b), vis];
     });
     p[0] = [H[0] + dir * 300 * Math.sin(rad(tronco)), H[1] - 330, 0.9];
     fr.push({ t, p });
@@ -159,7 +173,7 @@ ok(ch.qualidade.avisos.includes('distancia_muda'), 'avisa quando a distância at
 ok(!lado.qualidade.avisos.includes('distancia_muda'), 'não avisa distância na esteira');
 
 // 3. corredor por trás: quadril do lado sem apoio cai 6°, pés sem cruzar
-function corredorTras({ queda = 6, quedaE = null, cruza = false, fps = 60, seg = 3 } = {}) {
+function corredorTras({ queda = 6, quedaE = null, cruza = false, fps = 60, seg = 3, maoE = -15, maoD = -15 } = {}) {
   const ciclo = 120 / 170,
     chao = 1000;
   const fr = [];
@@ -190,6 +204,12 @@ function corredorTras({ queda = 6, quedaE = null, cruza = false, fps = 60, seg =
       p[PS_P['calc' + s]] = [ax, ay + 10, 0.9];
       p[PS_P['ponta' + s]] = [ax, ay + 12, 0.8];
       p[PS_P['ombro' + s]] = [Q[0] + (L === 'E' ? -20 : 20), 350, 0.9];
+      // mão vai em direção ao meio do corpo (x = 500) no balanço; maoE/maoD = quanto passa do meio no ponto máximo
+      const passa = L === 'E' ? maoE : maoD,
+        lad = L === 'E' ? -1 : 1;
+      const fora = 70 - (70 + passa) * (0.5 + 0.5 * Math.cos(2 * Math.PI * f));
+      p[PS_P['cotovelo' + s]] = [500 + lad * 85, 450, 0.8];
+      p[PS_P['punho' + s]] = [500 + lad * fora, 500, 0.7];
     });
     fr.push({ t, p });
   }
@@ -294,6 +314,31 @@ ok(psSugereFator(170) === 1 && psSugereFator(null) === 1, 'vídeo normal não mu
 ok(perto(psRitmoKmh('6:00'), 10, 0.01) && perto(psRitmoKmh('10,5'), 10.5, 0.01), 'pace e km/h');
 ok(psRitmoKmh('abc') == null && psRitmoKmh('0:30') == null, 'ritmo inválido');
 ok(psPaceTxt(12) === '5:00/km', 'pace a partir de km/h');
+
+// 10. braços: de lado, cotovelo a 90° e balanço de 35° à frente e 25° atrás
+ok(perto(lado.m.cotovelo, 90, 2), `cotovelo: ${lado.m.cotovelo} (esperado 90)`);
+ok(perto(lado.m.bracoFrente, 35, 3), `braço à frente: ${lado.m.bracoFrente} (esperado ≈ 35)`);
+ok(perto(lado.m.bracoTras, 25, 3), `braço atrás: ${lado.m.bracoTras} (esperado ≈ 25)`);
+ok(perto(esq.m.bracoFrente, 35, 3) && perto(esq.m.cotovelo, 90, 2), 'braços iguais correndo para a esquerda');
+const aberto = psAnalisarLado(corredorLado({ cotovelo: 140, bracoF: 40, bracoT: 10 }), altura);
+ok(perto(aberto.m.cotovelo, 140, 2), `cotovelo aberto: ${aberto.m.cotovelo}`);
+ok(aberto.m.bracoTras < aberto.m.bracoFrente * 0.5, 'braço que vai mais à frente do que atrás');
+ok(
+  ['cotovelo', 'bracoFrente', 'bracoTras', 'bracoCruza'].every((k) => psNivel(k, 50) === 'info'),
+  'braços sem faixa (só informação)',
+);
+// por trás: mão esquerda passa 30 px do meio, a direita não chega
+const maos = psAnalisarTras(corredorTras({ maoE: 30 }), altura);
+ok(maos.lados.E.bracoCruza > 4, `mão esquerda cruzando: ${maos.lados.E.bracoCruza} cm`);
+ok(maos.lados.D.bracoCruza < 0, `mão direita sem cruzar: ${maos.lados.D.bracoCruza} cm`);
+ok(perto(maos.m.bracoCruza, maos.lados.E.bracoCruza, 0.01), 'a medida geral fica com o lado que mais cruza');
+ok(
+  psAssimetria('bracoCruza', maos.lados.E.bracoCruza, maos.lados.D.bracoCruza).alto,
+  'diferença grande entre as mãos é marcada',
+);
+// conferência: cotovelo medido no quadro do meio do apoio
+const ptsA = ptsDe(frL[apL.meio]);
+ok(perto(psMedidasQuadro('apoio', ptsA, anL).cotovelo, 90, 0.5), 'cotovelo num quadro');
 
 if (erros.length) {
   console.error('Análise da passada: ' + erros.length + ' conta(s) errada(s):\n - ' + erros.join('\n - '));

@@ -4068,3 +4068,8 @@ body:has(.fb-tela) .toast{z-index:1700}
 .g2-onde-op b{font-size:1.1rem}
 .g2-onde-op small{font-size:.78rem;color:var(--mute);line-height:1.35}
 .g2-onde-op i{position:absolute;top:10px;right:10px;font-style:normal;font-size:.66rem;font-weight:800;color:var(--p2);text-transform:uppercase;letter-spacing:.05em}
+.ps-lei.info{--ps-c:var(--p2)}
+/* revisão do relatório antes de gerar o PDF */
+.re-prev{position:relative;overflow:hidden;margin-top:8px;border-radius:10px;background:#fff;box-shadow:0 0 0 1px var(--line)}
+.re-folha{position:absolute;left:0;top:0;width:760px;transform-origin:top left;pointer-events:none}
+.re-med summary{cursor:pointer}

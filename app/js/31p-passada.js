@@ -13,6 +13,10 @@ const PS_P = {
   nariz: 0,
   ombroE: 11,
   ombroD: 12,
+  cotoveloE: 13,
+  cotoveloD: 14,
+  punhoE: 15,
+  punhoD: 16,
   quadrilE: 23,
   quadrilD: 24,
   joelhoE: 25,
@@ -25,8 +29,26 @@ const PS_P = {
   pontaD: 32,
 };
 const PS_LADO = {
-  E: { q: PS_P.quadrilE, j: PS_P.joelhoE, t: PS_P.tornE, c: PS_P.calcE, p: PS_P.pontaE, o: PS_P.ombroE },
-  D: { q: PS_P.quadrilD, j: PS_P.joelhoD, t: PS_P.tornD, c: PS_P.calcD, p: PS_P.pontaD, o: PS_P.ombroD },
+  E: {
+    q: PS_P.quadrilE,
+    j: PS_P.joelhoE,
+    t: PS_P.tornE,
+    c: PS_P.calcE,
+    p: PS_P.pontaE,
+    o: PS_P.ombroE,
+    co: PS_P.cotoveloE,
+    pu: PS_P.punhoE,
+  },
+  D: {
+    q: PS_P.quadrilD,
+    j: PS_P.joelhoD,
+    t: PS_P.tornD,
+    c: PS_P.calcD,
+    p: PS_P.pontaD,
+    o: PS_P.ombroD,
+    co: PS_P.cotoveloD,
+    pu: PS_P.punhoD,
+  },
 };
 const psMediana = (v) => {
   const a = v.filter((x) => x != null && isFinite(x)).sort((x, y) => x - y);
@@ -234,6 +256,18 @@ function psAnalisarLado(fr, alturaCm) {
     const pl = psMediana(fr.slice(i0, i1 + 1).map((f) => psPernaQuadro(f, lado))) || perna;
     if (res.length >= 3) osc.push(psCm(Math.max(...res) - Math.min(...res), pl, alturaCm));
   }
+  // braços (lado mais perto da câmera): ângulo do cotovelo e quanto o braço vai para a frente e para trás
+  const cotovelos = [],
+    bracos = [];
+  fr.forEach((f) => {
+    const o = psPt(f, s.o, 0.3),
+      co = psPt(f, s.co, 0.3),
+      pu = psPt(f, s.pu, 0.3);
+    if (o && co && pu) cotovelos.push(psAng(o, co, pu));
+    if (o && co) bracos.push((Math.atan2(dir * (co[0] - o[0]), co[1] - o[1]) * 180) / Math.PI);
+  });
+  const bF = psPercentil(bracos, 0.9),
+    bT = psPercentil(bracos, 0.1);
   // cadência pelos apoios do mesmo pé (uma passada completa = 2 passos)
   const ciclos = [];
   for (let k = 0; k + 1 < ap.length; k++) ciclos.push(t(ap[k + 1].ic) - t(ap[k].ic));
@@ -258,6 +292,9 @@ function psAnalisarLado(fr, alturaCm) {
       tronco,
       oscilacao: psMediana(osc),
       contato: fps >= 50 ? psMediana(porApoio.map((x) => x.contatoMs)) : null,
+      cotovelo: psMediana(cotovelos),
+      bracoFrente: bracos.length >= 10 ? bF : null,
+      bracoTras: bracos.length >= 10 && bT != null ? -bT : null,
     },
   };
 }
@@ -316,6 +353,22 @@ function psAnalisarTras(fr, alturaCm) {
       cruza: cruza.length ? cruza.reduce((x, y) => x + y, 0) / cruza.length : null,
     };
   });
+  // braços por trás: quanto a mão passa da linha do meio do corpo (positivo = cruzou), em cm
+  ['E', 'D'].forEach((lado) => {
+    const s = PS_LADO[L(lado)],
+      o = PS_LADO[L(lado === 'E' ? 'D' : 'E')];
+    const v = [];
+    fr.forEach((f) => {
+      const om = psPt(f, s.o, 0.3),
+        oo = psPt(f, o.o, 0.3),
+        pu = psPt(f, s.pu, 0.2);
+      if (!om || !oo || !pu) return;
+      const meio = (om[0] + oo[0]) / 2;
+      const ladoSinal = Math.sign(om[0] - meio) || 1;
+      v.push((meio - pu[0]) * ladoSinal);
+    });
+    res[lado].bracoCruza = v.length >= 10 ? psCm(psPercentil(v, 0.9), pernaMed, alturaCm) : null;
+  });
   // tempos por lado: contato (só com 50 quadros por segundo ou mais) e tempo de passo (do toque do outro pé até o toque deste)
   const fpsT = psFps(fr);
   const apE = psApoios(fr, L('E'), pernaMed),
@@ -358,6 +411,7 @@ function psAnalisarTras(fr, alturaCm) {
       joelhoDentro: max('joelhoDentro'),
       cruza: max('cruza'),
       largura: psMediana([res.E.largura, res.D.largura]),
+      bracoCruza: max('bracoCruza'),
     },
   };
 }
@@ -412,6 +466,10 @@ const PS_REF = {
   tronco: { un: '°', ok: (v) => v >= 3 && v <= 12, at: (v) => v >= 0 && v <= 18 },
   oscilacao: { un: 'cm', ok: (v) => v <= 10, at: (v) => v <= 12 },
   contato: { un: 'ms', info: true },
+  cotovelo: { un: '°', info: true },
+  bracoFrente: { un: '°', info: true },
+  bracoTras: { un: '°', info: true },
+  bracoCruza: { un: 'cm', info: true },
   queda: { un: '°', ok: (v) => v < 5, at: (v) => v <= 8 },
   joelhoDentro: { un: '°', ok: (v) => v < 8, at: (v) => v <= 15 },
   cruza: { un: '%', ok: (v) => v < 0.2, at: (v) => v < 0.5 },
@@ -446,6 +504,9 @@ function psMedidasQuadro(tipo, P, an) {
     } else {
       if (q && j && t) r.joelhoMax = 180 - psAng(q, j, t);
       if (q && o) r.tronco = (Math.atan2(an.dir * (o[0] - q[0]), q[1] - o[1]) * 180) / Math.PI;
+      const co = g(s.co),
+        pu = g(s.pu);
+      if (o && co && pu) r.cotovelo = psAng(o, co, pu);
     }
   } else {
     // tipo 'E' ou 'D': pé de apoio neste quadro (lado da imagem, que por trás é o lado do corpo)
@@ -502,11 +563,8 @@ function psAssimetria(k, a, b) {
     return med ? { valor: (Math.abs(a - b) / med) * 100, un: '%', alto: (Math.abs(a - b) / med) * 100 > 10 } : null;
   }
   if (k === 'cruza') return { valor: Math.abs(a - b) * 100, un: '%', alto: Math.abs(a - b) > 0.3 };
-  return {
-    valor: Math.abs(a - b),
-    un: k === 'largura' ? 'cm' : '°',
-    alto: Math.abs(a - b) > (k === 'largura' ? 3 : 4),
-  };
+  const cm = k === 'largura' || k === 'bracoCruza';
+  return { valor: Math.abs(a - b), un: cm ? 'cm' : '°', alto: Math.abs(a - b) > (cm ? 3 : 4) };
 }
 // faixa comum de cada medida (a mesma das cores) e a menor diferença que vale como mudança (abaixo disso pode ser erro da medida)
 const PS_FAIXA = {
@@ -534,6 +592,10 @@ const PS_MUDA = {
   joelhoDentro: 3,
   cruza: 0.1,
   largura: 2,
+  cotovelo: 5,
+  bracoFrente: 5,
+  bracoTras: 5,
+  bracoCruza: 2,
 };
 // antes e depois de uma medida: melhorou (chegou mais perto da faixa comum), piorou, igual ou mudou (sem faixa)
 function psCompara(k, antes, depois) {
@@ -588,6 +650,10 @@ const PS_TITULO = {
   joelhoDentro: 'Joelho para dentro',
   cruza: 'Pé cruzando a linha',
   largura: 'Largura do passo',
+  cotovelo: 'Ângulo do cotovelo',
+  bracoFrente: 'Braço à frente',
+  bracoTras: 'Braço atrás',
+  bracoCruza: 'Mão cruzando o corpo',
 };
 const PS_EXPLICA = {
   cadencia: {
@@ -660,10 +726,39 @@ const PS_EXPLICA = {
     info: 'Distância média do pé até a linha do meio do corpo.',
     sobre: 'Valor aproximado, calculado pela sua altura.',
   },
+  cotovelo: {
+    info: 'Quanto o cotovelo fica dobrado enquanto o braço balança.',
+    sobre:
+      'Ângulo entre o braço e o antebraço, no lado mais perto da câmera. O balanço dos braços ajuda a economizar energia: correr com os braços parados gastou de 3% a 13% mais (Arellano e Kram, 2014).',
+  },
+  bracoFrente: {
+    info: 'Até onde o braço vai à frente do corpo no balanço.',
+    sobre: 'Ângulo do braço (do ombro ao cotovelo) com a vertical, no ponto mais à frente.',
+  },
+  bracoTras: {
+    info: 'Até onde o cotovelo vai para trás do corpo no balanço.',
+    sobre: 'Ângulo do braço (do ombro ao cotovelo) com a vertical, no ponto mais atrás.',
+  },
+  bracoCruza: {
+    info: 'Quanto a mão passa da linha do meio do corpo no balanço. Negativo quer dizer que não chega no meio.',
+    sobre: 'Visto por trás, a mão fica escondida pelo corpo em parte do balanço, então o valor é aproximado.',
+  },
 };
 const PS_ORDEM = {
-  lado: ['cadencia', 'tibia', 'frente', 'joelhoIC', 'joelhoMax', 'tronco', 'oscilacao', 'contato'],
-  tras: ['queda', 'joelhoDentro', 'cruza', 'largura'],
+  lado: [
+    'cadencia',
+    'tibia',
+    'frente',
+    'joelhoIC',
+    'joelhoMax',
+    'tronco',
+    'oscilacao',
+    'contato',
+    'cotovelo',
+    'bracoFrente',
+    'bracoTras',
+  ],
+  tras: ['queda', 'joelhoDentro', 'cruza', 'largura', 'bracoCruza'],
 };
 const PS_MODELO_URL =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
@@ -806,6 +901,10 @@ const PS_LIG = [
   ['quadrilE', 'quadrilD'],
   ['ombroE', 'quadrilE'],
   ['ombroD', 'quadrilD'],
+  ['ombroE', 'cotoveloE'],
+  ['cotoveloE', 'punhoE'],
+  ['ombroD', 'cotoveloD'],
+  ['cotoveloD', 'punhoD'],
   ['quadrilE', 'joelhoE'],
   ['joelhoE', 'tornE'],
   ['tornE', 'calcE'],
@@ -930,6 +1029,10 @@ function psDesenhaQuadro(src, sx, sy, sw, sh, p, tipo, an) {
         psEtiqueta(ctx, oo[0] + 20, oo[1] - 20, `Tronco ${f1(ang, 0)}°`, '#ffd166');
       }
       if (q && j && t) psEtiqueta(ctx, j[0] + 20, j[1] + 10, `Joelho ${f1(180 - psAng(q, j, t), 0)}°`);
+      const om = P(s.o),
+        co = P(s.co),
+        pu = P(s.pu);
+      if (om && co && pu) psEtiqueta(ctx, co[0] - 220, co[1] - 10, `Cotovelo ${f1(psAng(om, co, pu), 0)}°`);
     }
   } else {
     psEsqueleto(ctx, p, sc, null);
@@ -1135,8 +1238,42 @@ function psFazer(k, v) {
   };
   return t[k] || '';
 }
+// medidas sem faixa de referência (tempo de contato, largura e braços): como interpretar e o que olhar
+function psInterpreta(k, v, m = {}) {
+  if (v == null || !isFinite(v)) return '';
+  switch (k) {
+    case 'contato':
+      return 'O tempo de contato diminui quando a velocidade sobe, então compare só com vídeos no mesmo ritmo. Se ficou bem maior que na última análise no mesmo ritmo, pode ser cansaço ou pouca força de panturrilha e tornozelo.';
+    case 'largura':
+      return 'Quando o pé fica quase na linha do meio do corpo, o passo é estreito, o que aumenta a adução do quadril (Brindle et al., 2014). Olhe junto com o pé cruzando a linha e a queda do quadril.';
+    case 'cotovelo':
+      return v < 60
+        ? 'Cotovelo bem fechado, com a mão perto do ombro. Costuma vir com ombro e pescoço tensos. Peça para soltar os ombros e deixar a mão passar perto do quadril no balanço.'
+        : v > 120
+          ? 'Cotovelo bem aberto, com o braço quase esticado. O braço fica mais pesado de balançar e costuma acabar parado ou cruzando o corpo. Peça para dobrar mais o cotovelo, perto de 90°.'
+          : 'Ângulo perto de 90°, que é o que se vê na maioria dos corredores. Não precisa mexer.';
+    case 'bracoFrente':
+    case 'bracoTras': {
+      const f = m.bracoFrente,
+        t = m.bracoTras;
+      if (f == null || t == null) return '';
+      if (f + t < 30)
+        return 'Os braços balançam pouco. Braço parado faz a corrida gastar mais energia (Arellano e Kram, 2014). Peça um balanço solto, do ombro, com o cotovelo indo para trás.';
+      if (t < f * 0.5)
+        return 'O braço vai bem mais para a frente do que para trás. Costuma aparecer junto com o tronco reto demais e a passada longa. A dica é levar o cotovelo para trás, como uma cotovelada leve.';
+      if (f < t * 0.5)
+        return 'O braço vai bem mais para trás do que para a frente. Veja se o ombro está puxado para trás e o tronco inclinado demais.';
+      return 'Balanço equilibrado entre a frente e as costas. Não precisa mexer.';
+    }
+    case 'bracoCruza':
+      return v > 3
+        ? 'A mão passa da linha do meio do corpo. Braço cruzando costuma vir com o tronco girando e o pé cruzando a linha. A dica é balançar os braços para a frente e para trás, como trilhos, sem passar do meio do peito.'
+        : 'As mãos não passam da linha do meio do corpo. Não precisa mexer.';
+  }
+  return '';
+}
 const PS_REFS =
-  'Heiderscheit et al. (2011), Med Sci Sports Exerc; Souza (2016), Phys Med Rehabil Clin N Am; Bramah et al. (2018), Am J Sports Med; Teng e Powers (2014), J Orthop Sports Phys Ther; Folland et al. (2017), Med Sci Sports Exerc; Willy e Davis (2011), J Orthop Sports Phys Ther; Willy et al. (2012), Clin Biomech; Brindle et al. (2014), Gait Posture.';
+  'Heiderscheit et al. (2011), Med Sci Sports Exerc; Souza (2016), Phys Med Rehabil Clin N Am; Bramah et al. (2018), Am J Sports Med; Teng e Powers (2014), J Orthop Sports Phys Ther; Folland et al. (2017), Med Sci Sports Exerc; Willy e Davis (2011), J Orthop Sports Phys Ther; Willy et al. (2012), Clin Biomech; Brindle et al. (2014), Gait Posture; Arellano e Kram (2014), J Exp Biol.';
 const PS_TITULO_LADO = {
   queda: 'Queda do quadril',
   joelhoDentro: 'Joelho para dentro',
@@ -1144,6 +1281,7 @@ const PS_TITULO_LADO = {
   cruza: 'Pé cruzando a linha',
   passo: 'Tempo de passo',
   contato: 'Tempo de contato',
+  bracoCruza: 'Mão cruzando o corpo',
 };
 const psUnL = (k) => (k === 'passo' ? 'ms' : psUn(k));
 const psFmtL = (k, v) => (k === 'passo' ? (v == null ? '–' : String(Math.round(v))) : psFmt(k, v));
@@ -1176,7 +1314,8 @@ function psCardsMetricas(x, ant, staff) {
           : `${c.d > 0 ? '+' : '−'}${psFmt(k, Math.abs(c.d))} desde a última${c.efeito === 'melhorou' ? ', melhorou' : c.efeito === 'piorou' ? ', piorou' : ''}`
         : '';
       const faz = staff ? psFazer(k, m[k]) : '';
-      return `<details class="ps-met ${nv}"><summary><span class="ps-met-t">${PS_TITULO[k]}${conf.has(k) ? '<i class="ps-conf">conferido</i>' : ''}</span><span class="ps-met-v"><b>${psFmt(k, m[k])}</b>${psUn(k) ? `<small>${psUn(k)}</small>` : ''}</span>${cTxt ? `<span class="ps-met-d ${c.efeito}">${cTxt}</span>` : ''}<span class="ps-met-x">${esc(psExplicaTxt(k, m[k]))}</span></summary><p class="small muted">${esc(ex.sobre || '')}</p>${faz ? `<p class="small ps-faz"><b>O que fazer</b>${esc(faz)}</p>` : ''}</details>`;
+      const interp = staff && !faz ? psInterpreta(k, m[k], m) : '';
+      return `<details class="ps-met ${nv}"><summary><span class="ps-met-t">${PS_TITULO[k]}${conf.has(k) ? '<i class="ps-conf">conferido</i>' : ''}</span><span class="ps-met-v"><b>${psFmt(k, m[k])}</b>${psUn(k) ? `<small>${psUn(k)}</small>` : ''}</span>${cTxt ? `<span class="ps-met-d ${c.efeito}">${cTxt}</span>` : ''}<span class="ps-met-x">${esc(psExplicaTxt(k, m[k]))}</span></summary><p class="small muted">${esc(ex.sobre || '')}</p>${faz ? `<p class="small ps-faz"><b>O que fazer</b>${esc(faz)}</p>` : ''}${interp ? `<p class="small ps-faz"><b>Como interpretar</b>${esc(interp)}</p>` : ''}</details>`;
     })
     .join('')}</div>`;
 }
@@ -1238,14 +1377,30 @@ function psLeituraHTML(x, ant) {
             .join('')}`
         : '<p style="margin-top:6px">Todas as medidas estão dentro do comum. Mantenha o treino de força e grave de novo em uns 3 meses para acompanhar.</p>'
     }
+    ${psBracosLeitura(x.vista, m)}
     ${resumoAnt ? `<p class="small" style="margin-top:10px"><b>Evolução.</b> ${esc(resumoAnt)}</p>` : ''}
     ${notas.length ? `<ul class="ps-notas">${notas.map((t) => `<li class="small">${esc(t)}</li>`).join('')}</ul>` : ''}</div>`;
+}
+// braços na leitura do treinador (sem faixa: só interpretação)
+function psBracosLeitura(vista, m) {
+  const ks = vista === 'lado' ? ['cotovelo', 'bracoFrente'] : ['bracoCruza'];
+  const linhas = ks
+    .filter((k) => m[k] != null)
+    .map((k) => {
+      const v =
+        k === 'bracoFrente'
+          ? `${psValor('bracoFrente', m.bracoFrente)} à frente e ${psValor('bracoTras', m.bracoTras)} atrás`
+          : psValor(k, m[k]);
+      return `<p class="small" style="margin-top:4px"><b>${k === 'bracoFrente' ? 'Balanço do braço' : PS_TITULO[k]}</b> ${esc(v)}. ${esc(psInterpreta(k, m[k], m))}</p>`;
+    });
+  if (!linhas.length) return '';
+  return `<div class="ps-lei info"><div class="ps-lei-t"><b>Braços</b><span class="ps-lei-v">para interpretar</span></div>${linhas.join('')}<p class="tiny dim" style="margin-top:6px">Os braços não têm faixa de referência bem definida na literatura. Os textos são orientações práticas para você interpretar.</p></div>`;
 }
 // direita e esquerda (vídeo por trás)
 function psLadosHTML(x, staff) {
   const { lados, conf } = psFinais(x);
   if (!lados || !lados.E || !lados.D) return '';
-  const ks = ['queda', 'joelhoDentro', 'largura', 'cruza', 'passo', 'contato'].filter(
+  const ks = ['queda', 'joelhoDentro', 'largura', 'cruza', 'bracoCruza', 'passo', 'contato'].filter(
     (k) => lados.E[k] != null || lados.D[k] != null,
   );
   if (!ks.length) return '';
@@ -1402,7 +1557,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
         ? ''
         : `<div class="card ps-coment"><span class="eyebrow">${staff ? 'Relatório para o aluno' : 'Comentário do treinador'}</span>${
             staff
-              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Gerar de novo e reenviar o relatório' : 'Gerar relatório em PDF e enviar'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise biomecânica da corrida dele, com o PDF para baixar.</p>'}`
+              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Revisar e reenviar o relatório' : 'Revisar e gerar o relatório'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise biomecânica da corrida dele, com o PDF para baixar.</p>'}`
               : `<p style="margin-top:6px;white-space:pre-line">${x.comentario ? esc(x.comentario) : 'Seu treinador vai olhar o vídeo e deixar o comentário aqui. Você recebe uma notificação.'}</p>`
           }</div>`
     }
@@ -1495,12 +1650,22 @@ const PS_ONDE = {
   torn: 'No ossinho saliente do tornozelo (maléolo).',
   calc: 'Na parte de trás do pé, onde ele encosta no chão.',
   ombro: 'No centro do ombro, na ponta do braço.',
+  cotovelo: 'Na ponta do cotovelo, no meio da dobra do braço.',
+  punho: 'No meio do punho, onde a mão encontra o antebraço.',
 };
-const PS_NOME_PT = { quadril: 'Quadril', joelho: 'Joelho', torn: 'Tornozelo', calc: 'Calcanhar', ombro: 'Ombro' };
+const PS_NOME_PT = {
+  quadril: 'Quadril',
+  joelho: 'Joelho',
+  torn: 'Tornozelo',
+  calc: 'Calcanhar',
+  ombro: 'Ombro',
+  cotovelo: 'Cotovelo',
+  punho: 'Punho',
+};
 function psAlvos(tipo, an) {
   if (an.vista === 'lado') {
     const s = PS_LADO[an.lado];
-    return tipo === 'contato' ? [s.q, s.j, s.t, s.c] : [s.o, s.q, s.j, s.t];
+    return tipo === 'contato' ? [s.q, s.j, s.t, s.c] : [s.o, s.co, s.pu, s.q, s.j, s.t];
   }
   const s = PS_LADO[an.troca ? (tipo === 'E' ? 'D' : 'E') : tipo],
     o = PS_LADO[an.troca ? tipo : tipo === 'E' ? 'D' : 'E'];
@@ -1515,13 +1680,13 @@ const psChavesMomento = (tipo, an) =>
   an.vista === 'lado'
     ? tipo === 'contato'
       ? ['tibia', 'joelhoIC', 'frente']
-      : ['joelhoMax', 'tronco']
+      : ['joelhoMax', 'tronco', 'cotovelo']
     : [tipo + '.queda', tipo + '.joelhoDentro'];
 const PS_DICA_MOMENTO = {
   contato:
     'Ande os quadros até o primeiro em que o pé encosta no chão. Depois confira o quadril, o joelho, o tornozelo e o calcanhar.',
   apoio:
-    'Escolha o quadro em que o joelho está mais dobrado, com o corpo passando por cima do pé. Depois confira o ombro, o quadril, o joelho e o tornozelo.',
+    'Escolha o quadro em que o joelho está mais dobrado, com o corpo passando por cima do pé. Depois confira o ombro, o cotovelo, o punho, o quadril, o joelho e o tornozelo.',
   tras: 'Escolha o quadro do meio do apoio, quando o quadril do outro lado está mais baixo. Depois confira os dois lados do quadril, o joelho e o tornozelo.',
 };
 async function psConferir(raiz, x, idx, voltar) {
@@ -1759,6 +1924,112 @@ async function psConferir(raiz, x, idx, voltar) {
   window.scrollTo(0, 0);
 }
 
+// próximos passos sugeridos para o aluno, a partir das medidas (o treinador edita antes de gerar)
+function psPassosPadrao(x) {
+  const { m } = psFinais(x);
+  const fora = (k) => ['atencao', 'fora'].includes(psNivel(k, m[k]));
+  const f = PS_FAIXA;
+  const p = [];
+  if (fora('cadencia'))
+    p.push(
+      'Subir a cadência aos poucos, uns 5%, com metrônomo ou música no ritmo certo, começando pelos treinos leves.',
+    );
+  if (fora('tibia') || fora('frente')) p.push('Passos um pouco mais curtos, com o pé tocando o chão embaixo do corpo.');
+  if (fora('joelhoIC') || fora('joelhoMax')) p.push('Correr mais macio e silencioso, sem bater o pé no chão.');
+  if (fora('tronco'))
+    p.push(
+      m.tronco < f.tronco[0]
+        ? 'Inclinar o corpo levemente para a frente a partir do tornozelo, sem dobrar a cintura.'
+        : 'Correr mais alto, sem curvar a cintura para a frente.',
+    );
+  if (fora('oscilacao')) p.push('Levar o corpo para a frente, e não para cima, a cada passo.');
+  if (fora('queda') || fora('joelhoDentro'))
+    p.push('Fortalecer o glúteo no treino de força e treinar o movimento na esteira de frente para o espelho.');
+  if (fora('cruza')) p.push('Correr como se cada pé tivesse o seu trilho, sem cruzar a linha do meio.');
+  if (m.bracoCruza != null && m.bracoCruza > 3)
+    p.push('Balançar os braços para a frente e para trás, sem passar do meio do peito.');
+  if (m.cotovelo != null && (m.cotovelo < 60 || m.cotovelo > 120))
+    p.push('Manter o cotovelo dobrado perto de 90° e os ombros soltos.');
+  if (!p.length) p.push('Manter o que está fazendo e o treino de força para sustentar a técnica nos treinos longos.');
+  p.push('Gravar de novo em umas 8 semanas para comparar.');
+  return p.join('\n');
+}
+// tela para revisar e editar o relatório antes de gerar o PDF (só a equipe)
+function psRelEditor(raiz, x, m, urls, ant, voltar, gerar) {
+  const rel = { ...((x.extra || {}).rel || {}) };
+  const fin = psFinais(x);
+  const ks = (PS_ORDEM[x.vista] || []).filter((k) => fin.m[k] != null);
+  const padrao = (k) => psExplicaTxt(k, fin.m[k]);
+  raiz.innerHTML = `<button type="button" class="back ps-volta" id="re-v">${I.back} Voltar à análise</button><p class="eyebrow">Relatório para o aluno</p><h1 class="h1">Revisar antes de gerar</h1>
+    <p class="small muted" style="margin-top:6px">Edite o que quiser. Nada vai para o aluno até você tocar em Gerar PDF e enviar.</p>
+    <div class="card" style="margin-top:12px"><span class="eyebrow">O que o treinador viu</span><textarea class="textarea" id="re-com" rows="7" style="margin-top:6px" placeholder="O seu comentário sobre a corrida do aluno.">${esc(x.comentario || '')}</textarea></div>
+    <div class="card" style="margin-top:12px"><span class="eyebrow">Próximos passos</span><p class="tiny dim" style="margin-top:2px">Um por linha. O app sugeriu a partir das medidas. Apague tudo para não mostrar no PDF.</p><textarea class="textarea" id="re-pas" rows="5" style="margin-top:6px">${esc(rel.passos ?? psPassosPadrao(x))}</textarea></div>
+    <details class="card re-med" style="margin-top:12px"><summary><b>Textos de cada medida</b> <span class="tiny dim">opcional</span></summary>
+      ${ks.map((k) => `<label class="field" style="margin-top:10px"><span>${PS_TITULO[k]} · ${esc(psValor(k, fin.m[k]))}</span><textarea class="textarea" data-k="${k}" rows="3">${esc((rel.textos && rel.textos[k]) || padrao(k))}</textarea></label>`).join('')}
+      <button type="button" class="link-btn small" id="re-orig" style="margin-top:8px">Voltar aos textos do app</button></details>
+    <div class="card" style="margin-top:12px"><span class="eyebrow">Como vai ficar</span><div class="re-prev" id="re-prev"><div class="re-folha" id="re-folha"></div></div></div>
+    <div class="stack" style="margin-top:14px"><button class="btn block" id="re-gerar">Gerar PDF e enviar ao aluno</button><button class="btn ghost block" id="re-rasc">Salvar e continuar depois</button></div>`;
+  const ler = () => {
+    const textos = {};
+    raiz.querySelectorAll('.re-med textarea[data-k]').forEach((t) => {
+      const v = t.value.trim();
+      if (v && v !== padrao(t.dataset.k)) textos[t.dataset.k] = v;
+    });
+    return {
+      comentario: raiz.querySelector('#re-com').value.trim(),
+      rel: { passos: raiz.querySelector('#re-pas').value.trim(), textos },
+    };
+  };
+  const imgs = (x.quadros || []).filter((q) => urls[q.path]).map((q) => ({ src: urls[q.path], legenda: q.legenda }));
+  let tm = null;
+  const previa = () => {
+    const d = ler();
+    const xp = { ...x, comentario: d.comentario, extra: { ...(x.extra || {}), rel: d.rel } };
+    const folha = raiz.querySelector('#re-folha'),
+      caixa = raiz.querySelector('#re-prev');
+    if (!folha) return;
+    folha.innerHTML = psRelatorioHTML(xp, imgs, ant, m, '/img/nexos-logo-navy.png', []);
+    const sc = caixa.clientWidth / 760;
+    folha.style.transform = `scale(${sc})`;
+    caixa.style.height = Math.ceil(folha.scrollHeight * sc) + 'px';
+  };
+  raiz.addEventListener('input', () => {
+    clearTimeout(tm);
+    tm = setTimeout(previa, 350);
+  });
+  raiz.querySelector('#re-orig').onclick = () => {
+    raiz.querySelectorAll('.re-med textarea[data-k]').forEach((t) => (t.value = padrao(t.dataset.k)));
+    previa();
+  };
+  raiz.querySelector('#re-v').onclick = () => voltar();
+  const aplicar = () => {
+    const d = ler();
+    x.comentario = d.comentario;
+    x.extra = { ...(x.extra || {}), rel: d.rel };
+    return d;
+  };
+  raiz.querySelector('#re-rasc').onclick = async (e) => {
+    const bt = e.currentTarget;
+    bt.disabled = true;
+    aplicar();
+    const { error } = await sb
+      .from('nx_passadas')
+      .update({ comentario: x.comentario || null, extra: x.extra })
+      .eq('id', x.id);
+    bt.disabled = false;
+    if (error) return toast('Não foi possível salvar. Tente de novo.', true);
+    toast('Salvo. O aluno ainda não recebeu nada.');
+    voltar();
+  };
+  raiz.querySelector('#re-gerar').onclick = async (e) => {
+    const d = aplicar();
+    if (!d.comentario) return toast('Escreva o que você viu antes de gerar.', true);
+    const ok = await gerar(e.currentTarget);
+    if (ok) voltar();
+  };
+  previa();
+  window.scrollTo(0, 0);
+}
 // relatório em PDF que o treinador manda ao aluno (as medidas só aparecem aqui)
 async function psCarregaPdfLib() {
   if (window.html2pdf) return;
@@ -1786,6 +2057,11 @@ async function psDataUrl(url) {
 const PS_NIVEL_TXT = { ok: 'Dentro do comum', atencao: 'Atenção', fora: 'Fora do comum', info: 'Informativo' };
 const PS_NIVEL_COR = { ok: '#15803d', atencao: '#b45309', fora: '#b91c1c', info: '#475569' };
 function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
+  const rel = (x.extra || {}).rel || {};
+  const passos = String(rel.passos ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   const fin = psFinais(x);
   const me = fin.m;
   const ma = ant ? psFinais(ant).m : null;
@@ -1804,7 +2080,7 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
       const corDt = c && c.efeito === 'melhorou' ? '#15803d' : c && c.efeito === 'piorou' ? '#b91c1c' : '#64748b';
       return `<div class="psr-l" style="display:flex;border-bottom:1px solid #e2e8f0"><div style="padding:10px 8px;width:34%;box-sizing:border-box"><b style="font-size:13px">${PS_TITULO[k]}</b><div style="font-size:10.5px;color:#64748b;margin-top:3px;line-height:1.4">${esc(ex.sobre || '')}</div></div>
         <div style="padding:10px 8px;width:18%;box-sizing:border-box;white-space:nowrap"><b style="font-size:18px">${psFmt(k, me[k])}</b>${psUn(k) === '°' ? '' : ' '}<span style="font-size:11px;color:#64748b">${psUn(k)}</span>${dt ? `<div style="font-size:10px;color:${corDt};margin-top:2px;white-space:normal">${dt}</div>` : ''}${fin.conf.has(k) ? '<div style="font-size:9.5px;color:#1d4ed8;margin-top:2px;font-weight:700">conferido pelo treinador</div>' : ''}</div>
-        <div style="padding:10px 8px;flex:1"><span style="display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:${PS_NIVEL_COR[nv]};border-radius:99px;padding:2px 9px">${PS_NIVEL_TXT[nv]}</span><div style="font-size:12px;margin-top:5px;line-height:1.45">${esc(psExplicaTxt(k, me[k]))}</div></div></div>`;
+        <div style="padding:10px 8px;flex:1"><span style="display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:${PS_NIVEL_COR[nv]};border-radius:99px;padding:2px 9px">${PS_NIVEL_TXT[nv]}</span><div style="font-size:12px;margin-top:5px;line-height:1.45">${esc((rel.textos && rel.textos[k]) || psExplicaTxt(k, me[k]))}</div></div></div>`;
     });
   const fotos = imgs
     .map(
@@ -1824,6 +2100,7 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
       <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0b1f44">O que o seu treinador viu</div>
       <div style="font-size:13.5px;line-height:1.55;margin-top:6px;white-space:pre-line">${esc(x.comentario || '')}</div>
       ${treinador ? `<div style="font-size:12px;color:#475569;margin-top:10px">${esc(treinador)}</div>` : ''}</div>
+    ${passos.length ? `<div class="psr-l" style="margin-top:16px;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1d4ed8">Próximos passos</div><ol style="margin:8px 0 0;padding-left:20px;font-size:13px;line-height:1.55">${passos.map((l) => `<li style="margin-top:3px">${esc(l)}</li>`).join('')}</ol></div>` : ''}
     <div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800;margin-bottom:6px">As medidas</div>${linhas[0] || ''}</div>${linhas.slice(1).join('')}
     ${(q.avisos || []).length ? `<div class="psr-l" style="margin-top:14px;font-size:11px;color:#92400e;background:#fffbeb;border-radius:8px;padding:10px 12px;">${q.avisos.map((a) => esc(PS_AVISO_TXT[a] || '')).join('<br>')}</div>` : ''}
     ${psRelLados(fin.lados)}
@@ -1835,7 +2112,7 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
 // direita e esquerda no PDF
 function psRelLados(lados) {
   if (!lados || !lados.E || !lados.D) return '';
-  const ks = ['queda', 'joelhoDentro', 'largura', 'cruza', 'passo', 'contato'].filter(
+  const ks = ['queda', 'joelhoDentro', 'largura', 'cruza', 'bracoCruza', 'passo', 'contato'].filter(
     (k) => lados.E[k] != null || lados.D[k] != null,
   );
   if (!ks.length) return '';
@@ -2482,10 +2759,8 @@ async function psTreinador(box, m, sub) {
           else location.href = data.signedUrl;
         } else if (w) w.close();
       };
-    document.getElementById('ps-salvar').onclick = async (e) => {
-      const t = ta.value.trim();
-      if (!t) return toast('Escreva o seu comentário para o relatório.', true);
-      const bt = e.currentTarget;
+    const gerar = async (bt) => {
+      const t = (x.comentario || '').trim();
       const txt = bt.textContent;
       bt.disabled = true;
       bt.textContent = 'Gerando o PDF…';
@@ -2507,6 +2782,7 @@ async function psTreinador(box, m, sub) {
             relatorio_path: path,
             relatorio_em: agora,
             visto_em: null,
+            extra: x.extra || {},
           })
           .eq('id', x.id);
         if (error) throw error;
@@ -2527,7 +2803,7 @@ async function psTreinador(box, m, sub) {
           `<p class="eyebrow">Análise biomecânica da corrida</p><div class="h2" style="margin-top:4px">Relatório enviado</div><p class="small muted" style="margin-top:6px">${esc(firstName(m.nome || 'O aluno'))} foi avisado. O relatório já está na aba Análise biomecânica da corrida do app dele, com o PDF para baixar. Se quiser, mande também pelo WhatsApp.</p>
           <div class="stack" style="margin-top:16px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="ps-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
           <button class="btn ghost block" id="ps-down">Baixar o PDF</button>
-          ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o relatório da análise da sua passada`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>`,
+          ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o relatório da análise biomecânica da sua corrida`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>`,
           (r) => {
             const sh = r.querySelector('#ps-share');
             if (sh)
@@ -2543,13 +2819,22 @@ async function psTreinador(box, m, sub) {
             };
           },
         );
-        bt.textContent = 'Gerar de novo e reenviar o relatório';
+        bt.disabled = false;
+        bt.textContent = txt;
+        return true;
       } catch (err) {
         console.error(err);
         toast('Não foi possível gerar ou enviar o relatório. Tente de novo.', true);
         bt.textContent = txt;
+        bt.disabled = false;
+        return false;
       }
-      bt.disabled = false;
+    };
+    document.getElementById('ps-salvar').onclick = () => {
+      const t = ta.value.trim();
+      if (t) x.comentario = t;
+      else if (!x.comentario) x.comentario = psSugestao(x, m.nome);
+      psRelEditor(box, x, m, urls, ant, reabrir, gerar);
     };
     return;
   }
