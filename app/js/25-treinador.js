@@ -718,7 +718,7 @@ async function staffAluno(alunoId, aba, extra) {
   // a ficha do aluno em grupos: o que prescrever, como ele está indo, saúde e contato
   const GRUPOS_FICHA = [
     ['Treinos', ['corrida', 'forca', 'historico', 'cargas']],
-    ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'fotos']],
+    ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'passada', 'fotos']],
     ['Saúde', ['saude', 'energia', 'relogio']],
     ['Contato e cadastro', ['conversa', 'dados']],
   ];
@@ -730,6 +730,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['dossie', 'Dossiê de desempenho', LAB_IC, 'Laboratório Nexos', true],
     ['relmes', 'Relatório do mês', I.ficha, 'PDF para mandar ao aluno', true],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
+    ['passada', 'Análise da passada', PS_IC, 'Vídeo da corrida: cadência, passada e quadril', fC],
     ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],
     ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? 'PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
     [
@@ -925,6 +926,8 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = '<div id="corr"></div>';
   } else if (aba === 'fotos') {
     corpo = '<div id="fotos"></div>';
+  } else if (aba === 'passada') {
+    corpo = '<div id="passada-box" class="stack"></div>';
   } else if (aba === 'energia') {
     corpo = '<div id="saude-at" class="stack"></div>';
   } else if (aba === 'relogio') {
@@ -1022,6 +1025,7 @@ async function staffAluno(alunoId, aba, extra) {
       .catch(() => {});
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
   if (aba === 'energia') viewSaudeAtleta(document.getElementById('saude-at'), m).catch((e) => console.error(e));
+  if (aba === 'passada') psTreinador(document.getElementById('passada-box'), m, extra).catch((e) => console.error(e));
   if (aba === 'relogio')
     viewRelogioSaude(document.getElementById('rel-saude'), alunoId, { nome: m.nome, sexo: m.sexo }).catch((e) =>
       console.error(e),

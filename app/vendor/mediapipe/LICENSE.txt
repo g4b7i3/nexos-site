@@ -1,0 +1,3 @@
+MediaPipe Tasks Vision 0.10.35 (@mediapipe/tasks-vision), Google LLC, licença Apache-2.0.
+https://github.com/google-ai-edge/mediapipe
+O modelo de pose (pose_landmarker_full.task) é baixado do servidor oficial do Google no celular do usuário.

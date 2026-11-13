@@ -880,6 +880,7 @@ function alunoMais() {
       ${it('#/historico/avaliacoes', I.ficha, 'Avaliações físicas', 'Medidas, composição corporal e relatórios')}
       ${it('#/historico/fotos', I.cam, 'Fotos de evolução', 'Antes e depois, avaliação postural')}
       ${fC ? it('#/historico/previsoes', I.hist, 'Testes e previsões', 'Tempos estimados e zonas de treino') : ''}
+      ${fC ? it('#/passada', PS_IC, 'Análise da passada', 'Filme a sua corrida e veja cadência, passada e postura') : ''}
     </div>
     <p class="sec-lbl">Saúde</p><div class="stack" id="mais-saude">
       ${it('#/agua', AGUA_IC, 'Hidratação', 'Sua semana, meta e lembretes')}
