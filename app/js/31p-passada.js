@@ -995,7 +995,7 @@ function psDetalheHTML(x, urls, ant, staff, previa) {
         ? ''
         : `<div class="card ps-coment"><span class="eyebrow">${staff ? 'Relatório para o aluno' : 'Comentário do treinador'}</span>${
             staff
-              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Gerar de novo e reenviar o relatório' : 'Gerar relatório em PDF e enviar'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno não vê as medidas no app. Ele recebe só este relatório.</p>'}`
+              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Gerar de novo e reenviar o relatório' : 'Gerar relatório em PDF e enviar'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise da passada dele, com o PDF para baixar.</p>'}`
               : `<p style="margin-top:6px;white-space:pre-line">${x.comentario ? esc(x.comentario) : 'Seu treinador vai olhar o vídeo e deixar o comentário aqui. Você recebe uma notificação.'}</p>`
           }</div>`
     }
@@ -1399,21 +1399,51 @@ async function viewPassada(sub) {
     const x = lista.find((y) => y.id === sub);
     if (!x)
       return ($app.innerHTML = `<a class="back" href="#/passada">${I.back} Análise da passada</a><p class="muted">Análise não encontrada.</p>`);
-    let pdf = null;
-    if (x.relatorio_path)
-      try {
-        const { data } = await sb.storage.from('nx-fotos').createSignedUrl(x.relatorio_path, 3600);
-        pdf = data && data.signedUrl;
-      } catch {}
-    $app.innerHTML = `<a class="back" href="#/passada">${I.back} Análise da passada</a><p class="eyebrow">${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${psDataHora(x.criado_em)}</p><h1 class="h1">Sua passada</h1>
-      ${
-        x.relatorio_path
-          ? `<div class="card ps-rel pronto"><span class="eyebrow">Relatório do treinador</span><div class="h3" style="margin-top:4px">Seu relatório está pronto</div><p class="small muted" style="margin-top:4px">Enviado em ${fmtDia(x.relatorio_em || x.comentado_em)}.</p>
-            ${x.comentario ? `<p style="margin-top:10px;white-space:pre-line">${esc(x.comentario)}</p>` : ''}
-            ${pdf ? `<a class="btn block" href="${esc(pdf)}" target="_blank" rel="noopener" style="margin-top:12px">Abrir o relatório (PDF)</a>` : '<p class="small muted" style="margin-top:10px">Não foi possível abrir o PDF agora. Tente de novo mais tarde.</p>'}</div>`
-          : `<div class="card ps-rel"><span class="eyebrow">Com o seu treinador</span><p style="margin-top:6px">Seu treinador está analisando o vídeo e vai te mandar um relatório em PDF. Você recebe uma notificação quando ficar pronto.</p></div>`
-      }
-      ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
+    const topoA = `<a class="back" href="#/passada">${I.back} Análise da passada</a><p class="eyebrow">${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${psDataHora(x.criado_em)}</p><h1 class="h1">Sua passada</h1>`;
+    if (x.relatorio_path) {
+      // relatório enviado: o aluno vê tudo aqui na aba e pode baixar o PDF
+      const ant = lista.find((y) => y.vista === x.vista && y.criado_em < x.criado_em && y.relatorio_path);
+      const urls = await psUrls([x]);
+      $app.innerHTML = `${topoA}
+        <div class="card ps-rel pronto"><span class="eyebrow">Relatório do seu treinador</span><p class="small muted" style="margin-top:2px">Enviado em ${fmtDia(x.relatorio_em || x.comentado_em)}</p>
+          ${x.comentario ? `<p style="margin-top:10px;white-space:pre-line">${esc(x.comentario)}</p>` : ''}
+          <button class="btn block" id="ps-baixar" style="margin-top:14px">${PS_UP_IC.replace('M12 15V4', 'M12 4v11').replace('m7 9 5-5 5 5', 'm7 10 5 5 5-5')} Baixar o relatório (PDF)</button></div>
+        ${psQuadrosHTML(x, urls)}
+        ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
+        <p class="eyebrow" style="margin-top:18px">As medidas</p>
+        ${psCardsMetricas(x, ant)}
+        <p class="tiny dim" style="margin-top:12px">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. Quem interpreta é o seu treinador. Baseado em Souza (2016), Heiderscheit et al. (2011) e Bramah et al. (2018).</p>`;
+      psLigarQuadros($app);
+      document.getElementById('ps-baixar').onclick = async (e) => {
+        const bt = e.currentTarget;
+        const txt = bt.innerHTML;
+        bt.disabled = true;
+        bt.textContent = 'Baixando…';
+        try {
+          const { data, error } = await sb.storage.from('nx-fotos').download(x.relatorio_path);
+          if (error || !data) throw error || new Error('sem arquivo');
+          const nome = `Analise-da-passada-${x.criado_em.slice(0, 10)}.pdf`;
+          const arq = new File([data], nome, { type: 'application/pdf' });
+          // no celular, abre o menu de compartilhar (salvar em arquivos); no computador, baixa direto
+          if (matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files: [arq] }))
+            await navigator.share({ files: [arq], title: nome }).catch(() => {});
+          else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(arq);
+            a.download = nome;
+            a.click();
+          }
+        } catch (err) {
+          console.error(err);
+          toast('Não foi possível baixar agora. Tente de novo.', true);
+        }
+        bt.disabled = false;
+        bt.innerHTML = txt;
+      };
+    } else
+      $app.innerHTML = `${topoA}
+        <div class="card ps-rel"><span class="eyebrow">Com o seu treinador</span><p style="margin-top:6px">Seu treinador está analisando o vídeo e vai te mandar o relatório aqui mesmo. Você recebe uma notificação quando ficar pronto.</p></div>
+        ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
     psReplay(document.getElementById('ps-rp'), x.serie);
     if ((x.comentario || x.relatorio_path) && !x.visto_em)
       sb.rpc('nx_passada_vista', { p_id: x.id }).then(
@@ -1423,7 +1453,7 @@ async function viewPassada(sub) {
     return;
   }
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Corrida</p><h1 class="h1">Análise da passada</h1>
-    <p class="muted" style="margin-top:6px">Filme 10 segundos da sua corrida e mande para o seu treinador. Ele analisa a sua passada e te manda um relatório em PDF.</p>
+    <p class="muted" style="margin-top:6px">Filme 10 segundos da sua corrida e mande para o seu treinador. Ele analisa a sua passada e o relatório aparece aqui, com o PDF para baixar.</p>
     <a class="btn block" href="#/passada/nova" style="margin-top:14px">${I.cam} Nova análise</a>
     ${psListaHTML(lista, '#/passada/')}`;
 }
@@ -1512,7 +1542,7 @@ async function psTreinador(box, m, sub) {
         const arq = new File([blob], nomeArq, { type: 'application/pdf' });
         const tel = telWa(m.telefone);
         openSheet(
-          `<p class="eyebrow">Análise da passada</p><div class="h2" style="margin-top:4px">Relatório enviado</div><p class="small muted" style="margin-top:6px">${esc(firstName(m.nome || 'O aluno'))} foi avisado e já pode abrir o PDF no app. Se quiser, mande também pelo WhatsApp.</p>
+          `<p class="eyebrow">Análise da passada</p><div class="h2" style="margin-top:4px">Relatório enviado</div><p class="small muted" style="margin-top:6px">${esc(firstName(m.nome || 'O aluno'))} foi avisado. O relatório já está na aba Análise da passada do app dele, com o PDF para baixar. Se quiser, mande também pelo WhatsApp.</p>
           <div class="stack" style="margin-top:16px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="ps-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
           <button class="btn ghost block" id="ps-down">Baixar o PDF</button>
           ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o relatório da análise da sua passada`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>`,
