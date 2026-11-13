@@ -277,7 +277,6 @@ function dashHTML(M, { demo = false, n = 0, link = true, campoQtd = true } = {})
   const pend = k.ativos - k.liberadas;
   return `${demo ? `<div class="db-selo" role="note"><b>Demonstração</b><span>Todos os alunos desta tela são fictícios, gerados só para mostrar como o painel funciona.</span></div>` : ''}
     <p class="db-ey"><i></i>Semana de ${dashDataCurta(M.seg)} a ${dashDataCurta(M.dom)}</p><h1 class="db-h">Dashboard</h1>
-    <p class="db-sub">As planilhas liberadas da semana, o que cada aluno já fez e quando abriu o app.</p>
     ${demo && campoQtd ? `<label class="db-qtd">Alunos fictícios na demonstração<input type="number" id="db-qtd" min="1" max="300" value="${n}" inputmode="numeric"></label>` : ''}
     <div class="db-ks">
       ${kpi(dashFmt(k.liberadas), k.liberadas === 1 ? 'planilha liberada' : 'planilhas liberadas', `de ${dashFmt(k.ativos)} aluno${k.ativos === 1 ? '' : 's'}`, 'destaque')}
@@ -333,26 +332,23 @@ function dashFeedMontar(d) {
     recentes: vistos.slice(0, 30),
   };
 }
-function dashFeedHTML(F, { anonimo = false } = {}) {
+function dashFeedHTML(F) {
   const k = F.k;
   const kpi = (v, t, sub, cls = '') =>
     `<div class="db-k ${cls}"><b>${v}</b><span>${t}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
   const max = Math.max(1, ...F.meses.map((m) => m.n));
   const botao = (t, i) =>
-    anonimo || !t.comentavel
+    !t.comentavel
       ? ''
       : `<button type="button" class="db-comentar${t.comentario ? ' ed' : ''}" data-db-com="${i}">${DASH_IC.coment}${t.comentario ? 'Editar comentário' : 'Comentar'}</button>`;
-  const nome = (t) => (anonimo ? 'Atleta Nexos' : dashEsc(String(t.nome || 'Aluno').split(/\s+/)[0]));
+  const nome = (t) => dashEsc(String(t.nome || 'Aluno').split(/\s+/)[0]);
   const av = (t) =>
-    anonimo
-      ? '<span class="av sm db-anon"></span>'
-      : `<span class="av sm${t.foto_url ? ' com-foto' : ''}">${t.foto_url ? `<img src="${dashEsc(t.foto_url)}" alt="" loading="lazy">` : dashEsc(dashIniciais(t.nome))}</span>`;
+    `<span class="av sm${t.foto_url ? ' com-foto' : ''}">${t.foto_url ? `<img src="${dashEsc(t.foto_url)}" alt="" loading="lazy">` : dashEsc(dashIniciais(t.nome))}</span>`;
   const dataTxt = (ms) => {
     const x = new Date(ms);
     return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}`;
   };
   return `<p class="db-ey"><i></i>Feedbacks da equipe</p><h1 class="db-h">Dashboard</h1>
-    <p class="db-sub">Cada treino analisado pelo treinador, com o aviso de Visto para o aluno.</p>
     <div class="db-ks">
       ${kpi(dashFmt(k.vistos), k.vistos === 1 ? 'treino analisado' : 'treinos analisados', k.pct != null ? `${k.pct}% de tudo que os alunos registraram` : '', 'destaque')}
       ${kpi(dashFmt(k.mes), 'neste mês', `${dashFmt(k.semana)} nesta semana`)}
@@ -370,7 +366,7 @@ function dashFeedHTML(F, { anonimo = false } = {}) {
         ? F.recentes
             .map(
               (t, i) =>
-                `<div class="db-l db-f" style="--i:${Math.min(i, 12)}">${av(t)}<div class="db-l-m"><div class="db-f-top"><b class="db-l-n">${nome(t)}</b><span class="db-visto">${DASH_IC.ok}Visto</span></div><div class="db-l-s">${dashEsc(t.titulo || (t.tipo === 'corrida' ? 'Corrida' : 'Treino de força'))}${t.km ? ` de ${dashFmt(t.km, 1)} km` : ''} · ${dataTxt(t.quando)}</div>${t.comentario && !anonimo ? `<div class="db-com">${dashEsc(t.comentario)}</div>` : ''}${botao(t, i)}</div></div>`,
+                `<div class="db-l db-f" style="--i:${Math.min(i, 12)}">${av(t)}<div class="db-l-m"><div class="db-f-top"><b class="db-l-n">${nome(t)}</b><span class="db-visto">${DASH_IC.ok}Visto</span></div><div class="db-l-s">${dashEsc(t.titulo || (t.tipo === 'corrida' ? 'Corrida' : 'Treino de força'))}${t.km ? ` de ${dashFmt(t.km, 1)} km` : ''} · ${dataTxt(t.quando)}</div>${t.comentario ? `<div class="db-com">${dashEsc(t.comentario)}</div>` : ''}${botao(t, i)}</div></div>`,
             )
             .join('')
         : '<p class="small muted">Nenhum treino analisado ainda. Toque em Visto nos treinos dos alunos, na tela Hoje.</p>'
@@ -575,14 +571,9 @@ async function staffDashFeedbacks() {
     .filter((t) => porId[t.aluno_id])
     .map((t) => ({ ...t, nome: porId[t.aluno_id].nome, foto_url: porId[t.aluno_id].foto_url }));
   const F = dashFeedMontar({ agora: Date.now(), treinos });
-  let anonimo = false;
-  try {
-    anonimo = localStorage.getItem('nx-dash-anon') === '1';
-  } catch {}
   const desenhar = () => {
     $app.innerHTML = `<div class="db-tela"><a class="back" href="#/mais">${I.back} Mais</a>${dashAbas('feed')}<div class="db">
-      <label class="db-anon-bt"><input type="checkbox" id="db-anon" ${anonimo ? 'checked' : ''}> Esconder os nomes dos alunos (para postar)</label>
-      ${dashFeedHTML(F, { anonimo })}</div></div>`;
+      ${dashFeedHTML(F)}</div></div>`;
     dashContar($app);
     // comentar um treino que só foi visto (ou editar o comentário): abre a tela de comentário da Nexos
     $app.querySelectorAll('[data-db-com]').forEach((b) =>
@@ -591,13 +582,6 @@ async function staffDashFeedbacks() {
         if (t && t.src) comentarTreino(t.src, { nome: t.nome });
       }),
     );
-    $app.querySelector('#db-anon').addEventListener('change', (e) => {
-      anonimo = e.target.checked;
-      try {
-        localStorage.setItem('nx-dash-anon', anonimo ? '1' : '0');
-      } catch {}
-      desenhar();
-    });
   };
   dockStaff();
   dashFundo();

@@ -1,5 +1,5 @@
 // Teste automático do Dashboard da equipe: roda antes de cada publicação (scripts/versao.sh) e bloqueia se algo sair errado.
-// Confere as contas dos feedbacks (treinos com Visto), o modo de esconder nomes e o selo da demonstração.
+// Confere as contas dos feedbacks (treinos com Visto), o comentário na lista e o selo da demonstração.
 const fs = require('fs');
 const path = require('path');
 const src = fs.readFileSync(path.join(__dirname, '../../app/js/31r-dashboard.js'), 'utf8');
@@ -34,8 +34,8 @@ ok(F.k.vistos === 3 && F.k.recebidos === 4 && F.k.pct === 75, 'totais');
 ok(F.k.mes === 2 && F.k.semana === 1, 'mês e semana');
 ok(F.k.alunos === 2 && F.k.km === 15 && F.k.comentados === 1 && F.k.forca === 1, 'alunos, km, comentários');
 ok(F.meses.map((m) => m.n).join() === '0,0,0,0,1,2', 'meses');
-const h = f.dashFeedHTML(F, { anonimo: true });
-ok(!h.includes('Comentario-unico') && h.includes('Atleta Nexos'), 'esconder nomes');
+const h = f.dashFeedHTML(F);
+ok(h.includes('Comentario-unico'), 'comentário na lista');
 const M = f.dashMontar(f.dashDemoDados(62, agora));
 ok(M.k.ativos === 62 && f.dashHTML(M, { demo: true, n: 62 }).includes('Demonstração'), 'selo da demonstração');
 console.log('Dashboard: contas conferidas.');

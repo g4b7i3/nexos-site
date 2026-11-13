@@ -4222,8 +4222,6 @@ button.sino{cursor:pointer;font:inherit;padding:0}
 .db-visto{display:inline-flex;align-items:center;gap:4px;flex:none;padding:5px 10px;border-radius:999px;background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok);font-size:.74rem;font-weight:800}
 .db-visto svg{width:13px;height:13px}
 .db-com{margin-top:6px;padding:8px 10px;border-radius:10px;background:var(--s2);font-size:.8rem;line-height:1.4;color:var(--ink)}
-.db-anon{background:linear-gradient(135deg,var(--p2),var(--p1)) !important}
-.db-anon-bt{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--mute);margin-bottom:12px;cursor:pointer}
 .db-graf{margin-top:14px;padding:14px}
 .db-cols{display:flex;align-items:flex-end;gap:10px;height:140px;margin-top:12px}
 .db-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%}
@@ -4252,7 +4250,6 @@ body.nx-db{background:#040b1c}
 .db-ey{display:flex;align-items:center;gap:12px;margin:6px 0 0;font:700 .72rem var(--f-m);letter-spacing:.24em;text-transform:uppercase;color:var(--p1)}
 .db-ey i{width:34px;height:2px;background:var(--p1);box-shadow:0 0 12px var(--p1)}
 .db-h{font:800 clamp(2.4rem,7vw,4.4rem)/1 var(--f-h);letter-spacing:-.02em;margin:10px 0 6px;background:linear-gradient(100deg,#fff 0%,#fff 35%,var(--p1) 50%,#fff 65%,#fff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:hubTxBrilho 6s ease-in-out infinite}
-.db-sub{color:#b4c2de;font-size:.95rem;margin:0}
 .db-tela .db-abas{background:rgba(12,26,60,.6);border-color:rgba(70,214,255,.2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .db-tela .db-abas a.on{background:linear-gradient(135deg,var(--p3),var(--p1));color:#fff;box-shadow:0 8px 24px -10px var(--p1)}
 .db-tela .db-k{background:linear-gradient(140deg,rgba(14,30,70,.75),rgba(8,16,40,.55));border:1px solid rgba(70,214,255,.16);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);position:relative;overflow:hidden;opacity:0;transform:translateY(14px);animation:hubIn .6s cubic-bezier(.2,.8,.2,1) forwards}
@@ -4283,7 +4280,6 @@ body.nx-db{background:#040b1c}
 .db-comentar.ed{border-color:rgba(140,190,255,.25);background:transparent;color:#a9b8d6}
 .db-comentar:hover{background:color-mix(in srgb,var(--p1) 22%,transparent)}
 .db-tela .av{background:linear-gradient(135deg,var(--p3),var(--p1));color:#fff}
-.db-tela .db-anon-bt{color:#a9b8d6}
 .db-tela a{color:var(--p1)}
 .db-tela .db-qtd input{background:rgba(12,26,60,.6);color:#fff}
 @media (min-width:1100px){.db-ks{grid-template-columns:repeat(5,minmax(0,1fr))}.db-tela{max-width:1200px}}
