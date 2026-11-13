@@ -438,6 +438,8 @@ function dashContar(raiz) {
     requestAnimationFrame(passo);
   });
 }
+// contas de teste da equipe (Aluno Teste) não entram nos números do dashboard
+const dashTeste = (m) => /^aluno\.teste/i.test((m && m.email) || '');
 // rota #/dashboard (feedbacks), #/dashboard/planilhas (dados reais) e #/dashboard/demo (alunos fictícios)
 const dashAbas = (atual) =>
   `<div class="db-abas"><a href="#/dashboard" class="${atual === 'feed' ? 'on' : ''}">Feedbacks</a><a href="#/dashboard/planilhas" class="${atual !== 'feed' ? 'on' : ''}">Planilhas</a></div>`;
@@ -462,7 +464,7 @@ async function staffDashboard(modo) {
     const [{ data: mem }, { data: pl }, { data: fs }, { data: ss }, { data: cs }] = await Promise.all([
       sb
         .from('nx_membros')
-        .select('user_id,nome,foto_url,ultimo_acesso,ativo,aprovacao,treinador_id')
+        .select('user_id,nome,email,foto_url,ultimo_acesso,ativo,aprovacao,treinador_id')
         .eq('org_id', S.org.id)
         .eq('papel', 'aluno'),
       sb
@@ -487,7 +489,7 @@ async function staffDashboard(modo) {
         .gte('data', iniTs)
         .limit(5000),
     ]);
-    const alunos = (mem || []).filter((m) => m.ativo && m.aprovacao !== 'pendente' && ehMeuAluno(m));
+    const alunos = (mem || []).filter((m) => m.ativo && m.aprovacao !== 'pendente' && ehMeuAluno(m) && !dashTeste(m));
     M = dashMontar({
       agora: Date.now(),
       alunos: alunos.map((m) => ({
@@ -530,7 +532,11 @@ async function staffDashboard(modo) {
 async function staffDashFeedbacks() {
   loading();
   const [{ data: mem }, { data: ss }, { data: cs }] = await Promise.all([
-    sb.from('nx_membros').select('user_id,nome,foto_url,treinador_id').eq('org_id', S.org.id).eq('papel', 'aluno'),
+    sb
+      .from('nx_membros')
+      .select('user_id,nome,email,foto_url,treinador_id')
+      .eq('org_id', S.org.id)
+      .eq('papel', 'aluno'),
     sb
       .from('nx_sessoes')
       .select('aluno_id,iniciado_em,treino_titulo,visto_treinador')
@@ -544,7 +550,7 @@ async function staffDashFeedbacks() {
       .limit(10000),
   ]);
   // feedbacks gerais: a equipe inteira (todos os professores somados)
-  const meus = mem || [],
+  const meus = (mem || []).filter((m) => !dashTeste(m)),
     porId = Object.fromEntries(meus.map((m) => [m.user_id, m]));
   const treinos = [
     ...(ss || []).map((x) => ({
