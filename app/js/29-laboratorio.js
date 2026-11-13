@@ -1875,6 +1875,7 @@ function staffMais() {
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Gestão da assessoria</h1>
     ${buscaCampoHTML()}
     <p class="sec-lbl">Acompanhar os alunos</p><div class="stack">
+      ${it('#/dashboard', DASH_GRAF_IC, 'Dashboard', 'Feedbacks dados (treinos com Visto) e as planilhas liberadas da semana')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}
       ${it('#/checkup', I.check, 'Check-up do Corredor', 'Avaliação de entrada e saída: pré-temporada, aluno novo, ciclo de prova')}

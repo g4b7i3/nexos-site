@@ -117,6 +117,12 @@ function buscaTelasEquipe() {
     ['#/relogios', 'Relógios dos alunos', 'Quem está conectado e com qual relógio', 'garmin relogio conexao'],
     ['#/desativados', 'Alunos desativados', 'Quem saiu da Nexos e a opção de reativar', 'inativo reativar saiu'],
     ['#/videochamadas', 'Videochamadas', 'Ligar para um professor ou para um aluno', 'video chamada ligar'],
+    [
+      '#/dashboard',
+      'Dashboard',
+      'Feedbacks dados e planilhas liberadas da semana',
+      'painel feedback visto planilhas liberadas numeros',
+    ],
     ['#/aviso', 'Aviso para os alunos', 'Uma notificação no celular dos alunos', 'aviso notificacao push comunicado'],
     ['#/eventos', 'Eventos', 'Treinões da Nexos e alunos nas provas', 'treinao prova'],
     ['#/desafio', 'Desafio do mês', 'Meta coletiva da equipe', 'desafio meta coletiva'],
