@@ -130,6 +130,18 @@ const vazio = corredorLado().map((f, i) => (i % 3 ? { t: f.t, p: null } : f));
 ok(psAnalisarLado(vazio, altura).qualidade.avisos.includes('pouca_deteccao'), 'avisa quando o corpo some do vídeo');
 ok(psDirecao([]) === 1 && psLadoVisivel([]).vis === 0, 'listas vazias não quebram');
 
+// corredor vindo em direção à câmera (fica 50% maior no vídeo): as medidas em cm não podem inflar
+const chegando = corredorLado().map((f, i, arr) => {
+  const k = 1 + (0.5 * i) / (arr.length - 1);
+  return { t: f.t, p: f.p.map((q) => (q ? [500 + (q[0] - 500) * k, q[1] * k, q[2]] : null)) };
+});
+const ch = psAnalisarLado(chegando, altura);
+ok(perto(ch.m.cadencia, 170, 3), `vindo para a câmera, cadência: ${ch.m.cadencia}`);
+ok(perto(ch.m.oscilacao, 4.08, 0.9), `vindo para a câmera, oscilação: ${ch.m.oscilacao} cm (esperado ≈ 4,1)`);
+ok(perto(ch.m.frente, 11.2, 2), `vindo para a câmera, pé à frente: ${ch.m.frente} cm (esperado ≈ 11,2)`);
+ok(ch.qualidade.avisos.includes('distancia_muda'), 'avisa quando a distância até a câmera muda');
+ok(!lado.qualidade.avisos.includes('distancia_muda'), 'não avisa distância na esteira');
+
 // 3. corredor por trás: quadril do lado sem apoio cai 6°, pés sem cruzar
 function corredorTras({ queda = 6, cruza = false, fps = 60, seg = 3 } = {}) {
   const ciclo = 120 / 170,

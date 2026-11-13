@@ -102,6 +102,14 @@ function psPerna(fr, L) {
     }),
   );
 }
+// comprimento da perna num quadro só (muda quando a pessoa chega mais perto da câmera)
+function psPernaQuadro(f, L) {
+  const s = PS_LADO[L];
+  const q = psPt(f, s.q),
+    j = psPt(f, s.j),
+    t = psPt(f, s.t);
+  return q && j && t ? psDist(q, j) + psDist(j, t) : null;
+}
 // apoios do pé: trechos em que o ponto mais baixo do pé (calcanhar ou ponta) fica colado no chão
 function psApoios(fr, L, perna) {
   const s = PS_LADO[L];
@@ -112,10 +120,43 @@ function psApoios(fr, L, perna) {
       return c || p ? Math.max(c ? c[1] : -1e9, p ? p[1] : -1e9) : null;
     }),
   );
-  const chao = psPercentil(baixo, 0.9);
-  if (chao == null || !perna) return [];
-  const tol = Math.max(3, perna * 0.035);
-  const no = baixo.map((y) => y != null && y >= chao - tol);
+  if (!perna || !baixo.some((y) => y != null)) return [];
+  const fps = psFps(fr) || 30;
+  const jan = Math.max(6, Math.round(fps * 0.45));
+  const pernaQ = psSuavizar(fr.map((f) => psPernaQuadro(f, L)));
+  // chão de cada momento: reta que passa pelos pontos mais baixos do pé em cada trecho de ~1 passada
+  // (na esteira fica parada; se a pessoa vem chegando perto da câmera, ela desce junto)
+  const env = [];
+  for (let i0 = 0; i0 < baixo.length; i0 += jan * 2) {
+    let bi = -1;
+    for (let k = i0; k < Math.min(baixo.length, i0 + jan * 2); k++)
+      if (baixo[k] != null && (bi < 0 || baixo[k] > baixo[bi])) bi = k;
+    if (bi >= 0) env.push([bi, baixo[bi]]);
+  }
+  // reta pelos pontos (mínimos quadrados); o chão passa pelos mais baixos, não pela média
+  const reta = (pts) => {
+    const mx = pts.reduce((x, e) => x + e[0], 0) / pts.length,
+      my = pts.reduce((x, e) => x + e[1], 0) / pts.length;
+    const sxx = pts.reduce((x, e) => x + (e[0] - mx) ** 2, 0);
+    const b = sxx ? pts.reduce((x, e) => x + (e[0] - mx) * (e[1] - my), 0) / sxx : 0;
+    return [Math.max(...pts.map((e) => e[1] - b * e[0])), b];
+  };
+  let a0 = psPercentil(baixo, 0.9),
+    b0 = 0;
+  if (env.length >= 3) {
+    // trecho sem nenhum apoio daquele pé (pé no ar o tempo todo) não é chão: sai o ponto mais acima da reta, um por vez
+    let pts = env.slice();
+    for (;;) {
+      [a0, b0] = reta(pts);
+      if (pts.length <= 3) break;
+      const res = pts.map((e) => e[1] - (a0 + b0 * e[0]));
+      const pior = res.indexOf(Math.min(...res));
+      if (res[pior] > -perna * 0.04) break;
+      pts.splice(pior, 1);
+    }
+  }
+  const no = baixo.map((y, i) => y != null && y >= a0 + b0 * i - Math.max(3, (pernaQ[i] || perna) * 0.035));
+
   // junta apoios separados por um quadro só (ruído)
   for (let i = 1; i < no.length - 1; i++) if (!no[i] && no[i - 1] && no[i + 1]) no[i] = true;
   const ap = [];
@@ -162,7 +203,7 @@ function psAnalisarLado(fr, alturaCm) {
         tibia,
         joelhoIC: ang == null ? null : 180 - ang,
         joelhoMax: jMax,
-        frentePx: dir * (c[0] - q[0]),
+        frenteCm: psCm(dir * (c[0] - q[0]), psPernaQuadro(f, lado) || perna, alturaCm),
         contatoMs: (t(a.to) - t(a.ic)) * 1000,
       };
     })
@@ -183,8 +224,15 @@ function psAnalisarLado(fr, alturaCm) {
   const yq = psSuavizar(fr.map((f) => (psPt(f, s.q) ? psPt(f, s.q)[1] : null)));
   const osc = [];
   for (let k = 0; k + 1 < ap.length; k++) {
-    const seg = yq.slice(ap[k].ic, ap[k + 1].ic + 1).filter((y) => y != null);
-    if (seg.length >= 3) osc.push(Math.max(...seg) - Math.min(...seg));
+    const i0 = ap[k].ic,
+      i1 = ap[k + 1].ic;
+    if (yq[i0] == null || yq[i1] == null || i1 - i0 < 3) continue;
+    // tira a tendência da passada (a pessoa chegando perto ou se afastando da câmera)
+    const res = [];
+    for (let i = i0; i <= i1; i++)
+      if (yq[i] != null) res.push(yq[i] - (yq[i0] + ((yq[i1] - yq[i0]) * (i - i0)) / (i1 - i0)));
+    const pl = psMediana(fr.slice(i0, i1 + 1).map((f) => psPernaQuadro(f, lado))) || perna;
+    if (res.length >= 3) osc.push(psCm(Math.max(...res) - Math.min(...res), pl, alturaCm));
   }
   // cadência pelos apoios do mesmo pé (uma passada completa = 2 passos)
   const ciclos = [];
@@ -204,9 +252,9 @@ function psAnalisarLado(fr, alturaCm) {
       tibia: psMediana(porApoio.map((x) => x.tibia)),
       joelhoIC: psMediana(porApoio.map((x) => x.joelhoIC)),
       joelhoMax: psMediana(porApoio.map((x) => x.joelhoMax)),
-      frente: psCm(psMediana(porApoio.map((x) => x.frentePx)), perna, alturaCm),
+      frente: psMediana(porApoio.map((x) => x.frenteCm)),
       tronco,
-      oscilacao: psCm(psMediana(osc), perna, alturaCm),
+      oscilacao: psMediana(osc),
       contato: fps >= 50 ? psMediana(porApoio.map((x) => x.contatoMs)) : null,
     },
   };
@@ -312,9 +360,20 @@ function psQualidade(fr, vis, nApoios, vista) {
   if (det < 0.6) avisos.push('pouca_deteccao');
   if (nApoios < (vista === 'lado' ? 3 : 4)) avisos.push('poucos_passos');
   if (vis < 0.5) avisos.push('pouco_visivel');
+  const pq = fr.map((f) => psPernaQuadro(f, psLadoVisivel(fr).lado));
+  const p10 = psPercentil(pq, 0.1),
+    p90 = psPercentil(pq, 0.9);
+  if (p10 && p90 / p10 > 1.3) avisos.push('distancia_muda');
   if (razao != null && vista === 'lado' && razao > 0.22) avisos.push('nao_parece_lado');
   if (razao != null && vista === 'tras' && razao < 0.12) avisos.push('nao_parece_tras');
-  return { deteccao: det, vis, apoios: nApoios, razao, avisos, ok: !avisos.some((a) => a !== 'pouco_visivel') };
+  return {
+    deteccao: det,
+    vis,
+    apoios: nApoios,
+    razao,
+    avisos,
+    ok: !avisos.some((a) => a !== 'pouco_visivel' && a !== 'distancia_muda'),
+  };
 }
 
 // faixas de referência (gerais, para orientar a conversa; quem interpreta é o treinador)
@@ -799,6 +858,8 @@ const PS_AVISO_TXT = {
   pouca_deteccao: 'O corpo não foi encontrado em boa parte do vídeo. Veja se ele aparece inteiro e bem iluminado.',
   poucos_passos: 'Poucos apoios do pé no trecho escolhido. Grave mais tempo correndo ou escolha outro trecho.',
   pouco_visivel: 'Algumas partes do corpo ficaram pouco visíveis. Roupa justa e mais luz ajudam.',
+  distancia_muda:
+    'Você chegou mais perto ou se afastou da câmera durante o trecho. O app compensa, mas fica mais certo correndo de lado, na mesma distância (na esteira é o ideal).',
   nao_parece_lado:
     'Pelo jeito do vídeo, a câmera não está bem de lado. Grave de perfil para as medidas ficarem certas.',
   nao_parece_tras:
