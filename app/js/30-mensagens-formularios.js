@@ -1508,21 +1508,6 @@ async function funcaoVideo(body) {
   return data;
 }
 let chamadaAtual = null;
-// cores da Nexos dentro da sala do Daily
-const VS_TEMA = {
-  colors: {
-    accent: '#46D6FF',
-    accentText: '#06142E',
-    background: '#071733',
-    backgroundAccent: '#0F2A5C',
-    baseText: '#FFFFFF',
-    border: '#1C3B70',
-    mainAreaBg: '#040C1E',
-    mainAreaBgAccent: '#0B2352',
-    mainAreaText: '#FFFFFF',
-    supportiveText: '#A9BCE0',
-  },
-};
 const VS_IC = {
   cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="3"/><path d="m16 10 6-3v10l-6-3z"/></svg>',
   camOff:
@@ -1530,6 +1515,8 @@ const VS_IC = {
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>',
   micOff:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 5.1 2.1M5 10a7 7 0 0 0 11.5 5.4M19 10a7 7 0 0 1-.6 2.8M12 17v5"/><path d="m2 2 20 20"/></svg>',
+  vira: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><path d="M15.5 12.5a3.5 3.5 0 0 1-6.3 2M8.5 11.5a3.5 3.5 0 0 1 6.3-2"/><path d="M15 8.5v1.5h-1.5M9 15.5V14h1.5"/></svg>',
+  tela: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4M12 13V8M9.5 10.5 12 8l2.5 2.5"/></svg>',
   fim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15.5c5-4.7 13-4.7 18 0l-2.2 2.6a1.5 1.5 0 0 1-2 .3l-2.3-1.6a1.5 1.5 0 0 1-.6-1.3v-1.7a10 10 0 0 0-3.8 0v1.7a1.5 1.5 0 0 1-.6 1.3l-2.3 1.6a1.5 1.5 0 0 1-2-.3z"/></svg>',
 };
 const vsAvatar = (p) =>
@@ -1621,49 +1608,191 @@ function vsFim(seg, outro) {
   el.querySelector('#vs-ok').onclick = fechar;
   setTimeout(fechar, 7000);
 }
-// abre a sala por cima de tudo; quando a equipe sai, a chamada é encerrada e a duração fica registrada
+// abre a sala própria da Nexos por cima de tudo (o Daily só cuida do vídeo e do som; a tela é nossa)
+// quando a equipe sai, a chamada é encerrada e a duração fica registrada
 async function abrirSalaVideo(
   d,
   { staff = false, equipe = false, titulo = 'Videochamada', extra = '', outro = null, cam = true, mic = true } = {},
 ) {
   const Daily = await carregarDaily();
-  await fecharSalaVideo(false);
+  await fecharSalaVideo(false, true);
+  const celular = matchMedia('(pointer:coarse)').matches;
+  const podeTela = !celular && !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
   const box = document.createElement('div');
-  box.className = 'video-sala';
-  box.innerHTML = `<div class="video-top"><img class="vs-simb" src="/app/icons/simbolo.svg" alt=""><div class="grow vs-tit"><b>${esc(titulo)}</b><small id="vs-st">Conectando…</small></div>${extra}<button type="button" class="vs-sair" id="vs-sair" aria-label="${staff && !equipe ? 'Encerrar' : 'Sair'}">${VS_IC.fim}<span>${staff && !equipe ? 'Encerrar' : 'Sair'}</span></button></div>
-    <div class="video-corpo"><div class="video-frame"></div><div class="vs-espera" id="vs-espera"><div class="vs-av vs-pulsa">${vsAvatar(outro)}</div><b>${outro ? `Esperando ${esc(firstName(outro.nome))} entrar` : 'Esperando a outra pessoa entrar'}</b><small>${staff ? 'Ela recebeu o aviso no celular.' : 'Já já começa.'}</small></div></div>`;
+  box.className = 'video-sala vs-sala';
+  box.innerHTML = `<div class="video-top"><img class="vs-simb" src="/app/icons/simbolo.svg" alt=""><div class="grow vs-tit"><b>${esc(titulo)}</b><small id="vs-st">Conectando…</small></div><span class="vs-rede" id="vs-rede" hidden></span>${extra}</div>
+    <div class="vs-palco" id="vs-palco"></div>
+    <div class="vs-aviso" id="vs-aviso" hidden></div>
+    <div class="vs-espera" id="vs-espera"><div class="vs-av vs-pulsa">${vsAvatar(outro)}</div><b>${outro ? `Esperando ${esc(firstName(outro.nome))} entrar` : 'Esperando a outra pessoa entrar'}</b><small>${staff ? 'Ela recebeu o aviso no celular.' : 'Já já começa.'}</small></div>
+    <div class="vs-barra">
+      <button type="button" class="vs-bt" id="vs-b-mic" aria-label="Microfone"></button>
+      <button type="button" class="vs-bt" id="vs-b-cam" aria-label="Câmera"></button>
+      ${celular ? `<button type="button" class="vs-bt" id="vs-b-vira" aria-label="Trocar a câmera">${VS_IC.vira}</button>` : ''}
+      ${podeTela ? `<button type="button" class="vs-bt" id="vs-b-tela" aria-label="Mostrar a tela">${VS_IC.tela}</button>` : ''}
+      <button type="button" class="vs-bt vs-bt-fim" id="vs-sair" aria-label="${staff && !equipe ? 'Encerrar' : 'Sair'}">${VS_IC.fim}</button>
+    </div>`;
   document.body.appendChild(box);
   document.body.classList.add('em-video');
-  const call = Daily.createFrame(box.querySelector('.video-frame'), {
-    showLeaveButton: false,
-    showFullscreenButton: true,
-    lang: 'pt-BR',
-    theme: VS_TEMA,
-    iframeStyle: { width: '100%', height: '100%', border: '0' },
-  });
-  chamadaAtual = { id: d.id, call, box, staff, equipe, outro, ini: null, timer: null };
-  const st = box.querySelector('#vs-st'),
-    esp = box.querySelector('#vs-espera');
-  // relógio da conversa: começa quando a outra pessoa entra
-  const contar = () => {
-    let outros = 0;
-    try {
-      outros = Object.keys(call.participants() || {}).filter((k) => k !== 'local').length;
-    } catch {}
-    esp.hidden = !!outros;
+  const call = Daily.createCallObject({ subscribeToTracksAutomatically: true });
+  chamadaAtual = { id: d.id, call, box, staff, equipe, outro, ini: null, timer: null, trava: null };
+  const palco = box.querySelector('#vs-palco'),
+    st = box.querySelector('#vs-st'),
+    esp = box.querySelector('#vs-espera'),
+    aviso = box.querySelector('#vs-aviso');
+  // a tela não apaga durante a conversa
+  try {
+    chamadaAtual.trava = await navigator.wakeLock.request('screen');
+  } catch {}
+  let falando = null,
+    troca = false;
+  // foto e nome de cada pessoa: a sua, a de quem está do outro lado e as iniciais dos demais
+  const fotoDe = (p) =>
+    p.local ? S.me : outro && (p.user_id === outro.user_id || !outro.user_id) ? outro : { nome: p.user_name };
+  const audios = {};
+  const pista = (t) => (t && t.state === 'playable' && t.persistentTrack ? t.persistentTrack : null);
+  const ligarMidia = (el, track) => {
+    const atual = el.srcObject && el.srcObject.getTracks()[0];
+    if (track && (!atual || atual.id !== track.id)) {
+      el.srcObject = new MediaStream([track]);
+      el.play().catch(() => {});
+    } else if (!track && el.srcObject) el.srcObject = null;
+  };
+  const desenhar = () => {
     const c = chamadaAtual;
     if (!c || c.call !== call) return;
-    if (outros && !c.ini) c.ini = Date.now();
-    st.textContent = outros && c.ini ? `Ao vivo · ${vsTempo(Math.round((Date.now() - c.ini) / 1000))}` : 'Na sala';
+    let ps = {};
+    try {
+      ps = call.participants() || {};
+    } catch {}
+    const lista = Object.values(ps);
+    const outros = lista.filter((p) => !p.local);
+    // tela compartilhada vira o destaque
+    const tela = lista.find((p) => pista(p.tracks && p.tracks.screenVideo));
+    const vistos = new Set();
+    lista.forEach((p) => {
+      const sid = p.session_id;
+      vistos.add(sid);
+      let t = palco.querySelector(`[data-s="${sid}"]`);
+      if (!t) {
+        t = document.createElement('div');
+        t.className = 'vt' + (p.local ? ' eu' : '');
+        t.dataset.s = sid;
+        t.innerHTML = `<video playsinline autoplay muted></video><div class="vt-av"><div class="vs-av">${vsAvatar(fotoDe(p))}</div></div><div class="vt-nome"><i class="vt-mic">${VS_IC.micOff}</i><span></span></div>`;
+        palco.appendChild(t);
+      }
+      const v = pista(p.tracks && p.tracks.video);
+      ligarMidia(t.querySelector('video'), v);
+      t.classList.toggle('sem-video', !v);
+      t.classList.toggle('mudo', !pista(p.tracks && p.tracks.audio));
+      t.classList.toggle('fala', !p.local && falando === p.peer_id);
+      t.querySelector('.vt-nome span').textContent = p.local ? 'Você' : firstName(p.user_name) || 'Convidado';
+      // som de quem está do outro lado (o vídeo fica sempre mudo)
+      if (!p.local) {
+        if (!audios[sid]) {
+          audios[sid] = document.createElement('audio');
+          audios[sid].autoplay = true;
+          box.appendChild(audios[sid]);
+        }
+        ligarMidia(audios[sid], pista(p.tracks && p.tracks.audio));
+      }
+    });
+    palco.querySelectorAll('.vt').forEach((t) => {
+      if (!vistos.has(t.dataset.s)) t.remove();
+    });
+    Object.keys(audios).forEach((sid) => {
+      if (!vistos.has(sid)) {
+        audios[sid].remove();
+        delete audios[sid];
+      }
+    });
+    // tela compartilhada
+    let tt = palco.querySelector('.vt-tela');
+    if (tela) {
+      if (!tt) {
+        tt = document.createElement('div');
+        tt.className = 'vt vt-tela';
+        tt.innerHTML = '<video playsinline autoplay muted></video>';
+        palco.prepend(tt);
+      }
+      ligarMidia(tt.querySelector('video'), pista(tela.tracks.screenVideo));
+    } else if (tt) tt.remove();
+    palco.className =
+      'vs-palco ' +
+      (tela ? 'tela' : !outros.length ? 'so-eu' : outros.length === 1 ? 'dupla' + (troca ? ' troca' : '') : 'grade');
+    esp.hidden = !!outros.length;
+    if (outros.length && !c.ini) c.ini = Date.now();
+    st.textContent =
+      outros.length && c.ini ? `Ao vivo · ${vsTempo(Math.round((Date.now() - c.ini) / 1000))}` : 'Na sala';
+    // botões
+    const micOn = call.localAudio(),
+      camOn = call.localVideo();
+    const bm = box.querySelector('#vs-b-mic'),
+      bc = box.querySelector('#vs-b-cam');
+    bm.innerHTML = micOn ? VS_IC.mic : VS_IC.micOff;
+    bc.innerHTML = camOn ? VS_IC.cam : VS_IC.camOff;
+    bm.classList.toggle('off', !micOn);
+    bc.classList.toggle('off', !camOn);
+    const bt = box.querySelector('#vs-b-tela');
+    if (bt) bt.classList.toggle('on', !!(ps.local && pista(ps.local.tracks && ps.local.tracks.screenVideo)));
   };
-  call.on('joined-meeting', contar);
-  call.on('participant-joined', contar);
-  call.on('participant-left', contar);
-  chamadaAtual.timer = setInterval(contar, 1000);
+  [
+    'joined-meeting',
+    'participant-joined',
+    'participant-updated',
+    'participant-left',
+    'track-started',
+    'track-stopped',
+  ].forEach((ev) => call.on(ev, desenhar));
+  call.on('active-speaker-change', (e) => {
+    falando = e && e.activeSpeaker && e.activeSpeaker.peerId;
+    desenhar();
+  });
+  // qualidade da internet e reconexão
+  const rede = box.querySelector('#vs-rede');
+  call.on('network-quality-change', (e) => {
+    const q = e && e.threshold;
+    rede.hidden = !q || q === 'good';
+    rede.textContent = q === 'very-low' ? 'Internet muito fraca' : 'Internet fraca';
+    rede.className = 'vs-rede' + (q === 'very-low' ? ' ruim' : '');
+  });
+  call.on('network-connection', (e) => {
+    if (!e) return;
+    aviso.hidden = e.event !== 'interrupted';
+    aviso.textContent = 'Reconectando… a conversa volta sozinha quando a internet melhorar.';
+  });
+  call.on('camera-error', () =>
+    toast('Não foi possível usar a câmera. Confira a permissão do navegador para a câmera e o microfone.', true),
+  );
   call.on('left-meeting', () => fecharSalaVideo(true));
+  chamadaAtual.timer = setInterval(desenhar, 1000);
+  // trocar quem fica grande, tocando no vídeo pequeno
+  palco.addEventListener('click', (e) => {
+    if (e.target.closest('.dupla:not(.troca) .vt.eu, .dupla.troca .vt:not(.eu)')) {
+      troca = !troca;
+      desenhar();
+    }
+  });
+  box.querySelector('#vs-b-mic').onclick = () => {
+    call.setLocalAudio(!call.localAudio());
+    setTimeout(desenhar, 50);
+  };
+  box.querySelector('#vs-b-cam').onclick = () => {
+    call.setLocalVideo(!call.localVideo());
+    setTimeout(desenhar, 50);
+  };
+  const bv = box.querySelector('#vs-b-vira');
+  if (bv) bv.onclick = () => call.cycleCamera().catch(() => {});
+  const bt = box.querySelector('#vs-b-tela');
+  if (bt)
+    bt.onclick = () => {
+      const p = call.participants().local;
+      if (p && pista(p.tracks && p.tracks.screenVideo)) call.stopScreenShare();
+      else call.startScreenShare();
+    };
   box.querySelector('#vs-sair').onclick = () => fecharSalaVideo(true);
   try {
     await call.join({ url: d.url, token: d.token, startVideoOff: !cam, startAudioOff: !mic });
+    desenhar();
   } catch (e) {
     await fecharSalaVideo(false, true);
     const cod = String((e && (e.errorMsg || e.message)) || '');
@@ -1679,6 +1808,7 @@ async function fecharSalaVideo(encerrar, semTelaFim) {
   if (!c) return;
   chamadaAtual = null;
   clearInterval(c.timer);
+  if (c.trava) c.trava.release().catch(() => {});
   // sala da equipe ou entre professores: só fecha quando o último sai
   let outros = 0;
   try {
@@ -1686,6 +1816,7 @@ async function fecharSalaVideo(encerrar, semTelaFim) {
   } catch {}
   if (c.equipe && outros) encerrar = false;
   // a tela sai na hora; a chamada fecha por trás (no celular o Daily às vezes demora para responder)
+  c.box.querySelectorAll('video,audio').forEach((m) => (m.srcObject = null));
   c.box.remove();
   document.body.classList.remove('em-video');
   if (!semTelaFim && c.ini) vsFim(Math.round((Date.now() - c.ini) / 1000), c.outro);
@@ -1723,7 +1854,7 @@ async function iniciarVideochamada(m, btn) {
       staff: true,
       titulo: `Videochamada com ${firstName(m.nome)}`,
       extra: wa,
-      outro: { nome: m.nome, foto_url: m.foto_url },
+      outro: { nome: m.nome, foto_url: m.foto_url, user_id: m.user_id },
     });
   } catch (e) {
     toast(e.message, true);
@@ -1862,7 +1993,7 @@ async function ligarProfessor(m, btn) {
       equipe: true,
       titulo: `Videochamada com ${firstName(m.nome)}`,
       extra: wa,
-      outro: { nome: m.nome, foto_url: m.foto_url },
+      outro: { nome: m.nome, foto_url: m.foto_url, user_id: m.user_id },
     });
   } catch (e) {
     toast(e.message, true);
