@@ -238,6 +238,8 @@ const DASH_IC = {
   ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
   busca:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  coment:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8 11h8M8 14h5"/></svg>',
   chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
 };
 const dashFmt = (n, c = 0) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
@@ -274,8 +276,8 @@ function dashHTML(M, { demo = false, n = 0, link = true, campoQtd = true } = {})
   };
   const pend = k.ativos - k.liberadas;
   return `${demo ? `<div class="db-selo" role="note"><b>Demonstração</b><span>Todos os alunos desta tela são fictícios, gerados só para mostrar como o painel funciona.</span></div>` : ''}
-    <p class="eyebrow">Semana de ${dashDataCurta(M.seg)} a ${dashDataCurta(M.dom)}</p><h1 class="h1">Dashboard</h1>
-    <p class="muted small" style="margin-top:6px">As planilhas liberadas da semana, o que cada aluno já fez e quando abriu o app.</p>
+    <p class="db-ey"><i></i>Semana de ${dashDataCurta(M.seg)} a ${dashDataCurta(M.dom)}</p><h1 class="db-h">Dashboard</h1>
+    <p class="db-sub">As planilhas liberadas da semana, o que cada aluno já fez e quando abriu o app.</p>
     ${demo && campoQtd ? `<label class="db-qtd">Alunos fictícios na demonstração<input type="number" id="db-qtd" min="1" max="300" value="${n}" inputmode="numeric"></label>` : ''}
     <div class="db-ks">
       ${kpi(dashFmt(k.liberadas), k.liberadas === 1 ? 'planilha liberada' : 'planilhas liberadas', `de ${dashFmt(k.ativos)} aluno${k.ativos === 1 ? '' : 's'}`, 'destaque')}
@@ -336,6 +338,10 @@ function dashFeedHTML(F, { anonimo = false } = {}) {
   const kpi = (v, t, sub, cls = '') =>
     `<div class="db-k ${cls}"><b>${v}</b><span>${t}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
   const max = Math.max(1, ...F.meses.map((m) => m.n));
+  const botao = (t, i) =>
+    anonimo || !t.comentavel
+      ? ''
+      : `<button type="button" class="db-comentar${t.comentario ? ' ed' : ''}" data-db-com="${i}">${DASH_IC.coment}${t.comentario ? 'Editar comentário' : 'Comentar'}</button>`;
   const nome = (t) => (anonimo ? 'Atleta Nexos' : dashEsc(String(t.nome || 'Aluno').split(/\s+/)[0]));
   const av = (t) =>
     anonimo
@@ -345,8 +351,8 @@ function dashFeedHTML(F, { anonimo = false } = {}) {
     const x = new Date(ms);
     return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}`;
   };
-  return `<p class="eyebrow">Feedbacks da equipe</p><h1 class="h1">Dashboard</h1>
-    <p class="muted small" style="margin-top:6px">Cada treino analisado pelo treinador, com o aviso de Visto para o aluno.</p>
+  return `<p class="db-ey"><i></i>Feedbacks da equipe</p><h1 class="db-h">Dashboard</h1>
+    <p class="db-sub">Cada treino analisado pelo treinador, com o aviso de Visto para o aluno.</p>
     <div class="db-ks">
       ${kpi(dashFmt(k.vistos), k.vistos === 1 ? 'treino analisado' : 'treinos analisados', k.pct != null ? `${k.pct}% de tudo que os alunos registraram` : '', 'destaque')}
       ${kpi(dashFmt(k.mes), 'neste mês', `${dashFmt(k.semana)} nesta semana`)}
@@ -356,15 +362,15 @@ function dashFeedHTML(F, { anonimo = false } = {}) {
       ${kpi(dashFmt(k.forca), k.forca === 1 ? 'treino de força' : 'treinos de força', 'analisados')}
     </div>
     ${k.comentados ? `<div class="db-split"><span><b>${dashFmt(k.comentados)}</b> com comentário escrito do treinador</span></div>` : ''}
-    <div class="card db-graf"><span class="small muted" style="font-weight:700">Treinos analisados por mês</span>
+    <div class="db-graf"><span class="db-graf-t">Treinos analisados por mês</span>
       <div class="db-cols">${F.meses.map((m) => `<div class="db-col"><small>${m.n}</small><i style="height:${Math.round((m.n / max) * 100)}%"></i><span>${m.rot}</span></div>`).join('')}</div></div>
-    <p class="sec-lbl" style="margin-top:18px">Últimos feedbacks</p>
+    <p class="db-sec">Últimos feedbacks</p>
     <div class="db-lista">${
       F.recentes.length
         ? F.recentes
             .map(
-              (t) =>
-                `<div class="db-l db-f">${av(t)}<div class="db-l-m"><b class="db-l-n">${nome(t)}</b><div class="db-l-s">${dashEsc(t.titulo || (t.tipo === 'corrida' ? 'Corrida' : 'Treino de força'))}${t.km ? ` de ${dashFmt(t.km, 1)} km` : ''} · ${dataTxt(t.quando)}</div>${t.comentario && !anonimo ? `<div class="db-com">${dashEsc(t.comentario)}</div>` : ''}</div><span class="db-visto">${DASH_IC.ok}Visto</span></div>`,
+              (t, i) =>
+                `<div class="db-l db-f" style="--i:${Math.min(i, 12)}">${av(t)}<div class="db-l-m"><div class="db-f-top"><b class="db-l-n">${nome(t)}</b><span class="db-visto">${DASH_IC.ok}Visto</span></div><div class="db-l-s">${dashEsc(t.titulo || (t.tipo === 'corrida' ? 'Corrida' : 'Treino de força'))}${t.km ? ` de ${dashFmt(t.km, 1)} km` : ''} · ${dataTxt(t.quando)}</div>${t.comentario && !anonimo ? `<div class="db-com">${dashEsc(t.comentario)}</div>` : ''}${botao(t, i)}</div></div>`,
             )
             .join('')
         : '<p class="small muted">Nenhum treino analisado ainda. Toque em Visto nos treinos dos alunos, na tela Hoje.</p>'
@@ -397,6 +403,45 @@ function dashLigar(raiz) {
   q.addEventListener('input', aplicar);
 }
 
+// fundo escuro do Sistema Nexos atrás do dashboard (sai sozinho ao trocar de tela)
+function dashFundo() {
+  document.body.classList.add('nx-db');
+  if (!document.getElementById('db-fundo')) {
+    const f = document.createElement('div');
+    f.id = 'db-fundo';
+    f.setAttribute('aria-hidden', 'true');
+    f.innerHTML =
+      '<div class="dbf-grade"></div><div class="dbf-luz a"></div><div class="dbf-luz b"></div><div class="dbf-scan"></div><img src="icons/simbolo.svg" alt="" class="dbf-marca">';
+    document.body.appendChild(f);
+  }
+  if (dashFundo.ligado) return;
+  dashFundo.ligado = true;
+  addEventListener('hashchange', () => {
+    if (location.hash.startsWith('#/dashboard')) return;
+    document.body.classList.remove('nx-db');
+    document.getElementById('db-fundo')?.remove();
+  });
+}
+// os números sobem de zero até o valor, como um painel ao vivo
+function dashContar(raiz) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  raiz.querySelectorAll('.db-k b').forEach((b) => {
+    const txt = b.textContent.trim(),
+      m = txt.match(/^([\d.]+)(%?)$/);
+    if (!m) return;
+    const alvo = +m[1].replace(/\./g, ''),
+      t0 = performance.now(),
+      dur = 900;
+    if (!alvo) return;
+    const passo = (t) => {
+      const p = Math.min(1, (t - t0) / dur),
+        e = 1 - Math.pow(1 - p, 3);
+      b.textContent = Math.round(alvo * e).toLocaleString('pt-BR') + m[2];
+      if (p < 1) requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+  });
+}
 // rota #/dashboard (feedbacks), #/dashboard/planilhas (dados reais) e #/dashboard/demo (alunos fictícios)
 const dashAbas = (atual) =>
   `<div class="db-abas"><a href="#/dashboard" class="${atual === 'feed' ? 'on' : ''}">Feedbacks</a><a href="#/dashboard/planilhas" class="${atual !== 'feed' ? 'on' : ''}">Planilhas</a></div>`;
@@ -469,10 +514,12 @@ async function staffDashboard(modo) {
     });
   }
   dockStaff();
-  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a>${dashAbas('pl')}<div class="db">${dashHTML(M, { demo, n })}
-    <p class="small muted" style="margin-top:16px">${demo ? '<a href="#/dashboard/planilhas">Ver as planilhas dos alunos de verdade</a>' : '<a href="#/dashboard/demo">Abrir a demonstração com alunos fictícios</a> (para mostrar o sistema em divulgação; o selo Demonstração fica sempre na tela).'}</p></div>`;
+  dashFundo();
+  $app.innerHTML = `<div class="db-tela"><a class="back" href="#/mais">${I.back} Mais</a>${dashAbas('pl')}<div class="db">${dashHTML(M, { demo, n })}
+    <p class="small muted" style="margin-top:16px">${demo ? '<a href="#/dashboard/planilhas">Ver as planilhas dos alunos de verdade</a>' : '<a href="#/dashboard/demo">Abrir a demonstração com alunos fictícios</a> (para mostrar o sistema em divulgação; o selo Demonstração fica sempre na tela).'}</p></div></div>`;
   const raiz = $app.querySelector('.db');
   dashLigar(raiz);
+  dashContar(raiz);
   const qtd = raiz.querySelector('#db-qtd');
   if (qtd)
     qtd.addEventListener('change', () => {
@@ -496,7 +543,7 @@ async function staffDashFeedbacks() {
       .limit(10000),
     sb
       .from('nx_corridas')
-      .select('aluno_id,data,tipo,distancia_m,visto_treinador,comentario_treinador')
+      .select('id,aluno_id,data,tipo,titulo,distancia_m,duracao_s,fc_media,visto_treinador,comentario_treinador')
       .eq('org_id', S.org.id)
       .limit(10000),
   ]);
@@ -521,6 +568,8 @@ async function staffDashFeedbacks() {
       km: ehCorr(x) ? (x.distancia_m || 0) / 1000 : 0,
       visto: !!x.visto_treinador,
       comentario: x.comentario_treinador || null,
+      comentavel: true,
+      src: x,
     })),
   ]
     .filter((t) => porId[t.aluno_id])
@@ -531,9 +580,17 @@ async function staffDashFeedbacks() {
     anonimo = localStorage.getItem('nx-dash-anon') === '1';
   } catch {}
   const desenhar = () => {
-    $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a>${dashAbas('feed')}<div class="db">
+    $app.innerHTML = `<div class="db-tela"><a class="back" href="#/mais">${I.back} Mais</a>${dashAbas('feed')}<div class="db">
       <label class="db-anon-bt"><input type="checkbox" id="db-anon" ${anonimo ? 'checked' : ''}> Esconder os nomes dos alunos (para postar)</label>
-      ${dashFeedHTML(F, { anonimo })}</div>`;
+      ${dashFeedHTML(F, { anonimo })}</div></div>`;
+    dashContar($app);
+    // comentar um treino que só foi visto (ou editar o comentário): abre a tela de comentário da Nexos
+    $app.querySelectorAll('[data-db-com]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const t = F.recentes[+b.dataset.dbCom];
+        if (t && t.src) comentarTreino(t.src, { nome: t.nome });
+      }),
+    );
     $app.querySelector('#db-anon').addEventListener('change', (e) => {
       anonimo = e.target.checked;
       try {
@@ -543,5 +600,6 @@ async function staffDashFeedbacks() {
     });
   };
   dockStaff();
+  dashFundo();
   desenhar();
 }
