@@ -875,6 +875,7 @@ function alunoMais() {
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Tudo do seu app</h1>
     ${buscaCampoHTML()}
     <p class="sec-lbl" style="margin-top:20px">Treino e desempenho</p><div class="stack" id="mais-treino">
+      ${it('#/agenda', AG_IC, 'Agenda', 'Videochamadas, avaliações, treinos presenciais e eventos')}
       ${it('#/meta', I.flag, 'Minha meta', 'Seu objetivo com data e barra de progresso')}
       ${fC ? it('#/eventos', I.flag, 'Eventos e provas', 'Treinões da Nexos e suas provas') : ''}
       ${fC ? it('#/recordes', TROFEU_IC, 'Meus recordes', 'Melhores tempos em 1 km, 5 km, 10 km e meia') : ''}

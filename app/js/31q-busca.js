@@ -19,6 +19,12 @@ function buscaTelasAluno() {
     ['#/planilha', 'Planilha', 'Seus treinos da semana', 'treinos calendario semana corrida forca musculacao'],
     ['#/historico', 'Evolução', 'Treinos feitos, gráficos e relatórios', 'historico progresso graficos feitos'],
     [
+      '#/agenda',
+      'Agenda',
+      'Seus compromissos com o treinador e os eventos',
+      'agenda calendario videochamada mensal confirmar avaliacao compromisso',
+    ],
+    [
       '#/historico/relatorio',
       'Resumo do mês',
       'Seus números do mês e a análise do treinador',
@@ -123,6 +129,12 @@ function buscaTelasEquipe() {
     ['#/relogios', 'Relógios dos alunos', 'Quem está conectado e com qual relógio', 'garmin relogio conexao'],
     ['#/desativados', 'Alunos desativados', 'Quem saiu da Nexos e a opção de reativar', 'inativo reativar saiu'],
     ['#/videochamadas', 'Videochamadas', 'Ligar para um professor ou para um aluno', 'video chamada ligar'],
+    [
+      '#/agenda',
+      'Agenda',
+      'Videochamadas, avaliações e compromissos com os alunos',
+      'agenda calendario agendar videochamada mensal marcar avaliacao presencial compromisso',
+    ],
     [
       '#/dashboard',
       'Dashboard',

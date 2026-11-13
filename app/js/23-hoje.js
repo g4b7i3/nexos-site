@@ -767,7 +767,7 @@ async function staffHoje() {
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><div class="top-acoes">${sinoHTML()}<a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
-    <p class="muted" id="al-cont" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p>
+    <p class="muted" id="al-cont" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p><div id="agenda-hoje" style="margin-top:12px"></div>
     <div id="cic-term"></div>
     <div id="testes-eq"></div>
     <div id="energia-eq"></div>
@@ -897,6 +897,7 @@ async function staffHoje() {
   convidarTour();
   datasEspeciais(document.getElementById('datas-esp'), ativos);
   cartaoLiberarProxima(document.getElementById('lib-prox'), ativos).catch((e) => console.error(e));
+  cartaoAgenda().catch(() => {});
   atualizarSino();
   $app.querySelectorAll('[data-visto]').forEach(
     (b) =>

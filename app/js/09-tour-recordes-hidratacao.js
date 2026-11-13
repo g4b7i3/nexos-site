@@ -934,7 +934,7 @@ async function alunoHoje() {
     .join('');
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><div class="top-acoes">${sinoHTML()}<a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div></div>
-    <div id="cham-ativa"></div>
+    <div id="cham-ativa"></div><div id="agenda-hoje"></div>
     <section class="hoje-hero">
       <div class="hh-top"><span class="hh-quando"><span class="hh-data">${fmtDiaSem(hoje)}</span><span class="hh-relogio" data-relogio>${horaRelogio()}</span></span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
       <h1>${saud}, ${esc(firstName(S.me.nome) || 'atleta')}</h1>
@@ -980,6 +980,7 @@ async function alunoHoje() {
     <button class="fab-reg mini" id="fab-reg" aria-label="Registrar">${I.plus}</button>`;
   ligarRelogio();
   cartaoChamadaAtiva();
+  cartaoAgenda().catch(() => {});
   atendimentoHoje().catch(() => {});
   gpsSemDestaqueGarmin($app);
   const pendSec = document.getElementById('pend-sec');

@@ -2066,6 +2066,7 @@ async function staffVideochamadas() {
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe e comunicação</p><h1 class="h1">Videochamadas</h1>
     <p class="small muted" style="margin-top:6px">Toque em <b>Ligar</b>: a pessoa recebe a notificação e entra pelo aviso. A data e a duração das chamadas com alunos ficam na ficha.</p>
     <p class="tiny dim" id="mais-video-uso" style="margin-top:6px"></p>
+    <a class="list-item" href="#/agenda" style="color:inherit;margin-top:12px"><span class="ativ-ic">${AG_IC}</span><div class="grow"><b>Agenda</b><div class="small muted">Agendar a videochamada mensal de cada aluno, com aviso e lembretes</div></div>${I.chev}</a>
     ${abertas.length ? `<p class="sec-lbl">Em andamento</p><div class="stack">${abertas.map((c) => `<a class="list-item" href="#/chamada/${c.id}" style="color:inherit"><span class="ativ-ic">${I.cam}</span><div class="grow"><b>${descAberta(c)}</b><div class="small muted">Toque para entrar</div></div>${I.chev}</a>`).join('')}</div>` : ''}
     <p class="sec-lbl">Professores</p><div class="stack" id="vc-p">${profs.map((m) => linha(m, 'p')).join('') || '<div class="empty"><p class="small">Nenhum outro professor na equipe.</p></div>'}</div>
     <p class="sec-lbl">Alunos</p>${alunos.length > 6 ? '<input class="input" id="vc-busca" placeholder="Buscar aluno pelo nome" style="margin-bottom:10px">' : ''}<div class="stack" id="vc-a">${alunos.map((m) => linha(m, 'a')).join('') || '<div class="empty"><p class="small">Nenhum aluno ativo.</p></div>'}</div>`;
