@@ -318,6 +318,11 @@ img{display:block;max-width:100%}
 .badge.in{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--acc);color:var(--on-acc);font-size:.62rem;font-style:normal;margin-left:4px;vertical-align:1px}
 .g-charts{align-items:start}
 .av-item{display:flex;align-items:center;gap:14px;color:inherit}
+.av-linha{display:flex;align-items:stretch;gap:8px}
+.av-linha .av-item{flex:1;min-width:0;margin:0}
+.av-del{flex:none;width:46px;border-radius:16px;border:1px solid var(--line,rgba(127,127,127,.25));background:transparent;color:var(--err);display:grid;place-items:center;cursor:pointer}
+.av-del svg{width:20px;height:20px}
+.av-del:disabled{opacity:.4}
 
 /* ===== avaliação ===== */
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}

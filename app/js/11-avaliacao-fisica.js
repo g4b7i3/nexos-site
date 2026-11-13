@@ -235,6 +235,24 @@ async function buscarAvaliacoes(alunoId) {
   if (error) throw error;
   return data || [];
 }
+const AV_LIXO =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5"/></svg>';
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-av-del]');
+  if (!b) return;
+  e.preventDefault();
+  const linha = b.closest('.av-linha');
+  const qual = linha ? linha.querySelector('.h3').textContent.replace('Avaliação de ', '') : '';
+  if (!confirm(`Excluir a avaliação de ${qual}? Não dá para desfazer.`)) return;
+  b.disabled = true;
+  const { error } = await sb.from('nx_avaliacoes').delete().eq('id', b.dataset.avDel);
+  if (error) {
+    b.disabled = false;
+    return toast('Não foi possível excluir.', true);
+  }
+  toast('Avaliação excluída.');
+  router();
+});
 function avaliacoesHTML(avs, alunoId, staff) {
   const lista = [...avs].reverse();
   const ult = lista[0];
@@ -254,8 +272,12 @@ function avaliacoesHTML(avs, alunoId, staff) {
         ? lista
             .map((a) => {
               const r = calcAval(a);
-              return `<a class="card tap av-item" href="#/relatorio/${a.id}"><div class="hist-date"><b>${dia(a.data).getDate()}</b><span>${MESES[dia(a.data).getMonth()]}</span></div>
+              const item = `<a class="card tap av-item" href="#/relatorio/${a.id}"><div class="hist-date"><b>${dia(a.data).getDate()}</b><span>${MESES[dia(a.data).getMonth()]}</span></div>
         <div class="grow"><div class="h3">Avaliação de ${fmtDia(a.data)}</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${a.peso ? `<span class="tag">${f1(a.peso)} kg</span>` : ''}${r.gordura != null ? `<span class="tag acc">${f1(r.gordura)}% gordura</span>` : ''}<span class="tag">${a.metodo === 'bioimpedancia' ? 'Bioimpedância' : esc((PROTOCOLOS[a.protocolo] || {}).nome || 'Medidas')}</span></div></div>${I.chev}</a>`;
+              // a equipe apaga direto da lista (avaliação lançada errada ou repetida)
+              return staff
+                ? `<div class="av-linha">${item}<button type="button" class="av-del" data-av-del="${a.id}" aria-label="Excluir a avaliação de ${fmtDia(a.data)}" title="Excluir">${AV_LIXO}</button></div>`
+                : item;
             })
             .join('')
         : `<div class="empty"><div class="h3">Nenhuma avaliação ainda</div><p class="small">${staff ? 'Registre a primeira avaliação física deste aluno.' : 'Quando seu treinador fizer a sua avaliação física, o relatório aparece aqui.'}</p></div>`
