@@ -730,7 +730,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['dossie', 'Dossiê de desempenho', LAB_IC, 'Laboratório Nexos', true],
     ['relmes', 'Relatório do mês', I.ficha, 'PDF para mandar ao aluno', true],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
-    ['passada', 'Análise da passada', PS_IC, 'Vídeo da corrida: cadência, passada e quadril', fC],
+    ['passada', 'Análise biomecânica da corrida', PS_IC, 'Vídeo da corrida: passada, joelho, tronco e quadril', fC],
     ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],
     ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? 'PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
     [

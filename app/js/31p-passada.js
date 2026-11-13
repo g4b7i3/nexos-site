@@ -1,4 +1,4 @@
-/* Nexos App · Análise da passada por vídeo
+/* Nexos App · Análise biomecânica da corrida (arquivo 31p-passada) por vídeo
    O aluno (ou o treinador) filma 5 a 10 segundos de corrida, de lado ou por trás. O próprio celular encontra os
    pontos do corpo em cada quadro (MediaPipe Pose, sem mandar o vídeo para fora), o app acha os apoios do pé e mede
    cadência, tíbia e joelho no contato, inclinação do tronco, oscilação vertical, queda do quadril e joelho para dentro.
@@ -1387,7 +1387,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
     ${(q.avisos || []).length ? `<div class="ps-avisos">${q.avisos.map((a) => `<p class="small">${esc(PS_AVISO_TXT[a] || '')}</p>`).join('')}</div>` : ''}</div>
     ${staff ? psLeituraHTML(x, ant) : ''}
     ${psQuadrosHTML(x, urls)}
-    ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
+    ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
     ${psCardsMetricas(x, ant, staff)}
     ${psLadosHTML(x, staff)}
     ${staff && !previa ? psConferirCardHTML(x) : ''}
@@ -1402,7 +1402,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
         ? ''
         : `<div class="card ps-coment"><span class="eyebrow">${staff ? 'Relatório para o aluno' : 'Comentário do treinador'}</span>${
             staff
-              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Gerar de novo e reenviar o relatório' : 'Gerar relatório em PDF e enviar'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise da passada dele, com o PDF para baixar.</p>'}`
+              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Gerar de novo e reenviar o relatório' : 'Gerar relatório em PDF e enviar'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise biomecânica da corrida dele, com o PDF para baixar.</p>'}`
               : `<p style="margin-top:6px;white-space:pre-line">${x.comentario ? esc(x.comentario) : 'Seu treinador vai olhar o vídeo e deixar o comentário aqui. Você recebe uma notificação.'}</p>`
           }</div>`
     }
@@ -1817,7 +1817,7 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0b1f44;padding-bottom:14px">
       ${logo ? `<img src="${logo}" style="height:38px">` : '<b style="font-size:20px;color:#0b1f44">NEXOS</b>'}
       <div style="text-align:right;font-size:11px;color:#475569">Nexos Performance e Saúde<br>Relatório de ${fmtDia(new Date().toISOString())}</div></div>
-    <div style="margin-top:20px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1d4ed8;font-weight:800">Análise da passada</div>
+    <div style="margin-top:20px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1d4ed8;font-weight:800">Análise biomecânica da corrida</div>
     <div style="font-size:26px;font-weight:800;margin-top:4px">${esc(m.nome || '')}</div>
     <div style="font-size:12.5px;color:#475569;margin-top:4px">Vídeo ${x.vista === 'lado' ? 'de lado' : 'por trás'} · ${esc(x.local === 'esteira' ? 'Esteira' : x.local === 'rua' ? 'Rua' : 'Vídeo enviado')} · gravado em ${psDataHora(x.criado_em)}${psRitmoTxt(x) ? ' · ' + esc(psRitmoTxt(x)) : ''}</div>
     <div class="psr-l" style="margin-top:20px;background:#f1f5f9;border-left:4px solid #0b1f44;border-radius:8px;padding:14px 16px;">
@@ -1951,7 +1951,7 @@ function psDesenhaVivo(cv, v, p, W, H) {
 async function psNova(alunoId, voltar, nomeAluno) {
   const altura0 = await psAltura(alunoId);
   const st = { vista: null, local: 'esteira', altura: altura0, url: null, ini: 0, fim: 0, fator: 1, ritmo: '' };
-  const topo = `<a class="back" href="${voltar}">${I.back} Análise da passada</a><p class="eyebrow">Nova análise${nomeAluno ? ' · ' + esc(firstName(nomeAluno)) : ''}</p>`;
+  const topo = `<a class="back" href="${voltar}">${I.back} Análise biomecânica da corrida</a><p class="eyebrow">Nova análise${nomeAluno ? ' · ' + esc(firstName(nomeAluno)) : ''}</p>`;
   const passo1 = () => {
     $app.innerHTML = `${topo}<h1 class="h1">Como vai filmar?</h1>
       <div class="ps-vistas">
@@ -2061,7 +2061,7 @@ async function psNova(alunoId, voltar, nomeAluno) {
     window.scrollTo(0, 0);
   };
   const passo4 = async (v) => {
-    $app.innerHTML = `${topo}<h1 class="h1">Analisando a sua passada</h1>
+    $app.innerHTML = `${topo}<h1 class="h1">Analisando a sua corrida</h1>
       <div class="card ps-prog">
         <div class="ps-etapas">
           <div class="ps-et" data-e="1"><span class="ps-et-ic"></span><div class="grow"><b>Preparando a análise</b><small id="ps-e1">Na primeira vez, o celular baixa o modelo de pontos do corpo</small></div></div>
@@ -2216,12 +2216,12 @@ async function psResultadoLocal(reg, imgs, alunoId, voltar, nomeAluno, refazer) 
   const ruim = !(reg.qualidade && reg.qualidade.ok);
   const q = reg.qualidade || {};
   $app.innerHTML = S.staff
-    ? `<a class="back" href="${voltar}">${I.back} Análise da passada</a><p class="eyebrow">Resultado${nomeAluno ? ' · ' + esc(firstName(nomeAluno)) : ''}</p><h1 class="h1">Passada analisada</h1>
+    ? `<a class="back" href="${voltar}">${I.back} Análise biomecânica da corrida</a><p class="eyebrow">Resultado${nomeAluno ? ' · ' + esc(firstName(nomeAluno)) : ''}</p><h1 class="h1">Análise pronta</h1>
     ${psDetalheHTML(x, urls, ant, true, true)}`
-    : `<a class="back" href="${voltar}">${I.back} Análise da passada</a><p class="eyebrow">Vídeo analisado</p><h1 class="h1">Pronto para enviar</h1>
+    : `<a class="back" href="${voltar}">${I.back} Análise biomecânica da corrida</a><p class="eyebrow">Vídeo analisado</p><h1 class="h1">Pronto para enviar</h1>
     <p class="muted" style="margin-top:6px">O app encontrou os pontos do seu corpo. Agora o seu treinador olha tudo com calma e te manda um relatório.</p>
     ${(q.avisos || []).length ? `<div class="ps-avisos" style="margin-top:12px">${q.avisos.map((a) => `<p class="small">${esc(PS_AVISO_TXT[a] || '')}</p>`).join('')}</div>` : ''}
-    ${reg.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
+    ${reg.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
   $app.insertAdjacentHTML(
     'beforeend',
     `<div class="row" style="gap:8px;margin-top:14px"><button class="btn grow" id="ps-enviar">${S.staff ? 'Salvar na ficha do aluno' : 'Enviar para o treinador'}</button><button class="btn ghost grow" id="ps-refazer">Refazer</button></div>
@@ -2341,8 +2341,8 @@ async function viewPassada(sub) {
   if (sub) {
     const x = lista.find((y) => y.id === sub);
     if (!x)
-      return ($app.innerHTML = `<a class="back" href="#/passada">${I.back} Análise da passada</a><p class="muted">Análise não encontrada.</p>`);
-    const topoA = `<a class="back" href="#/passada">${I.back} Análise da passada</a><p class="eyebrow">${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${psDataHora(x.criado_em)}</p><h1 class="h1">Sua passada</h1>`;
+      return ($app.innerHTML = `<a class="back" href="#/passada">${I.back} Análise biomecânica da corrida</a><p class="muted">Análise não encontrada.</p>`);
+    const topoA = `<a class="back" href="#/passada">${I.back} Análise biomecânica da corrida</a><p class="eyebrow">${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${psDataHora(x.criado_em)}</p><h1 class="h1">Sua análise</h1>`;
     if (x.relatorio_path) {
       // relatório enviado: o aluno vê tudo aqui na aba e pode baixar o PDF
       const ant = lista.find((y) => y.vista === x.vista && y.criado_em < x.criado_em && y.relatorio_path);
@@ -2353,7 +2353,7 @@ async function viewPassada(sub) {
           <button class="btn block" id="ps-baixar" style="margin-top:14px">${PS_UP_IC.replace('M12 15V4', 'M12 4v11').replace('m7 9 5-5 5 5', 'm7 10 5 5 5-5')} Baixar o relatório (PDF)</button></div>
         ${ant ? `<button class="btn ghost block" id="ps-ad" style="margin-top:12px">Ver antes e depois (${fmtDia(ant.criado_em)})</button>` : ''}
         ${psQuadrosHTML(x, urls)}
-        ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
+        ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
         <p class="eyebrow" style="margin-top:18px">As medidas</p>
         ${psCardsMetricas(x, ant, false)}
         ${psLadosHTML(x, false)}
@@ -2369,7 +2369,7 @@ async function viewPassada(sub) {
         try {
           const { data, error } = await sb.storage.from('nx-fotos').download(x.relatorio_path);
           if (error || !data) throw error || new Error('sem arquivo');
-          const nome = `Analise-da-passada-${x.criado_em.slice(0, 10)}.pdf`;
+          const nome = `Analise-biomecanica-da-corrida-${x.criado_em.slice(0, 10)}.pdf`;
           const arq = new File([data], nome, { type: 'application/pdf' });
           // no celular, abre o menu de compartilhar (salvar em arquivos); no computador, baixa direto
           if (matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files: [arq] }))
@@ -2390,7 +2390,7 @@ async function viewPassada(sub) {
     } else
       $app.innerHTML = `${topoA}
         <div class="card ps-rel"><span class="eyebrow">Com o seu treinador</span><p style="margin-top:6px">Seu treinador está analisando o vídeo e vai te mandar o relatório aqui mesmo. Você recebe uma notificação quando ficar pronto.</p></div>
-        ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
+        ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
     psReplay(document.getElementById('ps-rp'), x.serie);
     if ((x.comentario || x.relatorio_path) && !x.visto_em)
       sb.rpc('nx_passada_vista', { p_id: x.id }).then(
@@ -2399,7 +2399,7 @@ async function viewPassada(sub) {
       );
     return;
   }
-  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Corrida</p><h1 class="h1">Análise da passada</h1>
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Corrida</p><h1 class="h1">Análise biomecânica da corrida</h1>
     <p class="muted" style="margin-top:6px">Filme 10 segundos da sua corrida e mande para o seu treinador. Ele analisa a sua passada e o relatório aparece aqui, com o PDF para baixar.</p>
     <a class="btn block" href="#/passada/nova" style="margin-top:14px">${I.cam} Nova análise</a>
     ${psListaHTML(lista, '#/passada/')}`;
@@ -2446,7 +2446,7 @@ async function psTreinador(box, m, sub) {
     if (rit)
       rit.onclick = () =>
         openSheet(
-          `<p class="eyebrow">Análise da passada</p><div class="h2" style="margin-top:4px">Ritmo do vídeo</div><p class="small muted" style="margin-top:6px">Velocidade da esteira em km/h (ex.: 10) ou pace em min:seg por km (ex.: 6:00).</p><input class="input" id="ps-rit-v" inputmode="decimal" style="margin-top:12px"><button class="btn block" id="ps-rit-ok" style="margin-top:12px">Salvar</button>`,
+          `<p class="eyebrow">Análise biomecânica da corrida</p><div class="h2" style="margin-top:4px">Ritmo do vídeo</div><p class="small muted" style="margin-top:6px">Velocidade da esteira em km/h (ex.: 10) ou pace em min:seg por km (ex.: 6:00).</p><input class="input" id="ps-rit-v" inputmode="decimal" style="margin-top:12px"><button class="btn block" id="ps-rit-ok" style="margin-top:12px">Salvar</button>`,
           (r) => {
             r.querySelector('#ps-rit-ok').onclick = async () => {
               const kmh = psRitmoKmh(r.querySelector('#ps-rit-v').value);
@@ -2520,11 +2520,11 @@ async function psTreinador(box, m, sub) {
               () => {},
             );
         Object.assign(x, { comentario: t, relatorio_path: path, relatorio_em: agora });
-        const nomeArq = `Analise-da-passada-${firstName(m.nome || 'aluno')}-${x.criado_em.slice(0, 10)}.pdf`;
+        const nomeArq = `Analise-biomecanica-da-corrida-${firstName(m.nome || 'aluno')}-${x.criado_em.slice(0, 10)}.pdf`;
         const arq = new File([blob], nomeArq, { type: 'application/pdf' });
         const tel = telWa(m.telefone);
         openSheet(
-          `<p class="eyebrow">Análise da passada</p><div class="h2" style="margin-top:4px">Relatório enviado</div><p class="small muted" style="margin-top:6px">${esc(firstName(m.nome || 'O aluno'))} foi avisado. O relatório já está na aba Análise da passada do app dele, com o PDF para baixar. Se quiser, mande também pelo WhatsApp.</p>
+          `<p class="eyebrow">Análise biomecânica da corrida</p><div class="h2" style="margin-top:4px">Relatório enviado</div><p class="small muted" style="margin-top:6px">${esc(firstName(m.nome || 'O aluno'))} foi avisado. O relatório já está na aba Análise biomecânica da corrida do app dele, com o PDF para baixar. Se quiser, mande também pelo WhatsApp.</p>
           <div class="stack" style="margin-top:16px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="ps-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
           <button class="btn ghost block" id="ps-down">Baixar o PDF</button>
           ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o relatório da análise da sua passada`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>`,
@@ -2532,7 +2532,9 @@ async function psTreinador(box, m, sub) {
             const sh = r.querySelector('#ps-share');
             if (sh)
               sh.onclick = () =>
-                navigator.share({ files: [arq], title: nomeArq, text: 'Análise da passada · Nexos' }).catch(() => {});
+                navigator
+                  .share({ files: [arq], title: nomeArq, text: 'Análise biomecânica da corrida · Nexos' })
+                  .catch(() => {});
             r.querySelector('#ps-down').onclick = () => {
               const a = document.createElement('a');
               a.href = URL.createObjectURL(blob);
@@ -2551,6 +2553,6 @@ async function psTreinador(box, m, sub) {
     };
     return;
   }
-  box.innerHTML = `<p class="small muted">Vídeo da corrida de lado ou por trás, com cadência, passada, joelho, tronco e quadril medidos pelo celular. O aluno faz pelo app em Mais › Análise da passada, ou você analisa aqui um vídeo que ele mandou ou que você gravou.</p>
+  box.innerHTML = `<p class="small muted">Vídeo da corrida de lado ou por trás, com cadência, passada, joelho, tronco e quadril medidos pelo celular. O aluno faz pelo app em Mais › Análise biomecânica da corrida, ou você analisa aqui um vídeo que ele mandou ou que você gravou.</p>
     <a class="btn block" href="${base}/nova" style="margin-top:12px">${I.cam} Analisar um vídeo</a>${psListaHTML(lista, base + '/')}`;
 }
