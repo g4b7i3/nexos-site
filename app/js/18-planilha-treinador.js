@@ -13,10 +13,12 @@ async function relatorioMes(alunoId, box, staff, m) {
     fimAnt = isoDia(new Date(y, mm - 1, 0, 12));
   box.innerHTML = esqBloco();
   const ate = (d) => d + 'T23:59:59';
-  const [corrs, corrsAnt, sess, sessAnt, plano, regs, provas, pronts, resT] = await Promise.all([
+  const [corrs, corrsAnt, sess, sessAnt, plano, regs, provas, pronts, resT, provaProx] = await Promise.all([
     sb
       .from('nx_corridas')
-      .select('data,tipo,distancia_m,duracao_s,plano_id,dor,dor_local,visto_treinador,comentario_treinador')
+      .select(
+        'data,tipo,distancia_m,duracao_s,plano_id,dor,dor_local,visto_treinador,comentario_treinador,rpe,fc_media',
+      )
       .eq('aluno_id', alunoId)
       .gte('data', ini)
       .lte('data', ate(fim))
@@ -33,7 +35,7 @@ async function relatorioMes(alunoId, box, staff, m) {
       .catch(() => []),
     sb
       .from('nx_sessoes')
-      .select('iniciado_em,treino_titulo,dor,dor_local,visto_treinador')
+      .select('iniciado_em,finalizado_em,treino_titulo,dor,dor_local,visto_treinador')
       .eq('aluno_id', alunoId)
       .not('finalizado_em', 'is', null)
       .gte('iniciado_em', ini)
@@ -91,6 +93,15 @@ async function relatorioMes(alunoId, box, staff, m) {
       .eq('mes', ini)
       .maybeSingle()
       .then((r) => r.data || null)
+      .catch(() => null),
+    sb
+      .from('nx_participacoes')
+      .select('titulo,data,distancia')
+      .eq('aluno_id', alunoId)
+      .gt('data', fim)
+      .order('data')
+      .limit(1)
+      .then((r) => (r.data || [])[0] || null)
       .catch(() => null),
   ]);
   const km = corrs.reduce((a, c) => a + c.distancia_m, 0) / 1000,
@@ -150,7 +161,25 @@ async function relatorioMes(alunoId, box, staff, m) {
   const pront = pronts.length
     ? { media: pronts.reduce((a, x) => a + (+x.total || 0), 0) / pronts.length, dias: pronts.length }
     : null;
+  // intensidade de cada corrida: tipo do treino da planilha, depois a percepção de esforço, depois a FC média
+  const perfilR = perfilCorrida(m);
+  const fcMax = perfilR.fcMax;
+  const FORTES = ['intervalado', 'tiros', 'fartlek', 'ritmo', 'prova', 'teste'];
+  const LEVES = ['rodagem', 'longao', 'regenerativo'];
+  const intDe = (c) => {
+    const pl = plano.find((p) => p.id === c.plano_id) || plano.find((p) => p.data === isoDia(c.data));
+    if (pl && FORTES.includes(pl.tipo)) return 'forte';
+    if (c.rpe != null) return c.rpe <= 4 ? 'leve' : c.rpe <= 6 ? 'mod' : 'forte';
+    if (c.fc_media && fcMax) {
+      const f = c.fc_media / fcMax;
+      return f < 0.8 ? 'leve' : f < 0.88 ? 'mod' : 'forte';
+    }
+    if (pl && LEVES.includes(pl.tipo)) return 'leve';
+    return c.tipo === 'caminhada' ? 'leve' : null;
+  };
+  const inten = resumoIntensidade(corrs.map((c) => ({ min: (c.duracao_s || 0) / 60, int: intDe(c) })));
   const sug = resumoSugestoes({
+    leve: inten ? inten.leve : null,
     fC: faz('corrida', m),
     fM: faz('musculacao', m),
     km,
@@ -174,11 +203,16 @@ async function relatorioMes(alunoId, box, staff, m) {
   const tx =
     st.txt[st.comp] ||
     (st.txt[st.comp] =
-      res && (res.fortes || res.melhorar || res.recado || !staff)
-        ? { fortes: res.fortes || '', melhorar: res.melhorar || '', recado: res.recado || '' }
+      res && (res.fortes || res.melhorar || res.metas || res.recado || !staff)
+        ? { fortes: res.fortes || '', melhorar: res.melhorar || '', metas: res.metas || '', recado: res.recado || '' }
         : staff
-          ? { fortes: sug.fortes.join('\n'), melhorar: sug.melhorar.join('\n'), recado: '' }
-          : { fortes: '', melhorar: '', recado: '' });
+          ? {
+              fortes: sug.fortes.join('\n'),
+              melhorar: sug.melhorar.join('\n'),
+              metas: sug.metas.join('\n'),
+              recado: '',
+            }
+          : { fortes: '', melhorar: '', metas: '', recado: '' });
   const linhasTx = (t) =>
     String(t || '')
       .split('\n')
@@ -195,64 +229,159 @@ async function relatorioMes(alunoId, box, staff, m) {
     return `<span class="rm-d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${un === 'km' ? f1(Math.abs(d)) + ' km' : Math.abs(Math.round(d))} vs. mês anterior</span>`;
   };
   const treinador = (await carregarEquipe()).find((p) => p.user_id === (m.treinador_id || S.user.id));
+  // o aluno vê o resumo completo (e o PDF) só depois que o treinador envia
+  const liberado = staff || !!(res && res.enviado_em);
+  const hojeI = hojeISO();
+  const semIdx = porSem
+    .filter((x) => x.s0 <= hojeI)
+    .map((x) => {
+      const s1 = isoDia(dia(x.s0).getTime() + 6 * 864e5);
+      return (
+        corrs.filter((c) => isoDia(c.data) >= x.s0 && isoDia(c.data) <= s1).length +
+        sess.filter((c) => isoDia(c.iniciado_em) >= x.s0 && isoDia(c.iniciado_em) <= s1).length
+      );
+    });
+  // semana em andamento só entra na regularidade se já teve 3 treinos (senão pesaria contra o aluno no meio da semana)
+  // e só entram as semanas com pelo menos 4 dias dentro do mês (a semana do dia 1 num domingo não conta)
+  const semVale = semIdx.filter(
+    (n, i) =>
+      porSem[i].s0 >= isoDia(dia(ini).getTime() - 3 * 864e5) &&
+      porSem[i].s0 <= isoDia(dia(fim).getTime() - 3 * 864e5) &&
+      (n >= 3 || isoDia(dia(porSem[i].s0).getTime() + 6 * 864e5) < hojeI),
+  );
+  const idx = resumoIndice({ ader, semanas: semVale, pront, dores });
+  const porDia = {};
+  const dd = (k) => (porDia[k] = porDia[k] || {});
+  corrs.forEach((c) => (dd(isoDia(c.data)).km = (dd(isoDia(c.data)).km || 0) + c.distancia_m / 1000));
+  sess.forEach((x) => (dd(isoDia(x.iniciado_em)).forca = true));
+  dores.forEach((x) => (dd(isoDia(x.data)).dor = true));
+  planoAte.forEach((p) => (dd(p.data).prev = true));
+  const cal = resumoCalendario(st.comp, hojeI, porDia);
+  const maxDiaKm = Math.max(0, ...Object.values(porDia).map((x) => x.km || 0));
+  const rec = resumoRecordes(
+    corrs
+      .filter((c) => c.tipo !== 'caminhada')
+      .map((c) => ({ data: isoDia(c.data), km: c.distancia_m / 1000, seg: c.duracao_s })),
+    [...corrs.map((c) => isoDia(c.data)), ...sess.map((x) => isoDia(x.iniciado_em))],
+  );
+  const tempoTot =
+    corrs.reduce((a, c) => a + (c.duracao_s || 0), 0) +
+    sess.reduce(
+      (a, x) =>
+        a +
+        (x.finalizado_em
+          ? Math.max(0, Math.min(3 * 3600, (Date.parse(x.finalizado_em) - Date.parse(x.iniciado_em)) / 1000))
+          : 0),
+      0,
+    );
+  const paceM = paceMedio(corrs),
+    paceA = paceMedio(corrsAnt);
+  const rpes = corrs.filter((c) => c.rpe != null).map((c) => +c.rpe);
+  const rpeM = rpes.length >= 3 ? rpes.reduce((a, b) => a + b, 0) / rpes.length : null;
   const nomeMesTxt = nomeMes(st.comp);
   const fC = faz('corrida', m),
     fM = faz('musculacao', m);
   box.innerHTML = `
     <div class="rm-bar"><div class="row" style="gap:6px"><button class="icon-btn sm" id="rm-a" aria-label="Mês anterior">${I.back}</button><b class="rm-mes">${nomeMesTxt}</b><button class="icon-btn sm" id="rm-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
-      <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="rm-apres">Apresentar</button>` : ''}<button class="btn sm" id="rm-pdf">${I.ficha} ${staff ? 'Gerar PDF' : 'Baixar PDF'}</button></div></div>
+      <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="rm-apres">Apresentar</button>` : ''}${liberado ? `<button class="btn sm" id="rm-pdf">${I.ficha} ${staff ? 'Gerar PDF' : 'Baixar PDF'}</button>` : ''}</div></div>
     ${
       staff
         ? `<div class="card rm-ed"><div class="row between" style="gap:8px;flex-wrap:wrap"><b>Sua análise do mês</b><span class="tag ${res && res.enviado_em ? 'ok' : ''}" id="rm-st">${res && res.enviado_em ? `Enviado em ${fmtDia(res.enviado_em)}` : res && (res.fortes || res.melhorar || res.recado) ? 'Rascunho salvo' : 'Ainda não enviado'}</span></div>
       <p class="tiny dim" style="margin-top:4px">${res && (res.fortes || res.melhorar || res.recado) ? 'Texto salvo.' : 'O app já sugeriu a partir dos números.'} Uma frase por linha. Edite antes ou durante a videochamada; o aluno só vê depois de você enviar.</p>
       <label class="field" style="margin-top:10px"><span>Pontos fortes</span><textarea class="textarea" id="rm-fortes-ed" rows="4">${esc(tx.fortes)}</textarea></label>
       <label class="field"><span>O que melhorar</span><textarea class="textarea" id="rm-melhorar-ed" rows="4">${esc(tx.melhorar)}</textarea></label>
+      <label class="field"><span>Metas para ${nomeMes(somaMes(st.comp, 1)).split(' ')[0]}</span><textarea class="textarea" id="rm-metas-ed" rows="3">${esc(tx.metas)}</textarea></label>
       <label class="field"><span>Mensagem do treinador</span><textarea class="textarea" id="rm-msg" rows="3" placeholder="Ex.: Mês muito consistente! Agora é manter os longões e caprichar no sono.">${esc(tx.recado)}</textarea></label>
       ${sug.fortes.length || sug.melhorar.length ? '<button type="button" class="link-btn small" id="rm-sug">Voltar às sugestões do app</button>' : ''}
       <div class="row" style="gap:8px;margin-top:12px"><button class="btn ghost grow" id="rm-salvar">Salvar</button><button class="btn grow" id="rm-enviar">${res && res.enviado_em ? 'Reenviar ao aluno' : 'Enviar ao aluno'}</button></div></div>`
         : ''
     }
-    <div class="rm-folha" id="rm-folha">
-      <div class="rm-top"><img src="icons/simbolo-escuro.svg" alt="Nexos"><div><span class="rm-ey">Resumo do mês</span><b>${nomeMesTxt}</b></div></div>
-      <div class="rm-aluno">${fotoHTML(m, 'md')}<div><h2>${esc(m.nome || '')}</h2><span>${m.objetivo ? 'Objetivo: ' + esc(m.objetivo) : 'Nexos Performance e Saúde'}</span></div></div>
-      <div class="rm-nums">
-        ${fC ? `<div><b>${f1(km)}</b><span>km corridos</span>${delta(km, kmAnt, 'km')}</div><div><b>${corrs.length}</b><span>corridas</span></div>` : ''}
-        ${fM ? `<div><b>${sess.length}</b><span>treinos de força</span></div>` : ''}
-        <div><b>${diasT}</b><span>dias treinados</span>${delta(diasT, diasAnt)}</div>
-        ${fC && ader != null ? `<div><b>${ader}%</b><span>da planilha cumprida</span><span class="rm-d">${feitosPl} de ${planoAte.length} treino${planoAte.length === 1 ? '' : 's'}${st.comp === compDe() ? ' até hoje' : ''}</span></div>` : ''}
-      </div>
-      ${
-        fC && corrs.length
-          ? `<div class="rm-sec"><h3>Quilômetros por semana</h3><div class="rm-barras">${porSem.map((x) => `<div><i style="height:${Math.max(3, (x.km / maxKm) * 100)}%"></i><b>${f1(x.km)}</b><small>${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small></div>`).join('')}</div></div>
-      <div class="rm-sec"><h3>Pace médio por semana</h3><div class="rm-paces">${
-        porSem
-          .filter((x) => x.pace)
-          .map(
-            (x) =>
-              `<div><small>semana de ${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small><b>${fmtPace(x.pace)}</b></div>`,
-          )
-          .join('') || '<p class="small muted">Sem corridas de 2,5 km ou mais no mês.</p>'
-      }</div></div>
-      <div class="rm-sec"><h3>Destaques</h3><ul class="rm-dest">${longa ? `<li>Corrida mais longa: <b>${fmtKm(longa.distancia_m, 1)}</b> em ${fmtDia(longa.data)}</li>` : ''}${rapida ? `<li>Melhor pace (3 km ou mais): <b>${fmtPace(paceDe(rapida))}</b> em ${fmtDia(rapida.data)}</li>` : ''}${provas.map((p) => `<li>${icT(I.flag)}Prova: <b>${esc(p.titulo)}</b>${p.distancia ? ' · ' + esc(p.distancia) : ''}</li>`).join('')}</ul></div>`
-          : ''
-      }
-      ${fM && cargas.length ? `<div class="rm-sec"><h3>Evolução de cargas</h3><div class="rm-cargas">${cargas.map(([n, e]) => `<div><span>${esc(n)}</span><b>${e.antes && e.antes !== e.mes ? `${fmtKg(e.antes)} → ` : ''}${fmtKg(e.mes)}</b>${!e.antes ? '<em class="nv">novo</em>' : e.mes > e.antes ? `<em>+${fmtKg(e.mes - e.antes)}</em>` : e.mes === e.antes ? '<em class="nv">mantida</em>' : ''}</div>`).join('')}</div></div>` : ''}
-      ${!corrs.length && !sess.length ? '<p class="small muted" style="margin:14px 0">Nenhum treino registrado neste mês.</p>' : ''}
+    ${
+      liberado
+        ? `<div class="rm-folha rx" id="rm-folha">
+      <div class="rx-capa"><div class="rx-capa-l"><img class="rx-logo" src="icons/wordmark.svg" alt="Nexos Performance e Saúde"><span class="rx-ey">Resumo do mês</span><b class="rx-mes">${nomeMesTxt}</b></div>
+        <div class="rx-atl">${fotoHTML(m, 'md')}<div><h2>${esc(m.nome || '')}</h2><span>${m.objetivo ? esc(m.objetivo) : 'Atleta Nexos'}</span>${provaProx ? `<span class="rx-prova">${esc(provaProx.titulo)} · faltam ${Math.max(0, Math.round((dia(provaProx.data).getTime() - Date.now()) / 864e5))} dias</span>` : ''}</div></div></div>
       ${
         corrs.length || sess.length
-          ? `<div class="rm-sec"><h3>Acompanhamento</h3><div class="rm-acomp">
-        <div><b>${vistos}</b><span>treino${vistos === 1 ? '' : 's'} analisado${vistos === 1 ? '' : 's'} pelo treinador</span></div>
-        ${coments.length ? `<div><b>${coments.length}</b><span>com comentário escrito</span></div>` : ''}
-        ${pront ? `<div><b>${f1(pront.media)}<small>/20</small></b><span>prontidão média (${pront.dias} dia${pront.dias === 1 ? '' : 's'})</span></div>` : ''}
-        <div><b>${dores.length}</b><span>treino${dores.length === 1 ? '' : 's'} com dor</span></div></div>
-        ${dores.length ? `<ul class="rm-dest" style="margin-top:8px">${dores.map((d) => `<li>${fmtDia(d.data)}${d.local ? `: ${esc(d.local)}` : ''}</li>`).join('')}</ul>` : ''}</div>`
+          ? `<div class="rx-indice"><div class="rx-anel"><svg viewBox="0 0 120 120" width="120" height="120"><circle cx="60" cy="60" r="50" fill="none" stroke="#e3ebf7" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="${idx.nota >= 85 ? '#16a34a' : idx.nota >= 70 ? '#1d9bf0' : idx.nota >= 55 ? '#f59e0b' : '#ef4444'}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${((idx.nota / 100) * 314.16).toFixed(1)} 314.16" transform="rotate(-90 60 60)"/></svg><div class="rx-anel-t"><b>${idx.nota}</b><small>de 100</small></div></div>
+        <div class="rx-ind-t"><span class="rx-sec-ey">Índice Nexos do mês</span><b>${idx.faixa}</b>
+        <div class="rx-partes">${idx.partes.map((p) => `<div><span>${p.nome}</span><i><em style="width:${p.v}%"></em></i><b>${p.v}</b></div>`).join('')}</div></div></div>`
           : ''
       }
-      <div class="rm-sec rm-ana" id="rm-fortes" ${linhasTx(tx.fortes).length ? '' : 'hidden'}><h3>Pontos fortes</h3><ul class="rm-lista ok">${listaTx(tx.fortes)}</ul></div>
-      <div class="rm-sec rm-ana" id="rm-melhorar" ${linhasTx(tx.melhorar).length ? '' : 'hidden'}><h3>O que melhorar</h3><ul class="rm-lista at">${listaTx(tx.melhorar)}</ul></div>
-      <div class="rm-msg" id="rm-msg-out" ${tx.recado ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(tx.recado)}</p>${treinador ? `<b>${esc(firstName(treinador.nome))}</b>` : ''}</div>
-      <div class="rm-pe">Nexos Performance e Saúde · ${esc(CONTATO.insta)} · São Luís–MA</div>
-    </div>`;
+      <div class="rx-kpis">
+        ${fC ? `<div><span>Distância</span><b>${f1(km)}<small> km</small></b>${delta(km, kmAnt, 'km')}</div>` : ''}
+        <div><span>Tempo treinando</span><b>${fmtDur(tempoTot)}</b></div>
+        <div><span>Treinos</span><b>${corrs.length + sess.length}</b><span class="rm-d">${fC ? `${corrs.length} corrida${corrs.length === 1 ? '' : 's'}` : ''}${fC && fM ? ' · ' : ''}${fM ? `${sess.length} de força` : ''}</span></div>
+        <div><span>Dias ativos</span><b>${diasT}</b>${delta(diasT, diasAnt)}</div>
+        ${fC && ader != null ? `<div><span>Planilha cumprida</span><b>${ader}<small>%</small></b><span class="rm-d">${feitosPl} de ${planoAte.length}${st.comp === compDe() ? ' até hoje' : ''}</span></div>` : ''}
+        ${fC && paceM ? `<div><span>Ritmo médio</span><b>${fmtPace(paceM).replace('/km', '')}<small> /km</small></b>${paceA ? `<span class="rm-d ${paceA - paceM >= 3 ? 'up' : paceM - paceA >= 3 ? 'down' : ''}">${Math.abs(Math.round(paceA - paceM)) < 3 ? 'igual ao mês anterior' : `${paceA > paceM ? '▲' : '▼'} ${Math.abs(Math.round(paceA - paceM))} s/km vs. mês anterior`}</span>` : ''}</div>` : ''}
+      </div>
+      <div class="rx-sec"><h3>O mês, dia a dia</h3>
+        <div class="rx-cal"><div class="rx-cal-h">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((d) => `<span>${d}</span>`).join('')}</div>${cal.map((w) => `<div class="rx-cal-s">${w.map((c) => (c ? `<div class="rx-d ${c.futuro ? 'fut' : ''} ${c.perdido ? 'perd' : ''}" style="--k:${Math.min(1, c.km / Math.max(8, maxDiaKm)).toFixed(2)}"><small>${c.dia}</small>${c.km ? `<b>${f1(c.km)}</b>` : ''}${c.forca ? '<i class="rx-f"></i>' : ''}${c.dor ? '<i class="rx-dor"></i>' : ''}</div>` : '<div class="rx-d vazio"></div>')).join('')}</div>`).join('')}</div>
+        <div class="rx-leg"><span><i class="l-c"></i>km corridos</span>${fM ? '<span><i class="l-f"></i>força</span>' : ''}<span><i class="l-p"></i>treino previsto não feito</span>${dores.length ? '<span><i class="l-d"></i>dor</span>' : ''}</div></div>
+      ${
+        fC && corrs.length
+          ? `<div class="rx-sec"><h3>Volume e ritmo por semana</h3><div class="rm-barras rx-barras">${porSem.map((x) => `<div><i style="height:${Math.max(3, (x.km / maxKm) * 100)}%"></i><b>${f1(x.km)}</b><small>${dia(x.s0).getDate()}/${dia(x.s0).getMonth() + 1}</small><em>${x.pace ? fmtPace(x.pace).replace('/km', '') : '–'}</em></div>`).join('')}</div><p class="rx-nota">Barras: km da semana. Embaixo: ritmo médio nas corridas de 2,5 km ou mais.</p></div>`
+          : ''
+      }
+      ${
+        inten
+          ? `<div class="rx-sec"><h3>Intensidade do treino</h3><div class="rx-int"><i class="i-leve" style="width:${inten.leve}%"></i><i class="i-mod" style="width:${inten.mod}%"></i><i class="i-forte" style="width:${inten.forte}%"></i><span class="rx-int-ref" style="left:80%"></span></div>
+        <div class="rx-int-leg"><span><i class="i-leve"></i>Leve <b>${inten.leve}%</b></span><span><i class="i-mod"></i>Moderado <b>${inten.mod}%</b></span><span><i class="i-forte"></i>Forte <b>${inten.forte}%</b></span></div>
+        <p class="rx-nota">Pelo tempo de corrida. A marca mostra os 80% leves que corredores de resistência bem treinados costumam fazer (Seiler, 2010).</p></div>`
+          : ''
+      }
+      ${
+        rec.longa || rec.sequencia > 1
+          ? `<div class="rx-sec"><h3>Recordes do mês</h3><div class="rx-recs">
+        ${rec.longa ? `<div><span>Mais longa</span><b>${f1(rec.longa.km)} km</b><small>${fmtCurto(rec.longa.data + 'T12:00:00')}</small></div>` : ''}
+        ${rec.rapida ? `<div><span>Melhor ritmo (3 km ou mais)</span><b>${fmtPace(rec.rapida.pace)}</b><small>${f1(rec.rapida.km)} km · ${fmtCurto(rec.rapida.data + 'T12:00:00')}</small></div>` : ''}
+        ${rec.semana ? `<div><span>Maior semana</span><b>${f1(rec.semana.km)} km</b><small>semana de ${fmtCurto(rec.semana.ini + 'T12:00:00')}</small></div>` : ''}
+        ${rec.sequencia > 1 ? `<div><span>Dias seguidos treinando</span><b>${rec.sequencia}</b><small>maior sequência</small></div>` : ''}
+        ${provas.map((p) => `<div><span>Prova</span><b>${esc(p.titulo)}</b><small>${p.distancia ? esc(p.distancia) + ' · ' : ''}${fmtCurto(p.data + 'T12:00:00')}</small></div>`).join('')}</div></div>`
+          : ''
+      }
+      ${
+        fC && perfilR.vdot
+          ? `<div class="rx-sec"><h3>Previsão de tempos</h3><div class="rx-prev">${[
+              [5000, '5 km'],
+              [10000, '10 km'],
+              [21097, 'Meia'],
+              [42195, 'Maratona'],
+            ]
+              .map(
+                ([d, t]) => `<div><span>${t}</span><b>${fmtDur(Math.round(tempoPorVdot(perfilR.vdot, d)))}</b></div>`,
+              )
+              .join(
+                '',
+              )}</div><p class="rx-nota">Pelo último teste (VDOT ${f1(perfilR.vdot)}), para uma prova com preparo específico (Daniels, Running Formula).</p></div>`
+          : ''
+      }
+      ${fM && cargas.length ? `<div class="rx-sec"><h3>Força: cargas do mês</h3><div class="rm-cargas">${cargas.map(([n, e]) => `<div><span>${esc(n)}</span><b>${e.antes && e.antes !== e.mes ? `${fmtKg(e.antes)} → ` : ''}${fmtKg(e.mes)}</b>${!e.antes ? '<em class="nv">novo</em>' : e.mes > e.antes ? `<em>+${fmtKg(e.mes - e.antes)}</em>` : e.mes === e.antes ? '<em class="nv">mantida</em>' : ''}</div>`).join('')}</div></div>` : ''}
+      ${
+        corrs.length || sess.length
+          ? `<div class="rx-sec"><h3>Recuperação e acompanhamento</h3><div class="rx-acomp">
+        ${pront ? `<div><b>${f1(pront.media)}<small>/20</small></b><span>prontidão média · ${pront.dias} check-in${pront.dias === 1 ? '' : 's'}</span></div>` : ''}
+        ${rpeM ? `<div><b>${f1(rpeM)}<small>/10</small></b><span>esforço médio relatado</span></div>` : ''}
+        <div><b>${dores.length}</b><span>treino${dores.length === 1 ? '' : 's'} com dor</span></div>
+        <div><b>${vistos}</b><span>treino${vistos === 1 ? '' : 's'} analisado${vistos === 1 ? '' : 's'} pelo treinador${coments.length ? ` · ${coments.length} comentado${coments.length === 1 ? '' : 's'}` : ''}</span></div></div>
+        ${dores.length ? `<ul class="rx-dores">${dores.map((d) => `<li>${fmtCurto(d.data)}${d.local ? ` · ${esc(d.local)}` : ''}</li>`).join('')}</ul>` : ''}</div>`
+          : ''
+      }
+      ${!corrs.length && !sess.length ? '<p class="small muted" style="margin:14px 0">Nenhum treino registrado neste mês.</p>' : ''}
+      <div class="rx-ana">
+        <div class="rm-sec rm-ana" id="rm-fortes" ${linhasTx(tx.fortes).length ? '' : 'hidden'}><h3>Pontos fortes</h3><ul class="rm-lista ok">${listaTx(tx.fortes)}</ul></div>
+        <div class="rm-sec rm-ana" id="rm-melhorar" ${linhasTx(tx.melhorar).length ? '' : 'hidden'}><h3>O que melhorar</h3><ul class="rm-lista at">${listaTx(tx.melhorar)}</ul></div>
+        <div class="rm-sec rm-ana" id="rm-metas" ${linhasTx(tx.metas).length ? '' : 'hidden'}><h3>Metas para ${nomeMes(somaMes(st.comp, 1)).split(' ')[0]}</h3><ol class="rx-metas">${listaTx(tx.metas)}</ol></div>
+      </div>
+      <div class="rm-msg" id="rm-msg-out" ${tx.recado ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(tx.recado)}</p>${treinador ? `<b>${esc(treinador.nome)}</b>` : ''}</div>
+      <div class="rm-pe">Nexos Performance e Saúde · ${esc(CONTATO.insta)} · São Luís–MA<br><span>Índice Nexos: planilha cumprida (40%), semanas com 3 treinos ou mais (30%), prontidão (15%) e treinos sem dor (15%). Intensidade pelo tipo do treino, pela percepção de esforço ou pela FC média.</span></div>
+    </div>`
+        : `<div class="rm-folha rx rx-previa"><div class="rx-capa"><div class="rx-capa-l"><img class="rx-logo" src="icons/wordmark.svg" alt="Nexos Performance e Saúde"><span class="rx-ey">Resumo do mês</span><b class="rx-mes">${nomeMesTxt}</b></div></div>
+      <div class="rx-kpis">${fC ? `<div><span>Distância</span><b>${f1(km)}<small> km</small></b></div>` : ''}<div><span>Treinos</span><b>${corrs.length + sess.length}</b></div><div><span>Dias ativos</span><b>${diasT}</b></div></div>
+      <div class="rx-trava"><div class="rx-trava-ic">${I.ficha}</div><b>O seu resumo completo chega depois da videochamada do mês</b><p>O seu treinador vai mostrar e explicar o mês com você. Depois disso, aparecem aqui:</p>
+        <ul><li>Índice Nexos do mês</li><li>O mês dia a dia e a intensidade dos treinos</li><li>Recordes e previsão de tempos</li><li>Pontos fortes, o que melhorar e as metas do próximo mês</li><li>O PDF para baixar</li></ul></div></div>`
+    }`;
   const re = () => relatorioMes(alunoId, box, staff, m);
   box.querySelector('#rm-a').onclick = () => {
     st.comp = somaMes(st.comp, -1);
@@ -274,17 +403,23 @@ async function relatorioMes(alunoId, box, staff, m) {
         o.querySelector('p').textContent = tx.recado;
       } else {
         o.hidden = !linhasTx(tx[chave]).length;
-        o.querySelector('ul').innerHTML = listaTx(tx[chave]);
+        o.querySelector('ul,ol').innerHTML = listaTx(tx[chave]);
       }
     };
   };
   ligaCampo('#rm-fortes-ed', 'fortes', '#rm-fortes');
   ligaCampo('#rm-melhorar-ed', 'melhorar', '#rm-melhorar');
+  ligaCampo('#rm-metas-ed', 'metas', '#rm-metas');
   ligaCampo('#rm-msg', 'recado', '#rm-msg-out');
   const bSug = box.querySelector('#rm-sug');
   if (bSug)
     bSug.onclick = () => {
-      st.txt[st.comp] = { fortes: sug.fortes.join('\n'), melhorar: sug.melhorar.join('\n'), recado: tx.recado };
+      st.txt[st.comp] = {
+        fortes: sug.fortes.join('\n'),
+        melhorar: sug.melhorar.join('\n'),
+        metas: sug.metas.join('\n'),
+        recado: tx.recado,
+      };
       re();
     };
   // salvar o rascunho e enviar ao aluno (com notificação)
@@ -298,6 +433,7 @@ async function relatorioMes(alunoId, box, staff, m) {
       mes: ini,
       fortes: tx.fortes.trim() || null,
       melhorar: tx.melhorar.trim() || null,
+      metas: tx.metas.trim() || null,
       recado: tx.recado.trim() || null,
       dados: { km: +km.toFixed(2), corridas: corrs.length, forca: sess.length, ader, vistos, dores: dores.length },
       atualizado_em: new Date().toISOString(),
@@ -349,113 +485,119 @@ async function relatorioMes(alunoId, box, staff, m) {
       document.addEventListener('fullscreenchange', aoFs);
       document.documentElement.requestFullscreen?.().catch(() => {});
     };
-  box.querySelector('#rm-pdf').onclick = async (e) => {
-    const b = e.currentTarget;
-    b.disabled = true;
-    const txt = b.innerHTML;
-    b.textContent = 'Gerando…';
-    try {
-      if (!window.html2pdf)
-        await new Promise((ok, erro) => {
-          const sc = document.createElement('script');
-          sc.src =
-            (window.NX_DEMO && window.NX_VENDOR) || new URL('vendor/html2pdf.bundle.min.js', document.baseURI).href;
-          sc.onload = ok;
-          sc.onerror = erro;
-          document.head.appendChild(sc);
-        });
-      // o gerador de PDF não desenha SVG: troca a logo por PNG antes
-      for (const im of box.querySelectorAll('#rm-folha img')) {
-        if (!/svg/i.test(im.src)) continue;
-        const w = im.clientWidth || 80,
-          h = im.clientHeight || 34,
-          cv = document.createElement('canvas');
-        cv.width = w * 3;
-        cv.height = h * 3;
-        await new Promise((ok) => {
-          const t = new Image();
-          t.onload = () => {
-            cv.getContext('2d').drawImage(t, 0, 0, cv.width, cv.height);
-            ok();
-          };
-          t.onerror = ok;
-          t.src = im.src;
-        });
-        im.style.width = w + 'px';
-        im.style.height = h + 'px';
-        im.src = cv.toDataURL('image/png');
-      }
-      const nomeArq = `Resumo-do-mes-Nexos-${firstName(m.nome || 'aluno')}-${st.comp}.pdf`;
-      // gera a partir de uma cópia com largura de folha A4 (assim fica igual no celular e no computador)
-      const caixa = document.createElement('div');
-      caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none;opacity:1';
-      const copia = box.querySelector('#rm-folha').cloneNode(true);
-      copia.removeAttribute('id');
-      copia.classList.add('rm-print');
-      caixa.appendChild(copia);
-      document.body.appendChild(caixa);
-      let blob;
+  const bPdf = box.querySelector('#rm-pdf');
+  if (bPdf)
+    bPdf.onclick = async (e) => {
+      const b = e.currentTarget;
+      b.disabled = true;
+      const txt = b.innerHTML;
+      b.textContent = 'Gerando…';
       try {
-        blob = await window
-          .html2pdf()
-          .set({
-            margin: 0,
-            filename: nomeArq,
-            image: { type: 'jpeg', quality: 0.95 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              backgroundColor: '#ffffff',
-              width: 760,
-              windowWidth: 760,
-              scrollX: 0,
-              scrollY: 0,
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          })
-          .from(copia)
-          .outputPdf('blob');
-      } finally {
-        caixa.remove();
-      }
-      const arq = new File([blob], nomeArq, { type: 'application/pdf' });
-      if (staff) {
-        const tel = telWa(m.telefone);
-        openSheet(
-          `<p class="eyebrow">Relatório de ${esc(nomeMesTxt)}</p><div class="h2" style="margin-top:4px">PDF pronto</div><p class="small muted" style="margin-top:6px">Compartilhe direto no WhatsApp do aluno ou baixe o arquivo.</p>
+        if (!window.html2pdf)
+          await new Promise((ok, erro) => {
+            const sc = document.createElement('script');
+            sc.src =
+              (window.NX_DEMO && window.NX_VENDOR) || new URL('vendor/html2pdf.bundle.min.js', document.baseURI).href;
+            sc.onload = ok;
+            sc.onerror = erro;
+            document.head.appendChild(sc);
+          });
+        // o gerador de PDF não desenha SVG: troca a logo por PNG antes
+        for (const im of box.querySelectorAll('#rm-folha img')) {
+          if (!/svg/i.test(im.src)) continue;
+          const w = im.clientWidth || 80,
+            h = im.clientHeight || 34,
+            cv = document.createElement('canvas');
+          cv.width = w * 3;
+          cv.height = h * 3;
+          await new Promise((ok) => {
+            const t = new Image();
+            t.onload = () => {
+              cv.getContext('2d').drawImage(t, 0, 0, cv.width, cv.height);
+              ok();
+            };
+            t.onerror = ok;
+            t.src = im.src;
+          });
+          im.style.width = w + 'px';
+          im.style.height = h + 'px';
+          im.src = cv.toDataURL('image/png');
+        }
+        const nomeArq = `Resumo-do-mes-Nexos-${firstName(m.nome || 'aluno')}-${st.comp}.pdf`;
+        // gera a partir de uma cópia com largura de folha A4 (assim fica igual no celular e no computador)
+        const caixa = document.createElement('div');
+        caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none;opacity:1';
+        const copia = box.querySelector('#rm-folha').cloneNode(true);
+        copia.removeAttribute('id');
+        copia.classList.add('rm-print');
+        caixa.appendChild(copia);
+        document.body.appendChild(caixa);
+        let blob;
+        try {
+          blob = await window
+            .html2pdf()
+            .set({
+              margin: 0,
+              filename: nomeArq,
+              image: { type: 'jpeg', quality: 0.95 },
+              html2canvas: {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                width: 760,
+                windowWidth: 760,
+                scrollX: 0,
+                scrollY: 0,
+              },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+              pagebreak: {
+                mode: ['css'],
+                avoid: ['.rx-sec', '.rx-indice', '.rx-kpis', '.rm-sec', '.rm-msg', '.rx-capa'],
+              },
+            })
+            .from(copia)
+            .outputPdf('blob');
+        } finally {
+          caixa.remove();
+        }
+        const arq = new File([blob], nomeArq, { type: 'application/pdf' });
+        if (staff) {
+          const tel = telWa(m.telefone);
+          openSheet(
+            `<p class="eyebrow">Relatório de ${esc(nomeMesTxt)}</p><div class="h2" style="margin-top:4px">PDF pronto</div><p class="small muted" style="margin-top:6px">Compartilhe direto no WhatsApp do aluno ou baixe o arquivo.</p>
           <div class="stack" style="margin-top:16px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="rm-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
           <button class="btn ghost block" id="rm-down">Baixar o PDF</button>
           ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o seu relatório de ${nomeMesTxt} da Nexos`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>
           <p class="tiny dim" style="margin-top:12px">No computador: baixe o PDF, abra a conversa e arraste o arquivo para o WhatsApp.</p>`,
-          (r) => {
-            const sh = r.querySelector('#rm-share');
-            if (sh)
-              sh.onclick = () =>
-                navigator
-                  .share({ files: [arq], title: nomeArq, text: `Relatório de ${nomeMesTxt} · Nexos` })
-                  .catch(() => {});
-            r.querySelector('#rm-down').onclick = () => {
-              const a = document.createElement('a');
-              a.href = URL.createObjectURL(blob);
-              a.download = nomeArq;
-              a.click();
-            };
-          },
-        );
-      } else {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = nomeArq;
-        a.click();
-        toast('PDF baixado!');
+            (r) => {
+              const sh = r.querySelector('#rm-share');
+              if (sh)
+                sh.onclick = () =>
+                  navigator
+                    .share({ files: [arq], title: nomeArq, text: `Relatório de ${nomeMesTxt} · Nexos` })
+                    .catch(() => {});
+              r.querySelector('#rm-down').onclick = () => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = nomeArq;
+                a.click();
+              };
+            },
+          );
+        } else {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = nomeArq;
+          a.click();
+          toast('PDF baixado!');
+        }
+      } catch (err) {
+        console.error(err);
+        toast('Não foi possível gerar o PDF. Tente de novo.', true);
       }
-    } catch (err) {
-      console.error(err);
-      toast('Não foi possível gerar o PDF. Tente de novo.', true);
-    }
-    b.disabled = false;
-    b.innerHTML = txt;
-  };
+      b.disabled = false;
+      b.innerHTML = txt;
+    };
 }
 
 /* ---------- guia rápido da planilha (primeira vez) ---------- */

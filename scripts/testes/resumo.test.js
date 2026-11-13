@@ -6,7 +6,10 @@ const src = fs.readFileSync(path.join(__dirname, '../../app/js/31s-resumo-mes.js
 const ini = src.indexOf('/* resumo:puro:inicio */'),
   fim = src.indexOf('/* resumo:puro:fim */');
 if (ini < 0 || fim < 0) throw new Error('Bloco do resumo não encontrado (marcadores resumo:puro).');
-const { resumoSugestoes, resumoPace } = new Function(src.slice(ini, fim) + ';return {resumoSugestoes,resumoPace};')();
+const { resumoSugestoes, resumoPace, resumoIndice, resumoCalendario, resumoIntensidade, resumoRecordes } = new Function(
+  src.slice(ini, fim) +
+    ';return {resumoSugestoes,resumoPace,resumoIndice,resumoCalendario,resumoIntensidade,resumoRecordes};',
+)();
 const erros = [];
 const ok = (c, m) => c || erros.push(m);
 const base = {
@@ -85,6 +88,43 @@ ok(
   'poucos treinos registrados',
 );
 ok(resumoPace(361) === '6:01/km', 'formato do ritmo');
+// índice do mês
+let ix = resumoIndice({ ader: 100, semanas: [3, 4, 3, 5], pront: { media: 20 }, dores: [] });
+ok(ix.nota === 100 && ix.faixa === 'Excelente', 'índice perfeito');
+ix = resumoIndice({ ader: 50, semanas: [3, 1, 0, 3], pront: { media: 10 }, dores: [{}, {}] });
+ok(ix.nota === Math.round((40 * 50 + 30 * 50 + 15 * 50 + 15 * 30) / 100), 'índice ponderado ' + ix.nota);
+ix = resumoIndice({ ader: null, semanas: [3, 3], pront: null, dores: [] });
+ok(ix.nota === 100 && ix.partes.length === 2, 'partes sem dado saem da conta');
+// calendário: novembro de 2026 começa num domingo
+const cal = resumoCalendario('2026-11', '2026-11-13', {
+  '2026-11-03': { km: 5, prev: true },
+  '2026-11-05': { prev: true },
+  '2026-11-20': { prev: true },
+});
+ok(cal[0].filter(Boolean).length === 1 && cal[0][6].dia === 1, 'novembro começa no domingo');
+const c = cal.flat().filter(Boolean);
+ok(c.length === 30, '30 dias');
+ok(c.find((d) => d.dia === 5).perdido && !c.find((d) => d.dia === 3).perdido, 'treino previsto e não feito');
+ok(c.find((d) => d.dia === 20).futuro && !c.find((d) => d.dia === 20).perdido, 'dia futuro não conta como perdido');
+// intensidade
+const it = resumoIntensidade([
+  { min: 160, int: 'leve' },
+  { min: 20, int: 'mod' },
+  { min: 20, int: 'forte' },
+]);
+ok(it.leve === 80 && it.mod === 10 && it.forte === 10, 'intensidade 80/10/10');
+ok(resumoIntensidade([{ min: 10, int: 'leve' }]) === null, 'pouco tempo não mostra intensidade');
+// recordes
+const rc = resumoRecordes(
+  [
+    { data: '2026-11-02', km: 5, seg: 1500 },
+    { data: '2026-11-04', km: 10, seg: 3300 },
+    { data: '2026-11-12', km: 3, seg: 840 },
+  ],
+  ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-12'],
+);
+ok(rc.longa.km === 10 && rc.rapida.data === '2026-11-12' && rc.semana.km === 15 && rc.sequencia === 3, 'recordes');
+ok(resumoSugestoes(base).metas.length >= 1, 'metas do próximo mês');
 if (erros.length) {
   console.error('Resumo do mês: ' + erros.length + ' conta(s) errada(s):\n - ' + erros.join('\n - '));
   process.exit(1);
