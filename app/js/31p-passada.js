@@ -614,7 +614,7 @@ async function psProcessar(v, ini, fim, prog) {
       if (lm) p = lm.map((q) => [q.x * W, q.y * H, q.visibility ?? 1]);
     } catch {}
     fr.push({ t: +t.toFixed(4), p });
-    if (prog) prog((t - ini) / (fim - ini || 1));
+    if (prog) prog((t - ini) / (fim - ini || 1), p, W, H);
   }
   return { fr, W, H, fps };
 }
@@ -993,15 +993,145 @@ function psDetalheHTML(x, urls, ant, staff, previa) {
     ${
       previa
         ? ''
-        : `<div class="card ps-coment"><span class="eyebrow">Comentário do treinador</span>${
+        : `<div class="card ps-coment"><span class="eyebrow">${staff ? 'Relatório para o aluno' : 'Comentário do treinador'}</span>${
             staff
-              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="5" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Ele vê aqui.">${esc(x.comentario || '')}</textarea><button class="btn sm" id="ps-salvar" style="margin-top:8px">${x.comentario ? 'Atualizar comentário' : 'Enviar comentário ao aluno'}</button>`
+              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Gerar de novo e reenviar o relatório' : 'Gerar relatório em PDF e enviar'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno não vê as medidas no app. Ele recebe só este relatório.</p>'}`
               : `<p style="margin-top:6px;white-space:pre-line">${x.comentario ? esc(x.comentario) : 'Seu treinador vai olhar o vídeo e deixar o comentário aqui. Você recebe uma notificação.'}</p>`
           }</div>`
     }
     <p class="tiny dim" style="margin-top:12px">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. As faixas são referências gerais: quem interpreta é o seu treinador. Baseado em Souza (2016), Heiderscheit et al. (2011) e Bramah et al. (2018).</p>`;
 }
 
+// relatório em PDF que o treinador manda ao aluno (as medidas só aparecem aqui)
+async function psCarregaPdfLib() {
+  if (window.html2pdf) return;
+  await new Promise((ok, erro) => {
+    const sc = document.createElement('script');
+    sc.src = (window.NX_DEMO && window.NX_VENDOR) || new URL('vendor/html2pdf.bundle.min.js', document.baseURI).href;
+    sc.onload = ok;
+    sc.onerror = erro;
+    document.head.appendChild(sc);
+  });
+}
+async function psDataUrl(url) {
+  try {
+    const b = await (await fetch(url)).blob();
+    return await new Promise((ok) => {
+      const r = new FileReader();
+      r.onload = () => ok(r.result);
+      r.onerror = () => ok(null);
+      r.readAsDataURL(b);
+    });
+  } catch {
+    return null;
+  }
+}
+const PS_NIVEL_TXT = { ok: 'Dentro do comum', atencao: 'Atenção', fora: 'Fora do comum', info: 'Informativo' };
+const PS_NIVEL_COR = { ok: '#15803d', atencao: '#b45309', fora: '#b91c1c', info: '#475569' };
+function psRelatorioHTML(x, imgs, ant, m, logo) {
+  const me = x.metricas || {};
+  const q = x.qualidade || {};
+  const linhas = (PS_ORDEM[x.vista] || [])
+    .filter((k) => me[k] != null)
+    .map((k) => {
+      const nv = psNivel(k, me[k]) || 'info';
+      const ex = PS_EXPLICA[k] || {};
+      const d = ant && ant.metricas && ant.metricas[k] != null ? me[k] - ant.metricas[k] : null;
+      const dt =
+        d != null && Math.abs(d) >= (k === 'cruza' ? 0.05 : 0.5)
+          ? `${d > 0 ? '+' : '−'}${psFmt(k, Math.abs(d))} desde a anterior`
+          : ant && ant.metricas && ant.metricas[k] != null
+            ? 'igual à anterior'
+            : '';
+      return `<div class="psr-l" style="display:flex;border-bottom:1px solid #e2e8f0"><div style="padding:10px 8px;width:34%;box-sizing:border-box"><b style="font-size:13px">${PS_TITULO[k]}</b><div style="font-size:10.5px;color:#64748b;margin-top:3px;line-height:1.4">${esc(ex.sobre || '')}</div></div>
+        <div style="padding:10px 8px;width:18%;box-sizing:border-box;white-space:nowrap"><b style="font-size:18px">${psFmt(k, me[k])}</b>${psUn(k) === '°' ? '' : ' '}<span style="font-size:11px;color:#64748b">${psUn(k)}</span>${dt ? `<div style="font-size:10px;color:#64748b;margin-top:2px">${dt}</div>` : ''}</div>
+        <div style="padding:10px 8px;flex:1"><span style="display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:${PS_NIVEL_COR[nv]};border-radius:99px;padding:2px 9px">${PS_NIVEL_TXT[nv]}</span><div style="font-size:12px;margin-top:5px;line-height:1.45">${esc(ex[nv] || ex.info || '')}</div></div></div>`;
+    });
+  const fotos = imgs
+    .map(
+      (im) =>
+        `<div style="width:calc(33.33% - 8px);"><img src="${im.src}" style="width:100%;border-radius:8px;display:block"><div style="font-size:11px;color:#475569;margin-top:4px">${esc(im.legenda)}</div></div>`,
+    )
+    .join('');
+  const treinador = (S.me && S.me.nome) || '';
+  return `<div style="width:760px;background:#fff;color:#0f172a;font-family:Manrope,system-ui,sans-serif;padding:36px 40px;box-sizing:border-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0b1f44;padding-bottom:14px">
+      ${logo ? `<img src="${logo}" style="height:38px">` : '<b style="font-size:20px;color:#0b1f44">NEXOS</b>'}
+      <div style="text-align:right;font-size:11px;color:#475569">Nexos Performance e Saúde<br>Relatório de ${fmtDia(new Date().toISOString())}</div></div>
+    <div style="margin-top:20px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1d4ed8;font-weight:800">Análise da passada</div>
+    <div style="font-size:26px;font-weight:800;margin-top:4px">${esc(m.nome || '')}</div>
+    <div style="font-size:12.5px;color:#475569;margin-top:4px">Vídeo ${x.vista === 'lado' ? 'de lado' : 'por trás'} · ${esc(x.local === 'esteira' ? 'Esteira' : x.local === 'rua' ? 'Rua' : 'Vídeo enviado')} · gravado em ${psDataHora(x.criado_em)}</div>
+    <div class="psr-l" style="margin-top:20px;background:#f1f5f9;border-left:4px solid #0b1f44;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0b1f44">O que o seu treinador viu</div>
+      <div style="font-size:13.5px;line-height:1.55;margin-top:6px;white-space:pre-line">${esc(x.comentario || '')}</div>
+      ${treinador ? `<div style="font-size:12px;color:#475569;margin-top:10px">${esc(treinador)}</div>` : ''}</div>
+    <div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800;margin-bottom:6px">As medidas</div>${linhas[0] || ''}</div>${linhas.slice(1).join('')}
+    ${(q.avisos || []).length ? `<div class="psr-l" style="margin-top:14px;font-size:11px;color:#92400e;background:#fffbeb;border-radius:8px;padding:10px 12px;">${q.avisos.map((a) => esc(PS_AVISO_TXT[a] || '')).join('<br>')}</div>` : ''}
+    ${fotos ? `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Momentos marcados no vídeo</div><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px">${fotos}</div></div>` : ''}
+    <div class="psr-l" style="margin-top:18px;font-size:10px;color:#64748b;line-height:1.5;">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. As faixas são referências gerais, e quem interpreta é o seu treinador. Referências: Heiderscheit et al. (2011), Med Sci Sports Exerc; Souza (2016), Phys Med Rehabil Clin N Am; Bramah et al. (2018), Am J Sports Med.</div>
+  </div>`;
+}
+async function psRelatorioPdf(x, urls, ant, m) {
+  await psCarregaPdfLib();
+  const imgs = [];
+  for (const q of x.quadros || []) {
+    const src = urls[q.path] && (await psDataUrl(urls[q.path]));
+    if (src) imgs.push({ src, legenda: q.legenda });
+  }
+  // logo em PNG (o gerador de PDF não desenha SVG)
+  const logo = await psDataUrl(new URL('/img/nexos-logo-navy.png', location.origin).href);
+  const caixa = document.createElement('div');
+  caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none';
+  caixa.innerHTML = psRelatorioHTML(x, imgs, ant, m, logo && /^data:image/.test(logo) ? logo : null);
+  document.body.appendChild(caixa);
+  try {
+    await Promise.all([...caixa.querySelectorAll('img')].map((im) => im.decode().catch(() => {})));
+    const gera = (escala) =>
+      window
+        .html2pdf()
+        .set({
+          margin: [8, 0, 8, 0],
+          image: { type: 'jpeg', quality: 0.9 },
+          html2canvas: {
+            scale: escala,
+            backgroundColor: '#ffffff',
+            width: 760,
+            windowWidth: 760,
+            scrollX: 0,
+            scrollY: 0,
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css'], avoid: '.psr-l' },
+        })
+        .from(caixa.firstElementChild)
+        .outputPdf('blob');
+    let blob = await gera(2);
+    // o armazenamento aceita até 5 MB por arquivo
+    if (blob.size > 4.8e6) blob = await gera(1.3);
+    return blob;
+  } finally {
+    caixa.remove();
+  }
+}
+// boneco desenhado por cima do vídeo enquanto o celular analisa (mesma área que o vídeo ocupa na tela)
+function psDesenhaVivo(cv, v, p, W, H) {
+  if (!cv || !W) return;
+  const box = cv.parentElement.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== Math.round(box.width * dpr)) {
+    cv.width = Math.round(box.width * dpr);
+    cv.height = Math.round(box.height * dpr);
+  }
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!p) return;
+  // o vídeo fica "contido" na caixa: calcula a escala e a sobra das laterais
+  const sc = Math.min(cv.width / W, cv.height / H);
+  ctx.save();
+  ctx.translate((cv.width - W * sc) / 2, (cv.height - H * sc) / 2);
+  psEsqueleto(ctx, p, sc, null);
+  ctx.restore();
+}
 // fluxo de nova análise (aluno ou treinador)
 async function psNova(alunoId, voltar, nomeAluno) {
   const altura0 = await psAltura(alunoId);
@@ -1107,8 +1237,9 @@ async function psNova(alunoId, voltar, nomeAluno) {
         </div>
         <div class="ps-barra"><i id="ps-p-b"></i></div><p class="ps-pct" id="ps-pct">0%</p>
         <p class="tiny dim" style="margin-top:6px">Deixe esta tela aberta. Leva de 20 segundos a 1 minuto.</p></div>
-      <div class="ps-video ps-video-an"></div>`;
-    $app.querySelector('.ps-video').appendChild(v);
+      <div class="ps-video ps-video-an"><canvas class="ps-vivo" id="ps-vivo"></canvas></div>`;
+    $app.querySelector('.ps-video').prepend(v);
+    const vivo = document.getElementById('ps-vivo');
     const pt = document.getElementById('ps-e2'),
       pb = document.getElementById('ps-p-b'),
       pc = document.getElementById('ps-pct');
@@ -1133,9 +1264,10 @@ async function psNova(alunoId, voltar, nomeAluno) {
       });
       barra(0.25);
       etapa(2);
-      res = await psProcessar(v, st.ini, st.fim, (p) => {
+      res = await psProcessar(v, st.ini, st.fim, (p, q, W, H) => {
         barra(0.25 + p * 0.67);
         pt.textContent = `Quadro a quadro: ${Math.round(p * 100)}%`;
+        psDesenhaVivo(vivo, v, q, W, H);
       });
       etapa(3);
       barra(0.93);
@@ -1198,10 +1330,19 @@ async function psResultadoLocal(reg, imgs, alunoId, voltar, nomeAluno, refazer) 
   });
   const x = { ...reg, quadros: imgs.map((im, i) => ({ path: 'local-' + i, legenda: im.legenda })) };
   const ruim = !(reg.qualidade && reg.qualidade.ok);
-  $app.innerHTML = `<a class="back" href="${voltar}">${I.back} Análise da passada</a><p class="eyebrow">Resultado${nomeAluno ? ' · ' + esc(firstName(nomeAluno)) : ''}</p><h1 class="h1">Sua passada</h1>
-    ${psDetalheHTML(x, urls, ant, false, true)}
-    <div class="row" style="gap:8px;margin-top:14px"><button class="btn grow" id="ps-enviar">${S.staff ? 'Salvar na ficha do aluno' : 'Enviar para o treinador'}</button><button class="btn ghost grow" id="ps-refazer">Refazer</button></div>
-    ${ruim ? '<p class="small" style="margin-top:8px;color:var(--warn,#d97706)">O vídeo não ficou ideal para todas as medidas. Dá para enviar assim mesmo, mas o resultado fica mais certo gravando de novo com as dicas acima.</p>' : ''}`;
+  const q = reg.qualidade || {};
+  $app.innerHTML = S.staff
+    ? `<a class="back" href="${voltar}">${I.back} Análise da passada</a><p class="eyebrow">Resultado${nomeAluno ? ' · ' + esc(firstName(nomeAluno)) : ''}</p><h1 class="h1">Passada analisada</h1>
+    ${psDetalheHTML(x, urls, ant, false, true)}`
+    : `<a class="back" href="${voltar}">${I.back} Análise da passada</a><p class="eyebrow">Vídeo analisado</p><h1 class="h1">Pronto para enviar</h1>
+    <p class="muted" style="margin-top:6px">O app encontrou os pontos do seu corpo. Agora o seu treinador olha tudo com calma e te manda um relatório.</p>
+    ${(q.avisos || []).length ? `<div class="ps-avisos" style="margin-top:12px">${q.avisos.map((a) => `<p class="small">${esc(PS_AVISO_TXT[a] || '')}</p>`).join('')}</div>` : ''}
+    ${reg.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
+  $app.insertAdjacentHTML(
+    'beforeend',
+    `<div class="row" style="gap:8px;margin-top:14px"><button class="btn grow" id="ps-enviar">${S.staff ? 'Salvar na ficha do aluno' : 'Enviar para o treinador'}</button><button class="btn ghost grow" id="ps-refazer">Refazer</button></div>
+    ${ruim ? '<p class="small" style="margin-top:8px;color:var(--warn,#d97706)">O vídeo não ficou ideal. Dá para enviar assim mesmo, mas fica mais certo gravando de novo com as dicas.</p>' : ''}`,
+  );
   psLigarQuadros($app);
   psReplay(document.getElementById('ps-rp'), reg.serie);
   document.getElementById('ps-refazer').onclick = refazer;
@@ -1258,12 +1399,23 @@ async function viewPassada(sub) {
     const x = lista.find((y) => y.id === sub);
     if (!x)
       return ($app.innerHTML = `<a class="back" href="#/passada">${I.back} Análise da passada</a><p class="muted">Análise não encontrada.</p>`);
-    const ant = lista.find((y) => y.vista === x.vista && y.criado_em < x.criado_em);
-    const urls = await psUrls([x]);
-    $app.innerHTML = `<a class="back" href="#/passada">${I.back} Análise da passada</a><h1 class="h1">Sua passada</h1>${psDetalheHTML(x, urls, ant, false)}`;
-    psLigarQuadros($app);
+    let pdf = null;
+    if (x.relatorio_path)
+      try {
+        const { data } = await sb.storage.from('nx-fotos').createSignedUrl(x.relatorio_path, 3600);
+        pdf = data && data.signedUrl;
+      } catch {}
+    $app.innerHTML = `<a class="back" href="#/passada">${I.back} Análise da passada</a><p class="eyebrow">${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${psDataHora(x.criado_em)}</p><h1 class="h1">Sua passada</h1>
+      ${
+        x.relatorio_path
+          ? `<div class="card ps-rel pronto"><span class="eyebrow">Relatório do treinador</span><div class="h3" style="margin-top:4px">Seu relatório está pronto</div><p class="small muted" style="margin-top:4px">Enviado em ${fmtDia(x.relatorio_em || x.comentado_em)}.</p>
+            ${x.comentario ? `<p style="margin-top:10px;white-space:pre-line">${esc(x.comentario)}</p>` : ''}
+            ${pdf ? `<a class="btn block" href="${esc(pdf)}" target="_blank" rel="noopener" style="margin-top:12px">Abrir o relatório (PDF)</a>` : '<p class="small muted" style="margin-top:10px">Não foi possível abrir o PDF agora. Tente de novo mais tarde.</p>'}</div>`
+          : `<div class="card ps-rel"><span class="eyebrow">Com o seu treinador</span><p style="margin-top:6px">Seu treinador está analisando o vídeo e vai te mandar um relatório em PDF. Você recebe uma notificação quando ficar pronto.</p></div>`
+      }
+      ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua passada em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}`;
     psReplay(document.getElementById('ps-rp'), x.serie);
-    if (x.comentario && !x.visto_em)
+    if ((x.comentario || x.relatorio_path) && !x.visto_em)
       sb.rpc('nx_passada_vista', { p_id: x.id }).then(
         () => {},
         () => {},
@@ -1271,7 +1423,7 @@ async function viewPassada(sub) {
     return;
   }
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Corrida</p><h1 class="h1">Análise da passada</h1>
-    <p class="muted" style="margin-top:6px">Filme 10 segundos da sua corrida e o app mede a sua cadência, a passada, o joelho, o tronco e o quadril. O seu treinador comenta em cima.</p>
+    <p class="muted" style="margin-top:6px">Filme 10 segundos da sua corrida e mande para o seu treinador. Ele analisa a sua passada e te manda um relatório em PDF.</p>
     <a class="btn block" href="#/passada/nova" style="margin-top:14px">${I.cam} Nova análise</a>
     ${psListaHTML(lista, '#/passada/')}`;
 }
@@ -1280,10 +1432,12 @@ function psListaHTML(lista, base) {
     return '<div class="card" style="margin-top:14px"><p class="small muted">Nenhuma análise ainda. A primeira serve de base para comparar depois.</p></div>';
   return `<div class="stack" style="margin-top:14px">${lista
     .map((x) => {
+      if (!S.staff)
+        return `<a class="list-item" href="${base}${x.id}" style="color:inherit"><span class="ativ-ic">${PS_IC}</span><div class="grow"><b>${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${fmtDia(x.criado_em)}</b><div class="small muted">${x.relatorio_path ? 'Relatório enviado pelo treinador' : 'Com o treinador'}</div></div>${x.relatorio_path ? `<span class="tag ok">${x.visto_em ? 'Relatório' : 'Novo'}</span>` : '<span class="tag">Aguardando</span>'}${I.chev}</a>`;
       const m = x.metricas || {};
       const k = x.vista === 'lado' ? 'cadencia' : 'queda';
       const ruins = (PS_ORDEM[x.vista] || []).filter((c) => ['atencao', 'fora'].includes(psNivel(c, m[c]))).length;
-      return `<a class="list-item" href="${base}${x.id}" style="color:inherit"><span class="ativ-ic">${PS_IC}</span><div class="grow"><b>${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${fmtDia(x.criado_em)}</b><div class="small muted">${m[k] != null ? `${PS_TITULO[k]} ${psFmt(k, m[k])} ${psUn(k)}` : ''}${ruins ? ` · ${ruins} ponto${ruins > 1 ? 's' : ''} para ajustar` : ' · tudo dentro do comum'}</div></div>${x.comentario ? '<span class="tag ok">Comentado</span>' : '<span class="tag">Aguardando</span>'}${I.chev}</a>`;
+      return `<a class="list-item" href="${base}${x.id}" style="color:inherit"><span class="ativ-ic">${PS_IC}</span><div class="grow"><b>${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${fmtDia(x.criado_em)}</b><div class="small muted">${m[k] != null ? `${PS_TITULO[k]} ${psFmt(k, m[k])} ${psUn(k)}` : ''}${ruins ? ` · ${ruins} ponto${ruins > 1 ? 's' : ''} para ajustar` : ' · tudo dentro do comum'}</div></div>${x.relatorio_path ? '<span class="tag ok">Relatório enviado</span>' : '<span class="tag">Sem relatório</span>'}${I.chev}</a>`;
     })
     .join('')}</div>`;
 }
@@ -1313,18 +1467,75 @@ async function psTreinador(box, m, sub) {
         ta.focus();
       },
     });
+    const ver = document.getElementById('ps-ver-rel');
+    if (ver)
+      ver.onclick = async (e) => {
+        e.preventDefault();
+        const w = window.open('', '_blank');
+        const { data } = await sb.storage.from('nx-fotos').createSignedUrl(x.relatorio_path, 600);
+        if (data && data.signedUrl) {
+          if (w) w.location = data.signedUrl;
+          else location.href = data.signedUrl;
+        } else if (w) w.close();
+      };
     document.getElementById('ps-salvar').onclick = async (e) => {
       const t = ta.value.trim();
-      if (!t) return toast('Escreva o comentário.', true);
-      e.currentTarget.disabled = true;
-      const { error } = await sb
-        .from('nx_passadas')
-        .update({ comentario: t, comentado_em: new Date().toISOString(), comentado_por: S.user.id, visto_em: null })
-        .eq('id', x.id);
-      e.currentTarget.disabled = false;
-      if (error) return toast('Não foi possível salvar.', true);
-      notificar('passada', x.id);
-      toast(`Comentário enviado. ${firstName(m.nome)} foi avisado.`);
+      if (!t) return toast('Escreva o seu comentário para o relatório.', true);
+      const bt = e.currentTarget;
+      const txt = bt.textContent;
+      bt.disabled = true;
+      bt.textContent = 'Gerando o PDF…';
+      try {
+        const blob = await psRelatorioPdf({ ...x, comentario: t }, urls, ant, m);
+        bt.textContent = 'Enviando…';
+        const path = `${x.org_id}/${alunoId}/passada/${x.id}-relatorio.pdf`;
+        const up = await sb.storage
+          .from('nx-fotos')
+          .upload(path, blob, { contentType: 'application/pdf', upsert: true });
+        if (up.error) throw up.error;
+        const agora = new Date().toISOString();
+        const { error } = await sb
+          .from('nx_passadas')
+          .update({
+            comentario: t,
+            comentado_em: agora,
+            comentado_por: S.user.id,
+            relatorio_path: path,
+            relatorio_em: agora,
+            visto_em: null,
+          })
+          .eq('id', x.id);
+        if (error) throw error;
+        notificar('passada', x.id);
+        Object.assign(x, { comentario: t, relatorio_path: path, relatorio_em: agora });
+        const nomeArq = `Analise-da-passada-${firstName(m.nome || 'aluno')}-${x.criado_em.slice(0, 10)}.pdf`;
+        const arq = new File([blob], nomeArq, { type: 'application/pdf' });
+        const tel = telWa(m.telefone);
+        openSheet(
+          `<p class="eyebrow">Análise da passada</p><div class="h2" style="margin-top:4px">Relatório enviado</div><p class="small muted" style="margin-top:6px">${esc(firstName(m.nome || 'O aluno'))} foi avisado e já pode abrir o PDF no app. Se quiser, mande também pelo WhatsApp.</p>
+          <div class="stack" style="margin-top:16px">${navigator.canShare && navigator.canShare({ files: [arq] }) ? '<button class="btn block wa-btn" id="ps-share">Compartilhar o PDF (WhatsApp)</button>' : ''}
+          <button class="btn ghost block" id="ps-down">Baixar o PDF</button>
+          ${tel ? `<a class="btn ghost block" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${firstName(m.nome || '')}! Segue o relatório da análise da sua passada`)}" target="_blank" rel="noopener">Abrir a conversa no WhatsApp</a>` : ''}</div>`,
+          (r) => {
+            const sh = r.querySelector('#ps-share');
+            if (sh)
+              sh.onclick = () =>
+                navigator.share({ files: [arq], title: nomeArq, text: 'Análise da passada · Nexos' }).catch(() => {});
+            r.querySelector('#ps-down').onclick = () => {
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = nomeArq;
+              a.click();
+            };
+          },
+        );
+        bt.textContent = 'Gerar de novo e reenviar o relatório';
+      } catch (err) {
+        console.error(err);
+        toast('Não foi possível gerar ou enviar o relatório. Tente de novo.', true);
+        bt.textContent = txt;
+      }
+      bt.disabled = false;
     };
     return;
   }
