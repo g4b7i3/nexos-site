@@ -1508,28 +1508,164 @@ async function funcaoVideo(body) {
   return data;
 }
 let chamadaAtual = null;
+// cores da Nexos dentro da sala do Daily
+const VS_TEMA = {
+  colors: {
+    accent: '#46D6FF',
+    accentText: '#06142E',
+    background: '#071733',
+    backgroundAccent: '#0F2A5C',
+    baseText: '#FFFFFF',
+    border: '#1C3B70',
+    mainAreaBg: '#040C1E',
+    mainAreaBgAccent: '#0B2352',
+    mainAreaText: '#FFFFFF',
+    supportiveText: '#A9BCE0',
+  },
+};
+const VS_IC = {
+  cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="3"/><path d="m16 10 6-3v10l-6-3z"/></svg>',
+  camOff:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16v1a1 1 0 0 1-1 1H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2m4 0h5a1 1 0 0 1 1 1v3.3l6-3.3v10"/><path d="m2 2 20 20"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>',
+  micOff:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 5.1 2.1M5 10a7 7 0 0 0 11.5 5.4M19 10a7 7 0 0 1-.6 2.8M12 17v5"/><path d="m2 2 20 20"/></svg>',
+  fim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15.5c5-4.7 13-4.7 18 0l-2.2 2.6a1.5 1.5 0 0 1-2 .3l-2.3-1.6a1.5 1.5 0 0 1-.6-1.3v-1.7a10 10 0 0 0-3.8 0v1.7a1.5 1.5 0 0 1-.6 1.3l-2.3 1.6a1.5 1.5 0 0 1-2-.3z"/></svg>',
+};
+const vsAvatar = (p) =>
+  p && p.foto_url ? `<img src="${esc(p.foto_url)}" alt="">` : `<span>${esc(initials((p && p.nome) || 'Nexos'))}</span>`;
+const vsTempo = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+// tela de entrada com a cara da Nexos: quem está chamando, a sua câmera e os botões de câmera e microfone
+function vsLobby({ titulo, frase, outro, recusar }) {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'vs-lobby';
+    el.innerHTML = `<div class="vs-lb-fundo"></div>
+      <div class="vs-lb-top"><img src="/app/icons/simbolo.svg" alt=""><img class="vs-wm" src="/app/icons/wordmark.svg" alt="Nexos"><span class="vs-chip">Sala privada</span></div>
+      <div class="vs-lb-meio">
+        <div class="vs-av vs-pulsa">${vsAvatar(outro)}</div>
+        <p class="vs-lb-ey">${esc(titulo)}</p>
+        <h1 class="vs-lb-h">${esc(frase)}</h1>
+        <div class="vs-prev"><video id="vs-prev" autoplay playsinline muted></video><div class="vs-prev-off" id="vs-prev-off">Câmera desligada</div>
+          <div class="vs-ctl"><button type="button" class="vs-bt" id="vs-mic" aria-label="Microfone">${VS_IC.mic}</button><button type="button" class="vs-bt" id="vs-cam" aria-label="Câmera">${VS_IC.cam}</button></div></div>
+        <p class="vs-lb-dica" id="vs-dica">Um lugar com luz de frente e um fone de ouvido deixam a conversa melhor.</p>
+      </div>
+      <div class="vs-lb-bts"><button type="button" class="vs-entrar" id="vs-entrar">${VS_IC.cam}<span>Entrar na chamada</span></button><button type="button" class="vs-agora" id="vs-agora">${recusar ? 'Agora não' : 'Voltar'}</button></div>`;
+    document.body.appendChild(el);
+    document.body.classList.add('em-video');
+    let stream = null,
+      cam = true,
+      mic = true;
+    const v = el.querySelector('#vs-prev');
+    const pintar = () => {
+      el.querySelector('#vs-cam').innerHTML = cam ? VS_IC.cam : VS_IC.camOff;
+      el.querySelector('#vs-mic').innerHTML = mic ? VS_IC.mic : VS_IC.micOff;
+      el.querySelector('#vs-cam').classList.toggle('off', !cam);
+      el.querySelector('#vs-mic').classList.toggle('off', !mic);
+      el.querySelector('#vs-prev-off').hidden = cam && !!stream;
+      if (stream) {
+        stream.getVideoTracks().forEach((t) => (t.enabled = cam));
+        stream.getAudioTracks().forEach((t) => (t.enabled = mic));
+      }
+    };
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+        if (!document.body.contains(el)) return stream.getTracks().forEach((t) => t.stop());
+        v.srcObject = stream;
+      } catch {
+        el.querySelector('#vs-dica').textContent =
+          'Não conseguimos abrir a câmera aqui. Você pode entrar assim mesmo e liberar a câmera e o microfone quando o celular pedir.';
+      }
+      pintar();
+    })();
+    const sair = (r) => {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      el.classList.add('saindo');
+      setTimeout(() => el.remove(), 250);
+      if (!r) document.body.classList.remove('em-video');
+      resolve(r);
+    };
+    el.querySelector('#vs-cam').onclick = () => {
+      cam = !cam;
+      pintar();
+    };
+    el.querySelector('#vs-mic').onclick = () => {
+      mic = !mic;
+      pintar();
+    };
+    el.querySelector('#vs-entrar').onclick = () => sair({ cam, mic });
+    el.querySelector('#vs-agora').onclick = () => {
+      if (recusar) recusar();
+      sair(null);
+    };
+  });
+}
+// tela de fim: quanto tempo durou e um recado da Nexos
+function vsFim(seg, outro) {
+  const el = document.createElement('div');
+  el.className = 'vs-lobby vs-fim';
+  el.innerHTML = `<div class="vs-lb-fundo"></div><div class="vs-lb-meio">
+    <div class="vs-av">${vsAvatar(outro)}</div>
+    <p class="vs-lb-ey">Chamada encerrada</p>
+    <h1 class="vs-lb-h">${seg >= 60 ? `${Math.round(seg / 60)} min de conversa` : 'Até a próxima'}</h1>
+    <p class="vs-lb-dica">Obrigado por treinar com a Nexos.</p>
+    <button type="button" class="vs-entrar" id="vs-ok" style="margin-top:22px"><span>Voltar ao app</span></button></div>`;
+  document.body.appendChild(el);
+  const fechar = () => {
+    if (!document.body.contains(el)) return;
+    el.classList.add('saindo');
+    setTimeout(() => el.remove(), 250);
+  };
+  el.querySelector('#vs-ok').onclick = fechar;
+  setTimeout(fechar, 7000);
+}
 // abre a sala por cima de tudo; quando a equipe sai, a chamada é encerrada e a duração fica registrada
-async function abrirSalaVideo(d, { staff = false, equipe = false, titulo = 'Videochamada', extra = '' } = {}) {
+async function abrirSalaVideo(
+  d,
+  { staff = false, equipe = false, titulo = 'Videochamada', extra = '', outro = null, cam = true, mic = true } = {},
+) {
   const Daily = await carregarDaily();
   await fecharSalaVideo(false);
   const box = document.createElement('div');
   box.className = 'video-sala';
-  box.innerHTML = `<div class="video-top"><b class="grow">${esc(titulo)}</b>${extra}<button type="button" class="btn sm ghost" id="vs-sair">${staff && !equipe ? 'Encerrar' : 'Sair'}</button></div><div class="video-frame"></div>`;
+  box.innerHTML = `<div class="video-top"><img class="vs-simb" src="/app/icons/simbolo.svg" alt=""><div class="grow vs-tit"><b>${esc(titulo)}</b><small id="vs-st">Conectando…</small></div>${extra}<button type="button" class="vs-sair" id="vs-sair" aria-label="${staff && !equipe ? 'Encerrar' : 'Sair'}">${VS_IC.fim}<span>${staff && !equipe ? 'Encerrar' : 'Sair'}</span></button></div>
+    <div class="video-corpo"><div class="video-frame"></div><div class="vs-espera" id="vs-espera"><div class="vs-av vs-pulsa">${vsAvatar(outro)}</div><b>${outro ? `Esperando ${esc(firstName(outro.nome))} entrar` : 'Esperando a outra pessoa entrar'}</b><small>${staff ? 'Ela recebeu o aviso no celular.' : 'Já já começa.'}</small></div></div>`;
   document.body.appendChild(box);
   document.body.classList.add('em-video');
   const call = Daily.createFrame(box.querySelector('.video-frame'), {
     showLeaveButton: false,
     showFullscreenButton: true,
     lang: 'pt-BR',
+    theme: VS_TEMA,
     iframeStyle: { width: '100%', height: '100%', border: '0' },
   });
-  chamadaAtual = { id: d.id, call, box, staff, equipe };
+  chamadaAtual = { id: d.id, call, box, staff, equipe, outro, ini: null, timer: null };
+  const st = box.querySelector('#vs-st'),
+    esp = box.querySelector('#vs-espera');
+  // relógio da conversa: começa quando a outra pessoa entra
+  const contar = () => {
+    let outros = 0;
+    try {
+      outros = Object.keys(call.participants() || {}).filter((k) => k !== 'local').length;
+    } catch {}
+    esp.hidden = !!outros;
+    const c = chamadaAtual;
+    if (!c || c.call !== call) return;
+    if (outros && !c.ini) c.ini = Date.now();
+    st.textContent = outros && c.ini ? `Ao vivo · ${vsTempo(Math.round((Date.now() - c.ini) / 1000))}` : 'Na sala';
+  };
+  call.on('joined-meeting', contar);
+  call.on('participant-joined', contar);
+  call.on('participant-left', contar);
+  chamadaAtual.timer = setInterval(contar, 1000);
   call.on('left-meeting', () => fecharSalaVideo(true));
   box.querySelector('#vs-sair').onclick = () => fecharSalaVideo(true);
   try {
-    await call.join({ url: d.url, token: d.token });
+    await call.join({ url: d.url, token: d.token, startVideoOff: !cam, startAudioOff: !mic });
   } catch (e) {
-    await fecharSalaVideo(false);
+    await fecharSalaVideo(false, true);
     const cod = String((e && (e.errorMsg || e.message)) || '');
     if (cod.includes('payment-method'))
       throw new Error(
@@ -1538,10 +1674,11 @@ async function abrirSalaVideo(d, { staff = false, equipe = false, titulo = 'Vide
     throw new Error('Não foi possível entrar na videochamada. Confira a internet e a permissão da câmera.');
   }
 }
-async function fecharSalaVideo(encerrar) {
+async function fecharSalaVideo(encerrar, semTelaFim) {
   const c = chamadaAtual;
   if (!c) return;
   chamadaAtual = null;
+  clearInterval(c.timer);
   // sala da equipe ou entre professores: só fecha quando o último sai
   let outros = 0;
   try {
@@ -1551,6 +1688,7 @@ async function fecharSalaVideo(encerrar) {
   // a tela sai na hora; a chamada fecha por trás (no celular o Daily às vezes demora para responder)
   c.box.remove();
   document.body.classList.remove('em-video');
+  if (!semTelaFim && c.ini) vsFim(Math.round((Date.now() - c.ini) / 1000), c.outro);
   (async () => {
     try {
       await Promise.race([c.call.leave(), new Promise((r) => setTimeout(r, 3000))]);
@@ -1581,23 +1719,66 @@ async function iniciarVideochamada(m, btn) {
         true,
       );
     else toast(`${firstName(m.nome)} foi avisado pelo app.`);
-    await abrirSalaVideo(d, { staff: true, titulo: `Videochamada com ${firstName(m.nome)}`, extra: wa });
+    await abrirSalaVideo(d, {
+      staff: true,
+      titulo: `Videochamada com ${firstName(m.nome)}`,
+      extra: wa,
+      outro: { nome: m.nome, foto_url: m.foto_url },
+    });
   } catch (e) {
     toast(e.message, true);
   } finally {
     if (btn) btn.disabled = false;
   }
 }
-// aluno (ou equipe) abrindo pelo aviso: #/chamada/<id>
+// aluno (ou equipe) abrindo pelo aviso: #/chamada/<id>; primeiro a tela de entrada da Nexos, depois a sala
 async function viewChamada(id) {
-  $app.innerHTML = `<section class="card" style="margin-top:24px;text-align:center"><span class="eyebrow">Videochamada</span><h1 class="h2" style="margin-top:6px">Entrando na videochamada</h1><p class="small muted" id="ch-msg" style="margin-top:8px">Quando aparecer, permita o uso da câmera e do microfone.</p><button class="btn" id="ch-entrar" style="margin-top:16px" hidden>Entrar</button><a class="btn ghost" href="#/" style="margin-top:10px">Voltar ao início</a></section>`;
+  $app.innerHTML = `<section class="card" style="margin-top:24px;text-align:center"><span class="eyebrow">Videochamada</span><h1 class="h2" style="margin-top:6px">Videochamada da Nexos</h1><p class="small muted" id="ch-msg" style="margin-top:8px">Abrindo…</p><button class="btn" id="ch-entrar" style="margin-top:16px" hidden>Entrar</button><a class="btn ghost" href="#/" style="margin-top:10px">Voltar ao início</a></section>`;
   const msg = document.getElementById('ch-msg'),
     bt = document.getElementById('ch-entrar');
+  // quem está do outro lado (nome e foto do treinador, para o aluno)
+  let outro = null,
+    tipo = 'aluno';
+  try {
+    const { data: ch } = await sb
+      .from('nx_chamadas')
+      .select('tipo,treinador_id,convidado_id,encerrada_em')
+      .eq('id', id)
+      .maybeSingle();
+    if (ch) {
+      tipo = ch.tipo;
+      if (ch.encerrada_em) {
+        msg.textContent = 'Esta videochamada já terminou. Se o treinador ainda quiser falar, ele chama de novo.';
+        return;
+      }
+      const eq = await carregarEquipe().catch(() => []);
+      const qid = ch.treinador_id === S.user.id ? ch.convidado_id : ch.treinador_id;
+      outro = (eq || []).find((x) => x.user_id === qid) || null;
+    }
+  } catch {}
   const tentar = async () => {
     bt.hidden = true;
+    const r = await vsLobby({
+      titulo: tipo === 'equipe' ? 'Videochamada da equipe' : 'Videochamada da Nexos',
+      frase:
+        tipo === 'equipe'
+          ? 'A equipe está na sala'
+          : outro
+            ? `${firstName(outro.nome)} está te esperando`
+            : 'Seu treinador está te esperando',
+      outro,
+      recusar: tipo === 'equipe' ? null : () => funcaoVideo({ acao: 'recusar', id }).catch(() => {}),
+    });
+    if (!r) {
+      msg.textContent = 'Tudo bem. Quando quiser entrar, toque abaixo.';
+      bt.hidden = false;
+      return;
+    }
+    msg.textContent = 'Entrando na videochamada…';
     try {
       const d = await funcaoVideo({ acao: 'entrar', id });
       if (d.encerrada) {
+        document.body.classList.remove('em-video');
         msg.textContent = 'Esta videochamada já terminou. Se o treinador ainda quiser falar, ele chama de novo.';
         return;
       }
@@ -1605,8 +1786,15 @@ async function viewChamada(id) {
         staff: S.staff,
         equipe: d.tipo === 'equipe' || d.tipo === 'professor',
         titulo: d.tipo === 'equipe' ? 'Videochamada da equipe' : S.staff ? 'Videochamada' : 'Videochamada com a Nexos',
+        outro,
+        cam: r.cam,
+        mic: r.mic,
       });
+      msg.textContent = 'Se você saiu da chamada sem querer, toque para entrar de novo.';
+      bt.textContent = 'Entrar de novo';
+      bt.hidden = false;
     } catch (e) {
+      document.body.classList.remove('em-video');
       msg.textContent = e.message;
       bt.hidden = false;
     }
@@ -1669,7 +1857,13 @@ async function ligarProfessor(m, btn) {
         : `${firstName(m.nome)} não tem as notificações ativas.${tel ? ' Mande o link pelo WhatsApp (botão no alto da chamada).' : ''}`,
       !d.avisados,
     );
-    await abrirSalaVideo(d, { staff: true, equipe: true, titulo: `Videochamada com ${firstName(m.nome)}`, extra: wa });
+    await abrirSalaVideo(d, {
+      staff: true,
+      equipe: true,
+      titulo: `Videochamada com ${firstName(m.nome)}`,
+      extra: wa,
+      outro: { nome: m.nome, foto_url: m.foto_url },
+    });
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -1784,7 +1978,7 @@ function escutarChamadas() {
   ver();
 }
 async function verChamadaRecebida() {
-  if (chamadaAtual || document.querySelector('.cham-toca') || !S.user) return;
+  if (chamadaAtual || document.querySelector('.cham-toca, .vs-lobby') || !S.user) return;
   let q = sb
     .from('nx_chamadas')
     .select('id,tipo,treinador_id,criado_em')
@@ -1849,7 +2043,7 @@ function tocarChamada(c, quem) {
   const nome = firstName(quem.nome) || (S.staff ? 'Um professor' : 'Seu treinador');
   const box = document.createElement('div');
   box.className = 'cham-toca';
-  box.innerHTML = `<div class="ct-in"><div class="ct-av"><i></i><i></i>${avAluno({ ...quem, nome: quem.nome || nome }, 'lg')}</div>
+  box.innerHTML = `<div class="vs-lb-top ct-marca"><img src="/app/icons/simbolo.svg" alt=""><img class="vs-wm" src="/app/icons/wordmark.svg" alt="Nexos"></div><div class="ct-in"><div class="ct-av"><i></i><i></i>${avAluno({ ...quem, nome: quem.nome || nome }, 'lg')}</div>
     <p class="eyebrow">${c.tipo === 'aluno' ? 'Videochamada da Nexos' : 'Videochamada'}</p><h1 class="h1">${esc(nome)} está te chamando</h1>
     <div class="ct-bts"><button type="button" class="ct-nao" id="ct-nao"><span>${I.x}</span>Agora não</button><button type="button" class="ct-sim" id="ct-sim"><span>${I.cam}</span>Atender</button></div></div>`;
   document.body.appendChild(box);
