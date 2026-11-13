@@ -3253,6 +3253,8 @@ html[data-tema="claro"] .cic-fase{color:color-mix(in srgb,var(--fc) 70%,#000)}
 @keyframes hubOnda{0%{transform:scale(.7);opacity:.8}100%{transform:scale(2.4);opacity:0}}
 .hub-rod{position:absolute;left:7vw;right:5vw;bottom:3.5vh;z-index:2;display:flex;justify-content:space-between;font-family:var(--f-m);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#7f90b3;opacity:0;animation:hubSobe .6s ease .8s forwards}
 .hub-on{display:flex;align-items:center;gap:8px;color:var(--hp1)}.hub-on i{width:8px;height:8px;border-radius:50%;background:#3ddc97;box-shadow:0 0 10px #3ddc97;animation:hubRespira 1.4s ease-in-out infinite}
+/* com quatro cartões: mais compactos na tela deitada, para caber tudo sem rolar */
+@media (orientation:landscape){.hub-h{font-size:clamp(2.6rem,min(5.6vw,9vh),6rem)}.hub-sub{margin-bottom:2.6vh}.hub-cards{gap:clamp(10px,1.5vh,18px)}.hub-card{padding:clamp(10px,1.7vh,22px) clamp(18px,1.8vw,28px)}.hub-ic{width:clamp(48px,min(4.4vw,7vh),68px);height:clamp(48px,min(4.4vw,7vh),68px);border-radius:16px}.hub-tx b{font-size:clamp(1.05rem,min(1.5vw,2.6vh),1.45rem)}.hub-tx small{margin-top:3px;font-size:clamp(.8rem,min(.95vw,1.7vh),.95rem)}.hub-c{padding-bottom:7vh}}
 @media (orientation:portrait){#nx-hub{grid-template-columns:1fr;grid-template-rows:42vh 1fr}.hub-lado{grid-column:1;grid-row:1}.hub-c{grid-row:2;justify-content:flex-start;padding:0 6vw 12vh}.hub-rod{left:6vw;right:6vw;bottom:2.5vh}.hub-orb{width:min(70vw,38vh)}.hub-h{font-size:clamp(2.6rem,9vw,5rem)}.hub-cards{max-width:none}}
 @media (prefers-reduced-motion:reduce){#nx-hub *,#nx-hub *::before,#nx-hub *::after{animation-duration:.01s!important;animation-iteration-count:1!important}}
 /* teste para o treinador confirmar */

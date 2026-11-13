@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261113212714';
+const NX_BUILD = 'v20261113214027';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -629,7 +629,7 @@ function staffSistema() {
       <span class="hub-onda"></span><span class="hub-onda o2"></span>
       <img src="icons/simbolo.svg" alt="" class="hub-logo"></div></div>
     <div class="hub-c"><p class="hub-ey"><i></i>Nexos Performance e Saúde</p><h1 class="hub-h">Sistema<br>Nexos</h1><p class="hub-sub">Olá, ${esc(firstName(S.me && S.me.nome) || 'treinador')}. Escolha por onde começar.</p>
-      <div class="hub-cards">${card('#/', I.today, 'Painel do treinador', 'Alunos, treinos, mensagens, planilhas e o dia a dia da assessoria', 0)}${card('#/laboratorio', LAB_IC, 'Laboratório Nexos', 'Dossiês de desempenho, visão da assessoria e evolução dos atletas', 1)}${card('#/aprimoramento', APR_IC, 'Aprimoramento intelectual', 'Estudo, questões e atualização científica da equipe', 2)}</div></div>
+      <div class="hub-cards">${card('#/', I.today, 'Painel do treinador', 'Alunos, treinos, mensagens, planilhas e o dia a dia da assessoria', 0)}${card('#/laboratorio', LAB_IC, 'Laboratório Nexos', 'Dossiês de desempenho, visão da assessoria e evolução dos atletas', 1)}${card('#/aprimoramento', APR_IC, 'Aprimoramento intelectual', 'Estudo, questões e atualização científica da equipe', 2)}${card('#/dashboard', DASH_GRAF_IC, 'Dashboard', 'Feedbacks dados aos alunos e planilhas liberadas da semana', 3)}</div></div>
     <div class="hub-rod"><span>${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span><span class="hub-on"><i></i>Sistema online</span></div>`;
   document.body.appendChild(hub);
   // fundo: rede de pontos nas cores da paleta escolhida no perfil, com pacotes de luz correndo pelas ligações; reage ao mouse
