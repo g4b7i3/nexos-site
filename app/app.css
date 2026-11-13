@@ -3969,3 +3969,30 @@ body:has(.fb-tela) .toast{z-index:1700}
 .ps-met p{padding:0 14px 12px}
 .ps-coment{margin-top:12px}
 .ps-coment textarea{margin-top:8px}
+.ps-envio{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px}
+.ps-op{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:16px 14px;border-radius:18px;border:1px solid var(--line);background:var(--s1);color:inherit;font:inherit;cursor:pointer;transition:transform .15s,border-color .15s}
+.ps-op:first-child{background:linear-gradient(150deg,var(--p2),#1f7cf0);border-color:transparent;color:#fff}
+.ps-op:first-child small{color:rgba(255,255,255,.85)}
+.ps-op:active{transform:scale(.98)}
+.ps-op b{font-size:1rem;margin-top:6px}
+.ps-op small{font-size:.78rem;color:var(--mute);line-height:1.35}
+.ps-op-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,currentColor 14%,transparent)}
+.ps-op-ic svg{width:22px;height:22px}
+.ps-op:not(:first-child) .ps-op-ic{color:var(--p2)}
+.ps-video{position:relative}
+.ps-carr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(4,10,24,.72);color:#fff}
+.ps-spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#46d6ff;animation:ps-gira .8s linear infinite}
+@keyframes ps-gira{to{transform:rotate(360deg)}}
+.ps-etapas{display:grid;gap:12px}
+.ps-et{display:flex;gap:12px;align-items:flex-start;opacity:.45;transition:opacity .2s}
+.ps-et.agora,.ps-et.feita{opacity:1}
+.ps-et b{display:block;font-size:.95rem}
+.ps-et small{display:block;font-size:.8rem;color:var(--mute);margin-top:2px}
+.ps-et-ic{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--line);margin-top:1px;position:relative}
+.ps-et.agora .ps-et-ic{border-color:color-mix(in srgb,var(--p2) 25%,transparent);border-top-color:var(--p2);animation:ps-gira .8s linear infinite}
+.ps-et.feita .ps-et-ic{border-color:#16a34a;background:#16a34a}
+.ps-et.feita .ps-et-ic::after{content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.ps-prog .ps-barra{margin-top:16px}
+.ps-pct{margin-top:6px;font-weight:800;font-size:.9rem;color:var(--p2)}
+.ps-pct.erro{color:#e85d75;font-weight:600}
+.ps-video-an{opacity:.55;max-height:38vh}

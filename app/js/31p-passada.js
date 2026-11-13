@@ -432,6 +432,8 @@ const PS_ORDEM = {
 };
 const PS_MODELO_URL =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
+const PS_UP_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>';
 const PS_IC =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="1.8"/><path d="M13 7.5 10.5 13l3 3-1.5 5"/><path d="m10.5 13-3.5 2-2-1"/><path d="M13 7.5 16 11l3-.5"/><path d="M3 21h18" stroke-dasharray="2 3"/></svg>';
 
@@ -444,14 +446,47 @@ const psFmt = (k, v) => {
 const psUn = (k) => (k === 'cruza' ? '' : PS_REF[k].un);
 
 /* ---------- motor: carrega o MediaPipe só nesta tela ---------- */
+// o modelo (≈ 9 MB) fica guardado no aparelho depois da primeira vez; prog(fração) mostra o download
+async function psModelo(prog) {
+  let cache = null;
+  try {
+    cache = await caches.open('nx-modelos-v1');
+    const r = await cache.match(PS_MODELO_URL);
+    if (r) return new Uint8Array(await r.arrayBuffer());
+  } catch {}
+  const r = await fetch(PS_MODELO_URL);
+  if (!r.ok) throw new Error('modelo ' + r.status);
+  const total = +r.headers.get('content-length') || 9.4e6;
+  const leitor = r.body.getReader();
+  const partes = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    partes.push(value);
+    n += value.length;
+    if (prog) prog(Math.min(1, n / total));
+  }
+  const buf = new Uint8Array(n);
+  let o = 0;
+  partes.forEach((pt) => {
+    buf.set(pt, o);
+    o += pt.length;
+  });
+  try {
+    if (cache)
+      await cache.put(PS_MODELO_URL, new Response(buf, { headers: { 'content-type': 'application/octet-stream' } }));
+  } catch {}
+  return buf;
+}
 let _psMotor = null;
-async function psMotor() {
+async function psMotor(prog) {
   if (_psMotor) return _psMotor;
   _psMotor = (async () => {
-    const mp = await import('/app/vendor/mediapipe/vision_bundle.mjs');
+    const [mp, modelo] = await Promise.all([import('/app/vendor/mediapipe/vision_bundle.mjs'), psModelo(prog)]);
     const files = await mp.FilesetResolver.forVisionTasks('/app/vendor/mediapipe/wasm');
     const opc = (delegate) => ({
-      baseOptions: { modelAssetPath: PS_MODELO_URL, delegate },
+      baseOptions: { modelAssetBuffer: modelo, delegate },
       runningMode: 'VIDEO',
       numPoses: 1,
       minPoseDetectionConfidence: 0.5,
@@ -935,7 +970,11 @@ async function psNova(alunoId, voltar, nomeAluno) {
       <label class="field"><span>Altura (cm)</span><input class="input" id="ps-alt" inputmode="numeric" placeholder="Ex.: 172" value="${st.altura || ''}"></label></div>
       <p class="tiny dim">A altura serve para transformar as medidas em centímetros.</p>
       <input type="file" accept="video/*" capture="environment" id="ps-gravar" hidden><input type="file" accept="video/*" id="ps-escolher" hidden>
-      <div class="row" style="gap:8px;margin-top:14px"><button class="btn grow" id="ps-b-gravar">${I.cam} Gravar agora</button><button class="btn ghost grow" id="ps-b-escolher">Escolher vídeo</button></div>`;
+      <p class="sec-lbl" style="margin-top:16px">Como quer mandar o vídeo?</p>
+      <div class="ps-envio">
+        <button type="button" class="ps-op" id="ps-b-gravar"><span class="ps-op-ic">${I.cam}</span><b>Gravar agora</b><small>Abre a câmera do celular</small></button>
+        <button type="button" class="ps-op" id="ps-b-escolher"><span class="ps-op-ic">${PS_UP_IC}</span><b>Enviar um vídeo</b><small>Da galeria ou de um arquivo que alguém mandou</small></button>
+      </div>`;
     document.getElementById('ps-local').value = st.local;
     const pegar = (inp) => {
       const f = inp.files && inp.files[0];
@@ -958,7 +997,7 @@ async function psNova(alunoId, voltar, nomeAluno) {
   const passo3 = () => {
     $app.innerHTML = `${topo}<h1 class="h1">Escolha o trecho</h1>
       <p class="muted" style="margin-top:6px">Até 8 segundos, com você correndo e o corpo inteiro na imagem.</p>
-      <div class="ps-video"><video id="ps-v" src="${st.url}" playsinline muted preload="auto"></video></div>
+      <div class="ps-video"><video id="ps-v" src="${st.url}" playsinline muted preload="auto"></video><div class="ps-carr" id="ps-carr"><span class="ps-spin"></span><small>Carregando o vídeo…</small></div></div>
       <div class="field"><span id="ps-tr-t">Trecho</span><input type="range" id="ps-ini" min="0" max="0" step="0.1" value="0" class="ps-range"></div>
       <button class="btn block" id="ps-analisar" disabled>Analisar</button>
       <button class="link-btn small" id="ps-trocar" style="margin-top:10px">Trocar o vídeo</button>`;
@@ -970,7 +1009,10 @@ async function psNova(alunoId, voltar, nomeAluno) {
       st.fim = Math.min(v.duration, st.ini + 8);
       tt.textContent = `Trecho: de ${f1(st.ini, 1)} s a ${f1(st.fim, 1)} s`;
     };
+    const tiraCarr = () => document.getElementById('ps-carr') && document.getElementById('ps-carr').remove();
+    v.onloadeddata = tiraCarr;
     v.onloadedmetadata = () => {
+      setTimeout(tiraCarr, 1500);
       if (!isFinite(v.duration) || v.duration < 2) {
         tt.textContent = 'Vídeo muito curto. Grave pelo menos 5 segundos.';
         return;
@@ -982,7 +1024,10 @@ async function psNova(alunoId, voltar, nomeAluno) {
       v.currentTime = st.ini;
       document.getElementById('ps-analisar').disabled = false;
     };
-    v.onerror = () => (tt.textContent = 'Este vídeo não abriu no navegador. Tente gravar de novo ou em outro formato.');
+    v.onerror = () => {
+      tiraCarr();
+      tt.textContent = 'Este vídeo não abriu no navegador. Tente gravar de novo ou em outro formato.';
+    };
     r.oninput = () => {
       atual();
       v.currentTime = st.ini;
@@ -992,22 +1037,54 @@ async function psNova(alunoId, voltar, nomeAluno) {
     window.scrollTo(0, 0);
   };
   const passo4 = async (v) => {
-    $app.innerHTML = `${topo}<h1 class="h1">Analisando…</h1>
-      <div class="card ps-prog"><p id="ps-p-t">Preparando a análise (na primeira vez, o celular baixa o modelo de pontos do corpo).</p><div class="ps-barra"><i id="ps-p-b"></i></div><p class="tiny dim" style="margin-top:8px">Deixe a tela aberta. Leva de 20 segundos a 1 minuto.</p></div>
-      <div class="ps-video" style="opacity:.55"></div>`;
+    $app.innerHTML = `${topo}<h1 class="h1">Analisando a sua passada</h1>
+      <div class="card ps-prog">
+        <div class="ps-etapas">
+          <div class="ps-et" data-e="1"><span class="ps-et-ic"></span><div class="grow"><b>Preparando a análise</b><small id="ps-e1">Na primeira vez, o celular baixa o modelo de pontos do corpo</small></div></div>
+          <div class="ps-et" data-e="2"><span class="ps-et-ic"></span><div class="grow"><b>Encontrando os pontos do corpo</b><small id="ps-e2">Quadro a quadro do trecho escolhido</small></div></div>
+          <div class="ps-et" data-e="3"><span class="ps-et-ic"></span><div class="grow"><b>Medindo e marcando os quadros</b><small>Apoios do pé, ângulos e cadência</small></div></div>
+        </div>
+        <div class="ps-barra"><i id="ps-p-b"></i></div><p class="ps-pct" id="ps-pct">0%</p>
+        <p class="tiny dim" style="margin-top:6px">Deixe esta tela aberta. Leva de 20 segundos a 1 minuto.</p></div>
+      <div class="ps-video ps-video-an"></div>`;
     $app.querySelector('.ps-video').appendChild(v);
-    const pt = document.getElementById('ps-p-t'),
-      pb = document.getElementById('ps-p-b');
+    const pt = document.getElementById('ps-e2'),
+      pb = document.getElementById('ps-p-b'),
+      pc = document.getElementById('ps-pct');
+    // barra única: 0–25% preparar, 25–92% pontos do corpo, 92–100% marcar os quadros
+    const barra = (f) => {
+      const v2 = Math.round(Math.max(0, Math.min(1, f)) * 100);
+      pb.style.width = v2 + '%';
+      pc.textContent = v2 + '%';
+    };
+    const etapa = (n) =>
+      $app.querySelectorAll('.ps-et').forEach((el) => {
+        const e = +el.dataset.e;
+        el.classList.toggle('feita', e < n);
+        el.classList.toggle('agora', e === n);
+      });
+    etapa(1);
     let res;
     try {
-      await psMotor();
-      pt.textContent = 'Encontrando os pontos do corpo em cada quadro…';
-      res = await psProcessar(v, st.ini, st.fim, (p) => (pb.style.width = Math.round(p * 100) + '%'));
+      await psMotor((f) => {
+        barra(f * 0.25);
+        document.getElementById('ps-e1').textContent = `Baixando o modelo de pontos do corpo: ${Math.round(f * 100)}%`;
+      });
+      barra(0.25);
+      etapa(2);
+      res = await psProcessar(v, st.ini, st.fim, (p) => {
+        barra(0.25 + p * 0.67);
+        pt.textContent = `Quadro a quadro: ${Math.round(p * 100)}%`;
+      });
+      etapa(3);
+      barra(0.93);
     } catch (e) {
       console.error(e);
-      pt.textContent =
+      const pe = $app.querySelector('.ps-pct');
+      pe.textContent =
         'Não foi possível analisar neste aparelho. Verifique a internet (na primeira vez o modelo é baixado) e tente de novo.';
-      pt.insertAdjacentHTML(
+      pe.classList.add('erro');
+      pe.insertAdjacentHTML(
         'afterend',
         '<button class="btn ghost sm" id="ps-tentar" style="margin-top:10px">Tentar de novo</button>',
       );
@@ -1016,7 +1093,6 @@ async function psNova(alunoId, voltar, nomeAluno) {
     }
     const an = st.vista === 'lado' ? psAnalisarLado(res.fr, st.altura) : psAnalisarTras(res.fr, st.altura);
     an.altura = st.altura;
-    pt.textContent = 'Marcando os quadros…';
     // quadros marcados: de lado, o toque do pé e o meio do apoio; por trás, o meio do apoio de cada pé
     const escolhidos = [];
     if (an.vista === 'lado' && an.apoios.length) {
