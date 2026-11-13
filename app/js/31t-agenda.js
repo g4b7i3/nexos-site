@@ -81,6 +81,30 @@ const AG_CAT = {
   presencial: { nome: 'Treino presencial' },
   outro: { nome: 'Compromisso' },
 };
+// motivos prontos (o treinador escolhe um e detalha na pauta)
+const AG_MOTIVOS = [
+  'Resumo do mês',
+  'Ajuste da planilha',
+  'Preparação para prova',
+  'Retorno da avaliação física',
+  'Retorno da análise biomecânica',
+  'Acompanhamento de dor ou lesão',
+  'Recuperação, sono e rotina',
+  'Alimentação e hidratação nos treinos',
+  'Objetivos e metas',
+  'Boas-vindas e início do acompanhamento',
+  'Teste de desempenho',
+];
+const AG_MOTIVO_PADRAO = {
+  video_mensal: 'Resumo do mês',
+  avaliacao: 'Retorno da avaliação física',
+  presencial: 'Treino técnico',
+};
+// bloco do motivo e da pauta, para o aluno entender por que vai conversar
+const agMotivoHTML = (a, cls = 'ag-mot') =>
+  a.motivo || a.obs
+    ? `<div class="${cls}"><span>Motivo</span><b>${esc(a.motivo || 'Conversa com o treinador')}</b>${a.obs ? `<p>${esc(a.obs)}</p>` : ''}</div>`
+    : '';
 const agCat = (a) => AG_CAT[a.categoria] || AG_CAT.video_mensal;
 const agVideo = (a) => !!agCat(a).video;
 const agNome = (a) => (a.categoria === 'outro' && a.titulo ? a.titulo : agCat(a).nome);
@@ -176,7 +200,8 @@ async function viewAgenda(compArg) {
     return `<div class="ag-it ${fase === 'ja' ? 'ja' : ''}" data-ag="${a.id}">
       <div class="ag-hora"><b>${agHora(new Date(a.inicio))}</b><small>${a.duracao_min} min</small></div>
       <div class="grow" style="min-width:0">${staff ? `<div class="row" style="gap:8px;align-items:center">${avAluno(al, 'sm')}<b class="ellip">${esc(al.nome)}</b></div>` : `<b>${esc(agNome(a))} com ${esc(nomeTr(a.treinador_id))}</b>`}
-        <div class="small muted" style="margin-top:4px"><span class="ag-cat">${agIc(a)}${esc(staff ? agNome(a) : agVideo(a) ? 'pelo app' : a.local || 'presencial')}</span>${staff && a.local && !agVideo(a) ? ` · ${esc(a.local)}` : ''} · ${a.confirmado_em ? '<span class="ag-ok">presença confirmada</span>' : '<span class="ag-pend">aguardando confirmação</span>'}${a.obs ? ` · ${esc(a.obs)}` : ''}</div>
+        <div class="small muted" style="margin-top:4px"><span class="ag-cat">${agIc(a)}${esc(staff ? agNome(a) : agVideo(a) ? 'pelo app' : a.local || 'presencial')}</span>${staff && a.local && !agVideo(a) ? ` · ${esc(a.local)}` : ''} · ${a.confirmado_em ? '<span class="ag-ok">presença confirmada</span>' : '<span class="ag-pend">aguardando confirmação</span>'}</div>
+        ${agMotivoHTML(a)}
         <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">${
           staff
             ? `${agVideo(a) ? `<button type="button" class="btn sm" data-ag-ligar="${a.id}">${AG_CAM} Ligar</button>` : ''}<button type="button" class="btn ghost sm" data-ag-ed="${a.id}">Remarcar ou cancelar</button>${a.categoria === 'video_mensal' ? `<a class="btn ghost sm" href="#/aluno/${a.aluno_id}/relmes">Resumo do mês</a>` : a.categoria === 'avaliacao' ? `<a class="btn ghost sm" href="#/aluno/${a.aluno_id}/avaliacoes">Avaliações</a>` : ''}`
@@ -219,7 +244,7 @@ async function viewAgenda(compArg) {
       return t[0].toUpperCase() + t.slice(1);
     })()}</b>${staff && st.sel >= hoje ? `<button type="button" class="link-btn small" id="ag-novo-dia">+ Agendar neste dia</button>` : ''}</div>
     <div class="stack">${doDia.length ? doDia.map(item).join('') : '<p class="small muted">Nada agendado neste dia.</p>'}</div>
-    ${prox.length ? `<p class="sec-lbl" style="margin-top:20px">Próximas</p><div class="stack">${prox.map((a) => `<button type="button" class="list-item ag-prox" data-ag-ir="${agDiaIso(new Date(a.inicio))}"><span class="ativ-ic">${agIc(a)}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${staff ? `${esc((porId[a.aluno_id] || { nome: 'Aluno' }).nome)} · ${esc(agNome(a))}` : `${esc(agNome(a))} com ${esc(nomeTr(a.treinador_id))}`}</b><div class="small muted">${esc(agQuando(a.inicio))} · ${agFalta(Date.parse(a.inicio), Date.now())}</div></div>${a.confirmado_em ? '<span class="tag ok">Confirmado</span>' : '<span class="tag">Aguardando</span>'}</button>`).join('')}</div>` : ''}`;
+    ${prox.length ? `<p class="sec-lbl" style="margin-top:20px">Próximas</p><div class="stack">${prox.map((a) => `<button type="button" class="list-item ag-prox" data-ag-ir="${agDiaIso(new Date(a.inicio))}"><span class="ativ-ic">${agIc(a)}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${staff ? `${esc((porId[a.aluno_id] || { nome: 'Aluno' }).nome)} · ${esc(agNome(a))}` : `${esc(agNome(a))} com ${esc(nomeTr(a.treinador_id))}`}</b><div class="small muted">${a.motivo ? `${esc(a.motivo)} · ` : ''}${esc(agQuando(a.inicio))} · ${agFalta(Date.parse(a.inicio), Date.now())}</div></div>${a.confirmado_em ? '<span class="tag ok">Confirmado</span>' : '<span class="tag">Aguardando</span>'}</button>`).join('')}</div>` : ''}`;
   if (staff) dockStaff();
   const re = () => viewAgenda();
   $app.querySelector('#ag-a').onclick = () => {
@@ -307,7 +332,17 @@ function agFormulario(a, alunos, dia, depois) {
       <label class="field"><span>Hora</span><input class="input" type="time" name="hora" required step="300" value="${d0 ? agHora(d0) : '19:00'}"></label></div>
       <div class="grid2" style="gap:10px"><label class="field"><span>Duração</span><select class="input" name="dur">${[20, 30, 45, 60, 90, 120].map((n) => `<option value="${n}" ${(a ? a.duracao_min : 30) === n ? 'selected' : ''}>${n < 60 ? n + ' min' : n / 60 + ' h'}</option>`).join('')}</select></label>
       <span></span></div>
-      <label class="field"><span>Observação para o aluno (opcional)</span><input class="input" name="obs" maxlength="120" placeholder="Ex.: levar o tênis de prova" value="${esc((a && a.obs) || '')}"></label>
+      <label class="field"><span>Motivo</span><select class="input" name="motivo">${[
+        ...new Set([
+          ...(a && a.motivo && !AG_MOTIVOS.includes(a.motivo) ? [a.motivo] : []),
+          ...AG_MOTIVOS,
+          'Treino técnico',
+        ]),
+      ]
+        .map((x) => `<option ${a && a.motivo === x ? 'selected' : ''}>${esc(x)}</option>`)
+        .join('')}<option value="__outro">Outro motivo…</option></select></label>
+      <label class="field" id="ag-mot-c" hidden><span>Qual o motivo</span><input class="input" name="motivo_txt" maxlength="60" placeholder="Ex.: Plano de férias"></label>
+      <label class="field"><span>Pauta: o que vocês vão ver (o aluno lê antes)</span><textarea class="textarea" name="obs" rows="3" maxlength="400" placeholder="Ex.: ver juntos o resumo de novembro, ajustar os longões para a meia e combinar a semana de polimento.">${esc((a && a.obs) || '')}</textarea></label>
       <p class="tiny dim">${ed ? 'Se mudar o dia ou a hora, o aluno recebe o aviso da nova data e confirma de novo.' : 'O aluno recebe a notificação na hora, com o pedido para confirmar a presença, e os lembretes no dia.'}</p>
       <button class="btn block" type="submit">${ed ? 'Salvar e avisar o aluno' : 'Agendar e avisar o aluno'}</button>
       ${ed ? '<button class="btn ghost block ag-cancelar" type="button" id="ag-canc">Cancelar o compromisso</button>' : ''}
@@ -320,8 +355,19 @@ function agFormulario(a, alunos, dia, depois) {
         r.querySelector('#ag-tit-c').hidden = c !== 'outro';
         r.querySelector('#ag-loc-c').hidden = !!(AG_CAT[c] || {}).video;
       };
-      f.cat.onchange = ajusta;
+      // motivo sugerido pelo tipo (só se o treinador ainda não escolheu outro)
+      let motivoMexido = !!a;
+      f.motivo.onchange = () => {
+        motivoMexido = true;
+        r.querySelector('#ag-mot-c').hidden = f.motivo.value !== '__outro';
+      };
+      f.cat.onchange = () => {
+        ajusta();
+        const pd = AG_MOTIVO_PADRAO[f.cat.value];
+        if (!motivoMexido && pd) f.motivo.value = pd;
+      };
       ajusta();
+      if (!a) f.motivo.value = AG_MOTIVO_PADRAO.video_mensal;
       f.onsubmit = async (e) => {
         e.preventDefault();
         const b = f.querySelector('[type=submit]');
@@ -329,6 +375,8 @@ function agFormulario(a, alunos, dia, depois) {
         if (!alunoId) return toast('Escolha o aluno.', true);
         const cat = f.cat.value;
         if (cat === 'outro' && !f.titulo.value.trim()) return toast('Escreva o título do compromisso.', true);
+        const motivo = f.motivo.value === '__outro' ? f.motivo_txt.value.trim() : f.motivo.value;
+        if (!motivo) return toast('Escreva o motivo.', true);
         const inicio = new Date(`${f.dia.value}T${f.hora.value}:00`);
         if (!(inicio.getTime() > Date.now() - 60000)) return toast('Escolha um horário que ainda não passou.', true);
         b.disabled = true;
@@ -340,6 +388,7 @@ function agFormulario(a, alunos, dia, depois) {
           tipo: cat === 'video_mensal' ? 'mensal' : 'avulsa',
           titulo: cat === 'outro' ? f.titulo.value.trim() : null,
           local: AG_CAT[cat].video ? null : f.local.value.trim() || null,
+          motivo,
           obs: f.obs.value.trim() || null,
           atualizado_em: new Date().toISOString(),
         };
@@ -347,7 +396,10 @@ function agFormulario(a, alunos, dia, depois) {
           aviso = 'nova';
         if (ed) {
           const mudou =
-            Date.parse(a.inicio) !== inicio.getTime() || a.categoria !== cat || (a.local || null) !== row.local;
+            Date.parse(a.inicio) !== inicio.getTime() ||
+            a.categoria !== cat ||
+            (a.local || null) !== row.local ||
+            (a.motivo || null) !== motivo;
           if (mudou) Object.assign(row, { confirmado_em: null, lembrete_dia_em: null, lembrete_15_em: null });
           aviso = mudou ? 'mudou' : null;
           const { error } = await sb.from('nx_agenda').update(row).eq('id', a.id);
@@ -449,8 +501,8 @@ async function cartaoAgenda() {
         : video
           ? fase === 'ja'
             ? 'Deixe o app aberto: o seu treinador vai te ligar aqui. A chamada toca na tela.'
-            : `O seu treinador te liga aqui no app no horário.${a.categoria === 'video_mensal' ? ' Vocês vão ver juntos o resumo do seu mês.' : ''}`
-          : `${a.obs ? esc(a.obs) + '. ' : ''}Você recebe um lembrete 15 min antes.`;
+            : `O seu treinador te liga aqui no app no horário.${a.categoria === 'video_mensal' && !a.motivo ? ' Vocês vão ver juntos o resumo do seu mês.' : ''}`
+          : 'Você recebe um lembrete 15 min antes.';
       el.innerHTML = `<div class="ag-grande ${fase === 'ja' ? 'ja' : ''}">
         <div class="ag-g-fundo"></div>
         <div class="ag-g-top"><span class="ag-g-chip">${fase === 'ja' ? '<i></i>Começando agora' : 'Hoje'}</span>${staff && hojeN > 1 ? `<a class="ag-g-mais" href="#/agenda">${hojeN} hoje</a>` : ''}</div>
@@ -458,6 +510,7 @@ async function cartaoAgenda() {
         <div class="ag-g-quem">${staff ? avAluno(al, 'lg') : ''}<b>${quem}</b></div>
         <div class="ag-g-hora"><b>${agHora(new Date(ini))}</b><span>${fase === 'ja' ? (agora < ini ? agFalta(ini, agora) : 'em andamento') : agFalta(ini, agora)}</span></div>
         ${ondeTxt}
+        ${agMotivoHTML(a, 'ag-g-mot')}
         <p class="ag-g-txt">${txt}</p>
         <div class="ag-g-acoes">${
           staff
@@ -469,7 +522,7 @@ async function cartaoAgenda() {
     } else {
       const d = new Date(ini);
       el.innerHTML = `<a class="card ag-chega" href="#/agenda"><div class="ag-c-data"><small>${AG_SEM[d.getDay()].slice(0, 3)}</small><b>${d.getDate()}</b><small>${AG_MESES[d.getMonth()].slice(0, 3)}</small></div>
-        <div class="grow" style="min-width:0"><span class="eyebrow">${staff ? 'Próximo na agenda' : `${esc(nomeA)} chegando`}</span><b class="ellip" style="display:block;margin-top:2px">${staff ? `${esc(nomeA)} com ${quem}` : `Com ${quem}`} às ${agHora(d)}</b><div class="small muted">${agFalta(ini, agora)}${!video && a.local ? ` · ${esc(a.local)}` : ''}${staff ? '' : a.confirmado_em ? ' · presença confirmada' : ' · toque para confirmar'}</div></div>${I.chev}</a>`;
+        <div class="grow" style="min-width:0"><span class="eyebrow">${staff ? 'Próximo na agenda' : `${esc(nomeA)} chegando`}</span><b class="ellip" style="display:block;margin-top:2px">${staff ? `${esc(nomeA)} com ${quem}` : `Com ${quem}`} às ${agHora(d)}</b>${a.motivo ? `<div class="ag-c-mot">Motivo: <b>${esc(a.motivo)}</b></div>` : ''}<div class="small muted">${agFalta(ini, agora)}${!video && a.local ? ` · ${esc(a.local)}` : ''}${staff ? '' : a.confirmado_em ? ' · presença confirmada' : ' · toque para confirmar'}</div></div>${I.chev}</a>`;
     }
     const bl = el.querySelector('#ag-g-ligar'),
       bc = el.querySelector('#ag-g-conf');

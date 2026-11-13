@@ -4487,3 +4487,14 @@ body.rm-apres-on #dock,body.rm-apres-on .side,body.rm-apres-on .toast{display:no
 .ag-cat svg{width:13px;height:13px}
 .ag-g-local{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.12);font-size:.82rem;font-weight:700}
 .ag-g-local svg{width:14px;height:14px}
+/* motivo e pauta do compromisso */
+.ag-mot{margin-top:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--acc) 8%,transparent);border-left:3px solid var(--acc)}
+.ag-mot span,.ag-g-mot span{display:block;font:700 .64rem var(--f-m,monospace);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.ag-mot b{display:block;font-size:.92rem;margin-top:2px}
+.ag-mot p{margin:4px 0 0;font-size:.82rem;color:var(--mute);line-height:1.45;white-space:pre-line}
+.ag-g-mot{margin-top:14px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14)}
+.ag-g-mot span{color:var(--p1)}
+.ag-g-mot b{display:block;font:800 1.05rem var(--f-h);margin-top:3px;color:#fff}
+.ag-g-mot p{margin:5px 0 0;font-size:.86rem;line-height:1.5;color:#dbe6fb;white-space:pre-line}
+.ag-c-mot{font-size:.8rem;margin-top:2px;color:var(--mute)}
+.ag-c-mot b{color:var(--ink)}
