@@ -4317,3 +4317,5 @@ html:not([data-tema="claro"]) .pc-guia.aviso b{color:#ffb469}
 .db-at-ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--p3),var(--p1));color:#fff;margin-bottom:4px}
 .db-at-ic svg{width:17px;height:17px}
 .db-at-s{scroll-margin-top:12px}
+/* gerador de PDF: o relatório fica preso na borda esquerda (centralizado, a tela larga do computador cortava um pedaço) */
+.html2pdf__container{margin:0!important;left:0!important;right:auto!important}

@@ -2294,7 +2294,6 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
   const fin = psFinais(x);
   const me = fin.m;
   const ma = ant ? psFinais(ant).m : null;
-  const q = x.qualidade || {};
   const linhas = (PS_ORDEM[x.vista] || [])
     .filter((k) => me[k] != null)
     .map((k) => {
@@ -2331,7 +2330,6 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
       ${treinador ? `<div style="font-size:12px;color:#475569;margin-top:10px">${esc(treinador)}</div>` : ''}</div>
     ${passos.length ? `<div class="psr-l" style="margin-top:16px;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1d4ed8">Próximos passos</div><ol style="margin:8px 0 0;padding-left:20px;font-size:13px;line-height:1.55">${passos.map((l) => `<li style="margin-top:3px">${esc(l)}</li>`).join('')}</ol></div>` : ''}
     <div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800;margin-bottom:6px">As medidas</div>${linhas[0] || ''}</div>${linhas.slice(1).join('')}
-    ${(q.avisos || []).length ? `<div class="psr-l" style="margin-top:14px;font-size:11px;color:#92400e;background:#fffbeb;border-radius:8px;padding:10px 12px;">${q.avisos.map((a) => esc(PS_AVISO_TXT[a] || '')).join('<br>')}</div>` : ''}
     ${psRelLados(fin.lados)}
     ${pares.length ? `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Antes e depois</div><div style="font-size:11px;color:#64748b;margin-top:2px">${fmtDia(ant.criado_em)} e ${fmtDia(x.criado_em)}</div>${pares.map((p) => `<div style="display:flex;gap:14px;margin-top:10px"><div style="width:220px"><img src="${p.a}" style="width:100%;border-radius:8px;display:block"><div style="font-size:11px;color:#475569;margin-top:4px">Antes · ${esc(p.legenda)}</div></div><div style="width:220px"><img src="${p.b}" style="width:100%;border-radius:8px;display:block"><div style="font-size:11px;color:#475569;margin-top:4px">Depois · ${esc(p.legenda)}</div></div></div>`).join('')}</div>` : ''}
     ${fotos ? `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Momentos marcados no vídeo</div><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px">${fotos}</div></div>` : ''}
