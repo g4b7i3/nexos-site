@@ -5,6 +5,7 @@
 /* ---------- relatório mensal do aluno (PDF para mandar no WhatsApp) ---------- */
 async function relatorioMes(alunoId, box, staff, m) {
   const st = S.cache.relM || (S.cache.relM = { comp: compDe(), msg: '' });
+  st.txt = st.txt || {};
   const [y, mm] = st.comp.split('-').map(Number);
   const ini = isoDia(new Date(y, mm - 1, 1, 12)),
     fim = isoDia(new Date(y, mm, 0, 12));
@@ -12,10 +13,10 @@ async function relatorioMes(alunoId, box, staff, m) {
     fimAnt = isoDia(new Date(y, mm - 1, 0, 12));
   box.innerHTML = esqBloco();
   const ate = (d) => d + 'T23:59:59';
-  const [corrs, corrsAnt, sess, sessAnt, plano, regs, provas] = await Promise.all([
+  const [corrs, corrsAnt, sess, sessAnt, plano, regs, provas, pronts, resT] = await Promise.all([
     sb
       .from('nx_corridas')
-      .select('data,tipo,distancia_m,duracao_s,plano_id')
+      .select('data,tipo,distancia_m,duracao_s,plano_id,dor,dor_local,visto_treinador,comentario_treinador')
       .eq('aluno_id', alunoId)
       .gte('data', ini)
       .lte('data', ate(fim))
@@ -24,7 +25,7 @@ async function relatorioMes(alunoId, box, staff, m) {
       .catch(() => []),
     sb
       .from('nx_corridas')
-      .select('data,tipo,distancia_m')
+      .select('data,tipo,distancia_m,duracao_s')
       .eq('aluno_id', alunoId)
       .gte('data', iniAnt)
       .lte('data', ate(fimAnt))
@@ -32,7 +33,7 @@ async function relatorioMes(alunoId, box, staff, m) {
       .catch(() => []),
     sb
       .from('nx_sessoes')
-      .select('iniciado_em,treino_titulo')
+      .select('iniciado_em,treino_titulo,dor,dor_local,visto_treinador')
       .eq('aluno_id', alunoId)
       .not('finalizado_em', 'is', null)
       .gte('iniciado_em', ini)
@@ -74,13 +75,32 @@ async function relatorioMes(alunoId, box, staff, m) {
       .lte('data', fim)
       .then((r) => r.data || [])
       .catch(() => []),
+    sb
+      .from('nx_prontidao')
+      .select('dia,total')
+      .eq('aluno_id', alunoId)
+      .gte('dia', ini)
+      .lte('dia', fim)
+      .then((r) => r.data || [])
+      .catch(() => []),
+    // texto do treinador para o mês (o aluno só recebe depois de enviado)
+    sb
+      .from('nx_resumos')
+      .select('*')
+      .eq('aluno_id', alunoId)
+      .eq('mes', ini)
+      .maybeSingle()
+      .then((r) => r.data || null)
+      .catch(() => null),
   ]);
   const km = corrs.reduce((a, c) => a + c.distancia_m, 0) / 1000,
     kmAnt = corrsAnt.reduce((a, c) => a + c.distancia_m, 0) / 1000;
   const diasT = new Set([...corrs.map((c) => isoDia(c.data)), ...sess.map((x) => isoDia(x.iniciado_em))]).size;
   const diasAnt = new Set([...corrsAnt.map((c) => isoDia(c.data)), ...sessAnt.map((x) => isoDia(x.iniciado_em))]).size;
-  const feitosPl = plano.filter((p) => corrs.some((c) => c.plano_id === p.id)).length;
-  const ader = plano.length ? Math.round((feitosPl / plano.length) * 100) : null;
+  // previstos só até hoje (no mês atual os dias que ainda não chegaram não contam); feito = corrida ligada ao treino ou no mesmo dia
+  const planoAte = plano.filter((p) => p.data <= hojeISO());
+  const feitosPl = planoAte.filter((p) => corrs.some((c) => c.plano_id === p.id || isoDia(c.data) === p.data)).length;
+  const ader = planoAte.length ? Math.round((feitosPl / planoAte.length) * 100) : null;
   // km e pace por semana do mês
   const semanas = [];
   for (let d = inicioSemana(dia(ini)); isoDia(d) <= fim; d.setDate(d.getDate() + 7)) semanas.push(isoDia(d));
@@ -101,6 +121,7 @@ async function relatorioMes(alunoId, box, staff, m) {
   // cargas: melhor carga no mês x antes do mês
   const porEx = {};
   regs.forEach((r) => {
+    if (!r.criado_em) return;
     const n = r.exercicio_nome || 'Exercício';
     const e = (porEx[n] = porEx[n] || { antes: 0, mes: 0, vezes: 0 });
     const c = +r.carga_kg || 0;
@@ -113,6 +134,60 @@ async function relatorioMes(alunoId, box, staff, m) {
     .filter(([, e]) => e.mes > 0)
     .sort((a, b) => b[1].mes - b[1].antes - (a[1].mes - a[1].antes) || b[1].vezes - a[1].vezes)
     .slice(0, 5);
+  // resumo do mês: dores, feedbacks, prontidão e as sugestões de pontos fortes e do que melhorar
+  const paceMedio = (l) => {
+    const t = l
+      .filter((c) => c.distancia_m >= 2500 && c.duracao_s && c.tipo !== 'caminhada')
+      .reduce((a, c) => [a[0] + c.duracao_s, a[1] + c.distancia_m], [0, 0]);
+    return t[1] ? t[0] / (t[1] / 1000) : null;
+  };
+  const dores = [
+    ...corrs.filter((c) => c.dor).map((c) => ({ data: c.data, local: c.dor_local || '' })),
+    ...sess.filter((x) => x.dor).map((x) => ({ data: x.iniciado_em, local: x.dor_local || '' })),
+  ].sort((a, b) => (a.data < b.data ? -1 : 1));
+  const vistos = corrs.filter((c) => c.visto_treinador).length + sess.filter((x) => x.visto_treinador).length;
+  const coments = corrs.filter((c) => c.comentario_treinador);
+  const pront = pronts.length
+    ? { media: pronts.reduce((a, x) => a + (+x.total || 0), 0) / pronts.length, dias: pronts.length }
+    : null;
+  const sug = resumoSugestoes({
+    fC: faz('corrida', m),
+    fM: faz('musculacao', m),
+    km,
+    kmAnt,
+    corridas: corrs.length,
+    previstos: planoAte.length,
+    feitosPl,
+    ader,
+    paceMes: paceMedio(corrs),
+    paceAnt: paceMedio(corrsAnt),
+    longaKm: longa ? longa.distancia_m / 1000 : 0,
+    forca: sess.length,
+    forcaAnt: sessAnt.length,
+    dores,
+    treinos: corrs.length + sess.length,
+    vistos,
+    comentados: coments.length,
+    pront,
+  });
+  const res = resT;
+  const tx =
+    st.txt[st.comp] ||
+    (st.txt[st.comp] =
+      res && (res.fortes || res.melhorar || res.recado || !staff)
+        ? { fortes: res.fortes || '', melhorar: res.melhorar || '', recado: res.recado || '' }
+        : staff
+          ? { fortes: sug.fortes.join('\n'), melhorar: sug.melhorar.join('\n'), recado: '' }
+          : { fortes: '', melhorar: '', recado: '' });
+  const linhasTx = (t) =>
+    String(t || '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+  const listaTx = (t) =>
+    linhasTx(t)
+      .map((l) => `<li>${esc(l)}</li>`)
+      .join('');
   const delta = (a, b, un = '') => {
     if (!b) return '';
     const d = a - b;
@@ -125,16 +200,26 @@ async function relatorioMes(alunoId, box, staff, m) {
     fM = faz('musculacao', m);
   box.innerHTML = `
     <div class="rm-bar"><div class="row" style="gap:6px"><button class="icon-btn sm" id="rm-a" aria-label="Mês anterior">${I.back}</button><b class="rm-mes">${nomeMesTxt}</b><button class="icon-btn sm" id="rm-p" aria-label="Próximo mês" style="transform:scaleX(-1)">${I.back}</button></div>
-      <div class="row" style="gap:6px"><button class="btn sm" id="rm-pdf">${I.ficha} ${staff ? 'Gerar PDF' : 'Baixar PDF'}</button></div></div>
-    ${staff ? `<label class="field" style="margin-top:12px"><span>Mensagem do treinador (vai no relatório)</span><textarea class="textarea" id="rm-msg" placeholder="Ex.: Mês muito consistente! Agora é manter os longões e caprichar no sono.">${esc(st.msg)}</textarea></label>` : ''}
+      <div class="row" style="gap:6px">${staff ? `<button class="btn ghost sm" id="rm-apres">Apresentar</button>` : ''}<button class="btn sm" id="rm-pdf">${I.ficha} ${staff ? 'Gerar PDF' : 'Baixar PDF'}</button></div></div>
+    ${
+      staff
+        ? `<div class="card rm-ed"><div class="row between" style="gap:8px;flex-wrap:wrap"><b>Sua análise do mês</b><span class="tag ${res && res.enviado_em ? 'ok' : ''}" id="rm-st">${res && res.enviado_em ? `Enviado em ${fmtDia(res.enviado_em)}` : res && (res.fortes || res.melhorar || res.recado) ? 'Rascunho salvo' : 'Ainda não enviado'}</span></div>
+      <p class="tiny dim" style="margin-top:4px">${res && (res.fortes || res.melhorar || res.recado) ? 'Texto salvo.' : 'O app já sugeriu a partir dos números.'} Uma frase por linha. Edite antes ou durante a videochamada; o aluno só vê depois de você enviar.</p>
+      <label class="field" style="margin-top:10px"><span>Pontos fortes</span><textarea class="textarea" id="rm-fortes-ed" rows="4">${esc(tx.fortes)}</textarea></label>
+      <label class="field"><span>O que melhorar</span><textarea class="textarea" id="rm-melhorar-ed" rows="4">${esc(tx.melhorar)}</textarea></label>
+      <label class="field"><span>Mensagem do treinador</span><textarea class="textarea" id="rm-msg" rows="3" placeholder="Ex.: Mês muito consistente! Agora é manter os longões e caprichar no sono.">${esc(tx.recado)}</textarea></label>
+      ${sug.fortes.length || sug.melhorar.length ? '<button type="button" class="link-btn small" id="rm-sug">Voltar às sugestões do app</button>' : ''}
+      <div class="row" style="gap:8px;margin-top:12px"><button class="btn ghost grow" id="rm-salvar">Salvar</button><button class="btn grow" id="rm-enviar">${res && res.enviado_em ? 'Reenviar ao aluno' : 'Enviar ao aluno'}</button></div></div>`
+        : ''
+    }
     <div class="rm-folha" id="rm-folha">
-      <div class="rm-top"><img src="icons/simbolo-escuro.svg" alt="Nexos"><div><span class="rm-ey">Relatório mensal</span><b>${nomeMesTxt}</b></div></div>
+      <div class="rm-top"><img src="icons/simbolo-escuro.svg" alt="Nexos"><div><span class="rm-ey">Resumo do mês</span><b>${nomeMesTxt}</b></div></div>
       <div class="rm-aluno">${fotoHTML(m, 'md')}<div><h2>${esc(m.nome || '')}</h2><span>${m.objetivo ? 'Objetivo: ' + esc(m.objetivo) : 'Nexos Performance e Saúde'}</span></div></div>
       <div class="rm-nums">
         ${fC ? `<div><b>${f1(km)}</b><span>km corridos</span>${delta(km, kmAnt, 'km')}</div><div><b>${corrs.length}</b><span>corridas</span></div>` : ''}
         ${fM ? `<div><b>${sess.length}</b><span>treinos de força</span></div>` : ''}
         <div><b>${diasT}</b><span>dias treinados</span>${delta(diasT, diasAnt)}</div>
-        ${fC && ader != null ? `<div><b>${ader}%</b><span>da planilha cumprida</span></div>` : ''}
+        ${fC && ader != null ? `<div><b>${ader}%</b><span>da planilha cumprida</span><span class="rm-d">${feitosPl} de ${planoAte.length} treino${planoAte.length === 1 ? '' : 's'}${st.comp === compDe() ? ' até hoje' : ''}</span></div>` : ''}
       </div>
       ${
         fC && corrs.length
@@ -153,7 +238,19 @@ async function relatorioMes(alunoId, box, staff, m) {
       }
       ${fM && cargas.length ? `<div class="rm-sec"><h3>Evolução de cargas</h3><div class="rm-cargas">${cargas.map(([n, e]) => `<div><span>${esc(n)}</span><b>${e.antes && e.antes !== e.mes ? `${fmtKg(e.antes)} → ` : ''}${fmtKg(e.mes)}</b>${!e.antes ? '<em class="nv">novo</em>' : e.mes > e.antes ? `<em>+${fmtKg(e.mes - e.antes)}</em>` : e.mes === e.antes ? '<em class="nv">mantida</em>' : ''}</div>`).join('')}</div></div>` : ''}
       ${!corrs.length && !sess.length ? '<p class="small muted" style="margin:14px 0">Nenhum treino registrado neste mês.</p>' : ''}
-      <div class="rm-msg" id="rm-msg-out" ${st.msg ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(st.msg)}</p>${treinador ? `<b>${esc(firstName(treinador.nome))}</b>` : ''}</div>
+      ${
+        corrs.length || sess.length
+          ? `<div class="rm-sec"><h3>Acompanhamento</h3><div class="rm-acomp">
+        <div><b>${vistos}</b><span>treino${vistos === 1 ? '' : 's'} analisado${vistos === 1 ? '' : 's'} pelo treinador</span></div>
+        ${coments.length ? `<div><b>${coments.length}</b><span>com comentário escrito</span></div>` : ''}
+        ${pront ? `<div><b>${f1(pront.media)}<small>/20</small></b><span>prontidão média (${pront.dias} dia${pront.dias === 1 ? '' : 's'})</span></div>` : ''}
+        <div><b>${dores.length}</b><span>treino${dores.length === 1 ? '' : 's'} com dor</span></div></div>
+        ${dores.length ? `<ul class="rm-dest" style="margin-top:8px">${dores.map((d) => `<li>${fmtDia(d.data)}${d.local ? `: ${esc(d.local)}` : ''}</li>`).join('')}</ul>` : ''}</div>`
+          : ''
+      }
+      <div class="rm-sec rm-ana" id="rm-fortes" ${linhasTx(tx.fortes).length ? '' : 'hidden'}><h3>Pontos fortes</h3><ul class="rm-lista ok">${listaTx(tx.fortes)}</ul></div>
+      <div class="rm-sec rm-ana" id="rm-melhorar" ${linhasTx(tx.melhorar).length ? '' : 'hidden'}><h3>O que melhorar</h3><ul class="rm-lista at">${listaTx(tx.melhorar)}</ul></div>
+      <div class="rm-msg" id="rm-msg-out" ${tx.recado ? '' : 'hidden'}><span>Mensagem do seu treinador</span><p>${esc(tx.recado)}</p>${treinador ? `<b>${esc(firstName(treinador.nome))}</b>` : ''}</div>
       <div class="rm-pe">Nexos Performance e Saúde · ${esc(CONTATO.insta)} · São Luís–MA</div>
     </div>`;
   const re = () => relatorioMes(alunoId, box, staff, m);
@@ -165,13 +262,92 @@ async function relatorioMes(alunoId, box, staff, m) {
     st.comp = somaMes(st.comp, 1);
     re();
   };
-  const msg = box.querySelector('#rm-msg');
-  if (msg)
-    msg.oninput = () => {
-      st.msg = msg.value;
-      const o = box.querySelector('#rm-msg-out');
-      o.hidden = !st.msg.trim();
-      o.querySelector('p').textContent = st.msg;
+  // a folha muda junto enquanto o treinador escreve
+  const ligaCampo = (id, chave, alvo) => {
+    const el = box.querySelector(id);
+    if (!el) return;
+    el.oninput = () => {
+      tx[chave] = el.value;
+      const o = box.querySelector(alvo);
+      if (chave === 'recado') {
+        o.hidden = !tx.recado.trim();
+        o.querySelector('p').textContent = tx.recado;
+      } else {
+        o.hidden = !linhasTx(tx[chave]).length;
+        o.querySelector('ul').innerHTML = listaTx(tx[chave]);
+      }
+    };
+  };
+  ligaCampo('#rm-fortes-ed', 'fortes', '#rm-fortes');
+  ligaCampo('#rm-melhorar-ed', 'melhorar', '#rm-melhorar');
+  ligaCampo('#rm-msg', 'recado', '#rm-msg-out');
+  const bSug = box.querySelector('#rm-sug');
+  if (bSug)
+    bSug.onclick = () => {
+      st.txt[st.comp] = { fortes: sug.fortes.join('\n'), melhorar: sug.melhorar.join('\n'), recado: tx.recado };
+      re();
+    };
+  // salvar o rascunho e enviar ao aluno (com notificação)
+  const gravar = async (enviar, bt) => {
+    bt.disabled = true;
+    const t0 = bt.textContent;
+    bt.textContent = enviar ? 'Enviando…' : 'Salvando…';
+    const row = {
+      org_id: S.org.id,
+      aluno_id: alunoId,
+      mes: ini,
+      fortes: tx.fortes.trim() || null,
+      melhorar: tx.melhorar.trim() || null,
+      recado: tx.recado.trim() || null,
+      dados: { km: +km.toFixed(2), corridas: corrs.length, forca: sess.length, ader, vistos, dores: dores.length },
+      atualizado_em: new Date().toISOString(),
+      ...(enviar ? { enviado_em: new Date().toISOString() } : {}),
+    };
+    const { data, error } = await sb
+      .from('nx_resumos')
+      .upsert(row, { onConflict: 'aluno_id,mes' })
+      .select('id')
+      .maybeSingle();
+    if (error || !data) {
+      bt.disabled = false;
+      bt.textContent = t0;
+      return toast('Não foi possível salvar. Tente de novo.', true);
+    }
+    if (enviar) notificar('resumo', data.id);
+    toast(enviar ? `Resumo enviado! ${firstName(m.nome || 'O aluno')} recebeu o aviso no app.` : 'Salvo.');
+    delete st.txt[st.comp];
+    re();
+  };
+  const bSal = box.querySelector('#rm-salvar'),
+    bEnv = box.querySelector('#rm-enviar');
+  if (bSal) bSal.onclick = () => gravar(false, bSal);
+  if (bEnv) bEnv.onclick = () => gravar(true, bEnv);
+  // apresentar na videochamada: a folha em tela cheia, grande para compartilhar a tela
+  const bAp = box.querySelector('#rm-apres');
+  if (bAp)
+    bAp.onclick = () => {
+      const f = box.querySelector('#rm-folha');
+      const sair = () => {
+        f.classList.remove('rm-apres');
+        document.body.classList.remove('rm-apres-on');
+        document.removeEventListener('keydown', esc1);
+        document.removeEventListener('fullscreenchange', aoFs);
+        x.remove();
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      };
+      const esc1 = (e) => e.key === 'Escape' && sair();
+      const aoFs = () => !document.fullscreenElement && f.classList.contains('rm-apres') && sair();
+      const x = document.createElement('button');
+      x.className = 'rm-apres-x';
+      x.type = 'button';
+      x.textContent = 'Sair da apresentação';
+      x.onclick = sair;
+      f.classList.add('rm-apres');
+      document.body.classList.add('rm-apres-on');
+      document.body.appendChild(x);
+      document.addEventListener('keydown', esc1);
+      document.addEventListener('fullscreenchange', aoFs);
+      document.documentElement.requestFullscreen?.().catch(() => {});
     };
   box.querySelector('#rm-pdf').onclick = async (e) => {
     const b = e.currentTarget;
@@ -209,7 +385,7 @@ async function relatorioMes(alunoId, box, staff, m) {
         im.style.height = h + 'px';
         im.src = cv.toDataURL('image/png');
       }
-      const nomeArq = `Relatorio-Nexos-${firstName(m.nome || 'aluno')}-${st.comp}.pdf`;
+      const nomeArq = `Resumo-do-mes-Nexos-${firstName(m.nome || 'aluno')}-${st.comp}.pdf`;
       // gera a partir de uma cópia com largura de folha A4 (assim fica igual no celular e no computador)
       const caixa = document.createElement('div');
       caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none;opacity:1';

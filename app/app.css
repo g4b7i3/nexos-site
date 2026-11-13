@@ -4319,3 +4319,26 @@ html:not([data-tema="claro"]) .pc-guia.aviso b{color:#ffb469}
 .db-at-s{scroll-margin-top:12px}
 /* gerador de PDF: o relatório fica preso na borda esquerda (centralizado, a tela larga do computador cortava um pedaço) */
 .html2pdf__container{margin:0!important;left:0!important;right:auto!important}
+/* resumo do mês: análise do treinador, acompanhamento e modo de apresentar na videochamada */
+.rm-ed{margin-top:12px;max-width:760px;margin-left:auto;margin-right:auto}
+.rm-ed .field{margin-top:8px}
+.rm-acomp{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.rm-acomp div{background:#f2f6fc;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.rm-acomp b{font-family:var(--f-h);font-size:1.3rem;color:#0b1834;line-height:1.1}
+.rm-acomp b small{font-size:.7rem;color:#5b6b88;margin-left:2px}
+.rm-acomp span{font-size:.74rem;color:#5b6b88;font-weight:700}
+.rm-lista{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.rm-lista li{position:relative;padding:9px 12px 9px 34px;border-radius:12px;font-size:.88rem;line-height:1.45;color:#0b1834}
+.rm-lista li::before{position:absolute;left:12px;top:9px;font-weight:900}
+.rm-lista.ok li{background:#e9f9f1}
+.rm-lista.ok li::before{content:"✓";color:#15803d}
+.rm-lista.at li{background:#fff4e5}
+.rm-lista.at li::before{content:"→";color:#c2410c}
+.rm-folha[hidden],.rm-sec[hidden]{display:none}
+body.rm-apres-on{overflow:hidden}
+.rm-folha.rm-apres{position:fixed;inset:0;z-index:20000;max-width:none;margin:0;border-radius:0;overflow:auto;padding:4vh max(4vw,24px) 10vh;font-size:1.15rem}
+.rm-folha.rm-apres > *{max-width:980px;margin-left:auto;margin-right:auto}
+.rm-folha.rm-apres .rm-nums b{font-size:2.2rem}
+.rm-folha.rm-apres .rm-lista li{font-size:1.05rem}
+.rm-apres-x{position:fixed;right:20px;bottom:20px;z-index:20001;padding:12px 18px;border-radius:999px;border:0;background:#0b1834;color:#fff;font:800 .9rem var(--f-b);cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+body.rm-apres-on #dock,body.rm-apres-on .side,body.rm-apres-on .toast{display:none!important}

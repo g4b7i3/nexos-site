@@ -728,7 +728,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['historico', 'Feedbacks', I.feed, `${sess.length} treino${sess.length === 1 ? '' : 's'} registrados`, true],
     ['cargas', 'Evolução de cargas', I.hist, 'Progressão por exercício', fM],
     ['dossie', 'Dossiê de desempenho', LAB_IC, 'Laboratório Nexos', true],
-    ['relmes', 'Relatório do mês', I.ficha, 'PDF para mandar ao aluno', true],
+    ['relmes', 'Resumo do mês', I.ficha, 'Para a videochamada mensal: números, análise e PDF', true],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
     ['passada', 'Análise biomecânica da corrida', PS_IC, 'Vídeo da corrida: passada, joelho, tronco e quadril', fC],
     ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],

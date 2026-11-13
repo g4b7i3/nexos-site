@@ -18,6 +18,12 @@ function buscaTelasAluno() {
     ['#/', 'Hoje', 'Treino do dia, check-in e resumo da semana', 'inicio home dia'],
     ['#/planilha', 'Planilha', 'Seus treinos da semana', 'treinos calendario semana corrida forca musculacao'],
     ['#/historico', 'Evolução', 'Treinos feitos, gráficos e relatórios', 'historico progresso graficos feitos'],
+    [
+      '#/historico/relatorio',
+      'Resumo do mês',
+      'Seus números do mês e a análise do treinador',
+      'resumo mensal relatorio mes pdf videochamada',
+    ],
     ['#/conversa', 'Conversa com o treinador', 'Mensagens com o seu treinador', 'chat mensagem falar professor'],
     [
       '#/gps',

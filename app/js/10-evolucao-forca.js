@@ -188,7 +188,7 @@ async function alunoHistorico(aba) {
   const abasH = [
     ['atividades', 'Atividades'],
     ['previsoes', 'Previsões'],
-    ['relatorio', 'Relatório'],
+    ['relatorio', 'Resumo do mês'],
     ['treinos', 'Treinos'],
     ['corrida', 'Corrida'],
     ['cargas', 'Cargas'],
@@ -199,7 +199,7 @@ async function alunoHistorico(aba) {
     .filter(([k]) => (k !== 'corrida' && k !== 'previsoes') || faz('corrida'));
   const INFO = {
     previsoes: [I.flag, 'Previsões de desempenho', 'Seus tempos estimados para 5K, 10K, meia e maratona'],
-    relatorio: [I.ficha, 'Relatório do mês', 'Seu resumo mensal em PDF'],
+    relatorio: [I.ficha, 'Resumo do mês', 'Seus números do mês e a análise do treinador, em PDF'],
     treinos: [I.feed, 'Treinos feitos', 'Histórico e feedbacks'],
     corrida: [icCorr(S.me), 'Corrida', 'Volume, pace e corridas'],
     cargas: [I.hist, 'Cargas', 'Quanto você evoluiu em cada exercício'],
