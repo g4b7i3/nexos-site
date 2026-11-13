@@ -4000,3 +4000,55 @@ body:has(.fb-tela) .toast{z-index:1700}
 .ps-vivo{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .ps-rel{margin-top:14px}
 .ps-rel.pronto{border:1px solid rgba(70,214,255,.35)}
+/* análise da passada: leitura, lados, antes e depois, conferir os pontos */
+.ps-conf{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--p2) 18%,transparent);color:var(--p2);font-style:normal;font-size:.66rem;font-weight:800;vertical-align:middle}
+.ps-faz{margin-top:8px;padding:9px 11px;border-radius:12px;background:color-mix(in srgb,var(--p2) 9%,transparent);line-height:1.45}
+.ps-faz b{display:block;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--p2);margin-bottom:2px}
+.ps-met p.small{padding:0 14px 12px}
+.ps-met p.ps-faz{margin:0 14px 12px;padding:9px 11px}
+.ps-met-d.melhorou{color:var(--ok)}.ps-met-d.piorou{color:var(--err)}
+.card.ps-leitura{margin-top:12px;border:1px solid color-mix(in srgb,var(--p2) 35%,var(--line))}
+.ps-lei{margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--s1);border-left:4px solid var(--ps-c,var(--line))}
+.ps-lei.fora{--ps-c:#e85d75}.ps-lei.atencao{--ps-c:#e0a400}
+.ps-lei-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ps-lei-n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--ps-c);color:#fff;font-size:.72rem;font-weight:800;flex:none}
+.ps-lei-v{margin-left:auto;font-weight:800;color:var(--ps-c);font-size:.88rem}
+.ps-lei > p.small{margin-top:4px}
+.ps-notas{margin:10px 0 0;padding-left:18px;display:grid;gap:4px;color:var(--mute)}
+.card.ps-lados,.card.ps-conferir,.card.ps-comp{margin-top:12px}
+.ps-tab{width:100%;border-collapse:collapse;margin-top:8px;font-size:.82rem}
+.ps-tab th{font-size:.68rem;font-weight:700;color:var(--mute);text-align:left;padding:6px 4px;vertical-align:bottom}
+.ps-tab td{padding:8px 4px;border-top:1px solid var(--line)}
+.ps-tab td:first-child{font-weight:700}
+.ps-tab tr.alto td:last-child{color:var(--warn);font-weight:800}
+.ps-tab .ps-conf{margin-left:3px;padding:0 5px}
+.ps-conf-it{width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.ps-cmp{padding:11px 13px;border-radius:14px;background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--ps-c,var(--line))}
+.ps-cmp.melhorou{--ps-c:#16a34a}.ps-cmp.piorou{--ps-c:#e85d75}.ps-cmp.igual{--ps-c:var(--line)}.ps-cmp.mudou{--ps-c:var(--p2)}
+.ps-cmp-t{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ps-cmp-e{font-size:.7rem;font-weight:800;color:var(--ps-c);text-transform:uppercase;letter-spacing:.06em}
+.ps-cmp.igual .ps-cmp-e{color:var(--mute)}
+.ps-cmp-v{display:flex;align-items:center;gap:6px;margin:4px 0 2px;font-size:1.05rem}
+.ps-cmp-v span{color:var(--mute)}
+.ps-cmp-v svg{width:16px;height:16px;opacity:.6}
+.ps-ad{margin-top:14px}
+.ps-ad-par{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.ps-rp2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.ps-rp2 figure{margin:0}
+.ps-rp2 figcaption{text-align:center;font-size:.74rem;font-weight:700;color:#46d6ff;margin-top:2px}
+.ps-carr-s{display:flex;align-items:center;gap:10px;margin-top:20px;color:var(--mute)}
+.pc-tela{margin-top:12px;border-radius:18px;overflow:hidden;background:#000}
+.pc-tela canvas{width:100%;height:auto;display:block;touch-action:none;max-height:64vh;object-fit:contain}
+.pc-nav{display:flex;align-items:center;gap:10px;margin-top:10px}
+.pc-nav .btn{min-width:48px;display:grid;place-items:center}
+.pc-nav .btn svg{width:20px;height:20px}
+.pc-med{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-top:10px}
+.pc-m{padding:9px 10px;border-radius:14px;background:var(--s1);border:1px solid var(--line);border-top:3px solid var(--ps-c,var(--line));display:grid;gap:1px}
+.pc-m.ok{--ps-c:#16a34a}.pc-m.atencao{--ps-c:#e0a400}.pc-m.fora{--ps-c:#e85d75}.pc-m.info{--ps-c:var(--p2)}
+.pc-m span{font-size:.72rem;color:var(--mute);font-weight:700}
+.pc-m b{font-size:1.15rem;color:var(--ps-c)}
+.pc-m small{font-size:.68rem;color:var(--mute)}
+.card.pc-onde{margin-top:12px}
+.pc-onde summary{cursor:pointer}
+.pc-onde ul{margin:8px 0;padding-left:18px;display:grid;gap:5px}
+.ps-volta{background:none;border:0;padding:0;font:inherit;font-weight:700;font-size:.92rem;cursor:pointer}

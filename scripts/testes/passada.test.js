@@ -9,10 +9,26 @@ if (!m) throw new Error('Bloco da passada não encontrado no app (marcadores pas
 const ctx = {};
 vm.runInNewContext(
   m[1] +
-    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel });',
+    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel, psMedidasQuadro, psFinais, psAssimetria, psCompara, psSugereFator, psRitmoKmh, psPaceTxt });',
   ctx,
 );
-const { PS_P, psAng, psMediana, psAnalisarLado, psAnalisarTras, psNivel, psDirecao, psLadoVisivel } = ctx;
+const {
+  PS_P,
+  psAng,
+  psMediana,
+  psAnalisarLado,
+  psAnalisarTras,
+  psNivel,
+  psDirecao,
+  psLadoVisivel,
+  psMedidasQuadro,
+  psFinais,
+  psAssimetria,
+  psCompara,
+  psSugereFator,
+  psRitmoKmh,
+  psPaceTxt,
+} = ctx;
 const erros = [];
 const ok = (c, msg) => c || erros.push(msg);
 const perto = (a, b, tol) => a != null && Math.abs(a - b) <= tol;
@@ -143,7 +159,7 @@ ok(ch.qualidade.avisos.includes('distancia_muda'), 'avisa quando a distância at
 ok(!lado.qualidade.avisos.includes('distancia_muda'), 'não avisa distância na esteira');
 
 // 3. corredor por trás: quadril do lado sem apoio cai 6°, pés sem cruzar
-function corredorTras({ queda = 6, cruza = false, fps = 60, seg = 3 } = {}) {
+function corredorTras({ queda = 6, quedaE = null, cruza = false, fps = 60, seg = 3 } = {}) {
   const ciclo = 120 / 170,
     chao = 1000;
   const fr = [];
@@ -156,7 +172,8 @@ function corredorTras({ queda = 6, cruza = false, fps = 60, seg = 3 } = {}) {
     const apoioE = fase0 < 0.38,
       apoioD = fase0 >= 0.5 && fase0 < 0.88;
     const dy = 100 * Math.tan(rad(queda));
-    if (apoioE) qD[1] += dy * Math.sin((Math.PI * fase0) / 0.38);
+    const dyE = 100 * Math.tan(rad(quedaE ?? queda));
+    if (apoioE) qD[1] += dyE * Math.sin((Math.PI * fase0) / 0.38);
     if (apoioD) qE[1] += dy * Math.sin((Math.PI * (fase0 - 0.5)) / 0.38);
     [
       ['E', qE, apoioE, 0],
@@ -190,6 +207,93 @@ ok(
   psAnalisarLado(corredorTras(), altura).qualidade.avisos.includes('nao_parece_lado'),
   'reconhece vídeo que não é de lado',
 );
+
+// 4. por trás, cada lado separado: apoio no pé esquerdo deixa o quadril direito cair 9°, no direito só 3°
+const assim = psAnalisarTras(corredorTras({ queda: 3, quedaE: 9 }), altura);
+ok(perto(assim.lados.E.queda, 9, 1.2), `queda com apoio no pé esquerdo: ${assim.lados.E.queda} (esperado 9)`);
+ok(perto(assim.lados.D.queda, 3, 1.2), `queda com apoio no pé direito: ${assim.lados.D.queda} (esperado 3)`);
+ok(perto(assim.m.queda, 9, 1.2), 'a queda geral fica com o pior lado');
+ok(psAssimetria('queda', assim.lados.E.queda, assim.lados.D.queda).alto, 'diferença de 6° entre os lados é marcada');
+ok(
+  perto(tras.lados.E.passo, tras.lados.D.passo, 25),
+  `tempo de passo igual nos dois lados: ${tras.lados.E.passo} x ${tras.lados.D.passo}`,
+);
+ok(perto(tras.lados.E.passo, 353, 25), `tempo de passo ≈ 353 ms a 170 passos/min: ${tras.lados.E.passo}`);
+ok(tras.lados.E.contato > 200 && tras.lados.E.contato < 330, `contato por lado: ${tras.lados.E.contato}`);
+ok(!psAssimetria('passo', 350, 360).alto && psAssimetria('passo', 320, 380).alto, 'assimetria de tempo acima de 10%');
+
+// 5. medida de um quadro (conferência do treinador) bate com a conta automática
+const frL = corredorLado();
+const apL = lado.apoios[1];
+const ptsDe = (f) => {
+  const P = {};
+  f.p.forEach((q, i) => q && (P[i] = [q[0], q[1]]));
+  return P;
+};
+const anL = { vista: 'lado', lado: lado.lado, dir: lado.dir, altura };
+const mq = psMedidasQuadro('contato', ptsDe(frL[apL.ic]), anL);
+const s = { q: PS_P.quadrilE, j: PS_P.joelhoE, t: PS_P.tornE };
+const fq = frL[apL.ic].p;
+const tibiaEsp = (Math.atan2(fq[s.t][0] - fq[s.j][0], fq[s.t][1] - fq[s.j][1]) * 180) / Math.PI;
+ok(perto(mq.tibia, tibiaEsp, 0.01), `tíbia do quadro: ${mq.tibia} x ${tibiaEsp}`);
+ok(mq.frente > 5 && mq.frente < 20, `pé à frente no quadro: ${mq.frente}`);
+const ma = psMedidasQuadro('apoio', ptsDe(frL[apL.meio]), anL);
+ok(perto(ma.tronco, 7, 0.5), `tronco no quadro: ${ma.tronco}`);
+// mexer o joelho para a frente muda a tíbia na direção certa
+const P2 = ptsDe(frL[apL.ic]);
+P2[PS_P.joelhoE] = [P2[PS_P.joelhoE][0] - 30, P2[PS_P.joelhoE][1]];
+ok(psMedidasQuadro('contato', P2, anL).tibia > mq.tibia, 'joelho mais para trás aumenta a tíbia');
+const anT = { vista: 'tras', troca: assim.troca, altura };
+const frT = corredorTras({ queda: 3, quedaE: 9 });
+const mt = psMedidasQuadro('E', ptsDe(frT[assim.apoiosE[1].meio]), anT);
+ok(perto(mt.queda, 9, 1.5), `queda num quadro de apoio esquerdo: ${mt.queda}`);
+
+// 6. medidas finais com as correções do treinador
+const fin = psFinais({
+  vista: 'tras',
+  metricas: { queda: 9, joelhoDentro: 4 },
+  extra: { lados: { E: { queda: 9 }, D: { queda: 3 } }, ajustes: { 'E.queda': { valor: 5, auto: 9 } } },
+});
+ok(fin.m.queda === 5 && fin.conf.has('queda') && fin.lados.E.queda === 5, 'correção do lado entra na queda geral');
+const finL = psFinais({
+  vista: 'lado',
+  metricas: { tibia: 12, cadencia: 160 },
+  extra: { ajustes: { tibia: { valor: 8, auto: 12 } } },
+});
+ok(
+  finL.m.tibia === 8 && finL.m.cadencia === 160 && finL.conf.has('tibia'),
+  'correção de lado troca só a medida conferida',
+);
+ok(psFinais({ vista: 'lado', metricas: { tibia: 1 } }).m.tibia === 1, 'análise antiga sem extra funciona');
+
+// 7. antes e depois
+ok(psCompara('cadencia', 158, 168).efeito === 'melhorou', 'cadência subindo para a faixa melhora');
+ok(psCompara('cadencia', 168, 158).efeito === 'piorou', 'cadência caindo piora');
+ok(psCompara('cadencia', 160, 161).efeito === 'igual', 'diferença pequena é igual (erro da medida)');
+ok(psCompara('tibia', 14, 9).efeito === 'melhorou', 'tíbia voltando para a faixa melhora');
+ok(psCompara('tronco', 6, 10).efeito === 'mudou', 'mudança dentro da faixa não é melhora nem piora');
+ok(psCompara('contato', 260, 230).efeito === 'mudou', 'medida sem faixa só muda');
+ok(psCompara('queda', null, 3) == null, 'sem valor anterior não compara');
+
+// 8. câmera lenta: vídeo de 120 quadros salvo para tocar devagar (4 vezes) dá cadência 4 vezes menor
+const lento = corredorLado({ fps: 30, seg: 3 }).map((f) => ({ t: f.t * 4, p: f.p }));
+const anLento = psAnalisarLado(lento, altura);
+ok(
+  anLento.m.cadencia == null && psSugereFator(anLento.cadBruta) === 4,
+  `percebe a câmera lenta: cadência ${anLento.cadBruta} → fator ${psSugereFator(anLento.cadBruta)}`,
+);
+const rapido = corredorLado({ fps: 120, seg: 3 });
+const anRap = psAnalisarLado(rapido, altura);
+ok(
+  perto(anRap.m.cadencia, 170, 3) && anRap.m.contato != null,
+  `a 120 qps mede cadência e contato: ${anRap.m.cadencia}, ${anRap.m.contato}`,
+);
+ok(psSugereFator(170) === 1 && psSugereFator(null) === 1, 'vídeo normal não muda');
+
+// 9. ritmo
+ok(perto(psRitmoKmh('6:00'), 10, 0.01) && perto(psRitmoKmh('10,5'), 10.5, 0.01), 'pace e km/h');
+ok(psRitmoKmh('abc') == null && psRitmoKmh('0:30') == null, 'ritmo inválido');
+ok(psPaceTxt(12) === '5:00/km', 'pace a partir de km/h');
 
 if (erros.length) {
   console.error('Análise da passada: ' + erros.length + ' conta(s) errada(s):\n - ' + erros.join('\n - '));
