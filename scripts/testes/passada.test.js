@@ -9,7 +9,7 @@ if (!m) throw new Error('Bloco da passada não encontrado no app (marcadores pas
 const ctx = {};
 vm.runInNewContext(
   m[1] +
-    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel, psMedidasQuadro, psFinais, psAssimetria, psCompara, psSugereFator, psRitmoKmh, psPaceTxt });',
+    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel, psMedidasQuadro, psFinais, psAssimetria, psCompara, psSugereFator, psRitmoKmh, psPaceTxt, psConfere });',
   ctx,
 );
 const {
@@ -340,6 +340,21 @@ ok(
 const ptsA = ptsDe(frL[apL.meio]);
 ok(perto(psMedidasQuadro('apoio', ptsA, anL).cotovelo, 90, 0.5), 'cotovelo num quadro');
 
+// conferência ao vivo dos pontos (o app diz se o ponto arrastado faz sentido)
+{
+  const { psConfere, PS_LADO: L } = ctx;
+  const an = { vista: 'lado', lado: 'D', dir: 1 };
+  const s = L.D;
+  const base = { [s.q]: [300, 300], [s.j]: [330, 450], [s.t]: [320, 600], [s.c]: [300, 612], [s.o]: [310, 80] };
+  const conf = (mud, i) => psConfere('contato', { ...base, ...mud }, an, base, i);
+  if (conf({}, s.j).nv !== 'ok') erros.push('conferir: joelho no lugar certo deveria dar ok');
+  if (conf({}, s.t).nv !== 'ok') erros.push('conferir: tornozelo no lugar certo deveria dar ok');
+  if (conf({ [s.t]: [250, 600] }, s.t).nv !== 'aviso') erros.push('conferir: tíbia de -28° deveria avisar');
+  if (conf({ [s.j]: [265, 450] }, s.j).nv !== 'aviso') erros.push('conferir: joelho dobrando para trás deveria avisar');
+  if (conf({ [s.c]: [190, 612] }, s.c).nv !== 'aviso') erros.push('conferir: calcanhar longe do tornozelo deveria avisar');
+  if (conf({ [s.q]: [300, 470] }, s.q).nv !== 'aviso') erros.push('conferir: quadril na altura do joelho deveria avisar');
+  if (conf({ [s.q]: [300, 420] }, s.q).nv !== 'aviso') erros.push('conferir: coxa curta demais deveria avisar');
+}
 if (erros.length) {
   console.error('Análise da passada: ' + erros.length + ' conta(s) errada(s):\n - ' + erros.join('\n - '));
   process.exit(1);

@@ -4283,3 +4283,37 @@ body.nx-db{background:#040b1c}
 .db-tela a{color:var(--p1)}
 .db-tela .db-qtd input{background:rgba(12,26,60,.6);color:#fff}
 @media (min-width:1100px){.db-ks{grid-template-columns:repeat(5,minmax(0,1fr))}.db-tela{max-width:1200px}}
+/* conferência dos pontos: o app diz na hora se o ponto arrastado faz sentido */
+.pc-guia{display:flex;flex-direction:column;gap:3px;margin-top:10px;padding:11px 14px;border-radius:14px;border:1px solid var(--line2);background:var(--s1);font-size:.84rem;line-height:1.4;transition:background .2s,border-color .2s}
+.pc-guia b{font-size:.88rem}
+.pc-guia span{color:var(--mute)}
+.pc-guia small{color:var(--mute);font-size:.76rem;margin-top:2px}
+.pc-guia.ok{border-color:color-mix(in srgb,var(--ok) 55%,transparent);background:color-mix(in srgb,var(--ok) 10%,var(--s1))}
+.pc-guia.ok b{color:var(--ok)}
+.pc-guia.aviso{border-color:color-mix(in srgb,#ff9f43 60%,transparent);background:color-mix(in srgb,#ff9f43 12%,var(--s1))}
+.pc-guia.aviso b{color:#e07b12}
+html:not([data-tema="claro"]) .pc-guia.aviso b{color:#ffb469}
+/* cartão Atletas do dashboard e a lista por modalidade */
+.db-k-tap{text-align:left;font:inherit;cursor:pointer;color:inherit}
+.db-k-seta{position:absolute;right:12px;top:14px;color:var(--p1);opacity:.8}
+.db-k-seta svg{width:18px;height:18px}
+.db-k-tap:hover{border-color:color-mix(in srgb,var(--p1) 60%,transparent)}
+.db-at-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 6px}
+.db-at-c{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border-radius:16px;border:1px solid var(--line2);background:var(--s1);color:var(--ink);font:inherit;cursor:pointer;text-align:left}
+.db-at-c b{font:800 1.6rem/1.1 var(--f-h)}
+.db-at-c small{font-size:.76rem;color:var(--mute);font-weight:700}
+.db-at-ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--p3),var(--p1));color:#fff;margin-bottom:4px}
+.db-at-ic svg{width:17px;height:17px}
+.db-at-s{scroll-margin-top:12px}
+/* cartão Atletas do dashboard e a lista por modalidade */
+.db-k-tap{text-align:left;font:inherit;cursor:pointer;color:inherit}
+.db-k-seta{position:absolute;right:12px;top:14px;color:var(--p1);opacity:.8}
+.db-k-seta svg{width:18px;height:18px}
+.db-k-tap:hover{border-color:color-mix(in srgb,var(--p1) 60%,transparent)}
+.db-at-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 6px}
+.db-at-c{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border-radius:16px;border:1px solid var(--line2);background:var(--s1);color:var(--ink);font:inherit;cursor:pointer;text-align:left}
+.db-at-c b{font:800 1.6rem/1.1 var(--f-h)}
+.db-at-c small{font-size:.76rem;color:var(--mute);font-weight:700}
+.db-at-ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--p3),var(--p1));color:#fff;margin-bottom:4px}
+.db-at-ic svg{width:17px;height:17px}
+.db-at-s{scroll-margin-top:12px}

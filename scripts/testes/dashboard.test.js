@@ -7,7 +7,7 @@ const ini = src.indexOf('/* dash:puro:inicio */'),
   fim = src.indexOf('/* dash:puro:fim */');
 if (ini < 0 || fim < 0) throw new Error('Bloco do dashboard não encontrado (marcadores dash:puro).');
 const f = new Function(
-  src.slice(ini, fim) + ';return {dashFeedMontar,dashFeedHTML,dashMontar,dashDemoDados,dashHTML};',
+  src.slice(ini, fim) + ';return {dashFeedMontar,dashFeedHTML,dashMontar,dashDemoDados,dashHTML,dashAtletas};',
 )();
 const agora = Date.parse('2026-11-13T18:00:00-03:00');
 const T = [
@@ -38,4 +38,11 @@ const h = f.dashFeedHTML(F);
 ok(h.includes('Comentario-unico'), 'comentário na lista');
 const M = f.dashMontar(f.dashDemoDados(62, agora));
 ok(M.k.ativos === 62 && f.dashHTML(M, { demo: true, n: 62 }).includes('Demonstração'), 'selo da demonstração');
+const A = f.dashAtletas([
+  { nome: 'B', modalidades: ['corrida'] },
+  { nome: 'A', modalidades: ['corrida', 'musculacao'] },
+  { nome: 'C', modalidades: ['musculacao'] },
+  { nome: 'D', modalidades: ['musculacao', 'corrida'] },
+]);
+ok(A.total === 4 && A.corrida.length === 1 && A.forca.length === 1 && A.ambos.length === 2 && A.ambos[0].nome === 'A', 'atletas por modalidade');
 console.log('Dashboard: contas conferidas.');

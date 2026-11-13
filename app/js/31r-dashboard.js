@@ -352,7 +352,11 @@ function dashFeedHTML(F) {
     <div class="db-ks">
       ${kpi(dashFmt(k.vistos), k.vistos === 1 ? 'treino analisado' : 'treinos analisados', k.pct != null ? `${k.pct}% de tudo que os alunos registraram` : '', 'destaque')}
       ${kpi(dashFmt(k.mes), 'neste mês', `${dashFmt(k.semana)} nesta semana`)}
-      ${kpi(dashFmt(k.alunos), k.alunos === 1 ? 'atleta acompanhado' : 'atletas acompanhados', 'com feedback')}
+      ${
+        F.atletas
+          ? `<button type="button" class="db-k db-k-tap" data-db-atl><b>${dashFmt(F.atletas.total)}</b><span>${F.atletas.total === 1 ? 'atleta' : 'atletas'}</span><small>${F.atletas.corrida.length} corrida · ${F.atletas.forca.length} força · ${F.atletas.ambos.length} ambos</small><i class="db-k-seta">${DASH_IC.chev}</i></button>`
+          : kpi(dashFmt(k.alunos), k.alunos === 1 ? 'atleta acompanhado' : 'atletas acompanhados', 'com feedback')
+      }
       ${kpi(dashFmt(k.km, 0), 'km analisados', 'em corridas vistas')}
       ${kpi(dashFmt(k.corrida), k.corrida === 1 ? 'corrida ou caminhada' : 'corridas e caminhadas', 'analisadas')}
       ${kpi(dashFmt(k.forca), k.forca === 1 ? 'treino de força' : 'treinos de força', 'analisados')}
@@ -371,6 +375,21 @@ function dashFeedHTML(F) {
             .join('')
         : '<p class="small muted">Nenhum treino analisado ainda. Toque em Visto nos treinos dos alunos, na tela Hoje.</p>'
     }</div>`;
+}
+/** atletas reais da assessoria separados por modalidade: só corrida, só força (musculação) e os dois */
+function dashAtletas(membros) {
+  const r = { corrida: [], forca: [], ambos: [], total: 0 };
+  membros.forEach((m) => {
+    const md = m.modalidades || [];
+    const c = md.includes('corrida'),
+      f = md.includes('musculacao') || md.includes('forca');
+    (c && f ? r.ambos : f ? r.forca : r.corrida).push(m);
+  });
+  ['corrida', 'forca', 'ambos'].forEach((k) =>
+    r[k].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR')),
+  );
+  r.total = membros.length;
+  return r;
 }
 /* dash:puro:fim */
 
@@ -534,7 +553,7 @@ async function staffDashFeedbacks() {
   const [{ data: mem }, { data: ss }, { data: cs }] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,email,foto_url,treinador_id')
+      .select('user_id,nome,email,foto_url,treinador_id,ativo,aprovacao,modalidades')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno'),
     sb
@@ -577,10 +596,13 @@ async function staffDashFeedbacks() {
     .filter((t) => porId[t.aluno_id])
     .map((t) => ({ ...t, nome: porId[t.aluno_id].nome, foto_url: porId[t.aluno_id].foto_url }));
   const F = dashFeedMontar({ agora: Date.now(), treinos });
+  F.atletas = dashAtletas(meus.filter((m) => m.ativo && m.aprovacao !== 'pendente'));
   const desenhar = () => {
     $app.innerHTML = `<div class="db-tela"><a class="back" href="#/mais">${I.back} Mais</a>${dashAbas('feed')}<div class="db">
       ${dashFeedHTML(F)}</div></div>`;
     dashContar($app);
+    const bA = $app.querySelector('[data-db-atl]');
+    if (bA) bA.addEventListener('click', () => dashVerAtletas(F.atletas));
     // comentar um treino que só foi visto (ou editar o comentário): abre a tela de comentário da Nexos
     $app.querySelectorAll('[data-db-com]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -592,4 +614,33 @@ async function staffDashFeedbacks() {
   dockStaff();
   dashFundo();
   desenhar();
+}
+
+// lista dos atletas por modalidade (cartão Atletas do dashboard)
+function dashVerAtletas(A) {
+  const grupos = [
+    ['corrida', 'Corrida', I.run],
+    ['forca', 'Força', I.lib],
+    ['ambos', 'Corrida e força', I.users || I.user],
+  ];
+  const item = (m) =>
+    `<a class="list-item" href="#/aluno/${m.user_id}" style="color:inherit" data-fecha>${avAluno(m)}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome || 'Atleta')}</b></div>${I.chev}</a>`;
+  openSheet(
+    `<p class="eyebrow">Dashboard</p><h2 class="h2">${A.total} atleta${A.total === 1 ? '' : 's'}</h2>
+    <div class="db-at-cards">${grupos.map(([k, t, ic]) => `<button type="button" class="db-at-c" data-at="${k}"><span class="db-at-ic">${ic}</span><b>${A[k].length}</b><small>${t}</small></button>`).join('')}</div>
+    ${grupos
+      .map(
+        ([k, t]) =>
+          `<section class="db-at-s" id="db-at-${k}"><p class="sec-lbl">${t} <span class="tag">${A[k].length}</span></p><div class="stack">${A[k].length ? A[k].map(item).join('') : '<p class="small muted">Nenhum atleta aqui.</p>'}</div></section>`,
+      )
+      .join('')}`,
+    (b) => {
+      b.querySelectorAll('[data-at]').forEach((x) =>
+        x.addEventListener('click', () =>
+          b.querySelector('#db-at-' + x.dataset.at).scrollIntoView({ behavior: 'smooth', block: 'start' }),
+        ),
+      );
+      b.querySelectorAll('[data-fecha]').forEach((a) => a.addEventListener('click', () => closeSheet(true)));
+    },
+  );
 }

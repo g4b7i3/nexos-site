@@ -635,6 +635,176 @@ const psPaceTxt = (kmh) => {
   const s = Math.round(3600 / kmh);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}/km`;
 };
+/** conferência ao vivo de um ponto enquanto o treinador arrasta: diz se a posição faz sentido no corpo.
+ *  Usa a ordem dos pontos (quadril acima do joelho, joelho acima do tornozelo), a proporção entre coxa e perna,
+ *  o ângulo do joelho e da tíbia esperados para o momento, e a distância do ponto que o app tinha marcado.
+ *  Devolve { nv: 'ok' | 'aviso', titulo, txt }. */
+const PS_CONF_NOME = {
+  quadril: 'Quadril',
+  joelho: 'Joelho',
+  torn: 'Tornozelo',
+  calc: 'Calcanhar',
+  ombro: 'Ombro',
+  cotovelo: 'Cotovelo',
+  punho: 'Punho',
+};
+function psConfere(tipo, P, an, Pauto, i) {
+  const g = (k) => (P && P[k] ? P[k] : null);
+  const nomeK = (Object.keys(PS_P).find((k) => PS_P[k] === i) || '').replace(/[ED]$/, '');
+  const nome = PS_CONF_NOME[nomeK] || 'Ponto';
+  const av = [];
+  const graus = (v) => `${Math.round(v)}°`;
+  let ok = '';
+  if (an.vista === 'lado') {
+    const s = PS_LADO[an.lado];
+    const q = g(s.q),
+      j = g(s.j),
+      t = g(s.t),
+      c = g(s.c),
+      o = g(s.o),
+      co = g(s.co),
+      pu = g(s.pu);
+    const coxa = q && j ? psDist(q, j) : null,
+      perna = j && t ? psDist(j, t) : null,
+      ref = coxa && perna ? coxa + perna : null;
+    const proporcao = () => {
+      if (!coxa || !perna) return;
+      const r = coxa / perna;
+      if (r < 0.7)
+        av.push(
+          'A coxa ficou bem mais curta que a perna. Do quadril ao joelho e do joelho ao tornozelo costumam ter tamanho parecido.',
+        );
+      else if (r > 1.45)
+        av.push(
+          'A coxa ficou bem mais longa que a perna. Do quadril ao joelho e do joelho ao tornozelo costumam ter tamanho parecido.',
+        );
+    };
+    if (i === s.q && q) {
+      if (j && perna && q[1] > j[1] - 0.25 * perna)
+        av.push('O quadril ficou na altura do joelho. Ele fica bem acima, na lateral, um pouco abaixo da cintura.');
+      if (o && q[1] <= o[1]) av.push('O quadril ficou acima do ombro. Ele fica abaixo da cintura.');
+      if (o && ref && Math.abs(q[0] - o[0]) > 0.45 * ref)
+        av.push('O quadril ficou longe da linha do tronco. Ele fica embaixo do ombro, na lateral do corpo.');
+      proporcao();
+      ok = 'Na lateral do quadril, acima do joelho e alinhado com o tronco.';
+    } else if (i === s.j && j) {
+      if (q && j[1] <= q[1]) av.push('O joelho ficou acima do quadril. Confira se o ponto está no joelho.');
+      if (t && j[1] >= t[1]) av.push('O joelho ficou abaixo do tornozelo. Confira se o ponto está no joelho.');
+      if (q && t && ref) {
+        const flex = 180 - psAng(q, j, t);
+        const xLinha = q[0] + ((t[0] - q[0]) * (j[1] - q[1])) / (t[1] - q[1] || 1);
+        const lado = an.dir * (j[0] - xLinha);
+        if (flex > 8 && lado < -0.03 * ref)
+          av.push(
+            'O joelho está dobrando para trás. Confira se o ponto está no joelho da perna do lado da câmera e no centro dele.',
+          );
+        else if (tipo === 'contato' && flex > 45)
+          av.push(
+            `Joelho dobrado demais para o primeiro contato (${graus(flex)}). O normal fica entre 15° e 40°: confira se é mesmo o quadro em que o pé encosta no chão e o centro do joelho.`,
+          );
+        else if (tipo === 'contato' && flex < 3)
+          av.push(
+            'O joelho ficou totalmente esticado. No primeiro contato ele quase sempre tem uma leve dobra: confira o centro do joelho.',
+          );
+        else if (tipo !== 'contato' && (flex < 20 || flex > 80))
+          av.push(
+            `Ângulo do joelho fora do comum para o meio do apoio (${graus(flex)}). O normal fica entre 35° e 55°: confira o quadro e o centro do joelho.`,
+          );
+        ok = `No centro do joelho, ângulo de ${graus(flex)}, coxa e perna em proporção normal.`;
+      }
+      proporcao();
+    } else if (i === s.t && t) {
+      if (j && t[1] <= j[1]) av.push('O tornozelo ficou acima do joelho. Confira se o ponto está no tornozelo.');
+      if (tipo === 'contato' && j) {
+        const tib = (Math.atan2(an.dir * (t[0] - j[0]), t[1] - j[1]) * 180) / Math.PI;
+        if (tib < -12)
+          av.push(
+            `O tornozelo ficou bem atrás do joelho (tíbia ${graus(tib)}). No primeiro contato a tíbia costuma ficar entre 0° e 15°: confira se é o tornozelo do pé que está tocando o chão.`,
+          );
+        else if (tib > 25)
+          av.push(
+            `O tornozelo ficou muito à frente do joelho (tíbia ${graus(tib)}). Confira se o ponto está no ossinho do tornozelo e não na ponta do pé.`,
+          );
+        ok = `No ossinho do tornozelo, tíbia em ${graus(tib)}.`;
+      } else ok = 'No ossinho do tornozelo, abaixo do joelho.';
+      proporcao();
+    } else if (i === s.c && c) {
+      const tc = t ? psDist(t, c) : null;
+      if (t && perna && tc > 0.4 * perna)
+        av.push('O calcanhar ficou longe do tornozelo. Ele fica logo atrás e abaixo do ossinho do tornozelo.');
+      if (t && perna && c[1] < t[1] - 0.08 * perna)
+        av.push('O calcanhar ficou acima do tornozelo. Ele fica embaixo, onde o pé encosta no chão.');
+      ok = 'Atrás do pé, logo abaixo do tornozelo.';
+    } else if (i === s.o && o) {
+      if (q && o[1] >= q[1]) av.push('O ombro ficou abaixo do quadril. Ele fica no alto do tronco, na ponta do braço.');
+      if (q && ref && Math.abs(o[0] - q[0]) > 0.45 * ref)
+        av.push('O ombro ficou longe da linha do tronco. Confira se o ponto está no ombro do lado da câmera.');
+      ok = 'No centro do ombro, acima do quadril.';
+    } else if ((i === s.co && co) || (i === s.pu && pu)) {
+      if (o && co && pu) {
+        const r = psDist(o, co) / (psDist(co, pu) || 1);
+        const ang = psAng(o, co, pu);
+        if (r < 0.6 || r > 1.8)
+          av.push('Braço e antebraço ficaram com tamanhos muito diferentes. Confira o cotovelo e o punho com a lupa.');
+        if (ang < 30)
+          av.push(
+            `O cotovelo ficou fechado demais (${graus(ang)}). Na corrida ele costuma ficar entre 70° e 110°: confira o punho e a ponta do cotovelo.`,
+          );
+        ok = `Cotovelo em ${graus(ang)}, braço e antebraço em proporção normal.`;
+      }
+    }
+  } else {
+    const s = PS_LADO[an.troca ? (tipo === 'E' ? 'D' : 'E') : tipo],
+      o = PS_LADO[an.troca ? tipo : tipo === 'E' ? 'D' : 'E'];
+    const q = g(s.q),
+      qo = g(o.q),
+      j = g(s.j),
+      t = g(s.t);
+    if ((i === s.q || i === o.q) && q && qo) {
+      const queda = (Math.atan2(Math.abs(qo[1] - q[1]), Math.abs(qo[0] - q[0]) || 1) * 180) / Math.PI;
+      if (queda > 18)
+        av.push(
+          `Os dois lados do quadril ficaram com ${graus(queda)} de diferença. O normal é até uns 10°: confira se os dois pontos estão na mesma parte do osso.`,
+        );
+      if (Math.abs(qo[0] - q[0]) < 0.04 * (j && t ? psDist(q, j) + psDist(j, t) : 400))
+        av.push('Os dois pontos do quadril ficaram juntos demais. Cada um vai num lado da bacia.');
+      if (j && q[1] >= j[1]) av.push('O quadril ficou abaixo do joelho. Confira o ponto.');
+      ok = 'Os dois lados do quadril na mesma parte da bacia, com inclinação normal.';
+    } else if (i === s.j && j) {
+      if (q && j[1] <= q[1]) av.push('O joelho ficou acima do quadril. Confira o ponto.');
+      if (t && j[1] >= t[1]) av.push('O joelho ficou abaixo do tornozelo. Confira o ponto.');
+      if (q && t) {
+        const a = 180 - psAng(q, j, t);
+        if (a > 25)
+          av.push(
+            `O joelho saiu muito da linha entre quadril e tornozelo (${graus(a)}). Confira se o ponto está no meio da parte de trás do joelho.`,
+          );
+        ok = `No meio do joelho, ${graus(a)} fora da linha.`;
+      }
+    } else if (i === s.t && t) {
+      if (j && t[1] <= j[1]) av.push('O tornozelo ficou acima do joelho. Confira o ponto.');
+      ok = 'No meio do tornozelo, abaixo do joelho.';
+    }
+  }
+  const pa = Pauto && Pauto[i],
+    pe = g(i);
+  const refT = (() => {
+    const v = Object.values(P || {}).filter(Boolean);
+    if (v.length < 2) return null;
+    const ys = v.map((x) => x[1]);
+    return Math.max(...ys) - Math.min(...ys);
+  })();
+  const longe = pa && pe && refT ? psDist(pa, pe) > 0.18 * refT : false;
+  if (av.length) return { nv: 'aviso', titulo: `${nome}: confira`, txt: av[0], mais: av.slice(1) };
+  return {
+    nv: 'ok',
+    titulo: `${nome}: posição coerente`,
+    txt:
+      (ok || 'O ponto está numa posição que faz sentido no corpo.') +
+      (longe ? ' Ficou bem longe do ponto do app: confirme com a lupa.' : ''),
+    mais: [],
+  };
+}
 /* passada:puro:fim */
 
 const PS_TITULO = {
@@ -1730,6 +1900,7 @@ async function psConferir(raiz, x, idx, voltar) {
   raiz.innerHTML = `<button type="button" class="back ps-volta" id="pc-v">${I.back} Voltar à análise</button><p class="eyebrow">Conferir os pontos</p><h1 class="h1">${esc(it.legenda)}</h1>
     <p class="small muted" style="margin-top:6px">${esc(dicaM)}</p>
     <div class="pc-tela"><canvas id="pc-cv"></canvas></div>
+    <div class="pc-guia" id="pc-guia" aria-live="polite"></div>
     <div class="pc-nav"><button type="button" class="btn ghost sm" id="pc-ant" aria-label="Quadro anterior">${I.back}</button><div class="grow" style="text-align:center"><b id="pc-q"></b><div class="tiny dim" id="pc-t"></div></div><button type="button" class="btn ghost sm pc-prox" id="pc-prox" aria-label="Quadro seguinte">${I.chev}</button></div>
     <div class="pc-med" id="pc-med"></div>
     <details class="card pc-onde"><summary><b>Onde colocar cada ponto</b></summary><ul>${[...new Set(alvos.map(psNomeIdx))].map((n) => `<li class="small"><b>${PS_NOME_PT[n]}.</b> ${esc(PS_ONDE[n])}</li>`).join('')}</ul><p class="tiny dim">Arraste com o dedo. A lupa no canto mostra o ponto de perto enquanto você arrasta.</p></details>
@@ -1741,6 +1912,7 @@ async function psConferir(raiz, x, idx, voltar) {
   const cv = raiz.querySelector('#pc-cv');
   const ctx = cv.getContext('2d');
   let arrasta = null,
+    ultimo = null,
     pedido = false;
   const desenhar = () => {
     pedido = false;
@@ -1750,17 +1922,21 @@ async function psConferir(raiz, x, idx, voltar) {
     cv.width = base.width;
     cv.height = base.height;
     ctx.drawImage(base, 0, 0);
+    // conferência ao vivo: cada ponto ajustado fica verde (faz sentido) ou laranja (confira)
+    const conf = {};
+    if (edit[fi]) alvos.forEach((i) => P[i] && (conf[i] = psConfere(it.tipo, P, an, it.pts[fi], i)));
     alvos.forEach((i) => {
       if (!P[i]) return;
       const x0 = P[i][0] * sc,
         y0 = P[i][1] * sc;
       const ativo = arrasta === i;
+      const cor = conf[i] ? (conf[i].nv === 'ok' ? '#3ddc97' : '#ff9f43') : null;
       ctx.beginPath();
       ctx.arc(x0, y0, ativo ? 24 : 18, 0, 7);
-      ctx.fillStyle = ativo ? 'rgba(255,209,102,.35)' : 'rgba(70,214,255,.28)';
+      ctx.fillStyle = cor ? cor + '55' : ativo ? 'rgba(255,209,102,.35)' : 'rgba(70,214,255,.28)';
       ctx.fill();
       ctx.lineWidth = 4;
-      ctx.strokeStyle = ativo ? '#ffd166' : '#fff';
+      ctx.strokeStyle = cor || (ativo ? '#ffd166' : '#fff');
       ctx.stroke();
     });
     // lupa: mostra o ponto de perto enquanto arrasta (o dedo cobre o ponto)
@@ -1768,8 +1944,11 @@ async function psConferir(raiz, x, idx, voltar) {
       const px = P[arrasta][0] * sc,
         py = P[arrasta][1] * sc,
         r = 110;
-      const lx = px < cv.width / 2 && py < cv.height / 2 ? cv.width - r - 16 : r + 16,
-        ly = r + 16;
+      // a lupa fica logo abaixo do aviso do alto da imagem
+      const fsA = Math.max(15, Math.round(cv.width / 30)),
+        reserva = conf[arrasta] ? Math.round(fsA * 0.7) * 3 + fsA * 1.25 * 4 : 0;
+      const lx = px < cv.width / 2 && py < cv.height / 2 + reserva ? cv.width - r - 16 : r + 16,
+        ly = r + 16 + reserva;
       ctx.save();
       ctx.beginPath();
       ctx.arc(lx, ly, r, 0, 7);
@@ -1789,6 +1968,53 @@ async function psConferir(raiz, x, idx, voltar) {
       ctx.moveTo(lx, ly - 18);
       ctx.lineTo(lx, ly + 18);
       ctx.stroke();
+    }
+    // enquanto arrasta, o aviso aparece em cima da imagem (no celular, o dedo e o menu cobrem o texto de baixo)
+    if (arrasta != null && conf[arrasta]) {
+      const r = conf[arrasta];
+      const fs = Math.max(15, Math.round(cv.width / 30)),
+        pad = Math.round(fs * 0.7),
+        larg = cv.width - 2 * pad;
+      ctx.font = `600 ${fs}px Manrope, system-ui, sans-serif`;
+      const linhas = [];
+      let lin = '';
+      r.txt.split(' ').forEach((w) => {
+        const t = lin ? lin + ' ' + w : w;
+        if (ctx.measureText(t).width > larg - 2 * pad && lin) {
+          linhas.push(lin);
+          lin = w;
+        } else lin = t;
+      });
+      if (lin) linhas.push(lin);
+      const mostra = linhas.slice(0, 3);
+      if (linhas.length > 3) mostra[2] = mostra[2].replace(/\s*\S*$/, '…');
+      const alt = pad * 2 + fs * 1.25 * (mostra.length + 1);
+      const y0 = pad;
+      ctx.fillStyle = r.nv === 'ok' ? 'rgba(10,70,45,.92)' : 'rgba(120,58,6,.93)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(pad, y0, larg, alt, fs * 0.8);
+      else ctx.rect(pad, y0, larg, alt);
+      ctx.fill();
+      ctx.fillStyle = r.nv === 'ok' ? '#3ddc97' : '#ffb469';
+      ctx.font = `800 ${fs}px Manrope, system-ui, sans-serif`;
+      ctx.fillText(r.titulo, pad * 2, y0 + pad + fs);
+      ctx.fillStyle = '#fff';
+      ctx.font = `600 ${fs}px Manrope, system-ui, sans-serif`;
+      mostra.forEach((l, k) => ctx.fillText(l, pad * 2, y0 + pad + fs + fs * 1.25 * (k + 1)));
+    }
+    const gEl = raiz.querySelector('#pc-guia');
+    if (arrasta != null) ultimo = arrasta;
+    if (!edit[fi] || ultimo == null || !conf[ultimo]) {
+      gEl.className = 'pc-guia';
+      gEl.innerHTML =
+        '<b>Toque e arraste um ponto</b><span>Enquanto você mexe, o app diz na hora se ele está no lugar certo.</span>';
+    } else {
+      const r = conf[ultimo];
+      const outros = alvos
+        .filter((i) => i !== ultimo && conf[i] && conf[i].nv === 'aviso')
+        .map((i) => conf[i].titulo.replace(': confira', ''));
+      gEl.className = 'pc-guia ' + r.nv;
+      gEl.innerHTML = `<b>${esc(r.titulo)}</b><span>${esc(r.txt)}</span>${r.mais.length ? `<span>${esc(r.mais[0])}</span>` : ''}${outros.length ? `<small>Também confira: ${esc(outros.join(', '))}</small>` : ''}`;
     }
     raiz.querySelector('#pc-q').textContent =
       `Quadro ${fi + 1} de ${it.n}${fi === it.centro ? ' · escolhido pelo app' : ''}${edit[fi] ? ' · com ajuste' : ''}`;
@@ -1854,14 +2080,17 @@ async function psConferir(raiz, x, idx, voltar) {
   cv.addEventListener('pointercancel', solta);
   raiz.querySelector('#pc-ant').onclick = () => {
     if (fi > 0) fi--;
+    ultimo = null;
     pede();
   };
   raiz.querySelector('#pc-prox').onclick = () => {
     if (fi < it.n - 1) fi++;
+    ultimo = null;
     pede();
   };
   raiz.querySelector('#pc-auto').onclick = () => {
     delete edit[fi];
+    ultimo = null;
     pede();
   };
   raiz.querySelector('#pc-salvar').onclick = async (e) => {
