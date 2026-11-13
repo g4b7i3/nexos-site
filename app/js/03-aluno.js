@@ -742,7 +742,7 @@ async function viewDicas(cat) {
   const sel = cat && DICA_CAT[cat] ? cat : 'todas';
   const vis = sel === 'todas' ? pubs : pubs.filter((d) => d.categoria === sel);
   const item = (d) =>
-    `<details class="card dica"><summary><span class="tag acc">${DICA_CAT[d.categoria]}</span><b>${esc(d.titulo)}</b></summary><p>${esc(d.texto)}</p>${d.fonte ? `<p class="tiny dim dica-fonte">Fonte: ${esc(d.fonte)}</p>` : ''}${S.staff ? `<button class="link-btn small" data-dica="${d.id}" style="margin-top:8px">Editar</button>` : ''}</details>`;
+    `<details class="card dica" id="dica-${d.id}"><summary><span class="tag acc">${DICA_CAT[d.categoria]}</span><b>${esc(d.titulo)}</b></summary><p>${esc(d.texto)}</p>${d.fonte ? `<p class="tiny dim dica-fonte">Fonte: ${esc(d.fonte)}</p>` : ''}${S.staff ? `<button class="link-btn small" data-dica="${d.id}" style="margin-top:8px">Editar</button>` : ''}</details>`;
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Nexos</p><h1 class="h1">Dicas da Nexos</h1>
     <p class="muted" style="margin-top:6px">${S.staff ? 'Textos curtos com base científica. Os alunos só veem as dicas publicadas.' : 'Textos curtos da equipe Nexos sobre sono, alimentação, recuperação e prova, com a fonte de cada um.'}</p>
     ${S.staff ? `<button class="btn block" id="dica-nova" style="margin-top:14px">${I.plus || '+'} Nova dica</button>` : ''}
@@ -757,6 +757,12 @@ async function viewDicas(cat) {
         : ''
     }
     <div class="stack" style="margin-top:12px">${vis.map(item).join('') || `<div class="empty"><div class="h3">${S.staff ? 'Nenhuma dica publicada ainda' : 'Em breve'}</div><p class="small muted">${S.staff ? 'Revise um rascunho e marque como publicada.' : 'A equipe está preparando as primeiras dicas.'}</p></div>`}</div>`;
+  // aberta pela busca: a rota traz o id da dica em vez do assunto
+  const alvo = cat && !DICA_CAT[cat] ? document.getElementById('dica-' + cat) : null;
+  if (alvo) {
+    alvo.open = true;
+    setTimeout(() => alvo.scrollIntoView({ block: 'center' }), 80);
+  }
   const ch = document.getElementById('dica-cat');
   if (ch)
     ch.onclick = (e) => {
@@ -1176,7 +1182,7 @@ function lembretesAguaSheet(depois) {
 
 /* ---------- central de notificações (sininho) ---------- */
 const sinoHTML = () =>
-  `<a class="sino" href="#/notificacoes" aria-label="Notificações">${I.bell}<i id="sino-n" hidden></i></a>`;
+  `<button type="button" class="sino" data-busca aria-label="Procurar no app" title="Procurar no app">${LUPA_IC}</button><a class="sino" href="#/notificacoes" aria-label="Notificações">${I.bell}<i id="sino-n" hidden></i></a>`;
 function atualizarSino() {
   sb.from('nx_notificacoes')
     .select('id', { count: 'exact', head: true })

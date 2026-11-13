@@ -4073,3 +4073,15 @@ body:has(.fb-tela) .toast{z-index:1700}
 .re-prev{position:relative;overflow:hidden;margin-top:8px;border-radius:10px;background:#fff;box-shadow:0 0 0 1px var(--line)}
 .re-folha{position:absolute;left:0;top:0;width:760px;transform-origin:top left;pointer-events:none}
 .re-med summary{cursor:pointer}
+/* busca (lupa) */
+button.sino{cursor:pointer;font:inherit;padding:0}
+.busca-campo{display:flex;align-items:center;gap:10px;width:100%;margin-top:14px;padding:13px 16px;border-radius:16px;border:1px solid var(--line);background:var(--bg2);color:var(--mute);font:inherit;font-size:.95rem;text-align:left;cursor:pointer;box-shadow:0 4px 14px rgba(10,30,70,.05)}
+.busca-campo svg{width:19px;height:19px;flex:none;color:var(--ink);opacity:.7}
+.busca-topo{position:relative;margin-top:4px}
+.busca-ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:19px;height:19px;color:var(--mute);pointer-events:none}
+.busca-ic svg{width:19px;height:19px}
+.busca-in{padding-left:44px!important;font-size:1rem}
+.busca-res{margin-top:6px;min-height:40vh}
+.busca-sec{margin-top:16px!important}
+.busca-it{width:100%}
+.busca-vazio{margin-top:18px;text-align:center}

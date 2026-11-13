@@ -873,6 +873,7 @@ function alunoMais() {
     `<a class="list-item" href="${href}" style="color:inherit"${extra}><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
   const fC = faz('corrida');
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Tudo do seu app</h1>
+    ${buscaCampoHTML()}
     <p class="sec-lbl" style="margin-top:20px">Treino e desempenho</p><div class="stack" id="mais-treino">
       ${it('#/meta', I.flag, 'Minha meta', 'Seu objetivo com data e barra de progresso')}
       ${fC ? it('#/eventos', I.flag, 'Eventos e provas', 'Treinões da Nexos e suas provas') : ''}

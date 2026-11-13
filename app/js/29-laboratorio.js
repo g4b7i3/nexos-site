@@ -1873,6 +1873,7 @@ function staffMais() {
     `<a class="list-item" href="${href}" style="color:inherit"><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
   // agrupado pelo que o treinador quer fazer: acompanhar os alunos, falar com a equipe, cuidar da assessoria
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Gestão da assessoria</h1>
+    ${buscaCampoHTML()}
     <p class="sec-lbl">Acompanhar os alunos</p><div class="stack">
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}
