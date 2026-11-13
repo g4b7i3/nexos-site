@@ -776,6 +776,7 @@ const CARD_LAYOUTS = [
   ['tiros', 'Tiros'],
   ['nome', 'Nome do treino'],
   ['classico', 'Coluna'],
+  ['marca', 'Coluna com a marca'],
   ['faixa', 'Faixa'],
   ['percurso', 'Percurso'],
   ['lado', 'Lado a lado'],
@@ -1570,6 +1571,33 @@ async function desenharCard(cv, c, o) {
       y += passo;
     });
     logo(W / 2, y + 30, 250);
+  } else if (L === 'marca') {
+    // marca Nexos no alto e os números em coluna, rótulo pequeno e valor com a unidade do mesmo tamanho
+    const px = post ? 66 : 78,
+      passo = px * 1.72,
+      hL = wm ? (post ? 96 : 116) : 0;
+    const tot = hL + (dataTxt ? 64 : 0) + sel.length * passo;
+    let y = yTopo((H - tot) / 2);
+    if (wm) {
+      logoTexto(W / 2, y, post ? 300 : 340, 'center');
+      y += hL;
+    }
+    if (dataTxt) {
+      txt(dataTxt, W / 2, y + 22, LBL(26), sub, 'center', 3);
+      y += 64;
+    }
+    const tempoLongo = (sg) => {
+      const h = Math.floor(sg / 3600),
+        m = Math.floor((sg % 3600) / 60),
+        ss = Math.round(sg % 60);
+      return h ? `${h}h ${m}min` : `${m}min ${ss}s`;
+    };
+    sel.forEach((s) => {
+      txt(s.l, W / 2, y + px * 0.4, `600 ${Math.round(px * 0.36)}px ${FB}`, sub, 'center');
+      const v = s.l === 'Tempo' && c.duracao_s ? tempoLongo(c.duracao_s) : s.v + (s.u ? ' ' + s.u : '');
+      txt(v, W / 2, y + px * 1.3, `700 ${Math.round(px * 0.8)}px ${FH}`, tx, 'center', -px * 0.02);
+      y += passo;
+    });
   } else if (L === 'faixa') {
     // símbolo + logo numa linha e os números lado a lado
     const lista = sel.slice(0, 6),
