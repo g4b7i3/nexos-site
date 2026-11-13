@@ -975,7 +975,7 @@ async function staffAluno(alunoId, aba, extra) {
   const planHead = () => `<a class="back" href="#/alunos">${I.back} Meus Atletas</a>
       <div class="card plan-head"><div class="ph-id">${avAluno(m, 'lg')}<div class="grow" style="min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><h1 class="h2">${esc(m.nome)}</h1><a class="tag" href="#/aluno/${alunoId}">Ficha completa ${I.chev}</a><a class="tag acc" data-ficha-ins="${alunoId}" hidden>Ficha de inscrição ✎</a>${(setTimeout(() => preencherFichaIns(alunoId), 0), '')}</div>
         <div class="small muted">Objetivo: ${m.objetivo ? esc(m.objetivo) : '<a href="#/aluno/' + alunoId + '/dados">definir objetivo</a>'}</div>
-        <div class="ph-acoes"><button type="button" class="tag acc tag-btn" id="ph-msg">${I.feed} Mensagem</button>${m.ativo ? `<button type="button" class="tag acc tag-btn" id="ficha-video">Videochamada</button>` : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<span id="ficha-cham"></span><span data-pres="${alunoId}"></span></div>
+        <div class="ph-acoes"><button type="button" class="tag acc tag-btn" id="ph-msg">${I.feed} Mensagem</button><button type="button" class="tag acc tag-btn" id="ph-ciclo">${aba === 'forca' ? I.lib : I.run} Sugestão de ciclo</button>${m.ativo ? `<button type="button" class="tag acc tag-btn" id="ficha-video">Videochamada</button>` : ''}${m.telefone ? `<a class="tag ok" href="https://wa.me/55${esc(String(m.telefone).replace(/\D/g, ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<span id="ficha-cham"></span><span data-pres="${alunoId}"></span></div>
         <button type="button" class="disp-res" id="disp-ed">${dispResumo(m) ? `Dias de treino: ${dispResumo(m)}` : `+ Marcar dias de treino ${selo('corrida', 'sm')} ${selo('forca', 'sm')}`} <span class="dim">· editar</span></button>${cicloA ? cicloLinhaHTML(cicloA, true) : ''}</div></div>
         ${provaProxA ? `<div class="ph-ev"><span class="tiny dim">Próximo evento</span><b>${icT(I.flag)}${esc(provaProxA.titulo)}</b><span class="small">${fmtCurto(provaProxA.data + 'T12:00:00')}${provaProxA.distancia ? ' · ' + esc(provaProxA.distancia) : ''} · ${faltam(provaProxA.data)}</span></div>` : ''}</div>
       ${fM && fC ? `<div class="subtabs mod-tabs" style="margin-top:12px"><a class="${aba === 'corrida' ? 'on' : ''}" href="#/aluno/${alunoId}/corrida">${I.run} Corrida</a><a class="${aba === 'forca' ? 'on' : ''}" href="#/aluno/${alunoId}/forca">${I.lib} Força</a></div>` : ''}`;
@@ -994,6 +994,8 @@ async function staffAluno(alunoId, aba, extra) {
     linhaUltimaChamada(alunoId);
     window.addEventListener('nx:video-fim', () => linhaUltimaChamada(alunoId), { once: true });
   }
+  const phCic = document.getElementById('ph-ciclo');
+  if (phCic) phCic.onclick = () => sugestaoCiclosPlanilha(alunoId, aba === 'forca' ? 'forca' : 'corrida');
   const phMsg = document.getElementById('ph-msg');
   if (phMsg) phMsg.onclick = () => mensagemRapida({ ...m, user_id: alunoId });
   const fAt = document.getElementById('ficha-ativo');

@@ -1020,8 +1020,8 @@ async function staffHoje() {
 /* ---------- ciclo sugerido para quem está sem planilha de corrida ----------
    Abre a sugestão com o motivo; nada é aplicado sozinho: o treinador confere e aplica na tela do ciclo.
    Ordem: o próximo do último ciclo (sequência da Nexos) > o teste (VDOT, últimos 45 dias) > a ficha de entrada. */
-async function sugestaoCicloSheet(alunoId) {
-  openSheet('<div class="sk-wrap">' + skLinha(3) + '</div>');
+// ciclo de corrida indicado para o aluno: o próximo da sequência do último ciclo, ou pelo teste recente, ou pela ficha de entrada
+async function cicloSugeridoDe(alunoId) {
   const vazio = (r) => r.data || [];
   const [{ data: m }, ults, corridas, provas, fichas] = await Promise.all([
     sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(),
@@ -1054,7 +1054,6 @@ async function sugestaoCicloSheet(alunoId) {
       .limit(1)
       .then(vazio, () => []),
   ]).catch(() => [{}, [], [], [], []]);
-  if ($sheet.hidden) return;
   const nome = firstName((m && m.nome) || 'Aluno');
   const proxSeg = isoDia(new Date(inicioSemana().getTime() + 7 * 864e5));
   let ciclo = null,
@@ -1096,6 +1095,12 @@ async function sugestaoCicloSheet(alunoId) {
       }
     }
   }
+  return { m, nome, ciclo, motivos, ini, origem };
+}
+async function sugestaoCicloSheet(alunoId) {
+  openSheet('<div class="sk-wrap">' + skLinha(3) + '</div>');
+  const { nome, ciclo, motivos, ini, origem } = await cicloSugeridoDe(alunoId);
+  if ($sheet.hidden) return;
   const sem = ciclo ? cicSem(ciclo) : 0;
   $sheetBody.innerHTML = ciclo
     ? `<p class="eyebrow">Ciclo sugerido para ${esc(nome)} · ${origem}</p><div class="h2" style="margin-top:4px">${esc(ciclo.nome)}</div>
@@ -1109,6 +1114,65 @@ async function sugestaoCicloSheet(alunoId) {
       <p class="small muted" style="margin-top:6px">${esc(nome)} ainda não tem ciclo anterior, teste recente nem ficha de entrada com os tempos. Peça o teste de entrada no Check-up ou escolha o ciclo na biblioteca.</p>
       <a class="btn block" style="margin-top:14px" href="#/checkup">Pedir o teste no Check-up</a>
       <a class="btn ghost block" style="margin-top:8px" href="#/treinos/ciclos" data-sugal="${alunoId}">Escolher o ciclo</a>`;
+  $sheetBody
+    .querySelectorAll('[data-sugini]')
+    .forEach(
+      (a) => (a.onclick = () => setTimeout(() => (S.cache.cicPre = { aluno: alunoId, ini: a.dataset.sugini }), 0)),
+    );
+}
+
+// "Sugestão de ciclo" na planilha do aluno: o ciclo indicado no topo e, embaixo, todos os ciclos prontos para aplicar
+async function sugestaoCiclosPlanilha(alunoId, tipo) {
+  openSheet('<div class="sk-wrap">' + skLinha(4) + '</div>');
+  const forca = tipo === 'forca';
+  const [sug, ultF] = await Promise.all([
+    forca ? Promise.resolve(null) : cicloSugeridoDe(alunoId).catch(() => null),
+    forca
+      ? sb
+          .from('nx_ciclos_aplicados')
+          .select('ciclo_id,nome,fim')
+          .eq('aluno_id', alunoId)
+          .eq('tipo', 'forca')
+          .order('fim', { ascending: false })
+          .limit(1)
+          .then(
+            (r) => (r.data || [])[0] || null,
+            () => null,
+          )
+      : Promise.resolve(null),
+  ]);
+  if ($sheet.hidden) return;
+  const lista = forca ? CICLOS_FORCA : CICLOS_CORR;
+  const grupos = forca ? CF_OBJ : CIC_OBJ;
+  const rota = forca ? '#/treinos/ciclos-forca/' : '#/treinos/ciclos/';
+  const item = (c, marca) =>
+    `<a class="list-item" href="${rota}${c.id}" data-sugal="${alunoId}" style="color:inherit"><span class="ativ-ic">${forca ? I.lib : I.run}</span><div class="grow" style="min-width:0"><b>${esc(c.nome)}</b><div class="small muted">${cicSem(c)} semana${cicSem(c) === 1 ? '' : 's'} · ${CIC_NIV[c.niv] || ''}${marca ? ` · <span style="color:var(--acc);font-weight:700">${marca}</span>` : ''}</div></div>${I.chev}</a>`;
+  const usados = new Set();
+  const blocos = grupos
+    .map(([k, t]) => {
+      const cs = lista.filter((c) => c.obj === k);
+      cs.forEach((c) => usados.add(c.id));
+      return cs.length
+        ? `<p class="sec-lbl" style="margin-top:16px">${esc(t)}</p><div class="stack">${cs.map((c) => item(c, ultF && ultF.ciclo_id === c.id ? 'último aplicado' : sug && sug.ciclo && sug.ciclo.id === c.id ? 'sugerido' : '')).join('')}</div>`
+        : '';
+    })
+    .join('');
+  const resto = lista.filter((c) => !usados.has(c.id));
+  const nome = firstName((sug && sug.nome) || '') || 'o aluno';
+  const topo =
+    sug && sug.ciclo
+      ? `<div class="card sug-ciclo-top" style="margin-top:12px"><p class="eyebrow">Indicado para ${esc(nome)} · ${esc(sug.origem)}</p><div class="h3" style="margin-top:4px">${esc(sug.ciclo.nome)}</div>
+        <div class="sug-chips" style="margin-top:8px"><span>${cicSem(sug.ciclo)} semanas</span><span>${CIC_NIV[sug.ciclo.niv] || ''}</span><span>começa ${fmtCurto(sug.ini + 'T12:00:00')}</span></div>
+        <ul class="sug-lista">${sug.motivos.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+        <a class="btn block" style="margin-top:12px" href="#/treinos/ciclos/${sug.ciclo.id}" data-sugini="${sug.ini}" data-sugal="${alunoId}">Conferir e aplicar ${I.arrow}</a></div>`
+      : forca && ultF
+        ? `<p class="small muted" style="margin-top:8px">Último ciclo de força: <b>${esc(ultF.nome || '')}</b>, até ${fmtCurto(ultF.fim + 'T12:00:00')}.</p>`
+        : !forca
+          ? '<p class="small muted" style="margin-top:8px">Sem ciclo anterior, teste recente ou ficha de entrada com tempos para indicar um ciclo. Escolha abaixo.</p>'
+          : '';
+  $sheetBody.innerHTML = `<p class="eyebrow">Sugestão de ciclo · ${forca ? 'força' : 'corrida'}</p><div class="h2" style="margin-top:4px">Ciclos prontos</div>
+    ${topo}${blocos}${resto.length ? `<p class="sec-lbl" style="margin-top:16px">Outros</p><div class="stack">${resto.map((c) => item(c)).join('')}</div>` : ''}
+    <p class="tiny dim" style="margin-top:12px">Toque num ciclo para ver as semanas e aplicar. Nada muda na planilha até você aplicar.</p>`;
   $sheetBody
     .querySelectorAll('[data-sugini]')
     .forEach(
