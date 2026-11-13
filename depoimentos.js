@@ -22,6 +22,15 @@
         'Sempre fui totalmente sedentária, mas hoje, aos 27, senti que precisava cuidar melhor da minha saúde. Ter um acompanhamento profissional tem sido essencial para eu não desistir. Depois de 2 meses, sinto uma enorme diferença no meu dia a dia, com mais força e fôlego para explorar coisas novas: da academia até a minha primeira trilha! Muito obrigada à equipe Nexos pela dedicação, disponibilidade e por estar sempre me orientando no que posso melhorar.',
     },
     {
+      nome: 'Lúcia Moreira',
+      quem: 'Aluna · São Luís (MA)',
+      foto: '/img/depoimentos/lucia.jpg',
+      pos: '50% 22%',
+      conquistas: ['Melhorou os tempos', 'Pódios na categoria'],
+      texto:
+        'Há um ano, comecei meus treinos com Gabriel, da Nexos Saúde e Performance, e essa experiência me fez apaixonar ainda mais pela corrida. Com orientação e dedicação, consegui melhorar significativamente meus tempos, alcançar importantes resultados pessoais e conquistar alguns pódios na minha categoria. Mas, acima de tudo, aprendi que nem toda corrida precisa ser para bater meu recorde pessoal. Cada prova tem seu propósito, cada treino tem seu valor e cada conquista representa uma etapa da minha evolução. Hoje, entendo que correr é também respeitar meus limites, celebrar o processo e buscar sempre minha melhor versão!',
+    },
+    {
       nome: 'Robenilson Muniz',
       quem: 'Aluno · Icatu (MA)',
       foto: '/img/depoimentos/robenilson.jpg',
@@ -40,7 +49,7 @@
       : '';
   const fotos = (d) =>
     d.foto
-      ? `<div class="depo-foto"><img src="${esc(d.foto)}" alt="${esc(d.nome)}" loading="lazy">${d.foto2 ? `<img class="depo-foto2" src="${esc(d.foto2)}" alt="" loading="lazy">` : ''}</div>`
+      ? `<div class="depo-foto"><img src="${esc(d.foto)}" alt="${esc(d.nome)}" loading="lazy"${d.pos ? ` style="object-position:${esc(d.pos)}"` : ''}>${d.foto2 ? `<img class="depo-foto2" src="${esc(d.foto2)}" alt="" loading="lazy">` : ''}</div>`
       : '';
   // cartão do site: foto em cima com nome por cima, texto em poucas linhas e "Ler o depoimento completo"
   const card = (d, i) => `<figure class="depo" data-i="${i}">
