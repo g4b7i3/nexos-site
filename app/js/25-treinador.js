@@ -2789,7 +2789,7 @@ async function formExercicio(exLista, opts = {}) {
 /* ---------- retornos (feed de check-ins) ---------- */
 async function staffFeed() {
   loading();
-  const [sessT, { data: membrosT }, , , corrNovasT] = await Promise.all([
+  const [sessT, { data: membrosT }, , , corrNovasT, ctNovas] = await Promise.all([
     buscarSessoes(null, 80),
     sb.from('nx_membros').select('user_id,nome,papel,treinador_id,treinador_forca_id').eq('org_id', S.org.id),
     contarNaoVistos(),
@@ -2802,6 +2802,7 @@ async function staffFeed() {
       .order('data', { ascending: false })
       .limit(30)
       .then((r) => r.data || []),
+    ctNaoLidasEquipe().catch(() => []),
   ]);
   const membros = (membrosT || []).filter((m) => m.papel === 'aluno' && ehMeuAluno(m)),
     vis = new Set(membros.map((m) => m.user_id));
@@ -2815,6 +2816,7 @@ async function staffFeed() {
     <p class="eyebrow">Retornos</p><h1 class="h1">Retornos dos alunos</h1>
     <p class="muted small" style="margin-top:6px">${novos.length || porAluno.length ? [novos.length ? `${novos.length} check-in${novos.length > 1 ? 's' : ''} novo${novos.length > 1 ? 's' : ''}` : '', S.cache.msgNovas ? `${S.cache.msgNovas} mensage${S.cache.msgNovas > 1 ? 'ns' : 'm'} sem resposta` : ''].filter(Boolean).join(' · ') : 'Tudo em dia por aqui.'}</p>
     ${porAluno.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Mensagens</h2>${slashes}</div>${porAluno.map(([id, n]) => `<a class="list-item" href="#/aluno/${id}/conversa" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[id] || 'Aluno')}</b><span class="small muted">${n} mensage${n > 1 ? 'ns' : 'm'} nova${n > 1 ? 's' : ''}</span></div><span class="tag acc">Responder</span></a>`).join('')}</div>` : ''}
+    ${ctNovas.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Conversas nos treinos</h2>${slashes}</div><div class="stack">${ctNovas.map((m) => `<button type="button" class="list-item msg-row" style="width:100%;text-align:left" data-ct="${m.ref}" data-ct-al="${m.aluno_id}" data-ct-t="${esc(m.titulo || 'Treino')}"><span class="ativ-ic">${CT_IC}</span><div class="grow" style="min-width:0"><b>${esc(firstName(nomes[m.aluno_id] || 'Aluno'))} · ${esc(m.titulo || 'Treino')}</b><div class="small muted ellip">${esc(m.texto)}</div></div><span class="tag acc">${m.n}</span></button>`).join('')}</div></div>` : ''}
     ${corrNovas.length ? `<div class="section" style="margin-top:16px"><div class="section-h"><h2 class="h2">Atividades novas</h2>${slashes}</div>${corrNovas.map((c) => `<a class="list-item" href="#/corrida/${c.id}" style="color:inherit"><div class="av st-ok">${esc(initials(nomes[c.aluno_id]))}</div><div class="grow"><b class="ellip" style="display:block">${esc(nomes[c.aluno_id] || 'Aluno')}</b><span class="small muted">${ehCorr(c) ? `${fmtKm(c.distancia_m, 1)} · ${fmtPace(paceDe(c))}` : `${nomeAtiv(c)} · ${resumoAtiv(c)}`} · ${quando(c.data)}</span></div>${c.dor ? '<span class="tag warn">dor</span>' : ''}${c.rpe != null ? `<span class="rpe" style="background:${rpeCor(c.rpe)}">${c.rpe}</span>` : ''}${I.chev}</a>`).join('')}</div>` : ''}
     <div class="section" style="margin-top:22px"><div class="section-h"><h2 class="h2">Check-ins</h2>${novos.length ? '<button class="link-btn" id="todos-vistos">Marcar todos como vistos</button>' : slashes}</div>
     <div class="stack" id="feed">${sess.length ? sess.map((s) => sessaoCard(s, nomes[s.aluno_id] || 'Aluno').replace(/<\/div><\/div>$/, `<div class="row" style="gap:8px;margin-top:10px"><button class="btn ghost sm" data-resp="${s.id}">${I.feed} Responder</button><button class="link-btn small" data-ver="${s.id}">Ver aluno</button></div></div></div>`)).join('') : '<div class="empty"><div class="h3">Nenhum treino registrado ainda</div><p class="small">Quando os alunos finalizarem treinos, os check-ins aparecem aqui.</p></div>'}</div></div>`;

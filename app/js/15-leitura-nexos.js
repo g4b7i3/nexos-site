@@ -704,6 +704,7 @@ async function viewCorrida(id) {
     ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
     ${c.comentario ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Como foi</span><p style="margin-top:6px">“${esc(c.comentario)}”</p></div>` : ''}
     ${c.comentario_treinador ? `<div class="card coment-tr" style="margin-top:12px"><div class="row between"><span class="eyebrow">${I.feed} Comentário do treinador</span>${c.comentario_treinador_em ? `<span class="tiny dim">${fmtDia(c.comentario_treinador_em)}</span>` : ''}</div><p style="margin-top:6px;white-space:pre-line">${esc(c.comentario_treinador)}</p>${S.staff ? `<button class="link-btn tiny" id="coment-tr-ed" style="margin-top:8px">Editar</button>` : ''}</div>` : ''}
+    <div style="margin-top:12px">${ctBotaoHTML(ctRefCorrida(c), c.aluno_id, plano ? plano.titulo || nomeTipo(plano.tipo) : c.titulo || nomeAtiv(c))}</div>
     ${
       plano
         ? `<div class="card plan-vs"><span class="eyebrow">Previsto × realizado</span><div class="h3" style="margin-top:4px">${esc(plano.titulo || nomeTipo(plano.tipo))}</div>

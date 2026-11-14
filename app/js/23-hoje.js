@@ -769,7 +769,7 @@ async function staffHoje() {
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""><span class="eyebrow">${esc(S.org.nome)}</span></div><div class="top-acoes">${sinoHTML()}<a class="top-foto" href="#/perfil" aria-label="Meu perfil" title="Meu perfil">${fotoHTML(S.me)}</a></div></div>
     <h1 class="h1">${saud}, ${esc(firstName(S.me.nome))}</h1>
-    <p class="muted" id="al-cont" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p><div id="agenda-hoje" style="margin-top:12px"></div>
+    <p class="muted" id="al-cont" style="margin-top:6px">${alMeus.length ? `${alMeus.length} aluno${alMeus.length > 1 ? 's seus pedem' : ' seu pede'} atenção hoje.` : 'Seus alunos estão em dia.'}</p><div id="agenda-hoje" style="margin-top:12px"></div><div id="ct-hoje"></div>
     <div id="cic-term"></div>
     <div id="testes-eq"></div>
     <div id="energia-eq"></div>
@@ -900,6 +900,15 @@ async function staffHoje() {
   datasEspeciais(document.getElementById('datas-esp'), ativos);
   cartaoLiberarProxima(document.getElementById('lib-prox'), ativos).catch((e) => console.error(e));
   cartaoAgenda().catch(() => {});
+  // mensagens novas dos alunos nas conversas dos treinos
+  ctNaoLidasEquipe()
+    .then((l) => {
+      const el = document.getElementById('ct-hoje');
+      if (!el || !l.length) return;
+      const n = l.reduce((a, x) => a + x.n, 0);
+      el.innerHTML = `<a class="list-item msg-row" href="#/feed"><span class="ativ-ic">${CT_IC}</span><div class="grow"><b>${n === 1 ? '1 mensagem nova' : n + ' mensagens novas'} nos treinos</b><div class="small muted">${l.length === 1 ? 'Em 1 treino' : 'Em ' + l.length + ' treinos'}. Toque para responder.</div></div>${I.chev}</a>`;
+    })
+    .catch(() => {});
   atualizarSino();
   $app.querySelectorAll('[data-visto]').forEach(
     (b) =>

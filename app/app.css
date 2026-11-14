@@ -4500,3 +4500,28 @@ body.rm-apres-on #dock,body.rm-apres-on .side,body.rm-apres-on .toast{display:no
 .ag-g-mot p{margin:5px 0 0;font-size:.86rem;line-height:1.5;color:#dbe6fb;white-space:pre-line}
 .ag-c-mot{font-size:.8rem;margin-top:2px;color:var(--mute)}
 .ag-c-mot b{color:var(--ink)}
+/* mural da Nexos */
+.mr-topo{display:flex;align-items:center;gap:14px;padding:18px;border-radius:20px;background:linear-gradient(135deg,var(--h1,#0b1834),var(--h2,#081226));color:#fff}
+.mr-topo img{width:52px;height:52px;object-fit:contain;filter:brightness(0) invert(1)}
+.mr-topo .eyebrow{color:rgba(255,255,255,.7)}.mr-topo .h2{color:#fff;margin-top:2px}.mr-topo .muted{color:rgba(255,255,255,.7)}
+.mr-cts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:12px}
+.mr-ct{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:var(--s1);color:var(--ink)}
+.mr-ct svg{width:22px;height:22px;flex:none}.mr-ct span{display:flex;flex-direction:column;font-size:.75rem;color:var(--mute);line-height:1.25;min-width:0}
+.mr-ct b{color:var(--ink);font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mr-ct.wa svg{color:#25d366}.mr-ct.ig svg{color:#d62976}
+.mr-card.fixo{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
+.mr-pin{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:800;color:var(--acc);text-transform:uppercase;letter-spacing:.04em}.mr-pin svg{width:13px;height:13px}
+.mr-txt{margin-top:6px;white-space:pre-line;font-size:.94rem}
+.mr-txt.curto{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.mr-img{display:block;width:100%;max-height:340px;object-fit:cover;border-radius:14px;margin-top:10px}
+.mr-ac{gap:16px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.link-btn.danger{color:var(--err,#d33)}
+.chk{display:flex;align-items:center;gap:10px;font-size:.92rem}.chk input{width:18px;height:18px;accent-color:var(--acc)}
+/* conversa dentro do treino */
+.ct-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--s1);color:var(--ink);font-size:.85rem;font-weight:700}
+.ct-btn svg{width:16px;height:16px;color:var(--acc)}
+.ct-n{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--s3,var(--line));color:var(--ink);font-size:.72rem;display:inline-grid;place-items:center}
+.ct-btn.novo{border-color:var(--acc)}.ct-btn.novo .ct-n{background:var(--acc);color:var(--on-acc,#fff)}
+.ct-chat{max-height:46vh;overflow-y:auto;margin-top:12px;min-height:80px}
+.ct-f{display:flex;gap:8px;align-items:flex-end;margin-top:10px}.ct-f textarea{flex:1;min-height:44px;resize:none}
+.eyebrow svg{width:14px;height:14px;vertical-align:-2px}
+.section-h .btn{white-space:nowrap;flex:none}

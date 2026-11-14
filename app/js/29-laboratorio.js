@@ -1878,6 +1878,7 @@ function staffMais() {
     ${buscaCampoHTML()}
     <p class="sec-lbl">Acompanhar os alunos</p><div class="stack">
       ${it('#/agenda', AG_IC, 'Agenda', 'Videochamadas, avaliações, treinos presenciais e outros compromissos')}
+      ${it('#/nexos', MURAL_IC, 'Mural da Nexos', 'Recados para os alunos: avisos, treinões, camisa nova')}
       ${it('#/dashboard', DASH_GRAF_IC, 'Dashboard', 'Feedbacks dados (treinos com Visto) e as planilhas liberadas da semana')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}

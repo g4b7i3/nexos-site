@@ -19,6 +19,12 @@ function buscaTelasAluno() {
     ['#/planilha', 'Planilha', 'Seus treinos da semana', 'treinos calendario semana corrida forca musculacao'],
     ['#/historico', 'Evolução', 'Treinos feitos, gráficos e relatórios', 'historico progresso graficos feitos'],
     [
+      '#/nexos',
+      'Mural da Nexos',
+      'Recados da equipe, WhatsApp e Instagram',
+      'mural recados avisos camisa treinao whatsapp instagram nexos',
+    ],
+    [
       '#/agenda',
       'Agenda',
       'Seus compromissos com o treinador e os eventos',
@@ -129,6 +135,7 @@ function buscaTelasEquipe() {
     ['#/relogios', 'Relógios dos alunos', 'Quem está conectado e com qual relógio', 'garmin relogio conexao'],
     ['#/desativados', 'Alunos desativados', 'Quem saiu da Nexos e a opção de reativar', 'inativo reativar saiu'],
     ['#/videochamadas', 'Videochamadas', 'Ligar para um professor ou para um aluno', 'video chamada ligar'],
+    ['#/nexos', 'Mural da Nexos', 'Publicar recados para os alunos', 'mural recados avisos publicar camisa treinao'],
     [
       '#/agenda',
       'Agenda',

@@ -887,7 +887,7 @@ async function alunoHoje() {
       }
       ${p.descricao ? `<p class="obs-t"><b>Obs. do treinador:</b> ${esc(p.descricao)}</p>` : ''}
       </div>
-      <div class="row corr-acoes" style="gap:8px;margin-top:12px;flex-wrap:wrap">${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm gps-pri" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
+      <div class="row corr-acoes" style="gap:8px;margin-top:12px;flex-wrap:wrap">${ctBotaoHTML('plano:' + p.id, S.user.id, p.titulo || nomeTipo(p.tipo))}${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm gps-pri" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
   const cardMusc = prox
     ? muscHoje
@@ -935,7 +935,7 @@ async function alunoHoje() {
     .join('');
   $app.innerHTML = `
     <div class="top"><div class="top-brand"><img src="${LOGO.s()}" alt=""></div><div class="top-acoes">${sinoHTML()}<a class="perfil-btn" href="#/perfil">${I.user}<span>Editar perfil</span></a></div></div>
-    <div id="cham-ativa"></div><div id="agenda-hoje"></div>
+    <div id="cham-ativa"></div><div id="agenda-hoje"></div><div id="mural-hoje"></div>
     <section class="hoje-hero">
       <div class="hh-top"><span class="hh-quando"><span class="hh-data">${fmtDiaSem(hoje)}</span><span class="hh-relogio" data-relogio>${horaRelogio()}</span></span><div class="row" style="gap:8px"><a class="hh-btn" href="#/conversa" aria-label="Falar com o treinador">${I.feed}${S.cache.msgNovas ? `<i>${S.cache.msgNovas}</i>` : ''}</a><a class="top-foto" href="#/perfil" aria-label="Meu perfil">${fotoHTML(S.me)}</a></div></div>
       <h1>${saud}, ${esc(firstName(S.me.nome) || 'atleta')}</h1>
@@ -982,6 +982,7 @@ async function alunoHoje() {
   ligarRelogio();
   cartaoChamadaAtiva();
   cartaoAgenda().catch(() => {});
+  cartaoMural().catch(() => {});
   atendimentoHoje().catch(() => {});
   gpsSemDestaqueGarmin($app);
   const pendSec = document.getElementById('pend-sec');
@@ -1404,6 +1405,7 @@ function sessaoCard(s, nome) {
         <span class="tag">${quando(s.iniciado_em)} · ${fmtHora(s.iniciado_em)}</span>
       </div>
       ${s.comentario ? `<p class="small muted" style="margin-top:8px">“${esc(s.comentario)}”</p>` : ''}
+      <div style="margin-top:10px">${ctBotaoHTML('sessao:' + s.id, s.aluno_id || S.user.id, s.treino_titulo || 'Treino de força')}</div>
     </div></div>`;
 }
 
