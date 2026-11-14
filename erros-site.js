@@ -21,6 +21,8 @@
         )
       )
         return;
+      // código do navegador do Instagram e do Facebook (iabjs://), não do site
+      if (/iabjs:\/\/|Java object is gone/.test(msg + ' ' + String((err && err.stack) || ''))) return;
       var chave = msg + '|' + onde;
       if (enviados[chave] || ++n > 10) return;
       enviados[chave] = 1;

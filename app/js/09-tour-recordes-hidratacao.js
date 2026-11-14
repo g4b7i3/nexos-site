@@ -760,7 +760,8 @@ function ligarRelogio() {
 async function alunoHoje() {
   loading();
   const hoje = isoDia(new Date());
-  const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx, semNota] = await Promise.all([
+  // tudo o que a tela precisa sai junto numa leva só (antes eram três idas e voltas ao servidor)
+  const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx, semNota, histDatas, forcaLib] = await Promise.all([
     buscarTreinosDoAluno(S.user.id),
     buscarSessoes(S.user.id, 40),
     contarMsgNovas(),
@@ -793,16 +794,24 @@ async function alunoHoje() {
       .limit(1)
       .then((r) => (r.data || [])[0] || null)
       .catch(() => null),
+    sb
+      .from('nx_corridas')
+      .select('data')
+      .eq('aluno_id', S.user.id)
+      .gte('data', isoDia(Date.now() - 120 * 864e5))
+      .then(
+        (r) => (r.data || []).map((x) => x.data),
+        () => [],
+      ),
+    sb
+      .from('nx_forca_semanas')
+      .select('id')
+      .eq('aluno_id', S.user.id)
+      .eq('semana', isoDia(inicioSemana()))
+      .maybeSingle()
+      .then((r) => !!r.data)
+      .catch(() => false),
   ]);
-  const histDatas = await sb
-    .from('nx_corridas')
-    .select('data')
-    .eq('aluno_id', S.user.id)
-    .gte('data', isoDia(Date.now() - 120 * 864e5))
-    .then(
-      (r) => (r.data || []).map((x) => x.data),
-      () => [],
-    );
   const corrNova = corrSem
     .filter(
       (c) =>
@@ -824,14 +833,6 @@ async function alunoHoje() {
   const ativos = treinos.filter((t) => t.ativo);
   const ativSem = [...sessoes, ...corrSem.map((c) => ({ iniciado_em: c.data }))];
   let prox = null;
-  const forcaLib = await sb
-    .from('nx_forca_semanas')
-    .select('id')
-    .eq('aluno_id', S.user.id)
-    .eq('semana', isoDia(inicioSemana()))
-    .maybeSingle()
-    .then((r) => !!r.data)
-    .catch(() => false);
   const [movHj, avulHj] = forcaLib
     ? await Promise.all([
         buscarMovidos(S.user.id, isoDia(inicioSemana())),

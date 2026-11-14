@@ -489,24 +489,28 @@ document.addEventListener('visibilitychange', () => {
 /* conferência de versão: app/versao.json traz a versão publicada; se o código aberto no aparelho for outro
    (cópia velha guardada no celular), apaga as cópias e recarrega uma vez (sem interromper treino ou formulário) */
 let versaoChecadaEm = 0;
-async function checarVersao() {
+async function checarVersao(forcar) {
   // arquivo de base velho junto com este novo (cópia misturada): NX_BUILD nem existe, então também conta como versão velha
   const aberta = typeof NX_BUILD === 'string' ? NX_BUILD : '';
-  if ((aberta && !/^v/.test(aberta)) || Date.now() - versaoChecadaEm < 60000) return;
+  if ((aberta && !/^v/.test(aberta)) || (!forcar && Date.now() - versaoChecadaEm < 60000)) return;
   versaoChecadaEm = Date.now();
   try {
     const r = await fetch(new URL('/app/versao.json?t=' + Date.now(), location.href), { cache: 'no-store' });
-    const { v } = await r.json();
-    if (!v || v === aberta) return;
+    const { v, n } = await r.json();
+    // página velha guardada (lista antiga de arquivos) aberta com o código novo: falta arquivo e alguma tela quebra
+    const nAberta = [...document.scripts].filter((x) => /\/js\/\d\d[a-z]?-/.test(x.src)).length;
+    const misturada = !!n && nAberta > 0 && nAberta !== n;
+    if (!v || (v === aberta && !misturada)) return;
     let tentou = '';
     try {
       tentou = sessionStorage.getItem('nx-versao-tentou') || '';
     } catch {}
-    if (tentou === v) return; // já recarregou uma vez para esta versão
+    const chave = misturada ? v + '+lista' : v;
+    if (tentou === chave) return; // já recarregou uma vez para esta versão
     if (window.caches) for (const k of await caches.keys()) if (k.startsWith('nx-app-')) await caches.delete(k);
     if (swReg) swReg.update().catch(() => {});
     try {
-      sessionStorage.setItem('nx-versao-tentou', v);
+      sessionStorage.setItem('nx-versao-tentou', chave);
     } catch {}
     if (!podeRecarregar()) {
       versaoNova = true;

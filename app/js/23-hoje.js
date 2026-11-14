@@ -354,7 +354,9 @@ async function idsMeusAlunos() {
 }
 async function staffHoje() {
   loading();
-  await jaViCarregar();
+  // as buscas que não dependem de nada saem juntas, logo no começo (menos espera para abrir a tela)
+  const jaViP = jaViCarregar();
+  const fimPlP = fimPlanilhas();
   const seteDias = new Date(Date.now() - 7 * 864e5).toISOString();
   // a Hoje mostra só a semana atual (de segunda a domingo); na segunda tudo zera e o que passou fica em Semanas anteriores
   const semIni = (() => {
@@ -488,7 +490,7 @@ async function staffHoje() {
     libsResT,
   ].map(soMeus);
   dockStaff();
-  const fimPl = await fimPlanilhas();
+  const [fimPl] = await Promise.all([fimPlP, jaViP]);
   const ativos = (membros || []).filter((m) => m.ativo);
   const pendentes = (membros || [])
     .filter((m) => m.aprovacao === 'pendente')

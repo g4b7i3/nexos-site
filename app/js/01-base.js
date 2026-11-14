@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261113234700';
+const NX_BUILD = 'v20261114000944';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -1074,6 +1074,7 @@ document.addEventListener(
 async function router() {
   if (!navRegistrar()) return;
   closeSheet(true);
+  document.documentElement.classList.remove('trava-scroll');
   clearInterval(S.presVer);
   stopRest();
   $app.onclick = null;
@@ -1092,10 +1093,10 @@ async function router() {
   const [a, b, c, d] = parts;
   try {
     if (!S.staff) {
-      const sd = await carregarSaude();
+      // termo, ficha e adesão são conferidos juntos (uma espera só ao abrir o app)
+      const [sd, ad] = await Promise.all([carregarSaude(), carregarAdesao()]);
       if (!sd.termo) return viewTermo();
       if (!sd.anamnese) return await viewAnamnese({ gate: true, anamnese: null });
-      const ad = await carregarAdesao();
       if (ad.pendente) return viewAdesao(ad);
     }
     if (a === 'chamada' && b) return await viewChamada(b);
@@ -1241,10 +1242,49 @@ async function router() {
   } catch (e) {
     console.error(e);
     reportarErro(e, 'tela não carregou');
+    // nome que não existe costuma ser cópia velha misturada com a nova no aparelho: confere a versão na hora
+    if (e instanceof ReferenceError && typeof checarVersao === 'function') checarVersao(true);
     $app.innerHTML = `<div class="empty" style="margin-top:40px"><div class="h3">Algo não carregou</div><p class="small">Verifique sua internet e tente de novo.</p><button class="btn sm" style="margin-top:16px" onclick="location.reload()">Recarregar</button></div>`;
   }
 }
 window.addEventListener('hashchange', router);
+
+/* iPhone: depois do teclado, de uma tela cheia ou de voltar ao app, o iOS às vezes deixa a barra de baixo e o botão +
+   no meio da tela. Quando nenhum campo está em uso, devolve a página ao lugar e libera a rolagem que ficou presa. */
+const campoAtivo = () => /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
+function reposicionarTela() {
+  if (campoAtivo()) return;
+  if ($sheet.hidden && !document.querySelector('.vs-lobby, .vs-sala, .fb-tela, .replay, .retro'))
+    document.body.style.overflow = '';
+  // o iOS só recalcula a área visível quando a página se mexe: desce 1 px e volta
+  const y = window.scrollY;
+  window.scrollTo(window.scrollX, y + 1);
+  window.scrollTo(window.scrollX, y);
+  // e redesenha a barra de baixo e o botão + no lugar certo
+  document.querySelectorAll('#dock, .fab, .fab-reg').forEach((el) => {
+    const d = el.style.display;
+    el.style.display = 'none';
+    void el.offsetHeight;
+    el.style.display = d;
+  });
+}
+let reposT = 0;
+const reposicionarLogo = () => {
+  clearTimeout(reposT);
+  reposT = setTimeout(reposicionarTela, 120);
+};
+document.addEventListener('focusout', reposicionarLogo);
+document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && reposicionarLogo());
+window.addEventListener('orientationchange', reposicionarLogo);
+// só quando a área visível muda muito (teclado abrindo ou fechando), para não atrapalhar a rolagem normal
+if (window.visualViewport) {
+  let vvAlt = visualViewport.height;
+  visualViewport.addEventListener('resize', () => {
+    const h = visualViewport.height;
+    if (Math.abs(h - vvAlt) > 120) reposicionarLogo();
+    vvAlt = h;
+  });
+}
 
 /* ---------- sessão ---------- */
 // último acesso ao app (painel de fidelização do treinador): marca ao abrir e ao voltar para o app, no máximo a cada 15 min

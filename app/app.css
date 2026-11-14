@@ -25,6 +25,8 @@ html[data-tema="escuro"][data-paleta]:not([data-paleta="nexos"]){--bg:color-mix(
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--ink);font-family:var(--f-b);-webkit-font-smoothing:antialiased;min-height:100%}
 body{line-height:1.5;font-size:16px;overflow-x:hidden}
+/* iPhone: overflow-x:hidden no body faz o iOS errar a posição da barra de baixo e do botão + (ficam no meio da tela); clip corta sem criar rolagem própria */
+@supports (overflow-x:clip){body{overflow-x:clip}}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(900px 500px at 110% -10%,rgba(var(--p3r),.22),transparent 60%),radial-gradient(700px 420px at -20% 110%,rgba(var(--p1r),.10),transparent 60%)}
 button,input,select,textarea{font:inherit;color:inherit}
