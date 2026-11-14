@@ -62,6 +62,12 @@ function buscaTelasAluno() {
       fC,
     ],
     [
+      '#/movimento',
+      'Avaliação do movimento',
+      'Agachamento com bastão, uma perna, salto e tornozelo por vídeo',
+      'avaliacao movimento agachamento bastao salto aterrissagem tornozelo mobilidade joelho video teste',
+    ],
+    [
       '#/passada',
       'Análise biomecânica da corrida',
       'Filme a sua corrida e receba o relatório do seu treinador',

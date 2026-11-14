@@ -718,7 +718,7 @@ async function staffAluno(alunoId, aba, extra) {
   // a ficha do aluno em grupos: o que prescrever, como ele está indo, saúde e contato
   const GRUPOS_FICHA = [
     ['Treinos', ['corrida', 'forca', 'historico', 'cargas']],
-    ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'passada', 'fotos']],
+    ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'passada', 'movimento', 'fotos']],
     ['Saúde', ['saude', 'energia', 'relogio']],
     ['Contato e cadastro', ['conversa', 'dados']],
   ];
@@ -731,6 +731,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['relmes', 'Resumo do mês', I.ficha, 'Para a videochamada mensal: números, análise e PDF', true],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
     ['passada', 'Análise biomecânica da corrida', PS_IC, 'Vídeo da corrida: passada, joelho, tronco e quadril', fC],
+    ['movimento', 'Avaliação do movimento', MV_IC, 'Agachamento, salto e tornozelo por vídeo', true],
     ['fotos', 'Fotos e postura', I.cam, 'Progresso visual', true],
     ['saude', 'Saúde', I.bell, anamnese && anamnese.parq_positivo ? 'PAR-Q com “sim”' : 'Anamnese e PAR-Q', true],
     [
@@ -928,6 +929,8 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = '<div id="fotos"></div>';
   } else if (aba === 'passada') {
     corpo = '<div id="passada-box" class="stack"></div>';
+  } else if (aba === 'movimento') {
+    corpo = '<div id="movimento-box" class="stack"></div>';
   } else if (aba === 'energia') {
     corpo = '<div id="saude-at" class="stack"></div>';
   } else if (aba === 'relogio') {
@@ -1030,6 +1033,8 @@ async function staffAluno(alunoId, aba, extra) {
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
   if (aba === 'energia') viewSaudeAtleta(document.getElementById('saude-at'), m).catch((e) => console.error(e));
   if (aba === 'passada') psTreinador(document.getElementById('passada-box'), m, extra).catch((e) => console.error(e));
+  if (aba === 'movimento')
+    mvTreinador(document.getElementById('movimento-box'), m, extra).catch((e) => console.error(e));
   if (aba === 'relogio')
     viewRelogioSaude(document.getElementById('rel-saude'), alunoId, { nome: m.nome, sexo: m.sexo }).catch((e) =>
       console.error(e),

@@ -885,7 +885,7 @@ function alunoMais() {
       ${it('#/historico/avaliacoes', I.ficha, 'Avaliações físicas', 'Medidas, composição corporal e relatórios')}
       ${it('#/historico/fotos', I.cam, 'Fotos de evolução', 'Antes e depois, avaliação postural')}
       ${fC ? it('#/historico/previsoes', I.hist, 'Testes e previsões', 'Tempos estimados e zonas de treino') : ''}
-      ${fC ? it('#/passada', PS_IC, 'Análise biomecânica da corrida', 'Filme a sua corrida e receba o relatório do seu treinador') : ''}
+      ${it('#/movimento', MV_IC, 'Avaliação do movimento', fC ? 'Análise da corrida, agachamento, salto e tornozelo por vídeo' : 'Agachamento, salto e tornozelo por vídeo')}
     </div>
     <p class="sec-lbl">Saúde</p><div class="stack" id="mais-saude">
       ${it('#/agua', AGUA_IC, 'Hidratação', 'Sua semana, meta e lembretes')}
