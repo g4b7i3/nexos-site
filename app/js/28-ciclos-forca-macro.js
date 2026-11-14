@@ -730,7 +730,7 @@ async function aplicarPrograma(pg, alunoId, iniISO, pausar) {
 async function programaSheet(pg, alunoPre) {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,disponibilidade')
+    .select('user_id,nome,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,disponibilidade')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -1099,7 +1099,7 @@ function ligarTreinosF(r, alunos) {
 async function cfAplicar(c, fs) {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,disponibilidade')
+    .select('user_id,nome,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,disponibilidade')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -1623,7 +1623,9 @@ function viewTrilha(id, forca) {
 async function aplicarTrilha(t, cs, forca, tot) {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento,disponibilidade')
+    .select(
+      'user_id,nome,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,corrida,nascimento,disponibilidade',
+    )
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -1634,7 +1636,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
     );
   const alunos = ms.filter(
     (m) =>
-      ehMeuAluno(m) &&
+      (forca ? ehMeuAluno(m) : ehMeuResponsavel(m)) &&
       m.aprovacao !== 'pendente' &&
       m.aprovacao !== 'recusado' &&
       faz(forca ? 'musculacao' : 'corrida', m),
@@ -2088,7 +2090,9 @@ const MAC_REFS =
 async function viewMacro() {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,modalidades,corrida,nascimento,disponibilidade')
+    .select(
+      'user_id,nome,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,corrida,nascimento,disponibilidade',
+    )
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -2098,7 +2102,7 @@ async function viewMacro() {
       () => [],
     );
   const alunos = ms.filter(
-    (m) => ehMeuAluno(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m),
+    (m) => ehMeuResponsavel(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m),
   );
   const prox = (() => {
     const d = inicioSemana();

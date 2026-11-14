@@ -250,8 +250,13 @@ function viewPerfil() {
         // o aluno vê com quem está treinando
         const box = document.getElementById('meu-tr');
         const t = eq.find((p) => p.user_id === S.me.treinador_id);
+        const tf =
+          S.me.treinador_forca_id &&
+          eq.find((p) => p.user_id === S.me.treinador_forca_id && p.user_id !== S.me.treinador_id);
         if (!box || !t) return;
-        box.innerHTML = `<div class="section-h"><h2 class="h2">Meu treinador</h2></div><a class="list-item" href="#/conversa" style="color:inherit">${fotoHTML(t, 'md')}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(t.nome)}</b><div class="small muted">Responsável pelos seus treinos · toque para conversar</div></div>${I.chev}</a>`;
+        const item = (p, txt) =>
+          `<a class="list-item" href="#/conversa" style="color:inherit">${fotoHTML(p, 'md')}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(p.nome)}</b><div class="small muted">${txt} · toque para conversar</div></div>${I.chev}</a>`;
+        box.innerHTML = `<div class="section-h"><h2 class="h2">${tf ? 'Meus treinadores' : 'Meu treinador'}</h2></div>${tf ? `<div class="stack">${item(t, 'Corrida e responsável pelos seus treinos')}${item(tf, 'Treinador de força')}</div>` : item(t, 'Responsável pelos seus treinos')}`;
         box.hidden = false;
       },
       () => {},

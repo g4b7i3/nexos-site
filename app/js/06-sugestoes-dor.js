@@ -805,19 +805,17 @@ async function aplicarAjuste(x, d, selC, selF, texto) {
     .single();
   if (e2) throw new Error('O ajuste foi feito, mas não foi possível registrar o histórico.');
   if (selF.length)
-    await sb
-      .from('nx_ajustes_forca')
-      .insert(
-        selF.map((f) => ({
-          org_id: S.org.id,
-          aluno_id: x.m.user_id,
-          item_id: f.it.id,
-          tipo: f.tipo,
-          nota: f.nota || null,
-          ate: d.ate,
-          ajuste_id: aj.id,
-        })),
-      );
+    await sb.from('nx_ajustes_forca').insert(
+      selF.map((f) => ({
+        org_id: S.org.id,
+        aluno_id: x.m.user_id,
+        item_id: f.it.id,
+        tipo: f.tipo,
+        nota: f.nota || null,
+        ate: d.ate,
+        ajuste_id: aj.id,
+      })),
+    );
   if (comGarmin.length || S.cache.garmOn)
     sincronizarGarmin(
       x.m.user_id,

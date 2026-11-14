@@ -165,7 +165,7 @@ async function carregarFinanceiroBase() {
     sb.from('nx_planos').select('*').eq('org_id', S.org.id).eq('dono', S.user.id).order('valor'), // cada treinador com os próprios planos
     sb
       .from('nx_membros')
-      .select('user_id,nome,ativo,telefone,treinador_id')
+      .select('user_id,nome,ativo,telefone,treinador_id,treinador_forca_id')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .order('nome'),
@@ -174,7 +174,7 @@ async function carregarFinanceiroBase() {
   const fin = Object.fromEntries((fins || []).map((f) => [f.aluno_id, f.financeiro]));
   return {
     planos: planos || [],
-    alunos: (alunos || []).filter(ehMeuAluno).map((a) => ({ ...a, financeiro: fin[a.user_id] || {} })),
+    alunos: (alunos || []).filter(ehMeuResponsavel).map((a) => ({ ...a, financeiro: fin[a.user_id] || {} })),
   }; // financeiro de cada treinador: só os próprios alunos
 }
 /** grava o plano do aluno (só o treinador dele consegue) */
@@ -791,7 +791,7 @@ function ajustesFinanceiro(base) {
 /** cartão “Plano e pagamento” na aba Dados do aluno */
 async function planoDoAlunoHTML(m) {
   // plano e mensalidades ficam só com o treinador do aluno
-  if (!ehMeuAluno(m))
+  if (!ehMeuResponsavel(m))
     return {
       base: { planos: [], alunos: [] },
       cobs: [],

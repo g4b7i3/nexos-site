@@ -14,7 +14,7 @@ async function contarNaoVistos() {
       .limit(1000),
     sb
       .from('nx_membros')
-      .select('user_id,treinador_id')
+      .select('user_id,treinador_id,treinador_forca_id')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .eq('aprovacao', 'pendente'),
@@ -311,7 +311,7 @@ async function staffAlunos() {
             const si = m.ativo ? SIT[situacao(m)] : null;
             return `<div class="atl ${sel.has(m.user_id) ? 'sel' : ''}" data-aluno="${m.user_id}">
         <div class="atl-id">${m.ativo ? `<label class="atl-chk" data-chk="${m.user_id}"><input type="checkbox" ${sel.has(m.user_id) ? 'checked' : ''}></label>` : ''}${avAluno(m, stc)}<div class="grow" style="min-width:0"><div class="atl-nome"><b class="ellip">${esc(m.nome)}</b>${modSelos(m)}${iconesAtl(m)}${si ? `<span class="tag ${si[1]} sit-tag">${si[0]}</span>` : ''}</div>
-          <div class="atl-sub">${!m.treinador_id ? '<span class="tag warn">sem treinador</span>' : ''}${alerta}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${modoF ? `<span class="${nTr[m.user_id] ? '' : 'pl-err'}">${nTr[m.user_id] ? `${nTr[m.user_id]} treino${nTr[m.user_id] > 1 ? 's' : ''}${(fDias[m.user_id] || new Set()).size ? ' · ' + diasTxt([...fDias[m.user_id]]) : ' · sem dia fixo'}` : 'Sem treino de força'}</span>${ultMu[m.user_id] ? `<span class="dim">último ${diasDesde(ultMu[m.user_id]) === 0 ? 'hoje' : 'há ' + diasDesde(ultMu[m.user_id]) + 'd'}</span>` : ''}` : sp ? `<span class="pl-${sp.cls}">${esc(sp.t)}</span>` : ''}</div>
+          <div class="atl-sub">${!m.treinador_id ? '<span class="tag warn">sem treinador</span>' : ''}${soForcaComigo(m) ? '<span class="tag">força com você</span>' : ''}${alerta}${(S.cache.msgPorAluno || {})[m.user_id] ? `<span class="tag acc">${S.cache.msgPorAluno[m.user_id]} msg</span>` : ''}${modoF ? `<span class="${nTr[m.user_id] ? '' : 'pl-err'}">${nTr[m.user_id] ? `${nTr[m.user_id]} treino${nTr[m.user_id] > 1 ? 's' : ''}${(fDias[m.user_id] || new Set()).size ? ' · ' + diasTxt([...fDias[m.user_id]]) : ' · sem dia fixo'}` : 'Sem treino de força'}</span>${ultMu[m.user_id] ? `<span class="dim">último ${diasDesde(ultMu[m.user_id]) === 0 ? 'hoje' : 'há ' + diasDesde(ultMu[m.user_id]) + 'd'}</span>` : ''}` : sp ? `<span class="pl-${sp.cls}">${esc(sp.t)}</span>` : ''}</div>
           ${pv && !modoF ? `<div class="atl-prova">${icT(I.flag)}${esc(pv.titulo)} · ${fmtCurto(pv.data + 'T12:00:00')}${pv.distancia ? ' · ' + esc(pv.distancia) : ''} · <b>${faltam(pv.data)}</b></div>` : ''}</div></div>
         ${m.ativo ? pontos(m.user_id) : '<div class="atl-inativo dim small">Inativo</div>'}
         <div class="atl-ac">${faz('corrida', m) ? `<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/corrida" aria-label="Planilha de corrida" title="Planilha de corrida">${I.run}</button>` : ''}${faz('musculacao', m) ? `<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/forca" aria-label="Planilha de força" title="Planilha de força">${I.lib}</button>` : ''}<button class="icon-btn sm" data-ir="#/aluno/${m.user_id}/conversa" aria-label="Conversa" title="Conversa">${I.feed}</button></div>
@@ -959,7 +959,9 @@ async function staffAluno(alunoId, aba, extra) {
     const eqD = await carregarEquipe();
     corpo =
       `<div class="card"><b>Treinador responsável</b><p class="small muted" style="margin:4px 0 10px">É quem tem a obrigação de acompanhar e responder este aluno. Os outros treinadores também podem responder, se quiserem. O aluno vê o responsável na conversa.</p>
-      <select class="select" id="resp"><option value="">Sem responsável</option>${eqD.map((p) => `<option value="${p.user_id}" ${p.user_id === m.treinador_id ? 'selected' : ''}>${esc(p.nome)}${p.user_id === S.user.id ? ' (você)' : ''}</option>`).join('')}</select></div>
+      <select class="select" id="resp"><option value="">Sem responsável</option>${eqD.map((p) => `<option value="${p.user_id}" ${p.user_id === m.treinador_id ? 'selected' : ''}>${esc(p.nome)}${p.user_id === S.user.id ? ' (você)' : ''}</option>`).join('')}</select>
+      <label class="field" style="margin-top:12px"><span>Treinador de força</span><select class="select" id="resp-forca"><option value="">O mesmo responsável</option>${eqD.map((p) => `<option value="${p.user_id}" ${p.user_id === m.treinador_forca_id ? 'selected' : ''}>${esc(p.nome)}${p.user_id === S.user.id ? ' (você)' : ''}</option>`).join('')}</select></label>
+      <p class="tiny dim" style="margin-top:6px">Quando outro treinador cuida da força, o aluno aparece para ele também, com a força, o check-in e a conversa. Corrida, plano e mensalidades continuam com o responsável.</p></div>
       <div class="card" id="mods-card"><b>O que o aluno faz com a Nexos</b><p class="small muted" style="margin:4px 0 10px">O app do aluno mostra só o que estiver marcado.</p>${modsHTML(m.modalidades)}</div>` +
       planoInfo.html +
       corpo;
@@ -1419,6 +1421,23 @@ async function staffAluno(alunoId, aba, extra) {
       .then(() => contarNaoVistos().then(dockStaff));
   }
   if (aba === 'dados') {
+    const rf = document.getElementById('resp-forca');
+    if (rf)
+      rf.onchange = async () => {
+        const v = rf.value && rf.value !== m.treinador_id ? rf.value : null;
+        const { error } = await sb
+          .from('nx_membros')
+          .update({ treinador_forca_id: v })
+          .eq('org_id', S.org.id)
+          .eq('user_id', alunoId);
+        if (error) return toast('Não foi possível salvar.', true);
+        m.treinador_forca_id = v;
+        toast(
+          v
+            ? `Treinador de força: ${rf.options[rf.selectedIndex].text.replace(' (você)', '')}`
+            : 'A força fica com o responsável.',
+        );
+      };
     const rs = document.getElementById('resp');
     rs.onchange = async () => {
       const { error } = await sb
@@ -2093,7 +2112,7 @@ function salvarComoModelo(t) {
 async function escolherAlunos(excluir, titulo, aoConfirmar) {
   const { data } = await sb
     .from('nx_membros')
-    .select('user_id,nome,objetivo,ativo,treinador_id')
+    .select('user_id,nome,objetivo,ativo,treinador_id,treinador_forca_id')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .order('nome');
@@ -2772,7 +2791,7 @@ async function staffFeed() {
   loading();
   const [sessT, { data: membrosT }, , , corrNovasT] = await Promise.all([
     buscarSessoes(null, 80),
-    sb.from('nx_membros').select('user_id,nome,papel,treinador_id').eq('org_id', S.org.id),
+    sb.from('nx_membros').select('user_id,nome,papel,treinador_id,treinador_forca_id').eq('org_id', S.org.id),
     contarNaoVistos(),
     contarMsgNovas(),
     sb
@@ -2879,7 +2898,7 @@ async function staffDesativados() {
   loading();
   const { data } = await sb
     .from('nx_membros')
-    .select('user_id,nome,foto_url,treinador_id,desativado_em,criado_em,ativo,telefone')
+    .select('user_id,nome,foto_url,treinador_id,treinador_forca_id,desativado_em,criado_em,ativo,telefone')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', false)

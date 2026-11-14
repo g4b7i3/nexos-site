@@ -159,7 +159,7 @@ async function agEventos(de, ate) {
 async function agAlunos() {
   const { data } = await sb
     .from('nx_membros')
-    .select('user_id,nome,foto_url,telefone,treinador_id,ativo,aprovacao,email')
+    .select('user_id,nome,foto_url,telefone,treinador_id,treinador_forca_id,ativo,aprovacao,email')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)

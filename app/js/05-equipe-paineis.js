@@ -478,7 +478,9 @@ async function staffFidelizacao() {
   dockStaff();
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,apelido,foto_url,ativo,aprovacao,treinador_id,modalidades,telefone,criado_em,ultimo_acesso')
+    .select(
+      'user_id,nome,apelido,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,telefone,criado_em,ultimo_acesso',
+    )
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -711,7 +713,7 @@ async function staffRelogios() {
   dockStaff();
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,sexo')
+    .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,sexo')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -759,7 +761,7 @@ async function staffProntidao(diaSel) {
   const [membT, pronts, cargas, cicDias] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,modalidades,sexo')
+      .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,sexo')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .order('nome')
