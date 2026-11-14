@@ -2412,7 +2412,8 @@ const distGeo = (a, b) => {
       Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dn / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(m));
 };
-async function vcvHTML(c) {
+/** quem = membro do aluno quando quem vê é o treinador (o texto fala do aluno, e não com ele) */
+async function vcvHTML(c, quem) {
   if (!ehCorrHist(c) || !c.distancia_m || c.distancia_m < 2000 || !c.duracao_s) return '';
   const { data } = await sb
     .from('nx_corridas')
@@ -2457,14 +2458,17 @@ async function vcvHTML(c) {
     efA = fcA ? ((1000 / pA) * 60) / fcA : null,
     def = efH && efA ? Math.round((efH / efA - 1) * 100) : null;
   const melhor = dp > 0 && (dfc == null || dfc >= -2);
+  const fem = ((quem || S.me || {}).sexo || '') === 'F';
+  const nm = quem ? firstName(quem.nome || '') || (fem ? 'a aluna' : 'o aluno') : '';
+  const sujeito = quem ? (fem ? 'ela' : 'ele') : 'você';
   const frase =
     dp > 0
-      ? `Hoje você foi <b>${dp} s/km mais rápido</b>${dfc != null ? (dfc > 0 ? ` com <b>${dfc} batimentos a menos</b>` : dfc < 0 ? ` (com a FC ${-dfc} batimentos mais alta)` : ' com a mesma FC') : ''}.`
+      ? `Hoje ${sujeito} foi <b>${dp} s/km mais ${fem ? 'rápida' : 'rápido'}</b>${dfc != null ? (dfc > 0 ? ` com <b>${dfc} batimentos a menos</b>` : dfc < 0 ? ` (com a FC ${-dfc} batimentos mais alta)` : ' com a mesma FC') : ''}.`
       : dp < 0
         ? `Hoje o pace ficou ${-dp} s/km mais lento${dfc != null && dfc > 0 ? `, com ${dfc} batimentos a menos: treino mais controlado` : ''}. Treinos leves e dias de cansaço explicam boa parte dessa diferença.`
         : `Mesmo pace${dfc != null && dfc > 0 ? `, com ${dfc} batimentos a menos` : ''}.`;
-  return `<div class="card vcv ${melhor ? 'melhor' : ''}"><span class="eyebrow">Você contra você</span>
-    <p style="margin-top:6px">${mesmo ? 'Neste mesmo percurso' : 'Na mesma distância'}, em ${fmtDia(isoDia(alvo.data))}, você fez <b>${fmtPace(pA)}</b>${fcA ? ` com FC média ${fcA}` : ''}. ${frase}</p>
+  return `<div class="card vcv ${melhor ? 'melhor' : ''}"><span class="eyebrow">${quem ? 'Evolução na mesma distância' : 'Você contra você'}</span>
+    <p style="margin-top:6px">${mesmo ? 'Neste mesmo percurso' : 'Na mesma distância'}, em ${fmtDia(isoDia(alvo.data))}, ${quem ? esc(nm) : 'você'} fez <b>${fmtPace(pA)}</b>${fcA ? ` com FC média ${fcA}` : ''}. ${frase}</p>
     <div class="vcv-g"><div><span>${fmtCurto(alvo.data)}</span><b>${fmtPace(pA).replace('/km', '')}</b><small>${fcA ? fcA + ' bpm' : ''}</small></div><i>${I.chev}</i><div class="hj"><span>Hoje</span><b>${fmtPace(pH).replace('/km', '')}</b><small>${fcH ? fcH + ' bpm' : ''}</small></div></div>
     ${def != null && Math.abs(def) >= 2 ? `<p class="tiny dim" style="margin-top:6px">Eficiência aeróbia (velocidade por batimento): ${def > 0 ? '+' : ''}${def}%. ${def > 0 ? 'Sinal de condicionamento melhor.' : ''}</p>` : ''}</div>`;
 }

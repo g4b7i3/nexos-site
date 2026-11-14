@@ -649,7 +649,7 @@ async function viewCorrida(id) {
     S.staff
       ? sb
           .from('nx_membros')
-          .select('nome,corrida,nascimento')
+          .select('nome,corrida,nascimento,sexo')
           .eq('org_id', S.org.id)
           .eq('user_id', c.aluno_id)
           .maybeSingle()
@@ -742,7 +742,7 @@ async function viewCorrida(id) {
   if (gc) gc.onclick = () => abrirCardCorrida(c, plano);
   const rp = document.getElementById('replay');
   if (rp) rp.onclick = () => abrirReplay(c, pc);
-  vcvHTML(c)
+  vcvHTML(c, S.staff ? membroC : null)
     .then((h) => {
       const bx = document.getElementById('vcv');
       if (bx && h) bx.innerHTML = h;
