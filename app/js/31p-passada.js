@@ -1727,7 +1727,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
         ? ''
         : `<div class="card ps-coment"><span class="eyebrow">${staff ? 'Relatório para o aluno' : 'Comentário do treinador'}</span>${
             staff
-              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Revisar e reenviar o relatório' : 'Revisar e gerar o relatório'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise biomecânica da corrida dele, com o PDF para baixar.</p>'}`
+              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Revisar e reenviar o relatório' : 'Revisar e gerar o relatório'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)} às ${fmtHora(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise biomecânica da corrida dele, com o PDF para baixar.</p>'}`
               : `<p style="margin-top:6px;white-space:pre-line">${x.comentario ? esc(x.comentario) : 'Seu treinador vai olhar o vídeo e deixar o comentário aqui. Você recebe uma notificação.'}</p>`
           }</div>`
     }
@@ -3051,6 +3051,8 @@ async function psTreinador(box, m, sub) {
         return true;
       } catch (err) {
         console.error(err);
+        // fica registrado em Erros do app, para a equipe saber o motivo
+        if (typeof reportarErro === 'function') reportarErro(err, 'relatório da análise biomecânica');
         toast('Não foi possível gerar ou enviar o relatório. Tente de novo.', true);
         bt.textContent = txt;
         bt.disabled = false;
