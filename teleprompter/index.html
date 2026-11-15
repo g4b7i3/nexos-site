@@ -43,10 +43,30 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .linha-bts .bt{flex:1}
 /* teleprompter */
 #tp{padding:0;background:#000;overflow:hidden}
-#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:0;transition:opacity .3s}
-#tp.com-cam #cam{opacity:.55}
-#tp .veu{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,13,28,.88) 0%,rgba(7,13,28,.7) 55%,rgba(7,13,28,.25) 100%);pointer-events:none}
-#tp:not(.com-cam) .veu{background:var(--bg)}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transform:scaleX(-1);opacity:0;transition:opacity .3s}
+#tp.com-cam #cam{opacity:1}
+#tp .veu{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.38)}
+#tp:not(.com-cam) .veu,#tp.lay-texto .veu{background:var(--bg)}
+#tp.lay-texto #cam{opacity:0!important}
+#tp.lay-baixo.com-cam .veu,#tp.lay-cima.com-cam .veu{background:transparent}
+.faixa{position:absolute;left:0;right:0;top:var(--bt,0);height:calc(var(--bb,0) - var(--bt,0));background:rgba(5,10,22,.72);backdrop-filter:blur(2px);pointer-events:none;display:none}
+#tp.lay-baixo .faixa,#tp.lay-cima .faixa{display:block}
+#tp.lay-baixo:not(.com-cam) .faixa,#tp.lay-cima:not(.com-cam) .faixa{background:transparent}
+.cantos{position:absolute;inset:calc(58px + env(safe-area-inset-top,0)) 10px 10px;pointer-events:none;display:none}
+#tp.com-cam:not(.lay-texto) .cantos{display:block}
+.cantos i{position:absolute;width:34px;height:34px;border:3px solid var(--ac);opacity:.85}
+.cantos i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-radius:8px 0 0 0}
+.cantos i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-radius:0 8px 0 0}
+#lay-bts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:6px}
+#lay-bts button{border:1px solid var(--linha);border-radius:14px;padding:10px;text-align:left;background:var(--sup2)}
+#lay-bts button b{display:block;font-size:14px}#lay-bts button small{color:var(--mute);font-size:12px}
+#lay-bts button[aria-pressed=true]{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset}
+#lay-bts .mini{height:54px;border-radius:8px;margin-bottom:8px;position:relative;overflow:hidden;background:linear-gradient(160deg,#4a5a76,#2a3346)}
+#lay-bts .mini::after{content:"";position:absolute;left:8px;right:8px;height:16px;border-radius:3px;background:repeating-linear-gradient(180deg,rgba(255,255,255,.9) 0 3px,transparent 3px 6px)}
+#lay-bts [data-lay=sobre] .mini::after{top:10px;height:34px}
+#lay-bts [data-lay=baixo] .mini::after{bottom:6px;box-shadow:0 0 0 6px rgba(5,10,22,.7)}
+#lay-bts [data-lay=cima] .mini::after{top:6px;box-shadow:0 0 0 6px rgba(5,10,22,.7)}
+#lay-bts [data-lay=texto] .mini{background:#070d1c}#lay-bts [data-lay=texto] .mini::after{top:10px;height:34px}
 #tp-barra{position:absolute;left:0;right:0;top:0;padding:calc(6px + env(safe-area-inset-top,0)) max(10px,env(safe-area-inset-right,0)) 6px max(10px,env(safe-area-inset-left,0));display:flex;align-items:center;gap:6px;z-index:5;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)}
 #tp-barra .nome{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mute);font-size:15px}
 #bt-rec{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0));z-index:5;height:46px;padding:0 20px;border:1.5px solid rgba(70,214,255,.6);border-radius:999px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;background:rgba(7,13,28,.7);white-space:nowrap}
@@ -54,6 +74,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #bt-rec.gravando{border-color:var(--rec);color:#fff}
 #bt-rec.gravando i{animation:pisca 1s infinite}
 @keyframes pisca{50%{opacity:.2}}
+#tp.lay-baixo #area,#tp.lay-cima #area{-webkit-mask-image:linear-gradient(180deg,transparent var(--bt),#000 calc(var(--bt) + 8px),#000 calc(var(--bb) - 8px),transparent var(--bb))!important;mask-image:linear-gradient(180deg,transparent var(--bt),#000 calc(var(--bt) + 8px),#000 calc(var(--bb) - 8px),transparent var(--bb))!important}
 #area{position:absolute;inset:0;overflow:hidden;touch-action:none;-webkit-mask-image:linear-gradient(180deg,transparent 0,transparent calc(var(--g,26%) - 14%),#000 calc(var(--g,26%) - 2%),#000 100%);mask-image:linear-gradient(180deg,transparent 0,transparent calc(var(--g,26%) - 14%),#000 calc(var(--g,26%) - 2%),#000 100%)}
 #texto{position:absolute;left:0;right:0;top:0;padding:0 var(--marg,28px);font-family:var(--ft);font-weight:600;font-size:var(--fs,40px);line-height:1.38;white-space:pre-wrap;word-break:break-word;will-change:transform}
 #texto.espelho{transform-origin:center}
@@ -121,11 +142,14 @@ video#rev{width:100%;max-height:52vh;border-radius:16px;background:#000}
 <section class="tela" id="tp" hidden>
   <video id="cam" playsinline muted autoplay></video>
   <div class="veu"></div>
+  <div class="faixa"></div>
+  <div class="cantos"><i></i><i></i></div>
   <div id="area"><div id="texto"></div></div>
   <div id="guia"></div>
   <div id="tp-barra">
     <button class="ic" id="tp-fechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <span class="nome" id="tp-nome"></span>
+    <button class="ic" id="tp-lay" aria-label="Trocar o layout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 15h16M8 18h8"/></svg></button>
     <button class="ic" id="tp-trava" aria-label="Travar a tela"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>
   </div>
   <button id="bt-rec"><i></i><span>Toque para gravar com a câmera</span></button>
@@ -150,6 +174,12 @@ video#rev{width:100%;max-height:52vh;border-radius:16px;background:#000}
 <div class="folha-fundo" id="aj-fundo" hidden></div>
 <div class="folha" id="aj" hidden>
   <h2>Ajustes</h2>
+  <div id="lay-bts">
+    <button data-lay="sobre"><div class="mini"></div><b>Texto sobre a câmera</b><small>Você se vê inteiro, com o texto por cima</small></button>
+    <button data-lay="baixo"><div class="mini"></div><b>Faixa embaixo</b><small>Você se vê limpo e o texto passa embaixo</small></button>
+    <button data-lay="cima"><div class="mini"></div><b>Faixa em cima</b><small>O texto passa perto da câmera</small></button>
+    <button data-lay="texto"><div class="mini"></div><b>Só o texto</b><small>Grava sem você se ver</small></button>
+  </div>
   <div class="op"><label for="o-fs">Tamanho da letra</label><input type="range" id="o-fs" min="24" max="72" step="2"><output id="o-fs-v"></output></div>
   <div class="op"><label for="o-guia">Linha de leitura<small>Mais perto do topo deixa o olhar perto da câmera</small></label><input type="range" id="o-guia" min="12" max="60" step="1"><output id="o-guia-v"></output></div>
   <div class="op"><label for="o-marg">Margens laterais</label><input type="range" id="o-marg" min="8" max="90" step="2"><output id="o-marg-v"></output></div>
@@ -177,7 +207,9 @@ const $ = (id) => document.getElementById(id);
 const CHAVE = 'nx-tp-roteiros', CONF = 'nx-tp-conf';
 const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-const conf = Object.assign({ ppm: 135, fs: 40, guia: 26, marg: 28, cont: 3, esp: false, ctrl: true }, ler(CONF, {}));
+const conf = Object.assign({ ppm: 135, fs: 40, guia: 26, marg: 28, cont: 3, esp: false, ctrl: true, lay: 'sobre' }, ler(CONF, {}));
+// posição da linha de leitura que cada layout usa ao ser escolhido
+const LAYS = { sobre: { nome: 'Texto sobre a câmera', guia: 30 }, baixo: { nome: 'Faixa embaixo', guia: 66 }, cima: { nome: 'Faixa em cima', guia: 22 }, texto: { nome: 'Só o texto', guia: 26 } };
 let roteiros = ler(CHAVE, null);
 if (!roteiros) {
   roteiros = [{ id: 'exemplo', titulo: 'Exemplo · Dois recordes', atualizado: Date.now(), texto:
@@ -244,6 +276,13 @@ function aplicarConf() {
   document.documentElement.style.setProperty('--marg', conf.marg + 'px');
   $('guia').style.top = conf.guia + '%';
   document.documentElement.style.setProperty('--g', conf.guia + '%');
+  // faixa: uma linha acima da linha de leitura e duas abaixo
+  const lh = conf.fs * 1.38, gy = (window.innerHeight * conf.guia) / 100;
+  document.documentElement.style.setProperty('--bt', Math.max(0, gy - lh * 1.15) + 'px');
+  document.documentElement.style.setProperty('--bb', gy + lh * 2.3 + 'px');
+  const tp = $('tp');
+  Object.keys(LAYS).forEach((k) => tp.classList.toggle('lay-' + k, conf.lay === k));
+  document.querySelectorAll('#lay-bts [data-lay]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lay === conf.lay)));
   $('v-barra').value = conf.ppm; $('v-txt').textContent = conf.ppm + ' ppm';
   gravar(CONF, conf); medir();
 }
@@ -335,7 +374,7 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space' || e.key === 'Enter' || e.key === 'PageDown') { e.preventDefault(); alternar(); }
   if (e.key === 'ArrowUp') mudaVel(5); if (e.key === 'ArrowDown') mudaVel(-5);
 });
-window.addEventListener('resize', medir);
+window.addEventListener('resize', aplicarConf);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('tp').hidden) acordado(true); });
 
 /* ---------- ajustes ---------- */
@@ -349,6 +388,21 @@ const liga = (id, k, fmt) => {
 liga('o-fs', 'fs', (v) => v + ' px'); liga('o-guia', 'guia', (v) => v + '%'); liga('o-marg', 'marg', (v) => v + ' px');
 liga('o-cont', 'cont', (v) => (v ? v + ' s' : 'não')); liga('o-esp', 'esp'); liga('o-ctrl', 'ctrl');
 $('bt-ajustes').onclick = () => { parar(); abrirFolha('aj', true); };
+function escolherLay(k) {
+  conf.lay = k; conf.guia = LAYS[k].guia;
+  $('o-guia').value = conf.guia; $('o-guia-v').textContent = conf.guia + '%';
+  aplicarConf();
+}
+document.querySelectorAll('#lay-bts [data-lay]').forEach((b) => (b.onclick = () => escolherLay(b.dataset.lay)));
+$('tp-lay').onclick = () => {
+  const ks = Object.keys(LAYS), k = ks[(ks.indexOf(conf.lay) + 1) % ks.length];
+  escolherLay(k); avisoLay(LAYS[k].nome);
+};
+let avisoT = null;
+function avisoLay(t) {
+  const el = $('contagem'); el.hidden = false; el.style.fontSize = '24px'; el.style.background = 'transparent'; el.textContent = t;
+  clearTimeout(avisoT); avisoT = setTimeout(() => { el.hidden = true; el.style.fontSize = ''; el.style.background = ''; }, 1100);
+}
 $('aj-fundo').onclick = () => abrirFolha('aj', false);
 
 /* ---------- câmera e gravação ---------- */
@@ -359,9 +413,15 @@ async function ligarCam() {
   if (fluxo) return true;
   try {
     fluxo = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1080 }, height: { ideal: 1920 }, frameRate: { ideal: 30 } },
+      // 4:3 é o formato do sensor da câmera da frente: pedir 9:16 faz o celular cortar e parecer zoom
+      video: { facingMode: 'user', width: { ideal: 1440 }, height: { ideal: 1080 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30 } },
       audio: { echoCancellation: true, noiseSuppression: true },
     });
+    // se o navegador permitir, deixa a câmera no zoom mínimo (campo de visão mais aberto)
+    try {
+      const v = fluxo.getVideoTracks()[0], cap = v.getCapabilities ? v.getCapabilities() : {};
+      if (cap.zoom) await v.applyConstraints({ advanced: [{ zoom: cap.zoom.min }] });
+    } catch {}
     $('cam').srcObject = fluxo; $('tp').classList.add('com-cam'); return true;
   } catch (e) {
     console.error(e);
