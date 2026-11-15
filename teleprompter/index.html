@@ -48,10 +48,20 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #tp .veu{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.38)}
 #tp:not(.com-cam) .veu,#tp.lay-texto .veu{background:var(--bg)}
 #tp.lay-texto #cam{opacity:0!important}
-#tp.lay-baixo.com-cam .veu,#tp.lay-cima.com-cam .veu{background:transparent}
+#tp.lay-baixo.com-cam .veu,#tp.lay-cima.com-cam .veu,#tp.lay-lente.com-cam .veu{background:transparent}
 .faixa{position:absolute;left:0;right:0;top:var(--bt,0);height:calc(var(--bb,0) - var(--bt,0));background:rgba(5,10,22,.72);backdrop-filter:blur(2px);pointer-events:none;display:none}
-#tp.lay-baixo .faixa,#tp.lay-cima .faixa{display:block}
-#tp.lay-baixo:not(.com-cam) .faixa,#tp.lay-cima:not(.com-cam) .faixa{background:transparent}
+#tp.lay-baixo .faixa,#tp.lay-cima .faixa,#tp.lay-lente .faixa{display:block}
+#tp.lay-baixo:not(.com-cam) .faixa,#tp.lay-cima:not(.com-cam) .faixa,#tp.lay-lente:not(.com-cam) .faixa{background:transparent}
+/* colado na câmera: coluna estreita no meio, logo abaixo da lente; o olho quase não se mexe */
+#tp.lay-lente .faixa{left:max(0px,calc(50% - 230px));right:max(0px,calc(50% - 230px));border-radius:0 0 18px 18px}
+#tp.lay-lente #texto{padding:0 max(var(--marg,28px),calc(50% - 210px))}
+#tp.lay-lente #guia{left:max(0px,calc(50% - 230px));right:max(0px,calc(50% - 230px))}
+#tp.lay-lente #tp-barra{transition:opacity .2s}
+#tp.lay-lente.rodando #tp-barra{opacity:0;pointer-events:none}
+#tp.lay-lente #bt-rec{top:calc(var(--bb,0px) + 14px)}
+#tp.lay-lente .cantos{display:none!important}
+#tp.lay-lente .faixa{top:0;height:var(--bb,0)}
+#tp.lay-lente #area{-webkit-mask-image:linear-gradient(180deg,transparent var(--bt),#000 var(--gy),#000 calc(var(--bb) - 8px),transparent var(--bb))!important;mask-image:linear-gradient(180deg,transparent var(--bt),#000 var(--gy),#000 calc(var(--bb) - 8px),transparent var(--bb))!important}
 .cantos{position:absolute;inset:calc(58px + env(safe-area-inset-top,0)) 10px 10px;pointer-events:none;display:none}
 #tp.com-cam:not(.lay-texto) .cantos{display:block}
 .cantos i{position:absolute;width:34px;height:34px;border:3px solid var(--ac);opacity:.85}
@@ -66,6 +76,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #lay-bts [data-lay=sobre] .mini::after{top:10px;height:34px}
 #lay-bts [data-lay=baixo] .mini::after{bottom:6px;box-shadow:0 0 0 6px rgba(5,10,22,.7)}
 #lay-bts [data-lay=cima] .mini::after{top:6px;box-shadow:0 0 0 6px rgba(5,10,22,.7)}
+#lay-bts [data-lay=lente] .mini::before{content:"";position:absolute;top:2px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#0b1222;box-shadow:0 0 0 1.5px rgba(255,255,255,.5)}
+#lay-bts [data-lay=lente] .mini::after{top:10px;left:26%;right:26%;height:13px;box-shadow:0 0 0 5px rgba(5,10,22,.7)}
 #lay-bts [data-lay=texto] .mini{background:#070d1c}#lay-bts [data-lay=texto] .mini::after{top:10px;height:34px}
 #tp-barra{position:absolute;left:0;right:0;top:0;padding:calc(6px + env(safe-area-inset-top,0)) max(10px,env(safe-area-inset-right,0)) 6px max(10px,env(safe-area-inset-left,0));display:flex;align-items:center;gap:6px;z-index:5;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)}
 #tp-barra .nome{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mute);font-size:15px}
@@ -74,7 +86,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #bt-rec.gravando{border-color:var(--rec);color:#fff}
 #bt-rec.gravando i{animation:pisca 1s infinite}
 @keyframes pisca{50%{opacity:.2}}
-#tp.lay-baixo #area,#tp.lay-cima #area{-webkit-mask-image:linear-gradient(180deg,transparent var(--bt),#000 calc(var(--bt) + 8px),#000 calc(var(--bb) - 8px),transparent var(--bb))!important;mask-image:linear-gradient(180deg,transparent var(--bt),#000 calc(var(--bt) + 8px),#000 calc(var(--bb) - 8px),transparent var(--bb))!important}
+#tp.lay-baixo #area,#tp.lay-cima #area,#tp.lay-lente #area{-webkit-mask-image:linear-gradient(180deg,transparent var(--bt),#000 calc(var(--bt) + 8px),#000 calc(var(--bb) - 8px),transparent var(--bb))!important;mask-image:linear-gradient(180deg,transparent var(--bt),#000 calc(var(--bt) + 8px),#000 calc(var(--bb) - 8px),transparent var(--bb))!important}
 #area{position:absolute;inset:0;overflow:hidden;touch-action:none;-webkit-mask-image:linear-gradient(180deg,transparent 0,transparent calc(var(--g,26%) - 14%),#000 calc(var(--g,26%) - 2%),#000 100%);mask-image:linear-gradient(180deg,transparent 0,transparent calc(var(--g,26%) - 14%),#000 calc(var(--g,26%) - 2%),#000 100%)}
 #texto{position:absolute;left:0;right:0;top:0;padding:0 var(--marg,28px);font-family:var(--ft);font-weight:600;font-size:var(--fs,40px);line-height:1.38;white-space:pre-wrap;word-break:break-word;will-change:transform}
 #texto.espelho{transform-origin:center}
@@ -175,6 +187,7 @@ video#rev{width:100%;max-height:52vh;border-radius:16px;background:#000}
 <div class="folha" id="aj" hidden>
   <h2>Ajustes</h2>
   <div id="lay-bts">
+    <button data-lay="lente"><div class="mini"></div><b>Colado na câmera</b><small>O texto passa logo abaixo da lente e você olha para quem assiste</small></button>
     <button data-lay="sobre"><div class="mini"></div><b>Texto sobre a câmera</b><small>Você se vê inteiro, com o texto por cima</small></button>
     <button data-lay="baixo"><div class="mini"></div><b>Faixa embaixo</b><small>Você se vê limpo e o texto passa embaixo</small></button>
     <button data-lay="cima"><div class="mini"></div><b>Faixa em cima</b><small>O texto passa perto da câmera</small></button>
@@ -207,9 +220,9 @@ const $ = (id) => document.getElementById(id);
 const CHAVE = 'nx-tp-roteiros', CONF = 'nx-tp-conf';
 const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-const conf = Object.assign({ ppm: 135, fs: 40, guia: 26, marg: 28, cont: 3, esp: false, ctrl: true, lay: 'sobre' }, ler(CONF, {}));
+const conf = Object.assign({ ppm: 135, fs: 40, marg: 28, cont: 3, esp: false, ctrl: true, lay: 'lente', guia: 8 }, ler(CONF, {}));
 // posição da linha de leitura que cada layout usa ao ser escolhido
-const LAYS = { sobre: { nome: 'Texto sobre a câmera', guia: 30 }, baixo: { nome: 'Faixa embaixo', guia: 66 }, cima: { nome: 'Faixa em cima', guia: 22 }, texto: { nome: 'Só o texto', guia: 26 } };
+const LAYS = { lente: { nome: 'Colado na câmera', guia: 8 }, sobre: { nome: 'Texto sobre a câmera', guia: 30 }, baixo: { nome: 'Faixa embaixo', guia: 66 }, cima: { nome: 'Faixa em cima', guia: 22 }, texto: { nome: 'Só o texto', guia: 26 } };
 let roteiros = ler(CHAVE, null);
 if (!roteiros) {
   roteiros = [{ id: 'exemplo', titulo: 'Exemplo · Dois recordes', atualizado: Date.now(), texto:
@@ -274,19 +287,26 @@ const area = $('area'), txt = $('texto');
 function aplicarConf() {
   document.documentElement.style.setProperty('--fs', conf.fs + 'px');
   document.documentElement.style.setProperty('--marg', conf.marg + 'px');
-  $('guia').style.top = conf.guia + '%';
-  document.documentElement.style.setProperty('--g', conf.guia + '%');
-  // faixa: uma linha acima da linha de leitura e duas abaixo
-  const lh = conf.fs * 1.38, gy = (window.innerHeight * conf.guia) / 100;
-  document.documentElement.style.setProperty('--bt', Math.max(0, gy - lh * 1.15) + 'px');
+  const lh = conf.fs * 1.38, gy = guiaY();
+  $('guia').style.top = gy + 'px';
+  document.documentElement.style.setProperty('--g', (gy / Math.max(1, window.innerHeight)) * 100 + '%');
+  // faixa: uma linha acima da linha de leitura e duas abaixo (colado na câmera: começa no topo, embaixo da lente)
+  document.documentElement.style.setProperty('--gy', gy + 'px');
+  document.documentElement.style.setProperty('--bt', (conf.lay === 'lente' ? topoSeguro() : Math.max(0, gy - lh * 1.15)) + 'px');
   document.documentElement.style.setProperty('--bb', gy + lh * 2.3 + 'px');
   const tp = $('tp');
+  $('o-guia').closest('.op').hidden = conf.lay === 'lente'; // colado na câmera: a linha fica fixa embaixo da lente
   Object.keys(LAYS).forEach((k) => tp.classList.toggle('lay-' + k, conf.lay === k));
   document.querySelectorAll('#lay-bts [data-lay]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lay === conf.lay)));
   $('v-barra').value = conf.ppm; $('v-txt').textContent = conf.ppm + ' ppm';
   gravar(CONF, conf); medir();
 }
-function guiaY() { return area.clientHeight * conf.guia / 100; }
+// colado na câmera: a linha de leitura fica logo abaixo da lente (e do recorte da câmera no celular)
+function topoSeguro() { return parseFloat(getComputedStyle($('tp')).paddingTop) || 0; }
+function guiaY() {
+  if (conf.lay === 'lente') return topoSeguro() + conf.fs * 1.38 * 0.7; // a linha que sai some aos poucos para cima
+  return (area.clientHeight || window.innerHeight) * conf.guia / 100;
+}
 function medir() {
   if ($('tp').hidden) return;
   const frac = maxPos > 0 ? pos / maxPos : 0;
@@ -323,12 +343,12 @@ async function acordado(on) {
 function iniciar() {
   if (rodando) return;
   if (pos >= maxPos) pos = 0;
-  rodando = true; ult = 0; $('ic-play').hidden = true; $('ic-pausa').hidden = false;
+  rodando = true; ult = 0; $('tp').classList.add('rodando'); $('ic-play').hidden = true; $('ic-pausa').hidden = false;
   if (conf.ctrl) $('tp-ctrl').classList.add('some');
   acordado(true); requestAnimationFrame(laco);
 }
 function parar() {
-  rodando = false; $('ic-play').hidden = false; $('ic-pausa').hidden = true; $('tp-ctrl').classList.remove('some');
+  rodando = false; $('tp').classList.remove('rodando'); $('ic-play').hidden = false; $('ic-pausa').hidden = true; $('tp-ctrl').classList.remove('some');
 }
 let contando = null;
 function contagem(depois) {
