@@ -1647,8 +1647,203 @@ function psInterpreta(k, v, m = {}) {
   }
   return '';
 }
+// guia do treinador em cada medida (só a equipe vê): o que pode causar, o que fazer no treino, quando não mexer e o que olhar junto
+const PS_GUIA = {
+  cadencia: {
+    causas:
+      'Ritmo lento (a cadência sobe com a velocidade), pessoa mais alta, passada longa ou o hábito de "alcançar" o chão com o pé à frente.',
+    treino:
+      'Metrônomo ou música 5% acima da cadência atual nos treinos leves, por 2 a 3 semanas, e depois mais 5% se precisar. Educativos de frequência (skipping baixo, passos curtos e rápidos) no aquecimento.',
+    naoMexer:
+      'Se o aluno não tem dor e a cadência está perto do esperado para o ritmo dele. Não existe número mágico como 180 para todos: compare sempre no mesmo ritmo.',
+    junto: ['tibia', 'frente', 'oscilacao', 'joelhoMax'],
+  },
+  tibia: {
+    causas:
+      'Passada longa (o pé chega à frente do corpo), cadência baixa, ou pisada de calcanhar com o tornozelo travado. Na descida e no fim de treino longo costuma aumentar.',
+    treino:
+      'Subir a cadência é o caminho com mais evidência. Dica verbal: pisar embaixo do quadril e ouvir a passada mais silenciosa. Educativos: skipping e corrida com passos curtos.',
+    naoMexer:
+      'Valores um pouco acima do esperado sem dor e sem o pé à frente alto. Câmera fora do perfil distorce esse ângulo: confira os pontos antes de concluir.',
+    junto: ['frente', 'cadencia', 'joelhoIC', 'coxaIC', 'pe'],
+  },
+  frente: {
+    causas:
+      'Passada longa e cadência baixa. Depende da altura do aluno, então compare com ele mesmo ao longo do tempo.',
+    treino: 'Subir a cadência de 5% a 10% traz o pé para mais perto do quadril (Heiderscheit et al., 2011).',
+    naoMexer: 'Se a tíbia está perto da vertical, o pé um pouco à frente do quadril é normal.',
+    junto: ['tibia', 'cadencia', 'coxaIC'],
+  },
+  joelhoIC: {
+    causas:
+      'Joelho esticado no toque costuma vir com passada longa. Joelho muito dobrado pode ser cansaço, corrida "sentada" ou pouca força de quadríceps e glúteo.',
+    treino:
+      'Esticado: trabalhe a cadência e a tíbia primeiro. Muito dobrado: força de quadríceps e glúteo (agachamento, afundo, subida no banco) e pliometria leve.',
+    naoMexer:
+      'Diferença pequena para o esperado e sem dor. Mas joelho bem esticado merece atenção: nos corredores com lesão ele chegou mais esticado no toque (6° contra 10° em média; Bramah et al., 2018).',
+    junto: ['tibia', 'joelhoMax', 'cadencia'],
+  },
+  coxaIC: {
+    causas: 'Passada longa, com a perna sendo jogada à frente no fim do balanço.',
+    treino: 'O mesmo da tíbia: subir a cadência e pisar embaixo do quadril.',
+    naoMexer: 'Sozinha diz pouco; ganha sentido junto com a tíbia e o pé à frente.',
+    junto: ['tibia', 'frente'],
+  },
+  pe: {
+    causas:
+      'É o tipo de pisada. Muda com a velocidade (mais rápido, mais à frente do pé), com o tênis e com o terreno.',
+    treino:
+      'Só mude a pisada com motivo claro. Se mudar para a frente do pé, faça aos poucos e reforce panturrilha e tendão de Aquiles antes, porque a carga vai para lá (Anderson et al., 2020).',
+    naoMexer: 'Na grande maioria dos casos. Não há tipo de pisada que previna lesão de forma comprovada.',
+    junto: ['tibia', 'contato'],
+  },
+  joelhoMax: {
+    causas:
+      'Pouca dobra: corrida "dura", pé batendo à frente. Muita dobra: passada longa, cansaço ou pouca força para segurar o corpo no apoio.',
+    treino:
+      'Pouca dobra: peça corrida mais macia e silenciosa. Muita dobra: força de quadríceps e glúteo e subir a cadência, que costuma diminuir essa dobra (Heiderscheit et al., 2011).',
+    naoMexer: 'Valores dentro de um desvio padrão do esperado, sem dor na frente do joelho.',
+    junto: ['joelhoIC', 'tibia', 'cadencia'],
+  },
+  tronco: {
+    causas:
+      'Muito reto: costuma vir com passada longa e o calcanhar batendo à frente. Muito inclinado: cansaço, pouca força de core e glúteo, ou dobra no quadril em vez de inclinar o corpo inteiro.',
+    treino:
+      'Inclinar o corpo inteiro a partir do tornozelo, sem dobrar a cintura. Core e glúteo no treino de força (prancha, ponte, levantamento terra romeno).',
+    naoMexer:
+      'Inclinação leve é o comum. Mais inclinação tira carga do joelho e passa para o quadril e a lombar (Teng e Powers, 2014), e os corredores com lesão tinham o tronco um pouco mais inclinado no apoio (12° contra 9,5°; Bramah et al., 2018). O ajuste depende de onde o aluno sente dor.',
+    junto: ['tibia', 'joelhoMax'],
+  },
+  oscilacao: {
+    causas: 'Cadência baixa com passada "saltada", empurrando o corpo para cima em vez de para a frente.',
+    treino: 'Subir a cadência e a dica de levar o corpo para a frente. Educativos de frequência no aquecimento.',
+    naoMexer: 'Depende da altura e do ritmo: compare com o próprio aluno no mesmo ritmo.',
+    junto: ['cadencia', 'contato'],
+  },
+  contato: {
+    causas:
+      'Cai quando a velocidade sobe. Contato longo para o ritmo pode ser cansaço ou pouca força e rigidez de panturrilha e tornozelo.',
+    treino: 'Força de panturrilha (em pé e sentado, para o sóleo) e pliometria progressiva (saltitos, pular corda).',
+    naoMexer:
+      'Comparando vídeos em ritmos diferentes: a diferença vem da velocidade. Precisa de 50 quadros por segundo ou mais.',
+    junto: ['cadencia', 'oscilacao'],
+  },
+  coxaTO: {
+    causas:
+      'Aumenta com a velocidade. Pouca extensão pode vir de passada curta ou de pouca mobilidade na frente do quadril.',
+    treino:
+      'Se for o caso de mobilidade: alongamento do flexor do quadril e afundo com o tronco alto. Acompanhe com novos vídeos no mesmo ritmo.',
+    naoMexer: 'Sem faixa definida em vídeo 2D: use para comparar as duas pernas e o mesmo aluno ao longo do tempo.',
+    junto: ['joelhoBal', 'tronco'],
+  },
+  joelhoBal: {
+    causas:
+      'Aumenta com a velocidade (Fukuchi et al., 2017). Pouca dobra no mesmo ritmo deixa a perna mais longa e pesada de trazer para a frente.',
+    treino: 'Educativos de calcanhar ao glúteo e skipping no aquecimento.',
+    naoMexer: 'Diferenças pequenas ou vídeos em ritmos diferentes.',
+    junto: ['coxaTO'],
+  },
+  queda: {
+    causas:
+      'Pouco controle do glúteo médio na perna de apoio, cansaço, ou passo estreito. Foi a medida mais ligada a lesões comuns da corrida num estudo com corredores com e sem lesão (Bramah et al., 2018).',
+    treino:
+      'Força do glúteo médio e exercícios de uma perna só, junto com o treino na corrida em frente ao espelho, mantendo o quadril nivelado (Willy et al., 2012). Só a força não mudou a corrida (Willy e Davis, 2011).',
+    naoMexer: 'Diferenças de 1 a 2° entre os lados podem ser erro de medida.',
+    junto: ['joelhoDentro', 'largura', 'cruza'],
+  },
+  joelhoDentro: {
+    causas: 'Quadril caindo e rodando para dentro, pé desabando para dentro, ou passo estreito.',
+    treino:
+      'Glúteo médio e rotadores do quadril, exercícios de uma perna com o joelho alinhado com o pé, e espelho na esteira (Willy et al., 2012).',
+    naoMexer: 'Câmera fora do centro ou baixa demais exagera essa medida: confira o vídeo antes.',
+    junto: ['queda', 'cruza'],
+  },
+  largura: {
+    causas: 'Passo estreito, com os pés quase na linha do meio.',
+    treino:
+      'Dica dos dois trilhos, um para cada pé. Passo mais largo diminuiu a adução do quadril (Brindle et al., 2014).',
+    naoMexer: 'Largura comum sem pé cruzando e sem dor na lateral do joelho ou na canela.',
+    junto: ['cruza', 'queda'],
+  },
+  cruza: {
+    causas: 'Passo estreito, braço cruzando o corpo e tronco girando.',
+    treino: 'Dica dos dois trilhos e balanço dos braços para a frente e para trás, sem cruzar o meio do peito.',
+    naoMexer: 'Cruzamento pequeno e sem queixa.',
+    junto: ['largura', 'bracoCruza', 'queda'],
+  },
+  bracoCruza: {
+    causas: 'Tronco girando, ombros tensos ou passo estreito.',
+    treino: 'Balanço do ombro, cotovelo indo para trás, mãos passando perto do quadril.',
+    naoMexer: 'Se as mãos não passam do meio do corpo.',
+    junto: ['cruza'],
+  },
+  cotovelo: {
+    causas: 'Tensão nos ombros (cotovelo fechado) ou braço solto demais (cotovelo aberto).',
+    treino: 'Soltar os ombros e deixar o cotovelo perto de 90°.',
+    naoMexer: 'Na maioria dos casos. Braço tem pouca relação com lesão.',
+    junto: ['bracoFrente', 'bracoTras'],
+  },
+};
+// o que olhar primeiro conforme a dor do aluno
+const PS_DOR = [
+  [
+    'Frente do joelho',
+    'Cadência baixa, passada longa (tíbia e pé à frente), queda do quadril, joelho para dentro e tronco muito reto.',
+    'Subir a cadência diminuiu a carga no joelho (Heiderscheit et al., 2011); o treino com espelho diminuiu a dor e a adução do quadril (Willy et al., 2012); inclinar levemente o tronco diminuiu a carga na patela (Teng e Powers, 2014).',
+  ],
+  [
+    'Lateral do joelho (banda iliotibial)',
+    'Queda do quadril, passo estreito e pé cruzando a linha.',
+    'Passo mais largo diminuiu a adução do quadril (Brindle et al., 2014).',
+  ],
+  [
+    'Canela',
+    'Passo estreito, pé cruzando a linha, cadência baixa e passada longa.',
+    'Olhe também volume e piso: a técnica é só uma parte.',
+  ],
+  [
+    'Tendão de Aquiles e panturrilha',
+    'Pisada com a frente do pé e tempo de contato.',
+    'Pisada com a frente do pé aumenta a carga no tornozelo e no Aquiles (Anderson et al., 2020).',
+  ],
+  [
+    'Quadril, glúteo e lombar',
+    'Tronco muito inclinado e queda do quadril.',
+    'Mais inclinação do tronco pede mais dos extensores do quadril (Teng e Powers, 2014).',
+  ],
+];
+function psGuiaHTML(k) {
+  const g = PS_GUIA[k];
+  if (!g) return '';
+  const muda = PS_MUDA[k];
+  const un = psUn(k);
+  const linha = (t, v) => (v ? `<p><b>${t}</b>${esc(v)}</p>` : '');
+  return `<div class="ps-guia"><span class="ps-guia-t">Guia do treinador</span>
+    ${linha('O que pode causar', g.causas)}${linha('No treino', g.treino)}${linha('Quando não mexer', g.naoMexer)}
+    ${g.junto && g.junto.length ? `<p><b>Olhe junto com</b>${g.junto.map((j) => esc((PS_TITULO[j] || PS_TITULO_LADO[j] || j).toLowerCase())).join(', ')}.</p>` : ''}
+    ${muda ? `<p><b>Margem do vídeo</b>Diferença de até ${String(muda).replace('.', ',')}${un === '°' ? '°' : ' ' + un} entre dois vídeos pode ser só erro de medida.</p>` : ''}</div>`;
+}
+// roteiro da análise e o que olhar conforme a dor (só a equipe vê)
+function psRoteiroHTML(x) {
+  const lado = x.vista === 'lado';
+  const passos = [
+    'Confira se o vídeo é bom: corpo inteiro, câmera parada na altura do quadril, de perfil (ou bem de trás), e o ritmo anotado.',
+    'Abra cada quadro marcado em Conferir os pontos e corrija o que o app errou. Medida com ponto errado leva a conclusão errada.',
+    lado
+      ? 'Olhe primeiro a cadência e onde o pé chega (tíbia e pé à frente). Depois o joelho no toque e no apoio, o tronco e o sobe e desce.'
+      : 'Olhe primeiro a queda do quadril e o joelho para dentro. Depois a largura do passo e o pé cruzando a linha.',
+    'Cruze com a história do aluno: onde dói, desde quando, volume da semana, tênis. Técnica sem queixa e perto do esperado geralmente não precisa mudar.',
+    'Mude uma coisa de cada vez, começando pela que tem mais evidência (quase sempre a cadência). Mudar a técnica costuma deixar a corrida mais cara no começo, até o corpo se adaptar (Moore, 2016).',
+    'Grave de novo em 6 a 8 semanas, no mesmo ritmo e no mesmo lugar, e use o Antes e depois.',
+  ];
+  return `<details class="card ps-roteiro"><summary><span class="eyebrow">Guia da análise</span><b>Roteiro e o que olhar conforme a dor</b><span class="tiny dim">Só a equipe vê</span></summary>
+    <ol class="ps-rot-l">${passos.map((p) => `<li>${esc(p)}</li>`).join('')}</ol>
+    <p class="ps-rot-h">Se o aluno sente dor em</p>
+    ${PS_DOR.map(([onde, olhar, ev]) => `<div class="ps-rdor"><b>${onde}</b><p>Olhe: ${esc(olhar)}</p><p class="tiny dim">${esc(ev)}</p></div>`).join('')}
+    <p class="tiny dim" style="margin-top:10px">A técnica é uma parte do risco de lesão. Volume, sono, força e histórico pesam junto.</p></details>`;
+}
 const PS_REFS =
-  'Heiderscheit et al. (2011), Med Sci Sports Exerc; Souza (2016), Phys Med Rehabil Clin N Am; Bramah et al. (2018), Am J Sports Med; Teng e Powers (2014), J Orthop Sports Phys Ther; Folland et al. (2017), Med Sci Sports Exerc; Willy e Davis (2011), J Orthop Sports Phys Ther; Willy et al. (2012), Clin Biomech; Brindle et al. (2014), Gait Posture; Arellano e Kram (2014), J Exp Biol; Martinez et al. (2022), Int J Sports Phys Ther; Fukuchi et al. (2017), PeerJ; Altman e Davis (2012), Gait Posture; Anderson et al. (2020), Sports Med.';
+  'Heiderscheit et al. (2011), Med Sci Sports Exerc; Souza (2016), Phys Med Rehabil Clin N Am; Bramah et al. (2018), Am J Sports Med; Teng e Powers (2014), J Orthop Sports Phys Ther; Folland et al. (2017), Med Sci Sports Exerc; Willy e Davis (2011), J Orthop Sports Phys Ther; Willy et al. (2012), Clin Biomech; Brindle et al. (2014), Gait Posture; Arellano e Kram (2014), J Exp Biol; Martinez et al. (2022), Int J Sports Phys Ther; Fukuchi et al. (2017), PeerJ; Altman e Davis (2012), Gait Posture; Anderson et al. (2020), Sports Med; Moore (2016), Sports Med.';
 const PS_TITULO_LADO = {
   queda: 'Queda do quadril',
   joelhoDentro: 'Joelho para dentro',
@@ -1709,7 +1904,7 @@ function psCardsMetricas(x, ant, staff) {
       const faz = staff ? psFazer(k, m[k]) : '';
       const interp = staff && !faz ? psInterpreta(k, m[k], m) : '';
       const e = psEsperado(k, kmh);
-      return `<details class="ps-met ${nv}"><summary><span class="ps-met-t">${PS_TITULO[k]}${conf.has(k) ? '<i class="ps-conf">conferido</i>' : ''}</span><span class="ps-met-v"><b>${psFmt(k, m[k])}</b>${psUn(k) ? `<small>${psUn(k)}</small>` : ''}</span>${cTxt ? `<span class="ps-met-d ${c.efeito}">${cTxt}</span>` : ''}${e ? `<span class="ps-met-e">Esperado ${esc(psEspTxt(k, e))}</span>` : ''}<span class="ps-met-x">${esc(psExplicaTxt(k, m[k]))}</span></summary>${psEspHTML(k, m[k], e)}<p class="small muted">${esc(ex.sobre || '')}</p>${faz ? `<p class="small ps-faz"><b>O que fazer</b>${esc(faz)}</p>` : ''}${interp ? `<p class="small ps-faz"><b>Como interpretar</b>${esc(interp)}</p>` : ''}</details>`;
+      return `<details class="ps-met ${nv}"><summary><span class="ps-met-t">${PS_TITULO[k]}${conf.has(k) ? '<i class="ps-conf">conferido</i>' : ''}</span><span class="ps-met-v"><b>${psFmt(k, m[k])}</b>${psUn(k) ? `<small>${psUn(k)}</small>` : ''}</span>${cTxt ? `<span class="ps-met-d ${c.efeito}">${cTxt}</span>` : ''}${e ? `<span class="ps-met-e">Esperado ${esc(psEspTxt(k, e))}</span>` : ''}<span class="ps-met-x">${esc(psExplicaTxt(k, m[k]))}</span></summary>${psEspHTML(k, m[k], e)}<p class="small muted">${esc(ex.sobre || '')}</p>${faz ? `<p class="small ps-faz"><b>O que fazer</b>${esc(faz)}</p>` : ''}${interp ? `<p class="small ps-faz"><b>Como interpretar</b>${esc(interp)}</p>` : ''}${staff ? psGuiaHTML(k) : ''}</details>`;
     })
     .join('')}</div>`;
 }
@@ -2012,6 +2207,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
   return `<div class="card ps-topo-card"><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><div><span class="eyebrow">${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${esc(x.local === 'esteira' ? 'Esteira' : x.local === 'rua' ? 'Rua' : 'Vídeo')}</span><div class="h3" style="margin-top:2px">${psDataHora(x.criado_em)}</div>${rit ? `<div class="small muted" style="margin-top:2px">${esc(rit)}</div>` : ''}${staff && !previa && !((x.extra || {}).ritmo || {}).kmh ? '<button type="button" class="link-btn small" id="ps-rit-ed" style="margin-top:4px">Anotar o ritmo do vídeo</button>' : ''}</div><span class="ps-selo">${PS_IC}</span></div>
     ${(q.avisos || []).length ? `<div class="ps-avisos">${q.avisos.map((a) => `<p class="small">${esc(PS_AVISO_TXT[a] || '')}</p>`).join('')}</div>` : ''}</div>
     ${staff ? psLeituraHTML(x, ant) : ''}
+    ${staff ? psRoteiroHTML(x) : ''}
     ${psQuadrosHTML(x, urls)}
     ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
     ${psFasesHTML(x, staff)}

@@ -4555,3 +4555,13 @@ body.rm-apres-on #dock,body.rm-apres-on .side,body.rm-apres-on .toast{display:no
 .mv-niv.info{background:var(--s2);color:var(--mute)}
 html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-niv.atencao{color:#fbbf24}html[data-tema="escuro"] .mv-niv.fora{color:#f87171}
 .demo-faixa{display:flex;align-items:center;gap:12px;margin:10px 0;border-color:color-mix(in srgb,var(--acc) 50%,var(--line));background:color-mix(in srgb,var(--acc) 8%,var(--s1))}
+
+.ps-guia{margin:10px 14px 12px;padding:10px 12px;border-radius:12px;background:var(--s2,rgba(127,127,127,.08));font-size:.8rem;line-height:1.45}
+.ps-guia-t{display:block;font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--p2);margin-bottom:4px}
+.ps-guia p{margin-top:6px}.ps-guia p b{display:block;font-size:.74rem}
+.ps-roteiro summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.ps-roteiro summary::-webkit-details-marker{display:none}
+.ps-rot-l{margin:12px 0 0 18px;font-size:.84rem;line-height:1.45}.ps-rot-l li{margin-top:6px}
+.ps-rot-h{margin-top:14px;font-weight:800;font-size:.86rem}
+.ps-rdor{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--s2,rgba(127,127,127,.08));font-size:.82rem}
+.ps-rdor p{margin-top:3px}
