@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261115200116';
+const NX_BUILD = 'v20261115200544';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -1071,7 +1071,23 @@ document.addEventListener(
   true,
 );
 
+// tela com edição em andamento (treino sendo montado, formulário preenchido): a versão nova espera para não perder nada
+let telaEditando = false;
+document.addEventListener(
+  'input',
+  (e) => {
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.closest('.dock, .busca'))
+      telaEditando = true;
+  },
+  true,
+);
 async function router() {
+  telaEditando = false;
+  // versão nova esperando: a troca de tela é o momento seguro de atualizar
+  if (typeof versaoNova !== 'undefined' && versaoNova && typeof podeRecarregar === 'function' && podeRecarregar()) {
+    location.reload();
+    return;
+  }
   if (!navRegistrar()) return;
   closeSheet(true);
   document.documentElement.classList.remove('trava-scroll');

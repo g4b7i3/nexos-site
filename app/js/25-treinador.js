@@ -1583,7 +1583,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
     return isoDia(d);
   })();
   let escopo = null; // 'todas' ou 'semana'
-  const draw = () => {
+  let draw = () => {
     $app.innerHTML = `
       <a class="back" href="${voltar}">${I.back} ${ehModelo ? 'Treinos' : esc(aluno?.nome || 'Aluno')}</a>
       <p class="eyebrow">${ehModelo ? (novo ? 'Novo modelo de treino' : 'Modelo de treino') : novo ? 'Novo treino' : 'Editar treino'}</p>${!ehModelo && novo ? `<button class="aviso-linha" id="usar-modelo">${I.lib}<span><b>Começar de um modelo pronto</b> e só ajustar</span>${I.chev}</button>` : ''}
@@ -1646,8 +1646,10 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
     t.foco = document.getElementById('t-foco').value;
     t.observacoes = document.getElementById('t-obs').value;
     t.ativo = document.getElementById('t-ativo').checked;
-    document.querySelectorAll('[data-i]').forEach((card) => {
+    // só os cartões da lista de exercícios deste treino (outras telas e folhas também usam data-i)
+    document.querySelectorAll('#itens > [data-i]').forEach((card) => {
       const it = t.itens[+card.dataset.i];
+      if (!it) return;
       card.querySelectorAll('[data-f]').forEach((inp) => {
         it[inp.dataset.f] = inp.value;
       });
@@ -1660,9 +1662,69 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
       });
     });
   };
+  // rascunho: o que está sendo editado fica guardado no aparelho até salvar (volta se a página recarregar ou fechar)
+  const chaveRasc = `nx-rasc-treino:${ehModelo ? 'modelo' : alunoId}:${novo ? 'novo' : treinoId}`;
+  const assinaturaDe = (x) =>
+    JSON.stringify([x.titulo, x.foco, x.observacoes, x.ativo, (x.itens || []).map(({ _aberto, ...i }) => i)]);
+  const rascAntigo = store.get(chaveRasc, null);
+  let inicial = null;
+  const guardarRasc = () => {
+    try {
+      syncCampos();
+    } catch {
+      return;
+    }
+    const a = assinaturaDe(t);
+    if (inicial === null) inicial = a; // primeira tela: o treino como veio do banco
+    if (a === inicial) return store.del(chaveRasc);
+    telaEditando = true;
+    store.set(chaveRasc, {
+      em: Date.now(),
+      t: { titulo: t.titulo, foco: t.foco, observacoes: t.observacoes, ativo: t.ativo, itens: t.itens },
+    });
+  };
+  const limparRasc = () => {
+    store.del(chaveRasc);
+    telaEditando = false;
+  };
+  const drawBase = draw;
+  draw = () => {
+    drawBase();
+    guardarRasc();
+  };
   draw();
+  telaEditando = true;
+  $app.oninput = guardarRasc;
+  if (rascAntigo && rascAntigo.t && Date.now() - rascAntigo.em < 7 * 864e5 && assinaturaDe(rascAntigo.t) !== inicial) {
+    const quando = new Date(rascAntigo.em).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const aviso = document.createElement('div');
+    aviso.className = 'card';
+    aviso.style.cssText = 'margin-top:12px;border-color:var(--acc)';
+    aviso.innerHTML = `<p class="small"><b>Tem uma edição não salva deste treino</b> (${quando}). Quer continuar de onde parou?</p><div class="row" style="gap:8px;margin-top:10px"><button class="btn sm" data-rasc="sim">Recuperar</button><button class="btn sm ghost" data-rasc="nao">Descartar</button></div>`;
+    const alvo = $app.querySelector('.card');
+    if (alvo) alvo.before(aviso);
+    aviso.onclick = (ev) => {
+      const b = ev.target.closest('[data-rasc]');
+      if (!b) return;
+      ev.stopPropagation();
+      if (b.dataset.rasc === 'sim') {
+        Object.assign(t, rascAntigo.t);
+        draw();
+        toast('Edição recuperada. Confira e salve.');
+      } else {
+        limparRasc();
+        telaEditando = true;
+        aviso.remove();
+      }
+    };
+  }
   $app.onclick = async (e) => {
-    const card = e.target.closest('[data-i]');
+    const card = e.target.closest('#itens > [data-i]');
     if (card && e.target.closest('[data-mv]')) {
       syncCampos();
       const i = +card.dataset.i,
@@ -1803,6 +1865,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
         btn.disabled = false;
         return toast('Não foi possível salvar o modelo.', true);
       }
+      limparRasc();
       toast('Modelo salvo!');
       location.hash = '#/treinos';
       return;
@@ -1965,6 +2028,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
               ...removidos.map((x) => x.exercicio_id),
             ]);
         if (t.ativo && t.itens.length) notificar('treino', id);
+        limparRasc();
         toast(daSemana.length ? 'Mudança salva só nesta semana.' : 'Treino salvo!');
         location.hash = `#/aluno/${alunoId}/forca`;
       } catch (err) {

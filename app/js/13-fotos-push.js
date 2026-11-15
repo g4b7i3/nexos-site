@@ -475,6 +475,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 let versaoNova = false,
   saiuEm = 0;
 const podeRecarregar = () => {
+  if (telaEditando) return false;
   const gps = store.get('nx-gps', null);
   if (gps && (gps.estado === 'correndo' || gps.estado === 'pausado')) return false;
   if (!$sheet.hidden || document.querySelector('.replay, .retro')) return false;
@@ -483,7 +484,7 @@ const podeRecarregar = () => {
 };
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saiuEm = Date.now();
-  else if (versaoNova && saiuEm && Date.now() - saiuEm > 15000 && podeRecarregar()) location.reload();
+  else if (versaoNova && saiuEm && Date.now() - saiuEm > 30 * 60000 && podeRecarregar()) location.reload();
   else checarVersao();
 });
 /* conferência de versão: app/versao.json traz a versão publicada; se o código aberto no aparelho for outro
@@ -512,7 +513,9 @@ async function checarVersao(forcar) {
     try {
       sessionStorage.setItem('nx-versao-tentou', chave);
     } catch {}
-    if (!podeRecarregar()) {
+    // cópia misturada quebra telas: recarrega já (se nada estiver sendo editado). Versão nova normal: espera a próxima troca de tela
+    // logo ao abrir o app (nada feito ainda) atualiza na hora
+    if ((!misturada && performance.now() > 15000) || !podeRecarregar()) {
       versaoNova = true;
       return;
     }
