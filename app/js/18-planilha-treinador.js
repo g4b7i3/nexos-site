@@ -1063,13 +1063,22 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       });
       const lerTopo = () => {
         t.titulo = r.querySelector('#t-nome').value.trim();
-        t.tipo = r.querySelector('#t-tipo').value;
+        t.tipo = tipoDoPlano({ titulo: t.titulo, tipo: r.querySelector('#t-tipo').value });
         t.descricao = r.querySelector('#t-desc').value.trim();
         const sb_ = r.querySelector('#t-sobre').value.trim();
         t.sobre = sb_ === sobreTreino(t.tipo) ? null : sb_; // igual ao padrão: guarda vazio e segue o padrão
       };
       // ao trocar o tipo, a explicação acompanha, a não ser que o treinador já tenha escrito a dele
       let tipoAnt = r.querySelector('#t-tipo').value;
+      // nome começando por "Prova": o tipo passa para Prova sozinho, se ainda estiver num tipo leve
+      r.querySelector('#t-nome').addEventListener('input', (e) => {
+        const sel = r.querySelector('#t-tipo');
+        const novo = tipoDoPlano({ titulo: e.target.value, tipo: sel.value });
+        if (novo !== sel.value) {
+          sel.value = novo;
+          sel.dispatchEvent(new Event('change'));
+        }
+      });
       r.querySelector('#t-tipo').addEventListener('change', (e) => {
         const ta = r.querySelector('#t-sobre');
         if (ta.value.trim() === sobreTreino(tipoAnt) || !ta.value.trim()) ta.value = sobreTreino(e.target.value);

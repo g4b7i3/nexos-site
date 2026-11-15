@@ -100,7 +100,7 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
     EX = A.extras || {},
     km = c.distancia_m / 1000,
     pace = paceDe(c);
-  const tipo = (plano && plano.tipo) || c.tipo;
+  const tipo = (plano && tipoDoPlano(plano)) || c.tipo;
   const est = plano ? estruturaDe(plano) : [];
   const repPl = est.find((s) => s.k === 'rep');
   let misto = !!repPl || ['intervalado', 'tiros', 'fartlek'].includes(tipo);
@@ -267,14 +267,18 @@ function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
       const ef1 = media(f1.map((p) => 1000 / p.seg / p.fc)),
         ef2 = media(f2.map((p) => 1000 / p.seg / p.fc));
       const dec = (ef1 - ef2) / ef1;
+      // numa prova ou teste a frequência sobe até o fim por causa do esforço máximo: é o esperado, não um alerta
+      const maxima = tipo === 'prova' || tipo === 'teste';
       sec.fc.push(
-        `Desacoplamento aeróbico de ${N1(dec * 100)}% (relação entre ritmo e frequência da 1ª para a 2ª metade). ${dec < 0.05 ? 'Abaixo de 5%: boa base aeróbica para esse ritmo e distância.' : 'Acima de 5%: o coração precisou trabalhar mais para manter o ritmo no fim.'}`,
+        `Desacoplamento aeróbico de ${N1(dec * 100)}% (relação entre ritmo e frequência da 1ª para a 2ª metade). ${dec < 0.05 ? 'Abaixo de 5%: boa base aeróbica para esse ritmo e distância.' : maxima ? 'Numa prova em esforço máximo, a frequência subir no fim é o normal; essa medida serve para treinos contínuos.' : 'Acima de 5%: o coração precisou trabalhar mais para manter o ritmo no fim.'}`,
       );
       if (dec < 0.05) F.aerobico = true;
-      if (dec >= 0.08 && km >= 8) F.deriva = true;
+      if (dec >= 0.08 && km >= 8 && !maxima) F.deriva = true;
       if (dec >= 0.08 && km >= 8)
         frases.push(
-          `A frequência subiu ${Math.round(media(f2.map((p) => p.fc)) - media(f1.map((p) => p.fc)))} bpm na segunda metade sem ganho de ritmo (deriva cardíaca).`,
+          maxima
+            ? `A frequência subiu ${Math.round(media(f2.map((p) => p.fc)) - media(f1.map((p) => p.fc)))} bpm na segunda metade, o esperado num esforço máximo até a chegada.`
+            : `A frequência subiu ${Math.round(media(f2.map((p) => p.fc)) - media(f1.map((p) => p.fc)))} bpm na segunda metade sem ganho de ritmo (deriva cardíaca).`,
         );
     }
   } else if (!tiros) abertura += '';
@@ -569,7 +573,17 @@ function sugestaoCorrida(F, nomeAluno, semente) {
     else if (T.zona === 'lento') partes.push('Normal dependendo do dia. Vamos acompanhando.');
     if (T.dist === 'caiu') partes.push('Os últimos caíram um pouco, sinal de que a intensidade estava no limite.');
   } else {
-    if (F.leveForte)
+    if (F.tipo === 'prova')
+      partes.push(
+        F.ritmo === 'negativo'
+          ? 'Que prova! Terminou mais forte do que começou, estratégia muito bem executada.'
+          : F.ritmo === 'consistente'
+            ? 'Que prova! Ritmo constante do início ao fim, muito bem distribuída.'
+            : F.ritmo === 'perdeu' || F.ritmo === 'caiu'
+              ? 'Prova feita, parabéns! O ritmo caiu um pouco no fim. Na próxima, vale largar um pouco mais contido.'
+              : 'Prova feita, parabéns!',
+      );
+    else if (F.leveForte)
       partes.push(
         `Bom treino! Só um detalhe: ${F.tipo === 'longao' ? 'o longão é para ser no ritmo leve' : 'esse era um treino leve'}, então pode segurar mais o ritmo. É no leve que a base aeróbica cresce.`,
       );
