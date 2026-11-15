@@ -135,7 +135,7 @@ video#rev{width:100%;max-height:52vh;border-radius:16px;background:#000}
 
 <!-- lista de roteiros -->
 <section class="tela" id="lista">
-  <div class="topo"><div class="marca"><img src="/img/nexos-icon.png" alt=""><h1>Teleprompter</h1></div></div>
+  <div class="topo"><div class="marca"><img src="/img/nexos-icon.png" alt=""><h1>Teleprompter</h1></div><button class="bt sec" id="bt-consertar" style="height:40px;padding:0 14px;font-size:13px;margin-left:auto">Consertar vídeo</button><input type="file" id="arq-consertar" accept="video/mp4,video/*" hidden></div>
   <div class="rolar" id="lista-itens"></div>
   <button class="fab" id="bt-novo"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo roteiro</button>
 </section>
@@ -501,6 +501,148 @@ function fxAtualizar() {
 }
 const fxLigado = () => !!(fx && fx.rodando);
 
+// MP4 gravado pelo navegador vem "em pedaços" (fragmentado) e sem a duração no cabeçalho: a galeria do celular acha que tem 0 s.
+// Aqui ele é remontado como MP4 comum (cabeçalho completo no começo), sem perder qualidade: só reorganiza, não recodifica.
+function mp4Normal(buf) {
+  const d = new DataView(buf), u8 = new Uint8Array(buf), N = buf.byteLength;
+  const tipo = (o) => String.fromCharCode(u8[o + 4], u8[o + 5], u8[o + 6], u8[o + 7]);
+  const caixas = (ini, fim) => {
+    const r = [];
+    let o = ini;
+    while (o + 8 <= fim) {
+      let t = d.getUint32(o), h = 8;
+      if (t === 1) { t = Number(d.getBigUint64(o + 8)); h = 16; }
+      if (t === 0) t = fim - o;
+      if (t < h || o + t > fim) break;
+      r.push({ t: tipo(o), o, s: t, h, c: o + h, f: o + t });
+      o += t;
+    }
+    return r;
+  };
+  const uma = (lista, t) => lista.find((b) => b.t === t);
+  const top = caixas(0, N);
+  const moov = uma(top, 'moov');
+  if (!moov || !top.some((b) => b.t === 'moof')) return null; // já é normal (ou não é MP4)
+  const mk = caixas(moov.c, moov.f);
+  const trex = {};
+  const mvex = uma(mk, 'mvex');
+  if (mvex) caixas(mvex.c, mvex.f).filter((b) => b.t === 'trex').forEach((b) => {
+    trex[d.getUint32(b.c + 4)] = { dur: d.getUint32(b.c + 12), tam: d.getUint32(b.c + 16), fl: d.getUint32(b.c + 20) };
+  });
+  const faixas = mk.filter((b) => b.t === 'trak').map((tk) => {
+    const tc = caixas(tk.c, tk.f), tkhd = uma(tc, 'tkhd'), mdia = uma(tc, 'mdia'), mc = caixas(mdia.c, mdia.f);
+    const mdhd = uma(mc, 'mdhd'), hdlr = uma(mc, 'hdlr'), minf = uma(mc, 'minf'), ic = caixas(minf.c, minf.f);
+    const stbl = uma(ic, 'stbl'), stsd = uma(caixas(stbl.c, stbl.f), 'stsd');
+    const v = u8[tkhd.c];
+    const id = d.getUint32(tkhd.c + (v ? 20 : 12));
+    const mv = u8[mdhd.c];
+    return {
+      id, tkhd, v, escala: d.getUint32(mdhd.c + (mv ? 20 : 12)), lang: d.getUint16(mdhd.c + (mv ? 32 : 20)),
+      hdlr, cab: ic.filter((b) => b.t !== 'stbl'), stsd, video: tipo(hdlr.c + 4) === 'vide' || String.fromCharCode(...u8.slice(hdlr.c + 8, hdlr.c + 12)) === 'vide',
+      am: [], // amostras: [posição, tamanho, duração, chave, cto]
+    };
+  });
+  const porId = Object.fromEntries(faixas.map((f) => [f.id, f]));
+  top.filter((b) => b.t === 'moof').forEach((moof) => {
+    caixas(moof.c, moof.f).filter((b) => b.t === 'traf').forEach((traf) => {
+      const tc = caixas(traf.c, traf.f), tfhd = uma(tc, 'tfhd');
+      const fl = d.getUint32(tfhd.c) & 0xffffff, id = d.getUint32(tfhd.c + 4), f = porId[id], df = trex[id] || {};
+      if (!f) return;
+      let o = tfhd.c + 8, base = moof.o, dDur = df.dur, dTam = df.tam, dFl = df.fl;
+      if (fl & 1) { base = Number(d.getBigUint64(o)); o += 8; }
+      if (fl & 2) o += 4;
+      if (fl & 8) { dDur = d.getUint32(o); o += 4; }
+      if (fl & 0x10) { dTam = d.getUint32(o); o += 4; }
+      if (fl & 0x20) { dFl = d.getUint32(o); o += 4; }
+      let pos = null;
+      tc.filter((b) => b.t === 'trun').forEach((tr) => {
+        const v = u8[tr.c], tf = d.getUint32(tr.c) & 0xffffff, n = d.getUint32(tr.c + 4);
+        let p = tr.c + 8;
+        if (tf & 1) { pos = base + d.getInt32(p); p += 4; } else if (pos === null) pos = base;
+        let primeiro = null;
+        if (tf & 4) { primeiro = d.getUint32(p); p += 4; }
+        for (let i = 0; i < n; i++) {
+          let du = dDur, ta = dTam, sf = i === 0 && primeiro !== null ? primeiro : dFl, ct = 0;
+          if (tf & 0x100) { du = d.getUint32(p); p += 4; }
+          if (tf & 0x200) { ta = d.getUint32(p); p += 4; }
+          if (tf & 0x400) { sf = d.getUint32(p); p += 4; }
+          if (tf & 0x800) { ct = v ? d.getInt32(p) : d.getUint32(p); p += 4; }
+          f.am.push([pos, ta, du || 0, !(sf & 0x10000), ct]);
+          pos += ta;
+        }
+      });
+    });
+  });
+  if (!faixas.some((f) => f.am.length)) return null;
+  // montagem
+  const B = [];
+  const cx = (t, ...partes) => {
+    const corpo = partes.flat(Infinity), tam = 8 + corpo.reduce((s, p) => s + p.length, 0);
+    const h = new Uint8Array(8); new DataView(h.buffer).setUint32(0, tam); for (let i = 0; i < 4; i++) h[4 + i] = t.charCodeAt(i);
+    return [h, ...corpo];
+  };
+  const u32 = (...xs) => { const a = new Uint8Array(xs.length * 4), w = new DataView(a.buffer); xs.forEach((x, i) => w.setUint32(i * 4, x >>> 0)); return a; };
+  const u64 = (x) => { const a = new Uint8Array(8); new DataView(a.buffer).setBigUint64(0, BigInt(x)); return a; };
+  const cru = (b) => u8.slice(b.o, b.f);
+  const tamDe = (partes) => partes.flat(Infinity).reduce((s, p) => s + p.length, 0);
+  const durFaixa = (f) => f.am.reduce((s, a) => s + a[2], 0);
+  const durFilme = Math.max(...faixas.map((f) => Math.round((durFaixa(f) / f.escala) * 1000)));
+  const montarMoov = (offsets) => {
+    const traks = faixas.filter((f) => f.am.length).map((f) => {
+      const dur = durFaixa(f), dm = Math.round((dur / f.escala) * 1000);
+      // tkhd versão 0, com a duração certa (guarda o resto: volume, matriz de rotação, largura e altura)
+      const r = f.tkhd.c + (f.v ? 36 : 24); // depois de duração
+      const resto = u8.slice(r, f.tkhd.f);
+      const tkhd = cx('tkhd', u32(0x000003, 0, 0, f.id, 0, dm), resto);
+      const mdhd = cx('mdhd', u32(0, 0, 0, f.escala, dur), new Uint8Array([f.lang >> 8, f.lang & 255, 0, 0]));
+      // tabelas
+      const stts = [];
+      f.am.forEach((a) => { const u = stts[stts.length - 1]; if (u && u[1] === a[2]) u[0]++; else stts.push([1, a[2]]); });
+      const temCto = f.am.some((a) => a[4]);
+      const ctts = [];
+      if (temCto) f.am.forEach((a) => { const u = ctts[ctts.length - 1]; if (u && u[1] === a[4]) u[0]++; else ctts.push([1, a[4]]); });
+      const chaves = f.am.map((a, i) => (a[3] ? i + 1 : 0)).filter(Boolean);
+      const off = offsets[f.id];
+      const stbl = cx('stbl',
+        cru(f.stsd),
+        cx('stts', u32(0, stts.length, ...stts.flat())),
+        temCto ? cx('ctts', u32(0x01000000, ctts.length, ...ctts.flat())) : [],
+        f.video && chaves.length < f.am.length ? cx('stss', u32(0, chaves.length, ...chaves)) : [],
+        cx('stsc', u32(0, 1, 1, 1, 1)),
+        cx('stsz', u32(0, 0, f.am.length, ...f.am.map((a) => a[1]))),
+        cx('co64', u32(0, f.am.length), off.map(u64)),
+      );
+      const minf = cx('minf', f.cab.map(cru), stbl);
+      return cx('trak', tkhd, cx('mdia', mdhd, cru(f.hdlr), minf));
+    });
+    const prox = Math.max(...faixas.map((f) => f.id)) + 1;
+    const mvhd = cx('mvhd', u32(0, 0, 0, 1000, durFilme, 0x00010000), new Uint8Array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+      u32(0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000), u32(0, 0, 0, 0, 0, 0, prox));
+    return cx('moov', mvhd, traks);
+  };
+  const ftyp = cx('ftyp', new TextEncoder().encode('isom'), u32(0x200), new TextEncoder().encode('isomiso2avc1mp41'));
+  // ordem dos dados: como estavam no arquivo
+  const todas = [];
+  faixas.forEach((f) => f.am.forEach((a, i) => todas.push([a[0], f.id, i, a[1]])));
+  todas.sort((x, y) => x[0] - y[0]);
+  const zero = {}; faixas.forEach((f) => (zero[f.id] = f.am.map(() => 0)));
+  const tamMoov = tamDe(montarMoov(zero));
+  const totalDados = todas.reduce((s, a) => s + a[3], 0);
+  const grande = totalDados + 16 > 0xffffffff;
+  let p = tamDe(ftyp) + tamMoov + (grande ? 16 : 8);
+  const offs = {}; faixas.forEach((f) => (offs[f.id] = []));
+  todas.forEach((a) => { offs[a[1]][a[2]] = p; p += a[3]; });
+  const moovFinal = montarMoov(offs);
+  const saida = new Uint8Array(p);
+  let w = 0;
+  [ftyp, moovFinal].flat(Infinity).forEach((x) => { saida.set(x, w); w += x.length; });
+  const dv = new DataView(saida.buffer);
+  if (grande) { dv.setUint32(w, 1); saida.set([109, 100, 97, 116], w + 4); dv.setBigUint64(w + 8, BigInt(totalDados + 16)); w += 16; }
+  else { dv.setUint32(w, totalDados + 8); saida.set([109, 100, 97, 116], w + 4); w += 8; }
+  todas.forEach((a) => { saida.set(u8.subarray(a[0], a[0] + a[3]), w); w += a[3]; });
+  return saida;
+}
+
 /* ---------- câmera e gravação ---------- */
 let fluxo = null, gravador = null, pedacos = [], urlVideo = null, inicioRec = 0, relogio = null;
 const tipoVideo = () => ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
@@ -553,22 +695,51 @@ function pararGravacao() {
   if (gravador && gravador.state !== 'inactive') gravador.stop();
   else rotuloRec(fluxo ? 'Toque para gravar' : 'Toque para gravar com a câmera');
 }
-function mostrarVideo() {
+async function mostrarVideo() {
   parar();
   const tipo = (gravador && gravador.mimeType) || 'video/webm';
-  const blob = new Blob(pedacos, { type: tipo });
+  let blob = new Blob(pedacos, { type: tipo });
+  // deixa o MP4 com a duração certa, para a galeria e os editores aceitarem
+  if (tipo.includes('mp4')) {
+    rotuloRec('Preparando o vídeo...');
+    try { const ok = mp4Normal(await blob.arrayBuffer()); if (ok) blob = new Blob([ok], { type: 'video/mp4' }); } catch (e) { console.error(e); }
+  }
   if (urlVideo) URL.revokeObjectURL(urlVideo);
   urlVideo = URL.createObjectURL(blob);
   const ext = tipo.includes('mp4') ? 'mp4' : 'webm';
   const nome = (atual.titulo || 'video').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'video';
   $('rev').src = urlVideo; $('rv-baixar').href = urlVideo; $('rv-baixar').download = `${nome}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${ext}`;
   $('rv-info').textContent = `${mmss((Date.now() - inicioRec) / 1000)} · ${(blob.size / 1048576).toFixed(1)} MB · ${ext.toUpperCase()}. Salve o vídeo antes de gravar de novo. Depois é só mandar para editar.`;
-  rotuloRec('Toque para gravar');
+  rotuloRec('Toque para gravar'); $('rv-fechar').textContent = 'Gravar de novo';
   abrirFolha('rv', true);
 }
 $('bt-rec').onclick = () => (gravador && gravador.state === 'recording' ? pararGravacao() : comecarGravacao());
 $('rv-fechar').onclick = () => { abrirFolha('rv', false); $('rev').pause(); pos = 0; desenhar(); };
 $('rv-fundo').onclick = $('rv-fechar').onclick;
+// conserta um vídeo já salvo (gravado antes desta correção): escolhe da galeria e salva de novo, agora com a duração certa
+$('bt-consertar').onclick = () => $('arq-consertar').click();
+$('arq-consertar').onchange = async (e) => {
+  const arq = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!arq) return;
+  const bt = $('bt-consertar'); bt.textContent = 'Consertando...'; bt.disabled = true;
+  try {
+    const ok = mp4Normal(await arq.arrayBuffer());
+    const blob = ok ? new Blob([ok], { type: 'video/mp4' }) : arq;
+    if (urlVideo) URL.revokeObjectURL(urlVideo);
+    urlVideo = URL.createObjectURL(blob);
+    $('rev').src = urlVideo; $('rv-baixar').href = urlVideo;
+    $('rv-baixar').download = arq.name.replace(/\.[^.]+$/, '') + '-ok.mp4';
+    $('rv-info').textContent = ok
+      ? 'Vídeo consertado. Toque em Salvar vídeo e a cópia nova abre em qualquer editor. Depois pode apagar a antiga.'
+      : 'Este vídeo já está normal, não precisou consertar.';
+    $('rv-fechar').textContent = 'Fechar';
+    mostrar('lista'); abrirFolha('rv', true);
+  } catch (err) {
+    console.error(err); bt.textContent = 'Não deu para ler este vídeo'; await new Promise((ok) => setTimeout(ok, 2500));
+  }
+  bt.textContent = 'Consertar vídeo'; bt.disabled = false;
+};
 
 desenharLista(); mostrar('lista');
 </script>
