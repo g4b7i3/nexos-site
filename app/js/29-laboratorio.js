@@ -1871,6 +1871,8 @@ function staffMais() {
         },
         () => {},
       );
+  const TELEPROMPTER_IC =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>';
   const it = (href, ic, t, d) =>
     `<a class="list-item" href="${href}" style="color:inherit"><span class="ativ-ic">${ic}</span><div class="grow"><b>${t}</b><div class="small muted">${d}</div></div>${I.chev}</a>`;
   // agrupado pelo que o treinador quer fazer: acompanhar os alunos, falar com a equipe, cuidar da assessoria
@@ -1879,6 +1881,7 @@ function staffMais() {
     <p class="sec-lbl">Acompanhar os alunos</p><div class="stack">
       ${it('#/agenda', AG_IC, 'Agenda', 'Videochamadas, avaliações, treinos presenciais e outros compromissos')}
       ${it('#/nexos', MURAL_IC, 'Mural da Nexos', 'Recados para os alunos: avisos, treinões, camisa nova')}
+      ${it('/teleprompter/', TELEPROMPTER_IC, 'Teleprompter', 'Texto rolando perto da câmera para gravar vídeos')}
       ${it('#/instalar', TREINADOR_IC, 'Instalar o app do treinador', 'Ícone preto na tela de início, separado do app de aluno')}
       ${it('#/demonstracao', I.cam, DEMO_ON ? 'Sair do modo demonstração' : 'Modo demonstração', DEMO_ON ? 'Voltar aos dados reais' : 'Atleta fictícia para gravar vídeos e mostrar o app')}
       ${it('#/dashboard', DASH_GRAF_IC, 'Dashboard', 'Feedbacks dados (treinos com Visto) e as planilhas liberadas da semana')}
