@@ -9,7 +9,7 @@ if (!m) throw new Error('Bloco da passada não encontrado no app (marcadores pas
 const ctx = {};
 vm.runInNewContext(
   m[1] +
-    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel, psMedidasQuadro, psFinais, psAssimetria, psCompara, psSugereFator, psRitmoKmh, psPaceTxt, psConfere });',
+    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel, psMedidasQuadro, psFinais, psAssimetria, psCompara, psSugereFator, psRitmoKmh, psPaceTxt, psConfere, psEsperado, psPosEsperado, psAngPe, psAngVert, PS_ESPERADO });',
   ctx,
 );
 const {
@@ -351,9 +351,71 @@ ok(perto(psMedidasQuadro('apoio', ptsA, anL).cotovelo, 90, 0.5), 'cotovelo num q
   if (conf({}, s.t).nv !== 'ok') erros.push('conferir: tornozelo no lugar certo deveria dar ok');
   if (conf({ [s.t]: [250, 600] }, s.t).nv !== 'aviso') erros.push('conferir: tíbia de -28° deveria avisar');
   if (conf({ [s.j]: [265, 450] }, s.j).nv !== 'aviso') erros.push('conferir: joelho dobrando para trás deveria avisar');
-  if (conf({ [s.c]: [190, 612] }, s.c).nv !== 'aviso') erros.push('conferir: calcanhar longe do tornozelo deveria avisar');
-  if (conf({ [s.q]: [300, 470] }, s.q).nv !== 'aviso') erros.push('conferir: quadril na altura do joelho deveria avisar');
+  if (conf({ [s.c]: [190, 612] }, s.c).nv !== 'aviso')
+    erros.push('conferir: calcanhar longe do tornozelo deveria avisar');
+  if (conf({ [s.q]: [300, 470] }, s.q).nv !== 'aviso')
+    erros.push('conferir: quadril na altura do joelho deveria avisar');
   if (conf({ [s.q]: [300, 420] }, s.q).nv !== 'aviso') erros.push('conferir: coxa curta demais deveria avisar');
+}
+// fases da passada: as duas pernas, o balanço e o esperado
+{
+  const { psEsperado, psPosEsperado, psAngPe, psAngVert, PS_LADO: L } = ctx;
+  const r = psAnalisarLado(corredorLado(), altura);
+  const pe = r.pernas || {};
+  ok(pe.E && pe.D, 'de lado, mede as duas pernas');
+  if (pe.E && pe.D) {
+    // o corredor sintético é simétrico: a perna de longe tem de dar o mesmo que a de perto
+    ['tibia', 'joelhoIC', 'coxaIC', 'joelhoMax', 'frente', 'contato'].forEach((k) =>
+      ok(perto(pe.D[k], pe.E[k], k === 'contato' ? 20 : 2.5), `perna de longe em ${k}: ${pe.D[k]} x ${pe.E[k]}`),
+    );
+    ok(pe.E.apoios >= 3 && pe.D.apoios >= 3, `apoios das duas pernas: ${pe.E.apoios} e ${pe.D.apoios}`);
+  }
+  ok(perto(r.m.pe, 0, 1), `pé reto no toque dá 0°: ${r.m.pe}`);
+  ok(r.m.joelhoBal > r.m.joelhoIC, `joelho dobra mais no balanço do que no toque: ${r.m.joelhoBal}`);
+  ok(r.m.coxaIC > 0 && r.m.coxaIC < 45, `coxa à frente no toque: ${r.m.coxaIC}`);
+  ok(r.m.coxaTO != null && isFinite(r.m.coxaTO), `coxa na saída do pé medida: ${r.m.coxaTO}`);
+  const esq = psAnalisarLado(corredorLado({ dir: -1 }), altura);
+  ok(perto(esq.m.coxaIC, r.m.coxaIC, 1) && perto(esq.m.pe, 0, 1), 'coxa e pé iguais correndo para a esquerda');
+  // ângulo do pé: ponta 10 px acima do calcanhar num pé de 30 px → 18,4° (pisada de calcanhar)
+  ok(perto(psAngPe([0, 10], [30, 0], 1), 18.43, 0.05), 'ângulo do pé com a ponta para cima');
+  ok(perto(psAngPe([0, 10], [-30, 0], -1), 18.43, 0.05), 'ângulo do pé correndo para a esquerda');
+  ok(perto(psAngVert([0, 0], [10, 100], 1), 5.71, 0.05), 'ângulo com a vertical');
+  // coxa na saída do pé, num quadro conferido: joelho atrás do quadril dá ângulo positivo
+  const s = L.D;
+  const mb = psMedidasQuadro('balanco', { [s.q]: [300, 300], [s.j]: [250, 480] }, { vista: 'lado', lado: 'D', dir: 1 });
+  ok(perto(mb.coxaTO, 15.5, 0.1), `coxa na saída do pé conferida: ${mb.coxaTO}`);
+  const mc = psMedidasQuadro(
+    'contato',
+    { [s.q]: [300, 300], [s.j]: [380, 480], [s.t]: [390, 650], [s.c]: [380, 660], [s.p]: [420, 650] },
+    { vista: 'lado', lado: 'D', dir: 1, altura: 175 },
+  );
+  ok(perto(mc.coxaIC, 23.96, 0.1) && perto(mc.pe, 14.04, 0.1), `coxa e pé no toque conferidos: ${mc.coxaIC} ${mc.pe}`);
+  // esperado: tabela fixa sem ritmo; com ritmo, a cadência e o joelho no balanço seguem a velocidade (Fukuchi et al., 2017)
+  ok(psEsperado('cadencia', null).m === 175, 'cadência esperada sem ritmo');
+  ok(perto(psEsperado('cadencia', 12.6).m, 171.4, 0.01), 'cadência esperada a 12,6 km/h');
+  const c108 = psEsperado('cadencia', 10.8);
+  ok(perto(c108.m, 166.5, 0.01) && perto(c108.dp, 9.9, 0.01), `cadência esperada a 10,8 km/h: ${c108.m} ± ${c108.dp}`);
+  ok(perto(psEsperado('cadencia', 17).m, 183.5, 0.01), 'acima de 16,2 km/h fica no último ponto da tabela');
+  ok(psEsperado('cadencia', 25).m === 175, 'fora da tabela volta para o valor fixo');
+  ok(perto(psEsperado('joelhoBal', 14.4).m, 113.9, 0.01), 'joelho no balanço esperado a 14,4 km/h');
+  ok(psEsperado('frente', 12) === null, 'sem esperado para o pé à frente');
+  ok(
+    psPosEsperado(10, { m: 12.7, dp: 4.5 }) === 'dentro' &&
+      psPosEsperado(18, { m: 12.7, dp: 4.5 }) === 'acima' &&
+      psPosEsperado(7, { m: 12.7, dp: 4.5 }) === 'abaixo',
+    'posição em relação ao esperado',
+  );
+  // as faixas coloridas não podem contradizer o esperado: a média esperada fica dentro do comum
+  ['tibia', 'joelhoIC', 'joelhoMax', 'tronco', 'oscilacao', 'queda'].forEach((k) =>
+    ok(psNivel(k, ctx.PS_ESPERADO[k].m) === 'ok', `média esperada de ${k} fica na faixa comum`),
+  );
+  // a correção do treinador na perna de perto aparece também nas fases
+  const f2 = psFinais({
+    vista: 'lado',
+    metricas: { tibia: 9 },
+    extra: { an: { lado: 'D' }, lados: { D: { tibia: 9 }, E: { tibia: 7 } }, ajustes: { tibia: { valor: 4 } } },
+  });
+  ok(f2.lados.D.tibia === 4 && f2.lados.E.tibia === 7, 'correção vale para a perna de perto nas fases');
 }
 if (erros.length) {
   console.error('Análise da passada: ' + erros.length + ' conta(s) errada(s):\n - ' + erros.join('\n - '));

@@ -195,41 +195,88 @@ function psApoios(fr, L, perna) {
 // converte pixels em centímetros pela altura da pessoa (perna, do trocânter ao maléolo, ≈ 0,49 da altura: Winter)
 const psCm = (px, pernaPx, alturaCm) => (pernaPx && alturaCm ? (px / pernaPx) * alturaCm * 0.49 : null);
 
+// ângulo de um segmento com a vertical (graus): positivo quando o ponto de baixo fica à frente, no sentido da corrida
+const psAngVert = (cima, baixo, dir) => (Math.atan2(dir * (baixo[0] - cima[0]), baixo[1] - cima[1]) * 180) / Math.PI;
+// ângulo do pé no toque (graus): linha do calcanhar até a ponta do pé com o chão; positivo = ponta para cima
+const psAngPe = (c, p, dir) => (Math.atan2(c[1] - p[1], dir * (p[0] - c[0])) * 180) / Math.PI;
+// medidas de uma perna em cada fase: contato inicial (toque), apoio médio e balanço inicial (saída do pé)
+function psFasesPerna(fr, L, dir, perna, alturaCm) {
+  const s = PS_LADO[L];
+  const ap = psApoios(fr, L, perna);
+  const t = (i) => fr[i].t;
+  const flex = (f) => {
+    const q = psPt(f, s.q),
+      j = psPt(f, s.j),
+      tn = psPt(f, s.t);
+    const a = q && j && tn ? psAng(q, j, tn) : null;
+    return a == null ? null : 180 - a;
+  };
+  const por = ap.map((a, n) => {
+    const f = fr[a.ic];
+    const q = psPt(f, s.q),
+      j = psPt(f, s.j),
+      tn = psPt(f, s.t),
+      c = psPt(f, s.c, 0.2),
+      pt = psPt(f, s.p, 0.2);
+    const r = { contatoMs: (t(a.to) - t(a.ic)) * 1000 };
+    if (j && tn) r.tibia = psAngVert(j, tn, dir);
+    if (q && j) r.coxaIC = psAngVert(q, j, dir);
+    r.joelhoIC = flex(f);
+    if (q && (c || tn)) r.frenteCm = psCm(dir * ((c || tn)[0] - q[0]), psPernaQuadro(f, L) || perna, alturaCm);
+    if (c && pt) r.pe = psAngPe(c, pt, dir);
+    let jMax = null;
+    for (let k = a.ic; k <= a.to; k++) {
+      const v = flex(fr[k]);
+      if (v != null) jMax = Math.max(jMax ?? 0, v);
+    }
+    r.joelhoMax = jMax;
+    // balanço inicial: primeiro quadro com o pé fora do chão (coxa atrás) e a maior dobra do joelho até o próximo toque
+    const fo = fr[a.to + 1];
+    if (fo) {
+      const qo = psPt(fo, s.q),
+        jo = psPt(fo, s.j);
+      if (qo && jo) r.coxaTO = -psAngVert(qo, jo, dir);
+    }
+    const prox = ap[n + 1];
+    if (prox && t(prox.ic) - t(a.to) < 1.2) {
+      let jb = null;
+      for (let k = a.to + 1; k < prox.ic; k++) {
+        const v = flex(fr[k]);
+        if (v != null) jb = Math.max(jb ?? 0, v);
+      }
+      r.joelhoBal = jb;
+    }
+    return r;
+  });
+  const med = (k) => psMediana(por.map((x) => x[k]));
+  return {
+    apoios: ap,
+    m: {
+      tibia: med('tibia'),
+      joelhoIC: med('joelhoIC'),
+      coxaIC: med('coxaIC'),
+      pe: med('pe'),
+      frente: med('frenteCm'),
+      joelhoMax: med('joelhoMax'),
+      coxaTO: med('coxaTO'),
+      joelhoBal: med('joelhoBal'),
+      contato: med('contatoMs'),
+    },
+  };
+}
+
 // análise com a câmera de lado
+// a perna do lado da câmera é a principal; a de longe também é medida, mas fica parcialmente escondida e é menos confiável
 function psAnalisarLado(fr, alturaCm) {
   const { lado, vis } = psLadoVisivel(fr);
   const dir = psDirecao(fr);
   const s = PS_LADO[lado];
+  const outro = lado === 'E' ? 'D' : 'E';
   const perna = psPerna(fr, lado);
-  const ap = psApoios(fr, lado, perna);
+  const perto = psFasesPerna(fr, lado, dir, perna, alturaCm);
+  const longe = psFasesPerna(fr, outro, dir, psPerna(fr, outro) || perna, alturaCm);
+  const ap = perto.apoios;
   const t = (i) => fr[i].t;
-  const porApoio = ap
-    .map((a) => {
-      const f = fr[a.ic];
-      const q = psPt(f, s.q),
-        j = psPt(f, s.j),
-        tn = psPt(f, s.t),
-        c = psPt(f, s.c, 0.2) || tn;
-      if (!q || !j || !tn) return null;
-      const tibia = (Math.atan2(dir * (tn[0] - j[0]), tn[1] - j[1]) * 180) / Math.PI;
-      const ang = psAng(q, j, tn);
-      let jMax = null;
-      for (let k = a.ic; k <= a.to; k++) {
-        const fk = fr[k];
-        const qk = psPt(fk, s.q),
-          jk = psPt(fk, s.j),
-          tk = psPt(fk, s.t);
-        if (qk && jk && tk) jMax = Math.max(jMax ?? 0, 180 - psAng(qk, jk, tk));
-      }
-      return {
-        tibia,
-        joelhoIC: ang == null ? null : 180 - ang,
-        joelhoMax: jMax,
-        frenteCm: psCm(dir * (c[0] - q[0]), psPernaQuadro(f, lado) || perna, alturaCm),
-        contatoMs: (t(a.to) - t(a.ic)) * 1000,
-      };
-    })
-    .filter(Boolean);
   // tronco: inclinação para a frente (graus) do meio do quadril até o meio dos ombros
   const tronco = psMediana(
     fr.map((f) => {
@@ -283,15 +330,26 @@ function psAnalisarLado(fr, alturaCm) {
     qualidade: psQualidade(fr, vis, ap.length, 'lado'),
     // cadência sem o filtro de tempo plausível (serve para perceber vídeo em câmera lenta)
     cadBruta: psMediana(ciclos) > 0 ? 120 / psMediana(ciclos) : null,
+    // cada perna nas três fases (a de longe da câmera é menos confiável); o tempo de contato só com 50 quadros por segundo ou mais
+    pernas: Object.fromEntries(
+      [
+        [lado, perto],
+        [outro, longe],
+      ].map(([L, p]) => [L, { ...p.m, contato: fps >= 50 ? p.m.contato : null, apoios: p.apoios.length }]),
+    ),
     m: {
       cadencia: ciclo ? 120 / ciclo : null,
-      tibia: psMediana(porApoio.map((x) => x.tibia)),
-      joelhoIC: psMediana(porApoio.map((x) => x.joelhoIC)),
-      joelhoMax: psMediana(porApoio.map((x) => x.joelhoMax)),
-      frente: psMediana(porApoio.map((x) => x.frenteCm)),
+      tibia: perto.m.tibia,
+      joelhoIC: perto.m.joelhoIC,
+      coxaIC: perto.m.coxaIC,
+      pe: perto.m.pe,
+      joelhoMax: perto.m.joelhoMax,
+      frente: perto.m.frente,
       tronco,
       oscilacao: psMediana(osc),
-      contato: fps >= 50 ? psMediana(porApoio.map((x) => x.contatoMs)) : null,
+      contato: fps >= 50 ? perto.m.contato : null,
+      coxaTO: perto.m.coxaTO,
+      joelhoBal: perto.m.joelhoBal,
       cotovelo: psMediana(cotovelos),
       bracoFrente: bracos.length >= 10 ? bF : null,
       bracoTras: bracos.length >= 10 && bT != null ? -bT : null,
@@ -470,6 +528,10 @@ const PS_REF = {
   bracoFrente: { un: '°', info: true },
   bracoTras: { un: '°', info: true },
   bracoCruza: { un: 'cm', info: true },
+  coxaIC: { un: '°', info: true },
+  pe: { un: '°', info: true },
+  coxaTO: { un: '°', info: true },
+  joelhoBal: { un: '°', info: true },
   queda: { un: '°', ok: (v) => v < 5, at: (v) => v <= 8 },
   joelhoDentro: { un: '°', ok: (v) => v < 8, at: (v) => v <= 15 },
   cruza: { un: '%', ok: (v) => v < 0.2, at: (v) => v < 0.5 },
@@ -495,12 +557,17 @@ function psMedidasQuadro(tipo, P, an) {
       c = g(s.c) || t,
       o = g(s.o);
     if (tipo === 'contato') {
-      if (j && t) r.tibia = (Math.atan2(an.dir * (t[0] - j[0]), t[1] - j[1]) * 180) / Math.PI;
+      if (j && t) r.tibia = psAngVert(j, t, an.dir);
+      if (q && j) r.coxaIC = psAngVert(q, j, an.dir);
+      const pt = g(s.p);
+      if (g(s.c) && pt) r.pe = psAngPe(g(s.c), pt, an.dir);
       if (q && j && t) {
         r.joelhoIC = 180 - psAng(q, j, t);
         const pl = psDist(q, j) + psDist(j, t);
         if (c) r.frente = psCm(an.dir * (c[0] - q[0]), pl, an.altura);
       }
+    } else if (tipo === 'balanco') {
+      if (q && j) r.coxaTO = -psAngVert(q, j, an.dir);
     } else {
       if (q && j && t) r.joelhoMax = 180 - psAng(q, j, t);
       if (q && o) r.tronco = (Math.atan2(an.dir * (o[0] - q[0]), q[1] - o[1]) * 180) / Math.PI;
@@ -547,6 +614,12 @@ function psFinais(x) {
       conf.add(k);
     }
   });
+  // de lado: a correção do treinador vale para a perna do lado da câmera
+  const perto = (ex.an || {}).lado;
+  if (x.vista === 'lado' && perto && lados[perto])
+    Object.keys(aj).forEach((k) => {
+      if (!k.includes('.') && conf.has(k) && k in lados[perto]) lados[perto][k] = m[k];
+    });
   if (x.vista === 'tras' && (lados.E || lados.D))
     ['queda', 'joelhoDentro'].forEach((k) => {
       const v = [lados.E && lados.E[k], lados.D && lados.D[k]].filter((y) => y != null && isFinite(y));
@@ -563,7 +636,7 @@ function psAssimetria(k, a, b) {
     return med ? { valor: (Math.abs(a - b) / med) * 100, un: '%', alto: (Math.abs(a - b) / med) * 100 > 10 } : null;
   }
   if (k === 'cruza') return { valor: Math.abs(a - b) * 100, un: '%', alto: Math.abs(a - b) > 0.3 };
-  const cm = k === 'largura' || k === 'bracoCruza';
+  const cm = k === 'largura' || k === 'bracoCruza' || k === 'frente';
   return { valor: Math.abs(a - b), un: cm ? 'cm' : '°', alto: Math.abs(a - b) > (cm ? 3 : 4) };
 }
 // faixa comum de cada medida (a mesma das cores) e a menor diferença que vale como mudança (abaixo disso pode ser erro da medida)
@@ -596,7 +669,65 @@ const PS_MUDA = {
   bracoFrente: 5,
   bracoTras: 5,
   bracoCruza: 2,
+  coxaIC: 3,
+  pe: 4,
+  coxaTO: 3,
+  joelhoBal: 5,
 };
+// valor esperado (média ± desvio padrão) em corredores sem lesão, com a fonte e como foi medido.
+// Martinez et al. (2022): 30 corredores em vídeo 2D, ritmo próprio (3,15 m/s, cerca de 11 km/h).
+// Folland et al. (2017): 97 corredores, média de 10, 11 e 12 km/h. Bramah et al. (2018): 36 corredores sem lesão a 3,2 m/s.
+// Fukuchi et al. (2017): 28 corredores a 2,5, 3,5 e 4,5 m/s; usado para o que muda com a velocidade, no ritmo do vídeo.
+const PS_ESPERADO = {
+  cadencia: { m: 175, dp: 6, fonte: 'Martinez et al. (2022)', cond: 'vídeo 2D, cerca de 11 km/h' },
+  tibia: { m: 4.3, dp: 2.9, fonte: 'Martinez et al. (2022)', cond: 'vídeo 2D, cerca de 11 km/h' },
+  joelhoIC: { m: 12.7, dp: 4.5, fonte: 'Martinez et al. (2022)', cond: 'vídeo 2D, cerca de 11 km/h' },
+  joelhoMax: { m: 38.3, dp: 4.1, fonte: 'Martinez et al. (2022)', cond: 'vídeo 2D, cerca de 11 km/h' },
+  oscilacao: { m: 7.3, dp: 1.5, fonte: 'Martinez et al. (2022)', cond: 'vídeo 2D, cerca de 11 km/h' },
+  pe: { m: 1.3, dp: 7.8, fonte: 'Martinez et al. (2022)', cond: 'vídeo 2D, cerca de 11 km/h' },
+  coxaIC: { m: 24.3, dp: 2.8, fonte: 'Folland et al. (2017)', cond: 'laboratório 3D, 10 a 12 km/h' },
+  tronco: { m: 10.3, dp: 3.7, fonte: 'Folland et al. (2017)', cond: 'laboratório 3D, 10 a 12 km/h' },
+  contato: { m: 246, dp: 22, fonte: 'Folland et al. (2017)', cond: 'laboratório 3D, 10 a 12 km/h' },
+  joelhoBal: { m: 94.1, dp: 11.1, fonte: 'Folland et al. (2017)', cond: 'laboratório 3D, 10 a 12 km/h' },
+  queda: { m: 3.7, dp: 1.9, fonte: 'Bramah et al. (2018)', cond: 'corredores sem lesão, laboratório 3D, 11,5 km/h' },
+};
+// [km/h, média, desvio padrão] de Fukuchi et al. (2017); a cadência em passos por minuto (o artigo dá passadas)
+const PS_ESP_VEL = {
+  cadencia: [
+    [9, 161.6, 9.3],
+    [12.6, 171.4, 10.5],
+    [16.2, 183.5, 13.4],
+  ],
+  joelhoBal: [
+    [9, 93.5, 10.4],
+    [12.6, 108.7, 10.7],
+    [16.2, 119.1, 10.4],
+  ],
+};
+function psEsperado(k, kmh) {
+  const t = PS_ESP_VEL[k];
+  if (t && kmh != null && kmh >= 8 && kmh <= 17.5) {
+    const v = Math.max(t[0][0], Math.min(t[t.length - 1][0], kmh));
+    let i = 0;
+    while (i < t.length - 2 && v > t[i + 1][0]) i++;
+    const [a, b] = [t[i], t[i + 1]];
+    const f = (v - a[0]) / (b[0] - a[0]);
+    const kmhTxt = String(Math.round(kmh * 10) / 10).replace('.', ',');
+    return {
+      m: a[1] + (b[1] - a[1]) * f,
+      dp: a[2] + (b[2] - a[2]) * f,
+      fonte: 'Fukuchi et al. (2017)',
+      cond: `no ritmo do vídeo (${kmhTxt} km/h), laboratório 3D`,
+      ritmo: true,
+    };
+  }
+  return PS_ESPERADO[k] || null;
+}
+// onde o valor fica em relação ao esperado: dentro de um desvio padrão, acima ou abaixo
+function psPosEsperado(v, e) {
+  if (v == null || !isFinite(v) || !e) return null;
+  return v > e.m + e.dp ? 'acima' : v < e.m - e.dp ? 'abaixo' : 'dentro';
+}
 // antes e depois de uma medida: melhorou (chegou mais perto da faixa comum), piorou, igual ou mudou (sem faixa)
 function psCompara(k, antes, depois) {
   if (antes == null || depois == null || !isFinite(antes) || !isFinite(depois)) return null;
@@ -647,6 +778,7 @@ const PS_CONF_NOME = {
   ombro: 'Ombro',
   cotovelo: 'Cotovelo',
   punho: 'Punho',
+  ponta: 'Ponta do pé',
 };
 function psConfere(tipo, P, an, Pauto, i) {
   const g = (k) => (P && P[k] ? P[k] : null);
@@ -706,7 +838,7 @@ function psConfere(tipo, P, an, Pauto, i) {
           av.push(
             'O joelho ficou totalmente esticado. No primeiro contato ele quase sempre tem uma leve dobra: confira o centro do joelho.',
           );
-        else if (tipo !== 'contato' && (flex < 20 || flex > 80))
+        else if (tipo === 'apoio' && (flex < 20 || flex > 80))
           av.push(
             `Ângulo do joelho fora do comum para o meio do apoio (${graus(flex)}). O normal fica entre 35° e 55°: confira o quadro e o centro do joelho.`,
           );
@@ -735,6 +867,13 @@ function psConfere(tipo, P, an, Pauto, i) {
       if (t && perna && c[1] < t[1] - 0.08 * perna)
         av.push('O calcanhar ficou acima do tornozelo. Ele fica embaixo, onde o pé encosta no chão.');
       ok = 'Atrás do pé, logo abaixo do tornozelo.';
+    } else if (i === s.p && g(s.p)) {
+      const pt = g(s.p);
+      if (t && perna && psDist(t, pt) > 0.9 * perna)
+        av.push('A ponta do pé ficou longe do tornozelo. Ela fica na frente do pé, nos dedos.');
+      if (c && an.dir * (pt[0] - c[0]) < 0)
+        av.push('A ponta do pé ficou atrás do calcanhar. Confira se os dois pontos estão no pé do lado da câmera.');
+      ok = 'Na frente do pé, nos dedos.';
     } else if (i === s.o && o) {
       if (q && o[1] >= q[1]) av.push('O ombro ficou abaixo do quadril. Ele fica no alto do tronco, na ponta do braço.');
       if (q && ref && Math.abs(o[0] - q[0]) > 0.45 * ref)
@@ -824,6 +963,10 @@ const PS_TITULO = {
   bracoFrente: 'Braço à frente',
   bracoTras: 'Braço atrás',
   bracoCruza: 'Mão cruzando o corpo',
+  coxaIC: 'Coxa no contato',
+  pe: 'Ângulo do pé no contato',
+  coxaTO: 'Coxa na saída do pé',
+  joelhoBal: 'Joelho no balanço',
 };
 const PS_EXPLICA = {
   cadencia: {
@@ -909,6 +1052,26 @@ const PS_EXPLICA = {
     info: 'Até onde o cotovelo vai para trás do corpo no balanço.',
     sobre: 'Ângulo do braço (do ombro ao cotovelo) com a vertical, no ponto mais atrás.',
   },
+  coxaIC: {
+    info: 'Quanto a coxa está à frente da vertical no toque do pé.',
+    sobre:
+      'Ângulo da coxa (do quadril ao joelho) com a vertical no toque. Junto com a tíbia, mostra se o pé chega longe do corpo.',
+  },
+  pe: {
+    info: 'Inclinação do pé no toque: ponta para cima quando pisa com o calcanhar, para baixo quando pisa com a frente do pé.',
+    sobre:
+      'Ângulo da linha do calcanhar até a ponta do pé com o chão, no toque. Acima de 8° costuma ser pisada de calcanhar e abaixo de −1,6°, de antepé (Altman e Davis, 2012). Valor aproximado, porque o celular marca o pé com menos precisão.',
+  },
+  coxaTO: {
+    info: 'Quanto a coxa vai para trás da vertical quando o pé sai do chão.',
+    sobre:
+      'Ângulo da coxa com a vertical no primeiro quadro com o pé no ar, o começo do balanço. Mostra quanto o quadril estende para empurrar o corpo e aumenta com a velocidade.',
+  },
+  joelhoBal: {
+    info: 'Quanto o joelho dobra quando a perna volta para a frente.',
+    sobre:
+      'Maior dobra do joelho entre a saída do pé e o toque seguinte. Aumenta com a velocidade, então o esperado acompanha o ritmo do vídeo quando ele foi anotado (Fukuchi et al., 2017).',
+  },
   bracoCruza: {
     info: 'Quanto a mão passa da linha do meio do corpo no balanço. Negativo quer dizer que não chega no meio.',
     sobre: 'Visto por trás, a mão fica escondida pelo corpo em parte do balanço, então o valor é aproximado.',
@@ -920,10 +1083,14 @@ const PS_ORDEM = {
     'tibia',
     'frente',
     'joelhoIC',
+    'coxaIC',
+    'pe',
     'joelhoMax',
     'tronco',
     'oscilacao',
     'contato',
+    'coxaTO',
+    'joelhoBal',
     'cotovelo',
     'bracoFrente',
     'bracoTras',
@@ -1184,6 +1351,27 @@ function psDesenhaQuadro(src, sx, sy, sw, sh, p, tipo, an) {
       }
       if (q && j && t) psEtiqueta(ctx, j[0] - 230, j[1] - 60, `Joelho ${f1(180 - psAng(q, j, t), 0)}°`);
     }
+    if (tipo === 'balanco' && q && j) {
+      // coxa na saída do pé: linha do quadril ao joelho contra a vertical
+      const L = psDist(q, j);
+      psLinha(ctx, q, [q[0], q[1] + L * 1.15], 'rgba(255,255,255,.8)', 3, [8, 8]);
+      psLinha(ctx, q, [q[0] + (j[0] - q[0]) * 1.15, q[1] + (j[1] - q[1]) * 1.15], '#ffd166', 5);
+      const ang = -psAngVert(q, j, an.dir);
+      psEtiqueta(
+        ctx,
+        q[0] + an.dir * 24 - (an.dir < 0 ? 200 : 0),
+        q[1] - 30,
+        ang >= 0 ? `Coxa ${f1(ang, 0)}° atrás` : `Coxa ${f1(-ang, 0)}° à frente`,
+        '#ffd166',
+      );
+      if (t)
+        psEtiqueta(
+          ctx,
+          j[0] - an.dir * 40 - (an.dir > 0 ? 200 : 0),
+          j[1] + 20,
+          `Joelho ${f1(180 - psAng(q, j, t), 0)}°`,
+        );
+    }
     if (tipo === 'apoio') {
       const oe = P(PS_P.ombroE),
         od = P(PS_P.ombroD),
@@ -1370,8 +1558,15 @@ function psExplicaTxt(k, v) {
   const nv = psNivel(k, v) || 'info';
   if (k === 'tibia' && v != null && v < PS_FAIXA.tibia[0])
     return 'A canela chega inclinada para trás, o que é raro correndo. Costuma ser o ângulo da câmera ou um ponto fora do lugar.';
+  if (k === 'pe' && v != null && isFinite(v)) return psPisadaTxt(v);
   const ex = PS_EXPLICA[k] || {};
   return ex[nv] || ex.info || '';
+}
+// tipo de pisada pelo ângulo do pé no toque (Altman e Davis, 2012)
+function psPisadaTxt(v) {
+  if (v > 8) return 'Pisada de calcanhar: a ponta do pé chega para cima no toque.';
+  if (v < -1.6) return 'Pisada com a frente do pé: o calcanhar chega depois.';
+  return 'Pisada com o meio do pé: o pé chega quase reto no toque.';
 }
 /* ---------- o que fazer com cada medida (só a equipe vê) ---------- */
 function psFazer(k, v) {
@@ -1412,6 +1607,16 @@ function psFazer(k, v) {
 function psInterpreta(k, v, m = {}) {
   if (v == null || !isFinite(v)) return '';
   switch (k) {
+    case 'coxaIC':
+      return v > 30
+        ? 'A coxa chega bem à frente no toque. Veja junto com a tíbia e o pé à frente: os três altos juntos indicam passada longa, e subir a cadência costuma encurtar o passo (Heiderscheit et al., 2011).'
+        : 'Coxa no toque perto do que se vê em corredores. Leia junto com a tíbia, que mostra melhor onde o pé chega.';
+    case 'pe':
+      return 'Mudar a pisada muda onde vai a carga: com o calcanhar, mais no joelho; com a frente do pé, mais no tornozelo e no tendão de Aquiles. Não há evidência de que um tipo de pisada previna lesão (Anderson et al., 2020), então só mexa nisso com motivo, como dor de um lado ou do outro.';
+    case 'coxaTO':
+      return 'Aumenta com a velocidade, então compare só com vídeos no mesmo ritmo. Ainda não há faixa bem definida em vídeo 2D: use para acompanhar o mesmo aluno ao longo do tempo e entre as duas pernas.';
+    case 'joelhoBal':
+      return 'A dobra do joelho no balanço cresce com a velocidade (Fukuchi et al., 2017). Compare com o esperado no mesmo ritmo e entre as duas pernas; diferença grande entre os lados merece um olhar no vídeo.';
     case 'contato':
       return 'O tempo de contato diminui quando a velocidade sobe, então compare só com vídeos no mesmo ritmo. Se ficou bem maior que na última análise no mesmo ritmo, pode ser cansaço ou pouca força de panturrilha e tornozelo.';
     case 'largura':
@@ -1443,7 +1648,7 @@ function psInterpreta(k, v, m = {}) {
   return '';
 }
 const PS_REFS =
-  'Heiderscheit et al. (2011), Med Sci Sports Exerc; Souza (2016), Phys Med Rehabil Clin N Am; Bramah et al. (2018), Am J Sports Med; Teng e Powers (2014), J Orthop Sports Phys Ther; Folland et al. (2017), Med Sci Sports Exerc; Willy e Davis (2011), J Orthop Sports Phys Ther; Willy et al. (2012), Clin Biomech; Brindle et al. (2014), Gait Posture; Arellano e Kram (2014), J Exp Biol.';
+  'Heiderscheit et al. (2011), Med Sci Sports Exerc; Souza (2016), Phys Med Rehabil Clin N Am; Bramah et al. (2018), Am J Sports Med; Teng e Powers (2014), J Orthop Sports Phys Ther; Folland et al. (2017), Med Sci Sports Exerc; Willy e Davis (2011), J Orthop Sports Phys Ther; Willy et al. (2012), Clin Biomech; Brindle et al. (2014), Gait Posture; Arellano e Kram (2014), J Exp Biol; Martinez et al. (2022), Int J Sports Phys Ther; Fukuchi et al. (2017), PeerJ; Altman e Davis (2012), Gait Posture; Anderson et al. (2020), Sports Med.';
 const PS_TITULO_LADO = {
   queda: 'Queda do quadril',
   joelhoDentro: 'Joelho para dentro',
@@ -1469,8 +1674,26 @@ function psRitmoTxt(x) {
   else if (c && c.fps >= 90) p.push(`${Math.round(c.fps)} quadros por segundo`);
   return p.join(' · ');
 }
+const psKmh = (x) => ((x.extra || {}).ritmo || {}).kmh || null;
+const PS_POS_TXT = { dentro: 'dentro do esperado', acima: 'acima do esperado', abaixo: 'abaixo do esperado' };
+// esperado de uma medida: texto curto, barra com a faixa de um desvio padrão e a fonte
+function psEspTxt(k, e) {
+  const u = psUn(k);
+  return `${psFmt(k, e.m)} ± ${psFmt(k, e.dp)}${u && u !== '°' ? ' ' : ''}${u}`;
+}
+function psEspHTML(k, v, e) {
+  if (!e || v == null || !isFinite(v)) return '';
+  let lo = e.m - 3 * e.dp,
+    hi = e.m + 3 * e.dp;
+  lo = Math.min(lo, v - e.dp * 0.3);
+  hi = Math.max(hi, v + e.dp * 0.3);
+  const pc = (y) => (((y - lo) / (hi - lo)) * 100).toFixed(1);
+  const pos = psPosEsperado(v, e);
+  return `<div class="ps-esp ${pos}"><div class="ps-esp-bar"><span class="ps-esp-faixa" style="left:${pc(e.m - e.dp)}%;width:${(pc(e.m + e.dp) - pc(e.m - e.dp)).toFixed(1)}%"></span><span class="ps-esp-media" style="left:${pc(e.m)}%"></span><span class="ps-esp-pt" style="left:${pc(v)}%"></span></div><p class="tiny dim">Esperado ${esc(psEspTxt(k, e))}, ${PS_POS_TXT[pos]}. Média e desvio padrão de corredores sem lesão, ${esc(e.cond)} (${esc(e.fonte)}).</p></div>`;
+}
 function psCardsMetricas(x, ant, staff) {
   const { m, conf } = psFinais(x);
+  const kmh = psKmh(x);
   const ma = ant ? psFinais(ant).m : null;
   return `<div class="ps-mets">${(PS_ORDEM[x.vista] || [])
     .filter((k) => m[k] != null)
@@ -1485,7 +1708,8 @@ function psCardsMetricas(x, ant, staff) {
         : '';
       const faz = staff ? psFazer(k, m[k]) : '';
       const interp = staff && !faz ? psInterpreta(k, m[k], m) : '';
-      return `<details class="ps-met ${nv}"><summary><span class="ps-met-t">${PS_TITULO[k]}${conf.has(k) ? '<i class="ps-conf">conferido</i>' : ''}</span><span class="ps-met-v"><b>${psFmt(k, m[k])}</b>${psUn(k) ? `<small>${psUn(k)}</small>` : ''}</span>${cTxt ? `<span class="ps-met-d ${c.efeito}">${cTxt}</span>` : ''}<span class="ps-met-x">${esc(psExplicaTxt(k, m[k]))}</span></summary><p class="small muted">${esc(ex.sobre || '')}</p>${faz ? `<p class="small ps-faz"><b>O que fazer</b>${esc(faz)}</p>` : ''}${interp ? `<p class="small ps-faz"><b>Como interpretar</b>${esc(interp)}</p>` : ''}</details>`;
+      const e = psEsperado(k, kmh);
+      return `<details class="ps-met ${nv}"><summary><span class="ps-met-t">${PS_TITULO[k]}${conf.has(k) ? '<i class="ps-conf">conferido</i>' : ''}</span><span class="ps-met-v"><b>${psFmt(k, m[k])}</b>${psUn(k) ? `<small>${psUn(k)}</small>` : ''}</span>${cTxt ? `<span class="ps-met-d ${c.efeito}">${cTxt}</span>` : ''}${e ? `<span class="ps-met-e">Esperado ${esc(psEspTxt(k, e))}</span>` : ''}<span class="ps-met-x">${esc(psExplicaTxt(k, m[k]))}</span></summary>${psEspHTML(k, m[k], e)}<p class="small muted">${esc(ex.sobre || '')}</p>${faz ? `<p class="small ps-faz"><b>O que fazer</b>${esc(faz)}</p>` : ''}${interp ? `<p class="small ps-faz"><b>Como interpretar</b>${esc(interp)}</p>` : ''}</details>`;
     })
     .join('')}</div>`;
 }
@@ -1515,8 +1739,20 @@ function psLeituraHTML(x, ant) {
     notas.push(
       `O vídeo estava em câmera lenta e o app ajustou o tempo sozinho (${ex.camera.fator}x). Confira se a cadência faz sentido para esse aluno.`,
     );
-  if (x.vista === 'lado') notas.push('Para comparar a perna direita com a esquerda, peça também o vídeo por trás.');
-  if (lados && lados.E && lados.D) {
+  if (x.vista === 'lado') {
+    const fd = psFasesDados(x);
+    const altos = fd
+      ? fd.fases.flatMap((f) => f.linhas.filter((l) => l.dif && l.dif.alto).map((l) => PS_TITULO[l.k].toLowerCase()))
+      : [];
+    if (altos.length)
+      notas.push(
+        `As pernas ficaram diferentes em ${altos.join(', ')}. A perna longe da câmera é menos confiável: confirme com um vídeo no sentido contrário antes de concluir.`,
+      );
+    notas.push(
+      'A queda do quadril e o joelho para dentro só aparecem no vídeo por trás. Peça os dois para a análise ficar completa.',
+    );
+  }
+  if (x.vista === 'tras' && lados && lados.E && lados.D) {
     const altos = ['queda', 'joelhoDentro', 'passo', 'contato'].filter((k) => {
       const a = psAssimetria(k, lados.E[k], lados.D[k]);
       return a && a.alto;
@@ -1566,8 +1802,73 @@ function psBracosLeitura(vista, m) {
   if (!linhas.length) return '';
   return `<div class="ps-lei info"><div class="ps-lei-t"><b>Braços</b><span class="ps-lei-v">para interpretar</span></div>${linhas.join('')}<p class="tiny dim" style="margin-top:6px">Os braços não têm faixa de referência bem definida na literatura. Os textos são orientações práticas para você interpretar.</p></div>`;
 }
+// as três fases da passada, perna por perna (vídeo de lado)
+const PS_FASES = [
+  ['Contato inicial', 'O pé tocando o chão', ['tibia', 'joelhoIC', 'coxaIC', 'frente', 'pe']],
+  ['Apoio médio', 'O corpo passando por cima do pé', ['joelhoMax', 'contato']],
+  ['Balanço inicial', 'O pé saindo do chão e a perna voltando para a frente', ['coxaTO', 'joelhoBal']],
+];
+// valores de cada perna por fase: a do lado da câmera vem das medidas finais (com as correções do treinador)
+function psFasesDados(x) {
+  const fin = psFinais(x);
+  const ex = x.extra || {};
+  const perto = (ex.an || {}).lado;
+  if (x.vista !== 'lado' || !perto || !fin.lados.E || !fin.lados.D) return null;
+  const longe = perto === 'E' ? 'D' : 'E';
+  const kmh = psKmh(x);
+  const fases = PS_FASES.map(([nome, sub, ks]) => ({
+    nome,
+    sub,
+    linhas: ks
+      .map((k) => {
+        const v = { [perto]: fin.m[k], [longe]: fin.lados[longe][k] };
+        const a = psAssimetria(k, v.E, v.D);
+        return { k, E: v.E, D: v.D, e: psEsperado(k, kmh), dif: a, conf: fin.conf.has(k) };
+      })
+      .filter((l) => l.E != null || l.D != null),
+  })).filter((f) => f.linhas.length);
+  return fases.length ? { perto, longe, fases } : null;
+}
+function psFasesHTML(x, staff) {
+  const d = psFasesDados(x);
+  if (!d) return '';
+  const nomeL = { E: 'Esquerda', D: 'Direita' };
+  const cel = (l, L) => {
+    const v = l[L];
+    if (v == null) return '<td class="dim">–</td>';
+    // o tipo de pisada não tem certo e errado: não pinta de laranja
+    const pos = l.k === 'pe' ? null : psPosEsperado(v, l.e);
+    return `<td class="${L === d.longe ? 'longe' : ''} ${pos && pos !== 'dentro' ? 'fora-esp' : ''}">${psValor(l.k, v)}${L === d.perto && l.conf ? '<i class="ps-conf">c</i>' : ''}</td>`;
+  };
+  const altos = [];
+  const tabelas = d.fases
+    .map(
+      (f) =>
+        `<p class="ps-fase-t"><b>${f.nome}</b><span>${f.sub}</span></p><table class="ps-tab ps-fases"><thead><tr><th></th><th>${nomeL.E}</th><th>${nomeL.D}</th><th>Esperado</th></tr></thead><tbody>${f.linhas
+          .map((l) => {
+            if (l.dif && l.dif.alto) altos.push(PS_TITULO[l.k].toLowerCase());
+            return `<tr class="${l.dif && l.dif.alto ? 'alto' : ''}"><td>${PS_TITULO[l.k]}${l.dif ? `<small>diferença ${f1(l.dif.valor, 0)}${l.dif.un === '°' ? '°' : ' ' + l.dif.un}</small>` : ''}</td>${cel(l, 'E')}${cel(l, 'D')}<td class="esp">${l.e ? esc(psEspTxt(l.k, l.e)) : '–'}</td></tr>`;
+          })
+          .join('')}</tbody></table>`,
+    )
+    .join('');
+  return `<div class="card ps-fases-card"><span class="eyebrow">Fases da passada</span>
+    <p class="small muted" style="margin-top:4px">As duas pernas em cada momento da passada. A perna ${nomeL[d.perto].toLowerCase()} estava do lado da câmera. A ${nomeL[d.longe].toLowerCase()}, mais longe e em parte escondida, aparece em itálico e é menos confiável.</p>
+    ${tabelas}
+    <p class="tiny dim" style="margin-top:8px">Esperado é a média ± desvio padrão de corredores sem lesão em estudos publicados. Em laranja, os valores fora dessa faixa. Diferença entre as pernas acima de uns 4° ou 3 cm aparece em destaque.</p>
+    ${
+      staff
+        ? `<p class="small ps-faz" style="margin-top:8px"><b>${altos.length ? 'Diferença entre as pernas' : 'Como ler'}</b>${
+            altos.length
+              ? `Apareceu diferença em ${altos.join(', ')}. Como a perna de longe é menos confiável, confirme antes de concluir: peça outro vídeo correndo no sentido contrário (ou com a câmera do outro lado da esteira), para a outra perna ficar perto da câmera.`
+              : 'As duas pernas ficaram parecidas. Para medir a perna de longe com a mesma precisão, peça um vídeo correndo no sentido contrário.'
+          }</p>`
+        : ''
+    }</div>`;
+}
 // direita e esquerda (vídeo por trás)
 function psLadosHTML(x, staff) {
+  if (x.vista !== 'tras') return '';
   const { lados, conf } = psFinais(x);
   if (!lados || !lados.E || !lados.D) return '';
   const ks = ['queda', 'joelhoDentro', 'largura', 'cruza', 'bracoCruza', 'passo', 'contato'].filter(
@@ -1713,6 +2014,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
     ${staff ? psLeituraHTML(x, ant) : ''}
     ${psQuadrosHTML(x, urls)}
     ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
+    ${psFasesHTML(x, staff)}
     ${psCardsMetricas(x, ant, staff)}
     ${psLadosHTML(x, staff)}
     ${staff && !previa ? psConferirCardHTML(x) : ''}
@@ -1822,6 +2124,7 @@ const PS_ONDE = {
   ombro: 'No centro do ombro, na ponta do braço.',
   cotovelo: 'Na ponta do cotovelo, no meio da dobra do braço.',
   punho: 'No meio do punho, onde a mão encontra o antebraço.',
+  ponta: 'Na frente do pé, na ponta do tênis.',
 };
 const PS_NOME_PT = {
   quadril: 'Quadril',
@@ -1831,11 +2134,14 @@ const PS_NOME_PT = {
   ombro: 'Ombro',
   cotovelo: 'Cotovelo',
   punho: 'Punho',
+  ponta: 'Ponta do pé',
 };
 function psAlvos(tipo, an) {
   if (an.vista === 'lado') {
     const s = PS_LADO[an.lado];
-    return tipo === 'contato' ? [s.q, s.j, s.t, s.c] : [s.o, s.co, s.pu, s.q, s.j, s.t];
+    if (tipo === 'contato') return [s.q, s.j, s.t, s.c, s.p];
+    if (tipo === 'balanco') return [s.q, s.j, s.t];
+    return [s.o, s.co, s.pu, s.q, s.j, s.t];
   }
   const s = PS_LADO[an.troca ? (tipo === 'E' ? 'D' : 'E') : tipo],
     o = PS_LADO[an.troca ? tipo : tipo === 'E' ? 'D' : 'E'];
@@ -1849,12 +2155,16 @@ const psNomeIdx = (i) => {
 const psChavesMomento = (tipo, an) =>
   an.vista === 'lado'
     ? tipo === 'contato'
-      ? ['tibia', 'joelhoIC', 'frente']
-      : ['joelhoMax', 'tronco', 'cotovelo']
+      ? ['tibia', 'joelhoIC', 'coxaIC', 'frente', 'pe']
+      : tipo === 'balanco'
+        ? ['coxaTO']
+        : ['joelhoMax', 'tronco', 'cotovelo']
     : [tipo + '.queda', tipo + '.joelhoDentro'];
 const PS_DICA_MOMENTO = {
   contato:
-    'Ande os quadros até o primeiro em que o pé encosta no chão. Depois confira o quadril, o joelho, o tornozelo e o calcanhar.',
+    'Ande os quadros até o primeiro em que o pé encosta no chão. Depois confira o quadril, o joelho, o tornozelo, o calcanhar e a ponta do pé.',
+  balanco:
+    'Ande os quadros até o primeiro em que o pé já saiu do chão. Depois confira o quadril, o joelho e o tornozelo.',
   apoio:
     'Escolha o quadro em que o joelho está mais dobrado, com o corpo passando por cima do pé. Depois confira o ombro, o cotovelo, o punho, o quadril, o joelho e o tornozelo.',
   tras: 'Escolha o quadro do meio do apoio, quando o quadril do outro lado está mais baixo. Depois confira os dois lados do quadril, o joelho e o tornozelo.',
@@ -2307,7 +2617,7 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
         : '';
       const corDt = c && c.efeito === 'melhorou' ? '#15803d' : c && c.efeito === 'piorou' ? '#b91c1c' : '#64748b';
       return `<div class="psr-l" style="display:flex;border-bottom:1px solid #e2e8f0"><div style="padding:10px 8px;width:34%;box-sizing:border-box"><b style="font-size:13px">${PS_TITULO[k]}</b><div style="font-size:10.5px;color:#64748b;margin-top:3px;line-height:1.4">${esc(ex.sobre || '')}</div></div>
-        <div style="padding:10px 8px;width:18%;box-sizing:border-box;white-space:nowrap"><b style="font-size:18px">${psFmt(k, me[k])}</b>${psUn(k) === '°' ? '' : ' '}<span style="font-size:11px;color:#64748b">${psUn(k)}</span>${dt ? `<div style="font-size:10px;color:${corDt};margin-top:2px;white-space:normal">${dt}</div>` : ''}${fin.conf.has(k) ? '<div style="font-size:9.5px;color:#1d4ed8;margin-top:2px;font-weight:700">conferido pelo treinador</div>' : ''}</div>
+        <div style="padding:10px 8px;width:18%;box-sizing:border-box;white-space:nowrap"><b style="font-size:18px">${psFmt(k, me[k])}</b>${psUn(k) === '°' ? '' : ' '}<span style="font-size:11px;color:#64748b">${psUn(k)}</span>${dt ? `<div style="font-size:10px;color:${corDt};margin-top:2px;white-space:normal">${dt}</div>` : ''}${fin.conf.has(k) ? '<div style="font-size:9.5px;color:#1d4ed8;margin-top:2px;font-weight:700">conferido pelo treinador</div>' : ''}${psEsperado(k, psKmh(x)) ? `<div style="font-size:10px;color:#475569;margin-top:3px;white-space:normal">Esperado ${esc(psEspTxt(k, psEsperado(k, psKmh(x))))}</div>` : ''}</div>
         <div style="padding:10px 8px;flex:1"><span style="display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:${PS_NIVEL_COR[nv]};border-radius:99px;padding:2px 9px">${PS_NIVEL_TXT[nv]}</span><div style="font-size:12px;margin-top:5px;line-height:1.45">${esc((rel.textos && rel.textos[k]) || psExplicaTxt(k, me[k]))}</div></div></div>`;
     });
   const fotos = imgs
@@ -2330,7 +2640,7 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
       ${treinador ? `<div style="font-size:12px;color:#475569;margin-top:10px">${esc(treinador)}</div>` : ''}</div>
     ${passos.length ? `<div class="psr-l" style="margin-top:16px;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1d4ed8">Próximos passos</div><ol style="margin:8px 0 0;padding-left:20px;font-size:13px;line-height:1.55">${passos.map((l) => `<li style="margin-top:3px">${esc(l)}</li>`).join('')}</ol></div>` : ''}
     <div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800;margin-bottom:6px">As medidas</div>${linhas[0] || ''}</div>${linhas.slice(1).join('')}
-    ${psRelLados(fin.lados)}
+    ${x.vista === 'tras' ? psRelLados(fin.lados) : psRelFases(x)}
     ${pares.length ? `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Antes e depois</div><div style="font-size:11px;color:#64748b;margin-top:2px">${fmtDia(ant.criado_em)} e ${fmtDia(x.criado_em)}</div>${pares.map((p) => `<div style="display:flex;gap:14px;margin-top:10px"><div style="width:220px"><img src="${p.a}" style="width:100%;border-radius:8px;display:block"><div style="font-size:11px;color:#475569;margin-top:4px">Antes · ${esc(p.legenda)}</div></div><div style="width:220px"><img src="${p.b}" style="width:100%;border-radius:8px;display:block"><div style="font-size:11px;color:#475569;margin-top:4px">Depois · ${esc(p.legenda)}</div></div></div>`).join('')}</div>` : ''}
     ${fotos ? `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Momentos marcados no vídeo</div><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px">${fotos}</div></div>` : ''}
     <div class="psr-l" style="margin-top:18px;font-size:10px;color:#64748b;line-height:1.5;">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. As faixas são referências gerais, e quem interpreta é o seu treinador. Referências: ${PS_REFS}</div>
@@ -2354,6 +2664,31 @@ function psRelLados(lados) {
       })
       .join('')}</table>
     <div style="font-size:10.5px;color:#64748b;margin-top:6px">Cada coluna mostra o que acontece quando o pé daquele lado está no chão. Diferenças acima de uns 4° nos ângulos ou 10% nos tempos aparecem em destaque.</div></div>`;
+}
+// fases da passada no PDF (vídeo de lado)
+function psRelFases(x) {
+  const d = psFasesDados(x);
+  if (!d) return '';
+  const td = 'padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:12px';
+  const nomeL = { E: 'Esquerda', D: 'Direita' };
+  const cel = (l, L) => {
+    const v = l[L];
+    const pos = l.k === 'pe' ? null : psPosEsperado(v, l.e);
+    const est = `${L === d.longe ? 'font-style:italic;color:#64748b;' : ''}${pos && pos !== 'dentro' ? 'color:#b45309;font-weight:700;' : ''}`;
+    return `<td style="${td};${est}">${v == null ? '–' : psValor(l.k, v)}</td>`;
+  };
+  return `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Fases da passada</div>
+    <div style="font-size:10.5px;color:#64748b;margin-top:2px">A perna ${nomeL[d.perto].toLowerCase()} estava do lado da câmera. A ${nomeL[d.longe].toLowerCase()}, mais longe, aparece em itálico e é menos confiável.</div></div>
+    ${d.fases
+      .map(
+        (
+          f,
+        ) => `<div class="psr-l" style="margin-top:10px"><div style="font-size:12.5px;font-weight:800;color:#0b1f44">${f.nome} <span style="font-weight:500;color:#64748b">· ${f.sub}</span></div>
+      <table style="width:100%;border-collapse:collapse;margin-top:4px;table-layout:fixed"><tr style="color:#64748b;font-size:11px"><td style="${td};width:38%"></td><td style="${td};width:20%">${nomeL.E}</td><td style="${td};width:20%">${nomeL.D}</td><td style="${td};width:22%">Esperado</td></tr>
+      ${f.linhas.map((l) => `<tr><td style="${td};font-weight:700">${PS_TITULO[l.k]}</td>${cel(l, 'E')}${cel(l, 'D')}<td style="${td};color:#475569">${l.e ? esc(psEspTxt(l.k, l.e)) : '–'}</td></tr>`).join('')}</table></div>`,
+      )
+      .join('')}
+    <div class="psr-l" style="font-size:10.5px;color:#64748b;margin-top:6px">Esperado é a média ± desvio padrão de corredores sem lesão em estudos publicados. Em laranja, os valores fora dessa faixa.</div>`;
 }
 async function psRelatorioPdf(x, urls, ant, m) {
   await psCarregaPdfLib();
@@ -2647,6 +2982,7 @@ async function psNova(alunoId, voltar, nomeAluno) {
     if (an.vista === 'lado' && an.apoios.length) {
       const a = an.apoios[Math.min(1, an.apoios.length - 1)];
       escolhidos.push([a.ic, 'contato', 'Toque do pé no chão', a], [a.meio, 'apoio', 'Meio do apoio', a]);
+      if (a.to + 1 < res.fr.length) escolhidos.push([a.to + 1, 'balanco', 'Saída do pé', a]);
     } else if (an.vista === 'tras') {
       const a = an.apoiosE[Math.min(1, an.apoiosE.length - 1)],
         b = an.apoiosD[Math.min(1, an.apoiosD.length - 1)];
@@ -2661,7 +2997,7 @@ async function psNova(alunoId, voltar, nomeAluno) {
         imgs.push({ cv, legenda, tipo });
         // quadros em volta deste momento, guardados para o treinador conferir e corrigir os pontos
         let ids;
-        if (tipo === 'contato') ids = [-3, -2, -1, 0, 1, 2, 3].map((d) => i + d);
+        if (tipo === 'contato' || tipo === 'balanco') ids = [-3, -2, -1, 0, 1, 2, 3].map((d) => i + d);
         else {
           const n = Math.min(7, ap.to - ap.ic + 1);
           ids = Array.from({ length: n }, (_, k) => Math.round(ap.ic + ((ap.to - ap.ic) * k) / Math.max(1, n - 1)));
@@ -2697,7 +3033,12 @@ async function psNova(alunoId, voltar, nomeAluno) {
       extra: {
         ritmo: kmh ? { kmh: +kmh.toFixed(2) } : null,
         camera: { fator, fps: res.fps, auto: fatorAuto > 1 },
-        lados: an.vista === 'tras' ? { E: r2(an.lados.E), D: r2(an.lados.D) } : null,
+        lados:
+          an.vista === 'tras'
+            ? { E: r2(an.lados.E), D: r2(an.lados.D) }
+            : an.pernas
+              ? { E: r2(an.pernas.E), D: r2(an.pernas.D) }
+              : null,
         an: { vista: an.vista, lado: an.lado, dir: an.dir, troca: an.troca, altura: st.altura },
         ajustes: {},
       },

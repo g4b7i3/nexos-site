@@ -4115,6 +4115,24 @@ body:has(.fb-tela) .toast{z-index:1700}
 .ps-tab td:first-child{font-weight:700}
 .ps-tab tr.alto td:last-child{color:var(--warn);font-weight:800}
 .ps-tab .ps-conf{margin-left:3px;padding:0 5px}
+.ps-met-e{grid-column:2;text-align:right;font-size:.7rem;color:var(--mute);white-space:nowrap}
+.ps-esp{padding:0 14px 10px}
+.ps-esp-bar{position:relative;height:8px;border-radius:99px;background:var(--s2,rgba(127,127,127,.15));margin:2px 0 6px}
+.ps-esp-faixa{position:absolute;top:0;bottom:0;border-radius:99px;background:rgba(22,163,74,.28)}
+.ps-esp-media{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:rgba(22,163,74,.8)}
+.ps-esp-pt{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--ps-c,var(--p2));border:2px solid var(--s1)}
+.ps-esp.acima .ps-esp-pt,.ps-esp.abaixo .ps-esp-pt{box-shadow:0 0 0 2px rgba(224,164,0,.5)}
+.card.ps-fases-card{margin-top:12px}
+.ps-fase-t{margin-top:14px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
+.ps-fase-t b{font-size:.9rem}.ps-fase-t span{font-size:.74rem;color:var(--mute)}
+.ps-fases td small{display:block;font-weight:500;font-size:.68rem;color:var(--mute);margin-top:1px}
+.ps-fases tr.alto td small{color:var(--warn);font-weight:700}
+.ps-fases{table-layout:fixed}.ps-fases th:first-child{width:38%}.ps-fases th:nth-child(4){width:24%}
+.ps-fases td:not(:first-child){white-space:nowrap}
+.ps-fases td.longe{font-style:italic;color:var(--mute)}
+.ps-fases td.fora-esp{color:var(--warn);font-weight:800}
+.ps-fases td.esp{color:var(--mute);font-size:.76rem;white-space:nowrap}
+.ps-fases tr.alto td:last-child{color:var(--mute);font-weight:500}
 .ps-conf-it{width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
 .ps-cmp{padding:11px 13px;border-radius:14px;background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--ps-c,var(--line))}
 .ps-cmp.melhorou{--ps-c:#16a34a}.ps-cmp.piorou{--ps-c:#e85d75}.ps-cmp.igual{--ps-c:var(--line)}.ps-cmp.mudou{--ps-c:var(--p2)}
