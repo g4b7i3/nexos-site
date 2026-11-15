@@ -437,8 +437,8 @@ uniform sampler2D t; uniform vec2 px; uniform float k; uniform float raio; varyi
 void main(){
   vec3 c = texture2D(t, uv).rgb;
   vec3 soma = c; float ws = 1.0;
-  for (int i = 0; i < 12; i++) {
-    float a = float(i) * 0.5236;
+  for (int i = 0; i < 8; i++) {
+    float a = float(i) * 0.7854 + 0.3927;
     vec2 dir = vec2(cos(a), sin(a)) * px * raio;
     for (int j = 1; j <= 2; j++) {
       vec3 s = texture2D(t, uv + dir * float(j) * 0.5).rgb;
@@ -480,7 +480,9 @@ function fxQuadro() {
   if (!fx || !fx.rodando) return;
   if (v.videoWidth) {
     const { cv, gl, u } = fx;
-    if (cv.width !== v.videoWidth || cv.height !== v.videoHeight) { cv.width = v.videoWidth; cv.height = v.videoHeight; gl.viewport(0, 0, cv.width, cv.height); }
+    // o filtro trabalha em até 1280 px no lado maior: mais leve, sem atraso
+    const esc = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight)), w = Math.round(v.videoWidth * esc), h = Math.round(v.videoHeight * esc);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
     try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, v); } catch {}
     gl.uniform2f(u.px, 1 / cv.width, 1 / cv.height);
     gl.uniform1f(u.k, Math.min(1, conf.pele / 10) * 0.9);
@@ -495,7 +497,7 @@ function fxAtualizar() {
   if (gravador && gravador.state === 'recording') return;
   $('tp').classList.toggle('com-fx', querer);
   if (querer && !fx.rodando) { fx.rodando = true; fxQuadro(); }
-  if (!querer && fx) fx.rodando = false;
+  if (!querer && fx && fx.rodando) fx.rodando = false;
 }
 const fxLigado = () => !!(fx && fx.rodando);
 
@@ -508,7 +510,7 @@ async function ligarCam() {
   try {
     fluxo = await navigator.mediaDevices.getUserMedia({
       // 4:3 é o formato do sensor da câmera da frente: pedir 9:16 faz o celular cortar e parecer zoom
-      video: { facingMode: 'user', width: { ideal: 2560 }, height: { ideal: 1920 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30 } },
+      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1440 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30 } },
       // som de gravação, não de chamada: sem o filtro de eco, de ruído e o volume automático (são eles que abafam a voz)
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: { ideal: 48000 }, channelCount: { ideal: 1 } },
     });
