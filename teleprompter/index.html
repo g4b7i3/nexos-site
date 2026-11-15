@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#070d1c">
+<title>Teleprompter Nexos</title>
+<link rel="icon" href="/img/nexos-icon-navy.png">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+:root{--bg:#070d1c;--sup:#0f1930;--sup2:#16233f;--linha:#22324f;--tx:#eef3ff;--mute:#8d9cbb;--ac:#46d6ff;--ac2:#1f7cf0;--rec:#ff4d5e;--ok:#3ddc97;
+  --ft:'Manrope',system-ui,sans-serif;--fd:'Lexend Exa','Manrope',sans-serif;--fm:'JetBrains Mono',ui-monospace,monospace}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:var(--ft);overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+[hidden]{display:none!important}
+.tela{position:fixed;inset:0;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0) max(16px,env(safe-area-inset-right,0)) env(safe-area-inset-bottom,0) max(16px,env(safe-area-inset-left,0))}
+/* lista e editor */
+.topo{display:flex;align-items:center;gap:12px;min-height:64px}
+.topo h1{font-family:var(--fd);font-weight:300;font-size:20px;letter-spacing:.02em;margin:0;flex:1;min-width:0}
+.topo .marca{display:flex;align-items:center;gap:10px}
+.topo .marca img{width:34px;height:34px}
+.ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none}
+.ic svg{width:24px;height:24px}
+.ic:hover{background:var(--sup)}
+.rolar{flex:1;overflow:auto;padding-bottom:110px}
+.card{background:var(--sup);border:1px solid var(--linha);border-radius:18px;padding:16px;display:flex;gap:12px;align-items:center;margin-top:10px;width:100%;text-align:left}
+.card b{display:block;font-size:16px}
+.card small{display:block;color:var(--mute);font-size:13px;margin-top:3px}
+.card .gr{flex:1;min-width:0}
+.card .gr b,.card .gr small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vazio{color:var(--mute);text-align:center;margin-top:60px;line-height:1.6}
+.fab{position:fixed;right:max(20px,env(safe-area-inset-right,0));bottom:calc(24px + env(safe-area-inset-bottom,0));height:58px;padding:0 24px;border-radius:999px;background:var(--ac);color:#041026;font-weight:800;display:flex;align-items:center;gap:8px;box-shadow:0 12px 30px -10px rgba(70,214,255,.6)}
+.campo{width:100%;background:var(--sup);border:1px solid var(--linha);border-radius:14px;color:var(--tx);font:inherit;padding:14px}
+#ed-titulo{font-size:18px;font-weight:700;margin-top:6px}
+#ed-texto{flex:1;margin-top:10px;font-size:17px;line-height:1.55;resize:none;min-height:200px}
+.info{color:var(--mute);font-size:13px;margin-top:8px;display:flex;justify-content:space-between;gap:10px}
+.bt{text-decoration:none;height:54px;border-radius:999px;background:var(--ac);color:#041026;font-weight:800;padding:0 22px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.bt.sec{background:var(--sup2);color:var(--tx);border:1px solid var(--linha)}
+.linha-bts{display:flex;gap:10px;margin:12px 0 16px}
+.linha-bts .bt{flex:1}
+/* teleprompter */
+#tp{padding:0;background:#000;overflow:hidden}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:0;transition:opacity .3s}
+#tp.com-cam #cam{opacity:.55}
+#tp .veu{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,13,28,.88) 0%,rgba(7,13,28,.7) 55%,rgba(7,13,28,.25) 100%);pointer-events:none}
+#tp:not(.com-cam) .veu{background:var(--bg)}
+#tp-barra{position:absolute;left:0;right:0;top:0;padding:calc(6px + env(safe-area-inset-top,0)) max(10px,env(safe-area-inset-right,0)) 6px max(10px,env(safe-area-inset-left,0));display:flex;align-items:center;gap:6px;z-index:5;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)}
+#tp-barra .nome{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mute);font-size:15px}
+#bt-rec{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0));z-index:5;height:46px;padding:0 20px;border:1.5px solid rgba(70,214,255,.6);border-radius:999px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;background:rgba(7,13,28,.7);white-space:nowrap}
+#bt-rec i{width:12px;height:12px;border-radius:50%;background:var(--rec)}
+#bt-rec.gravando{border-color:var(--rec);color:#fff}
+#bt-rec.gravando i{animation:pisca 1s infinite}
+@keyframes pisca{50%{opacity:.2}}
+#area{position:absolute;inset:0;overflow:hidden;touch-action:none;-webkit-mask-image:linear-gradient(180deg,transparent 0,transparent calc(var(--g,26%) - 14%),#000 calc(var(--g,26%) - 2%),#000 100%);mask-image:linear-gradient(180deg,transparent 0,transparent calc(var(--g,26%) - 14%),#000 calc(var(--g,26%) - 2%),#000 100%)}
+#texto{position:absolute;left:0;right:0;top:0;padding:0 var(--marg,28px);font-family:var(--ft);font-weight:600;font-size:var(--fs,40px);line-height:1.38;white-space:pre-wrap;word-break:break-word;will-change:transform}
+#texto.espelho{transform-origin:center}
+#texto p{margin:0 0 .6em}
+#texto .lido{opacity:.38}
+#guia{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--ac),rgba(70,214,255,.25) 12%,rgba(70,214,255,.25) 88%,var(--ac));z-index:3;pointer-events:none}
+#guia::before,#guia::after{content:"";position:absolute;top:-7px;width:6px;height:16px;border-radius:3px;background:var(--ac)}
+#guia::before{left:0}#guia::after{right:0}
+#tp-ctrl{position:absolute;left:0;right:0;bottom:0;z-index:5;padding:14px max(18px,env(safe-area-inset-right,0)) calc(14px + env(safe-area-inset-bottom,0)) max(18px,env(safe-area-inset-left,0));background:rgba(7,13,28,.94);border-radius:28px 28px 0 0;border-top:1px solid var(--linha)}
+#tp-ctrl.some{transform:translateY(calc(100% - 26px));transition:transform .25s}
+#tp-ctrl{transition:transform .25s}
+#prog{width:100%;accent-color:var(--ac)}
+.tempos{display:flex;justify-content:space-between;font-family:var(--fm);font-size:14px;color:var(--mute);margin-top:2px}
+.tempos b{color:var(--tx);font-weight:500}
+.ctrl-l{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+#bt-play{width:76px;height:76px;border-radius:50%;background:var(--ac);color:#041026;display:grid;place-items:center}
+#bt-play svg{width:34px;height:34px}
+.vel{display:flex;align-items:center;gap:12px;margin-top:10px}
+.vel .ic{background:var(--sup2)}
+.vel .meio{flex:1;text-align:center}
+.vel .meio b{font-family:var(--fm);color:var(--ac);font-size:18px;font-weight:500}
+.vel input{width:100%;accent-color:var(--ac)}
+#contagem{position:absolute;inset:0;display:grid;place-items:center;z-index:8;font-family:var(--fd);font-weight:300;font-size:140px;color:#fff;background:rgba(0,0,0,.45);pointer-events:none}
+/* folhas */
+.folha-fundo{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20}
+.folha{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--sup);border-radius:24px 24px 0 0;padding:18px max(18px,env(safe-area-inset-right,0)) calc(20px + env(safe-area-inset-bottom,0)) max(18px,env(safe-area-inset-left,0));max-height:88vh;overflow:auto}
+.folha h2{font-family:var(--fd);font-weight:300;font-size:19px;margin:4px 0 14px}
+.op{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-top:1px solid var(--linha)}
+.op label{flex:1}
+.op small{display:block;color:var(--mute);font-size:12.5px;margin-top:2px}
+.op input[type=range]{width:46%;accent-color:var(--ac)}
+.op output{font-family:var(--fm);font-size:13px;color:var(--ac);min-width:44px;text-align:right}
+.chave{appearance:none;width:50px;height:30px;border-radius:99px;background:var(--linha);position:relative;transition:background .2s;flex:none}
+.chave::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.chave:checked{background:var(--ac2)}.chave:checked::after{transform:translateX(20px)}
+video#rev{width:100%;max-height:52vh;border-radius:16px;background:#000}
+.aviso{color:var(--mute);font-size:13px;line-height:1.5;margin-top:10px}
+.erro{color:#ffb3bb}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- lista de roteiros -->
+<section class="tela" id="lista">
+  <div class="topo"><div class="marca"><img src="/img/nexos-icon.png" alt=""><h1>Teleprompter</h1></div></div>
+  <div class="rolar" id="lista-itens"></div>
+  <button class="fab" id="bt-novo"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo roteiro</button>
+</section>
+
+<!-- editor -->
+<section class="tela" id="editor" hidden>
+  <div class="topo">
+    <button class="ic" id="ed-voltar" aria-label="Voltar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <h1>Roteiro</h1>
+    <button class="ic" id="ed-apagar" aria-label="Apagar roteiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+  </div>
+  <input class="campo" id="ed-titulo" maxlength="80" placeholder="Nome do roteiro">
+  <textarea class="campo" id="ed-texto" placeholder="Cole ou escreva aqui o que você vai falar. Deixe uma linha em branco entre as partes."></textarea>
+  <div class="info"><span id="ed-palavras">0 palavras</span><span id="ed-tempo">cerca de 0:00</span></div>
+  <div class="linha-bts"><button class="bt" id="ed-abrir"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Abrir no teleprompter</button></div>
+</section>
+
+<!-- teleprompter -->
+<section class="tela" id="tp" hidden>
+  <video id="cam" playsinline muted autoplay></video>
+  <div class="veu"></div>
+  <div id="area"><div id="texto"></div></div>
+  <div id="guia"></div>
+  <div id="tp-barra">
+    <button class="ic" id="tp-fechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <span class="nome" id="tp-nome"></span>
+    <button class="ic" id="tp-trava" aria-label="Travar a tela"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>
+  </div>
+  <button id="bt-rec"><i></i><span>Toque para gravar com a câmera</span></button>
+  <div id="contagem" hidden></div>
+  <div id="tp-ctrl">
+    <input type="range" id="prog" min="0" max="1000" value="0" aria-label="Posição no texto">
+    <div class="tempos"><b id="t-falta">-0:00</b><span id="t-total">0:00</span></div>
+    <div class="ctrl-l">
+      <button class="ic" id="bt-inicio" aria-label="Voltar ao início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v4h4"/></svg></button>
+      <button id="bt-play" aria-label="Rolar o texto"><svg id="ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><svg id="ic-pausa" viewBox="0 0 24 24" fill="currentColor" hidden><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+      <button class="ic" id="bt-ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+    </div>
+    <div class="vel">
+      <button class="ic" id="v-menos" aria-label="Mais devagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 12h12"/></svg></button>
+      <div class="meio"><b id="v-txt">135 ppm</b><input type="range" id="v-barra" min="60" max="240" step="5" value="135" aria-label="Palavras por minuto"></div>
+      <button class="ic" id="v-mais" aria-label="Mais rápido"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<!-- ajustes -->
+<div class="folha-fundo" id="aj-fundo" hidden></div>
+<div class="folha" id="aj" hidden>
+  <h2>Ajustes</h2>
+  <div class="op"><label for="o-fs">Tamanho da letra</label><input type="range" id="o-fs" min="24" max="72" step="2"><output id="o-fs-v"></output></div>
+  <div class="op"><label for="o-guia">Linha de leitura<small>Mais perto do topo deixa o olhar perto da câmera</small></label><input type="range" id="o-guia" min="12" max="60" step="1"><output id="o-guia-v"></output></div>
+  <div class="op"><label for="o-marg">Margens laterais</label><input type="range" id="o-marg" min="8" max="90" step="2"><output id="o-marg-v"></output></div>
+  <div class="op"><label for="o-cont">Contagem antes de começar</label><input type="range" id="o-cont" min="0" max="10" step="1"><output id="o-cont-v"></output></div>
+  <div class="op"><label for="o-esp">Espelhar o texto<small>Para usar com vidro de teleprompter</small></label><input type="checkbox" class="chave" id="o-esp"></div>
+  <div class="op"><label for="o-ctrl">Esconder os controles ao rolar</label><input type="checkbox" class="chave" id="o-ctrl"></div>
+  <p class="aviso">Toque no texto para pausar ou continuar. Com o texto parado, arraste para cima ou para baixo para ajustar a posição.</p>
+</div>
+
+<!-- vídeo gravado -->
+<div class="folha-fundo" id="rv-fundo" hidden></div>
+<div class="folha" id="rv" hidden>
+  <h2>Vídeo gravado</h2>
+  <video id="rev" controls playsinline></video>
+  <div class="linha-bts">
+    <a class="bt" id="rv-baixar" download>Salvar vídeo</a>
+    <button class="bt sec" id="rv-fechar">Gravar de novo</button>
+  </div>
+  <p class="aviso" id="rv-info"></p>
+</div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const CHAVE = 'nx-tp-roteiros', CONF = 'nx-tp-conf';
+const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const conf = Object.assign({ ppm: 135, fs: 40, guia: 26, marg: 28, cont: 3, esp: false, ctrl: true }, ler(CONF, {}));
+let roteiros = ler(CHAVE, null);
+if (!roteiros) {
+  roteiros = [{ id: 'exemplo', titulo: 'Exemplo · Dois recordes', atualizado: Date.now(), texto:
+'Dois recordes em menos de 24 horas. Foi o que fez o nosso aluno Odeon, nas provas de 5 km no sábado à tarde e de 10 km no domingo de manhã.\n\nQuando o Odeon chegou para a gente, avaliamos o histórico dele, os resultados recentes e fizemos testes. Daí saíram as zonas de treino dele.\n\nAssim que tivemos a confirmação de que ele correria as duas provas, começamos a preparação no dia 5 de novembro.' }];
+}
+const salvarRoteiros = () => gravar(CHAVE, roteiros);
+const palavras = (t) => (t.trim().match(/\S+/g) || []).length;
+const mmss = (s) => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+let atual = null;
+
+function mostrar(id) { ['lista', 'editor', 'tp'].forEach((t) => ($(t).hidden = t !== id)); }
+
+/* ---------- lista ---------- */
+function desenharLista() {
+  const box = $('lista-itens');
+  const ord = [...roteiros].sort((a, b) => b.atualizado - a.atualizado);
+  box.innerHTML = ord.length
+    ? ord.map((r) => `<button class="card" data-id="${r.id}"><div class="gr"><b>${esc(r.titulo || 'Roteiro sem título')}</b><small>${palavras(r.texto)} palavras · cerca de ${mmss((palavras(r.texto) / conf.ppm) * 60)} · ${new Date(r.atualizado).toLocaleDateString('pt-BR')}</small></div><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>`).join('')
+    : '<p class="vazio">Nenhum roteiro ainda.<br>Toque em Novo roteiro para escrever o primeiro.</p>';
+  box.querySelectorAll('[data-id]').forEach((b) => (b.onclick = () => abrirEditor(roteiros.find((r) => r.id === b.dataset.id))));
+}
+$('bt-novo').onclick = () => {
+  const r = { id: 'r' + Date.now().toString(36), titulo: '', texto: '', atualizado: Date.now() };
+  roteiros.push(r); abrirEditor(r);
+};
+
+/* ---------- editor ---------- */
+function infoEditor() {
+  const n = palavras($('ed-texto').value);
+  $('ed-palavras').textContent = n + (n === 1 ? ' palavra' : ' palavras');
+  $('ed-tempo').textContent = 'cerca de ' + mmss((n / conf.ppm) * 60) + ' a ' + conf.ppm + ' ppm';
+}
+function abrirEditor(r) {
+  atual = r;
+  $('ed-titulo').value = r.titulo; $('ed-texto').value = r.texto;
+  infoEditor(); mostrar('editor');
+  if (!r.texto) setTimeout(() => $('ed-texto').focus(), 50);
+}
+function guardarEditor() {
+  if (!atual) return;
+  atual.titulo = $('ed-titulo').value.trim(); atual.texto = $('ed-texto').value; atual.atualizado = Date.now();
+  salvarRoteiros();
+}
+$('ed-texto').oninput = () => { infoEditor(); guardarEditor(); };
+$('ed-titulo').oninput = guardarEditor;
+$('ed-voltar').onclick = () => {
+  guardarEditor();
+  if (atual && !atual.texto.trim() && !atual.titulo) roteiros = roteiros.filter((r) => r !== atual), salvarRoteiros();
+  desenharLista(); mostrar('lista');
+};
+let apagarOk = false;
+$('ed-apagar').onclick = () => {
+  if (!apagarOk) { apagarOk = true; $('ed-apagar').style.color = 'var(--rec)'; setTimeout(() => { apagarOk = false; $('ed-apagar').style.color = ''; }, 2500); return; }
+  roteiros = roteiros.filter((r) => r !== atual); salvarRoteiros(); atual = null; desenharLista(); mostrar('lista');
+};
+$('ed-abrir').onclick = () => { guardarEditor(); if (!atual.texto.trim()) return $('ed-texto').focus(); abrirTP(); };
+
+/* ---------- teleprompter ---------- */
+let pos = 0, rodando = false, ult = 0, total = 0, maxPos = 1, travado = false, wake = null;
+const area = $('area'), txt = $('texto');
+function aplicarConf() {
+  document.documentElement.style.setProperty('--fs', conf.fs + 'px');
+  document.documentElement.style.setProperty('--marg', conf.marg + 'px');
+  $('guia').style.top = conf.guia + '%';
+  document.documentElement.style.setProperty('--g', conf.guia + '%');
+  $('v-barra').value = conf.ppm; $('v-txt').textContent = conf.ppm + ' ppm';
+  gravar(CONF, conf); medir();
+}
+function guiaY() { return area.clientHeight * conf.guia / 100; }
+function medir() {
+  if ($('tp').hidden) return;
+  const frac = maxPos > 0 ? pos / maxPos : 0;
+  maxPos = Math.max(1, txt.scrollHeight - 20);
+  pos = frac * maxPos; desenhar();
+}
+function pxPorSeg() { return total ? (maxPos / total) * (conf.ppm / 60) : 0; }
+function desenhar() {
+  const y = guiaY() - pos;
+  txt.style.transform = `translateY(${y}px)` + (conf.esp ? ' scaleX(-1)' : '');
+  const frac = Math.min(1, pos / maxPos);
+  $('prog').value = Math.round(frac * 1000);
+  const tot = (total / conf.ppm) * 60;
+  $('t-total').textContent = mmss(tot);
+  $('t-falta').textContent = '-' + mmss(tot * (1 - frac));
+  // parágrafos que já passaram da linha ficam apagados
+  const lim = pos - 4;
+  txt.querySelectorAll('p').forEach((p) => p.classList.toggle('lido', p.offsetTop + p.offsetHeight < lim));
+}
+function laco(t) {
+  if (!rodando) return;
+  const dt = ult ? (t - ult) / 1000 : 0; ult = t;
+  pos = Math.min(maxPos, pos + pxPorSeg() * dt);
+  desenhar();
+  if (pos >= maxPos) return parar();
+  requestAnimationFrame(laco);
+}
+async function acordado(on) {
+  try {
+    if (on && 'wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => (wake = null)); }
+    if (!on && wake) { await wake.release(); wake = null; }
+  } catch {}
+}
+function iniciar() {
+  if (rodando) return;
+  if (pos >= maxPos) pos = 0;
+  rodando = true; ult = 0; $('ic-play').hidden = true; $('ic-pausa').hidden = false;
+  if (conf.ctrl) $('tp-ctrl').classList.add('some');
+  acordado(true); requestAnimationFrame(laco);
+}
+function parar() {
+  rodando = false; $('ic-play').hidden = false; $('ic-pausa').hidden = true; $('tp-ctrl').classList.remove('some');
+}
+let contando = null;
+function contagem(depois) {
+  if (contando) return;
+  let n = conf.cont;
+  if (!n) return depois();
+  const el = $('contagem'); el.hidden = false; el.textContent = n;
+  contando = setInterval(() => {
+    n--; if (n > 0) { el.textContent = n; return; }
+    clearInterval(contando); contando = null; el.hidden = true; depois();
+  }, 1000);
+}
+function alternar() { if (travado) return; rodando ? parar() : contagem(iniciar); }
+function abrirTP() {
+  $('tp-nome').textContent = atual.titulo || 'Roteiro sem título';
+  const partes = atual.texto.replace(/\r/g, '').split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
+  txt.innerHTML = partes.map((p) => `<p>${esc(p)}</p>`).join('') + '<div style="height:70vh"></div>';
+  total = palavras(atual.texto); pos = 0; mostrar('tp'); aplicarConf(); acordado(true);
+}
+$('bt-play').onclick = alternar;
+$('bt-inicio').onclick = () => { parar(); pos = 0; desenhar(); };
+$('prog').oninput = (e) => { pos = (e.target.value / 1000) * maxPos; desenhar(); };
+const mudaVel = (d) => { conf.ppm = Math.min(240, Math.max(60, conf.ppm + d)); aplicarConf(); };
+$('v-menos').onclick = () => mudaVel(-5); $('v-mais').onclick = () => mudaVel(5);
+$('v-barra').oninput = (e) => { conf.ppm = +e.target.value; aplicarConf(); };
+$('tp-fechar').onclick = () => { parar(); pararGravacao(); desligarCam(); acordado(false); infoEditor(); desenharLista(); mostrar('editor'); };
+$('tp-trava').onclick = () => {
+  travado = !travado; $('tp-trava').style.color = travado ? 'var(--ac)' : '';
+  $('tp-ctrl').style.pointerEvents = travado ? 'none' : ''; $('tp-ctrl').style.opacity = travado ? '.35' : '';
+};
+// toque no texto pausa; arrastar com o texto parado ajusta a posição
+let arr = null;
+area.addEventListener('pointerdown', (e) => { arr = { y: e.clientY, p: pos, moveu: false }; });
+area.addEventListener('pointermove', (e) => {
+  if (!arr || rodando || travado) return;
+  const d = e.clientY - arr.y; if (Math.abs(d) > 6) arr.moveu = true;
+  if (arr.moveu) { pos = Math.min(maxPos, Math.max(0, arr.p - d)); desenhar(); }
+});
+area.addEventListener('pointerup', () => { if (arr && !arr.moveu) alternar(); arr = null; });
+$('tp-ctrl').addEventListener('click', () => $('tp-ctrl').classList.remove('some'));
+document.addEventListener('keydown', (e) => {
+  if ($('tp').hidden || e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space' || e.key === 'Enter' || e.key === 'PageDown') { e.preventDefault(); alternar(); }
+  if (e.key === 'ArrowUp') mudaVel(5); if (e.key === 'ArrowDown') mudaVel(-5);
+});
+window.addEventListener('resize', medir);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('tp').hidden) acordado(true); });
+
+/* ---------- ajustes ---------- */
+function abrirFolha(id, on) { $(id).hidden = !on; $(id + '-fundo').hidden = !on; }
+const liga = (id, k, fmt) => {
+  const el = $(id), out = $(id + '-v');
+  const mostra = () => out && (out.textContent = fmt(conf[k]));
+  if (el.type === 'checkbox') { el.checked = conf[k]; el.onchange = () => { conf[k] = el.checked; aplicarConf(); }; }
+  else { el.value = conf[k]; mostra(); el.oninput = () => { conf[k] = +el.value; mostra(); aplicarConf(); }; }
+};
+liga('o-fs', 'fs', (v) => v + ' px'); liga('o-guia', 'guia', (v) => v + '%'); liga('o-marg', 'marg', (v) => v + ' px');
+liga('o-cont', 'cont', (v) => (v ? v + ' s' : 'não')); liga('o-esp', 'esp'); liga('o-ctrl', 'ctrl');
+$('bt-ajustes').onclick = () => { parar(); abrirFolha('aj', true); };
+$('aj-fundo').onclick = () => abrirFolha('aj', false);
+
+/* ---------- câmera e gravação ---------- */
+let fluxo = null, gravador = null, pedacos = [], urlVideo = null, inicioRec = 0, relogio = null;
+const tipoVideo = () => ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+  .find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+async function ligarCam() {
+  if (fluxo) return true;
+  try {
+    fluxo = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1080 }, height: { ideal: 1920 }, frameRate: { ideal: 30 } },
+      audio: { echoCancellation: true, noiseSuppression: true },
+    });
+    $('cam').srcObject = fluxo; $('tp').classList.add('com-cam'); return true;
+  } catch (e) {
+    console.error(e);
+    rotuloRec('Câmera bloqueada. Libere a câmera e o microfone nas permissões do navegador.');
+    return false;
+  }
+}
+function desligarCam() { if (fluxo) fluxo.getTracks().forEach((t) => t.stop()); fluxo = null; $('cam').srcObject = null; $('tp').classList.remove('com-cam'); }
+function rotuloRec(t) { $('bt-rec').querySelector('span').textContent = t; }
+async function comecarGravacao() {
+  if (!(await ligarCam())) return;
+  if (!window.MediaRecorder) return rotuloRec('Este navegador não grava vídeo. Use o Chrome ou o Safari atualizado.');
+  pos = 0; desenhar();
+  contagem(() => {
+    pedacos = [];
+    const tipo = tipoVideo();
+    try { gravador = new MediaRecorder(fluxo, tipo ? { mimeType: tipo, videoBitsPerSecond: 8e6 } : undefined); }
+    catch { gravador = new MediaRecorder(fluxo); }
+    gravador.ondataavailable = (e) => e.data && e.data.size && pedacos.push(e.data);
+    gravador.onstop = mostrarVideo;
+    gravador.start(1000); inicioRec = Date.now();
+    $('bt-rec').classList.add('gravando');
+    relogio = setInterval(() => rotuloRec('Gravando ' + mmss((Date.now() - inicioRec) / 1000) + ' · toque para parar'), 500);
+    rotuloRec('Gravando 0:00 · toque para parar');
+    iniciar();
+  });
+}
+function pararGravacao() {
+  clearInterval(relogio); relogio = null; $('bt-rec').classList.remove('gravando');
+  if (gravador && gravador.state !== 'inactive') gravador.stop();
+  else rotuloRec(fluxo ? 'Toque para gravar' : 'Toque para gravar com a câmera');
+}
+function mostrarVideo() {
+  parar();
+  const tipo = (gravador && gravador.mimeType) || 'video/webm';
+  const blob = new Blob(pedacos, { type: tipo });
+  if (urlVideo) URL.revokeObjectURL(urlVideo);
+  urlVideo = URL.createObjectURL(blob);
+  const ext = tipo.includes('mp4') ? 'mp4' : 'webm';
+  const nome = (atual.titulo || 'video').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'video';
+  $('rev').src = urlVideo; $('rv-baixar').href = urlVideo; $('rv-baixar').download = `${nome}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${ext}`;
+  $('rv-info').textContent = `${mmss((Date.now() - inicioRec) / 1000)} · ${(blob.size / 1048576).toFixed(1)} MB · ${ext.toUpperCase()}. Salve o vídeo antes de gravar de novo. Depois é só mandar para editar.`;
+  rotuloRec('Toque para gravar');
+  abrirFolha('rv', true);
+}
+$('bt-rec').onclick = () => (gravador && gravador.state === 'recording' ? pararGravacao() : comecarGravacao());
+$('rv-fechar').onclick = () => { abrirFolha('rv', false); $('rev').pause(); pos = 0; desenhar(); };
+$('rv-fundo').onclick = $('rv-fechar').onclick;
+
+desenharLista(); mostrar('lista');
+</script>
+</body>
+</html>
