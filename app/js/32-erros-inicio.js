@@ -31,7 +31,7 @@ function reportarErro(err, onde) {
       p_url: (location.hash || '#/').slice(0, 300),
       p_area: AREA,
       p_ua: navigator.userAgent,
-      p_versao: NX_VERSAO,
+      p_versao: NX_VERSAO + (typeof NX_BUILD === 'string' ? ' ' + NX_BUILD : ''),
     }).then(
       () => {},
       () => {},

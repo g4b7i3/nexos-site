@@ -2033,6 +2033,11 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
         location.hash = `#/aluno/${alunoId}/forca`;
       } catch (err) {
         console.error(err);
+        // a falha chega para a equipe em Erros do app (com o motivo que o banco devolveu)
+        reportarErro(
+          err && err.message ? err : new Error((err && (err.details || err.hint || err.code)) || 'falha ao salvar'),
+          'salvar treino ' + t.itens.length + ' exercícios',
+        );
         btn.disabled = false;
         escopo = null;
         toast('Não foi possível salvar o treino.', true);
