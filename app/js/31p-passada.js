@@ -3396,6 +3396,7 @@ async function viewPassada(sub) {
         ${psQuadrosHTML(x, urls)}
         ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
         <p class="eyebrow" style="margin-top:18px">As medidas</p>
+        ${psFasesHTML(x, false)}
         ${psCardsMetricas(x, ant, false)}
         ${psLadosHTML(x, false)}
         <p class="tiny dim" style="margin-top:12px">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. Quem interpreta é o seu treinador. Baseado em Souza (2016), Heiderscheit et al. (2011) e Bramah et al. (2018).</p>`;
