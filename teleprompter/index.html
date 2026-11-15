@@ -45,6 +45,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #tp{padding:0;background:#000;overflow:hidden}
 #cam{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transform:scaleX(-1);opacity:0;transition:opacity .3s}
 #tp.com-cam #cam{opacity:1}
+#camfx{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transform:scaleX(-1);display:none}
+#tp.com-cam.com-fx:not(.lay-texto) #camfx{display:block}
+#tp.com-fx #cam{opacity:0!important}
 #tp .veu{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.38)}
 #tp:not(.com-cam) .veu,#tp.lay-texto .veu{background:var(--bg)}
 #tp.lay-texto #cam{opacity:0!important}
@@ -153,6 +156,7 @@ video#rev{width:100%;max-height:52vh;border-radius:16px;background:#000}
 <!-- teleprompter -->
 <section class="tela" id="tp" hidden>
   <video id="cam" playsinline muted autoplay></video>
+  <canvas id="camfx"></canvas>
   <div class="veu"></div>
   <div class="faixa"></div>
   <div class="cantos"><i></i><i></i></div>
@@ -193,6 +197,7 @@ video#rev{width:100%;max-height:52vh;border-radius:16px;background:#000}
     <button data-lay="cima"><div class="mini"></div><b>Faixa em cima</b><small>O texto passa perto da câmera</small></button>
     <button data-lay="texto"><div class="mini"></div><b>Só o texto</b><small>Grava sem você se ver</small></button>
   </div>
+  <div class="op"><label for="o-pele">Pele suave<small>Suaviza a pele e deixa olhos, barba e cabelo nítidos. Vale para o vídeo gravado</small></label><input type="range" id="o-pele" min="0" max="10" step="1"><output id="o-pele-v"></output></div>
   <div class="op"><label for="o-fs">Tamanho da letra</label><input type="range" id="o-fs" min="24" max="72" step="2"><output id="o-fs-v"></output></div>
   <div class="op"><label for="o-guia">Linha de leitura<small>Mais perto do topo deixa o olhar perto da câmera</small></label><input type="range" id="o-guia" min="12" max="60" step="1"><output id="o-guia-v"></output></div>
   <div class="op"><label for="o-marg">Margens laterais</label><input type="range" id="o-marg" min="8" max="90" step="2"><output id="o-marg-v"></output></div>
@@ -220,7 +225,7 @@ const $ = (id) => document.getElementById(id);
 const CHAVE = 'nx-tp-roteiros', CONF = 'nx-tp-conf';
 const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-const conf = Object.assign({ ppm: 135, fs: 40, marg: 28, cont: 3, esp: false, ctrl: true, lay: 'lente', guia: 8 }, ler(CONF, {}));
+const conf = Object.assign({ ppm: 135, fs: 40, marg: 28, cont: 3, esp: false, ctrl: true, lay: 'lente', guia: 8, pele: 0 }, ler(CONF, {}));
 // posição da linha de leitura que cada layout usa ao ser escolhido
 const LAYS = { lente: { nome: 'Colado na câmera', guia: 8 }, sobre: { nome: 'Texto sobre a câmera', guia: 30 }, baixo: { nome: 'Faixa embaixo', guia: 66 }, cima: { nome: 'Faixa em cima', guia: 22 }, texto: { nome: 'Só o texto', guia: 26 } };
 let roteiros = ler(CHAVE, null);
@@ -299,7 +304,7 @@ function aplicarConf() {
   Object.keys(LAYS).forEach((k) => tp.classList.toggle('lay-' + k, conf.lay === k));
   document.querySelectorAll('#lay-bts [data-lay]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lay === conf.lay)));
   $('v-barra').value = conf.ppm; $('v-txt').textContent = conf.ppm + ' ppm';
-  gravar(CONF, conf); medir();
+  gravar(CONF, conf); medir(); if (typeof fxAtualizar === 'function') fxAtualizar();
 }
 // colado na câmera: a linha de leitura fica logo abaixo da lente (e do recorte da câmera no celular)
 function topoSeguro() { return parseFloat(getComputedStyle($('tp')).paddingTop) || 0; }
@@ -406,7 +411,7 @@ const liga = (id, k, fmt) => {
   else { el.value = conf[k]; mostra(); el.oninput = () => { conf[k] = +el.value; mostra(); aplicarConf(); }; }
 };
 liga('o-fs', 'fs', (v) => v + ' px'); liga('o-guia', 'guia', (v) => v + '%'); liga('o-marg', 'marg', (v) => v + ' px');
-liga('o-cont', 'cont', (v) => (v ? v + ' s' : 'não')); liga('o-esp', 'esp'); liga('o-ctrl', 'ctrl');
+liga('o-pele', 'pele', (v) => (v ? v * 10 + '%' : 'desligada')); liga('o-cont', 'cont', (v) => (v ? v + ' s' : 'não')); liga('o-esp', 'esp'); liga('o-ctrl', 'ctrl');
 $('bt-ajustes').onclick = () => { parar(); abrirFolha('aj', true); };
 function escolherLay(k) {
   conf.lay = k; conf.guia = LAYS[k].guia;
@@ -424,6 +429,75 @@ function avisoLay(t) {
   clearTimeout(avisoT); avisoT = setTimeout(() => { el.hidden = true; el.style.fontSize = ''; el.style.background = ''; }, 1100);
 }
 $('aj-fundo').onclick = () => abrirFolha('aj', false);
+
+/* ---------- pele suave (filtro na placa de vídeo do aparelho) ---------- */
+// suaviza só onde a cor é de pele e só entre pontos de cor parecida: bordas (olhos, boca, barba, cabelo) continuam nítidas
+const FX_FRAG = `precision mediump float;
+uniform sampler2D t; uniform vec2 px; uniform float k; uniform float raio; varying vec2 uv;
+void main(){
+  vec3 c = texture2D(t, uv).rgb;
+  vec3 soma = c; float ws = 1.0;
+  for (int i = 0; i < 12; i++) {
+    float a = float(i) * 0.5236;
+    vec2 dir = vec2(cos(a), sin(a)) * px * raio;
+    for (int j = 1; j <= 2; j++) {
+      vec3 s = texture2D(t, uv + dir * float(j) * 0.5).rgb;
+      vec3 dd = s - c; float w = exp(-dot(dd, dd) * 90.0);
+      soma += s * w; ws += w;
+    }
+  }
+  vec3 lis = soma / ws;
+  float cb = -0.169 * c.r - 0.331 * c.g + 0.5 * c.b, cr = 0.5 * c.r - 0.419 * c.g - 0.081 * c.b;
+  float pele = smoothstep(0.0, 0.035, cr - 0.015) * (1.0 - smoothstep(0.17, 0.23, cr)) * smoothstep(-0.22, -0.16, cb) * (1.0 - smoothstep(0.0, 0.05, cb));
+  float m = k * pele;
+  vec3 r = mix(c, lis, m);
+  r = mix(r, min(vec3(1.0), r * 1.03 + 0.012), m * 0.6);
+  gl_FragColor = vec4(r, 1.0);
+}`;
+let fx = null;
+function fxCriar() {
+  if (fx !== null) return fx;
+  try {
+    const cv = $('camfx'), gl = cv.getContext('webgl', { preserveDrawingBuffer: false, antialias: false });
+    if (!gl) return (fx = false);
+    const sh = (tipo, src) => { const o = gl.createShader(tipo); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    const pr = gl.createProgram();
+    gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5); gl_Position = vec4(p, 0.0, 1.0); }'));
+    gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FX_FRAG));
+    gl.linkProgram(pr); gl.useProgram(pr);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const lp = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
+    const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach((x) => gl.texParameteri(gl.TEXTURE_2D, x, gl.CLAMP_TO_EDGE));
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach((x) => gl.texParameteri(gl.TEXTURE_2D, x, gl.LINEAR));
+    fx = { cv, gl, u: { px: gl.getUniformLocation(pr, 'px'), k: gl.getUniformLocation(pr, 'k'), raio: gl.getUniformLocation(pr, 'raio') }, rodando: false };
+  } catch (e) { console.error(e); fx = false; }
+  return fx;
+}
+function fxQuadro() {
+  const v = $('cam');
+  if (!fx || !fx.rodando) return;
+  if (v.videoWidth) {
+    const { cv, gl, u } = fx;
+    if (cv.width !== v.videoWidth || cv.height !== v.videoHeight) { cv.width = v.videoWidth; cv.height = v.videoHeight; gl.viewport(0, 0, cv.width, cv.height); }
+    try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, v); } catch {}
+    gl.uniform2f(u.px, 1 / cv.width, 1 / cv.height);
+    gl.uniform1f(u.k, Math.min(1, conf.pele / 10) * 0.9);
+    gl.uniform1f(u.raio, Math.max(cv.width, cv.height) / 110);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  v.requestVideoFrameCallback ? v.requestVideoFrameCallback(fxQuadro) : requestAnimationFrame(fxQuadro);
+}
+// liga ou desliga conforme o ajuste (durante a gravação não troca, para não cortar o vídeo)
+function fxAtualizar() {
+  const querer = conf.pele > 0 && !!fluxo && !!fxCriar();
+  if (gravador && gravador.state === 'recording') return;
+  $('tp').classList.toggle('com-fx', querer);
+  if (querer && !fx.rodando) { fx.rodando = true; fxQuadro(); }
+  if (!querer && fx) fx.rodando = false;
+}
+const fxLigado = () => !!(fx && fx.rodando);
 
 /* ---------- câmera e gravação ---------- */
 let fluxo = null, gravador = null, pedacos = [], urlVideo = null, inicioRec = 0, relogio = null;
@@ -443,14 +517,14 @@ async function ligarCam() {
       const v = fluxo.getVideoTracks()[0], cap = v.getCapabilities ? v.getCapabilities() : {};
       if (cap.zoom) await v.applyConstraints({ advanced: [{ zoom: cap.zoom.min }] });
     } catch {}
-    $('cam').srcObject = fluxo; $('tp').classList.add('com-cam'); return true;
+    $('cam').srcObject = fluxo; $('tp').classList.add('com-cam'); fxAtualizar(); return true;
   } catch (e) {
     console.error(e);
     rotuloRec('Câmera bloqueada. Libere a câmera e o microfone nas permissões do navegador.');
     return false;
   }
 }
-function desligarCam() { if (fluxo) fluxo.getTracks().forEach((t) => t.stop()); fluxo = null; $('cam').srcObject = null; $('tp').classList.remove('com-cam'); }
+function desligarCam() { if (fluxo) fluxo.getTracks().forEach((t) => t.stop()); fluxo = null; fxAtualizar(); $('cam').srcObject = null; $('tp').classList.remove('com-cam'); }
 function rotuloRec(t) { $('bt-rec').querySelector('span').textContent = t; }
 async function comecarGravacao() {
   if (!(await ligarCam())) return;
@@ -459,8 +533,10 @@ async function comecarGravacao() {
   contagem(() => {
     pedacos = [];
     const tipo = tipoVideo();
-    try { gravador = new MediaRecorder(fluxo, tipo ? { mimeType: tipo, videoBitsPerSecond: 12e6, audioBitsPerSecond: 192000 } : undefined); }
-    catch { gravador = new MediaRecorder(fluxo); }
+    // com a pele suave, grava a imagem filtrada junto com o som do microfone
+    const fonte = fxLigado() ? new MediaStream([...fx.cv.captureStream(30).getVideoTracks(), ...fluxo.getAudioTracks()]) : fluxo;
+    try { gravador = new MediaRecorder(fonte, tipo ? { mimeType: tipo, videoBitsPerSecond: 12e6, audioBitsPerSecond: 192000 } : undefined); }
+    catch { gravador = new MediaRecorder(fonte); }
     gravador.ondataavailable = (e) => e.data && e.data.size && pedacos.push(e.data);
     gravador.onstop = mostrarVideo;
     gravador.start(1000); inicioRec = Date.now();
