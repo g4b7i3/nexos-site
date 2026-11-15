@@ -953,6 +953,7 @@ async function alunoHoje() {
     <div id="pend-sec" ${pend ? '' : 'hidden'}><p class="sec-lbl">A preencher <i></i></p><div class="stack" id="pend"><div id="falta-pend"></div><div id="pront-pend"></div><div id="ck-pend"></div><div id="sm-pend"></div>${pend}<div id="auto-hoje"></div><div id="rel-pend"></div><div id="reav-pend"></div><div id="sat-pend"></div></div></div>
     <div id="desafio-box"></div>
     <div id="meta-hoje"></div>
+    ${fC ? '<div id="tenis-hoje"></div>' : ''}
     <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
     <div class="stack">
       ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
@@ -1141,6 +1142,7 @@ async function alunoHoje() {
     () => {},
   );
   pesquisaSatisfacao(document.getElementById('sat-pend'));
+  tnAvisoHoje().catch(() => {});
   // reavaliação física: avisa o aluno quando a data marcada já passou e ainda não houve avaliação nova
   sb.from('nx_avaliacoes')
     .select('data,proxima')

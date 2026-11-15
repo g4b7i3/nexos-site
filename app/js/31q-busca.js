@@ -62,6 +62,13 @@ function buscaTelasAluno() {
       fC,
     ],
     [
+      '#/tenis',
+      'Meus tênis',
+      'Quilometragem de cada par e quando trocar',
+      'tenis sapato calcado km quilometragem trocar desgaste',
+      fC,
+    ],
+    [
       '#/movimento',
       'Avaliação do movimento',
       'Agachamento com bastão, uma perna, salto e tornozelo por vídeo',

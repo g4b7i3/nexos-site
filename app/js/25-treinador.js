@@ -717,7 +717,7 @@ async function staffAluno(alunoId, aba, extra) {
     fC = faz('corrida', m);
   // a ficha do aluno em grupos: o que prescrever, como ele está indo, saúde e contato
   const GRUPOS_FICHA = [
-    ['Treinos', ['corrida', 'forca', 'historico', 'cargas']],
+    ['Treinos', ['corrida', 'forca', 'historico', 'cargas', 'tenis']],
     ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'passada', 'movimento', 'fotos']],
     ['Saúde', ['saude', 'energia', 'relogio']],
     ['Contato e cadastro', ['conversa', 'dados']],
@@ -727,6 +727,7 @@ async function staffAluno(alunoId, aba, extra) {
     ['corrida', 'Corrida', icCorr(m), 'Planilha e evolução', fC],
     ['historico', 'Feedbacks', I.feed, `${sess.length} treino${sess.length === 1 ? '' : 's'} registrados`, true],
     ['cargas', 'Evolução de cargas', I.hist, 'Progressão por exercício', fM],
+    ['tenis', 'Tênis', TENIS_IC, 'Quilometragem de cada par', fC],
     ['dossie', 'Dossiê de desempenho', LAB_IC, 'Laboratório Nexos', true],
     ['relmes', 'Resumo do mês', I.ficha, 'Para a videochamada mensal: números, análise e PDF', true],
     ['avaliacoes', 'Avaliações', I.check, 'Composição corporal e relatórios', true],
@@ -931,6 +932,8 @@ async function staffAluno(alunoId, aba, extra) {
     corpo = '<div id="passada-box" class="stack"></div>';
   } else if (aba === 'movimento') {
     corpo = '<div id="movimento-box" class="stack"></div>';
+  } else if (aba === 'tenis') {
+    corpo = '<div id="tenis-box" class="stack"></div>';
   } else if (aba === 'energia') {
     corpo = '<div id="saude-at" class="stack"></div>';
   } else if (aba === 'relogio') {
@@ -1033,6 +1036,7 @@ async function staffAluno(alunoId, aba, extra) {
   if (aba === 'cargas') bindCargas(document.getElementById('cargas'), grupos);
   if (aba === 'energia') viewSaudeAtleta(document.getElementById('saude-at'), m).catch((e) => console.error(e));
   if (aba === 'passada') psTreinador(document.getElementById('passada-box'), m, extra).catch((e) => console.error(e));
+  if (aba === 'tenis') tnPainel(document.getElementById('tenis-box'), alunoId, true).catch((e) => console.error(e));
   if (aba === 'movimento')
     mvTreinador(document.getElementById('movimento-box'), m, extra).catch((e) => console.error(e));
   if (aba === 'relogio')

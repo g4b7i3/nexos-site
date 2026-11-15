@@ -354,10 +354,41 @@ function demoGerar(uid, eu) {
     ana,
     ...outros,
   ];
+  // tênis da aluna principal: as corridas dela entram no tênis principal
+  const tenis = [
+    {
+      id: 'demo-tn1',
+      org_id: org.id,
+      aluno_id: A,
+      nome: 'Asics Novablast 5',
+      inicio: dia(hoje0 - 120 * DIA),
+      km_inicial: 0,
+      limite_km: 1000,
+      principal: true,
+      aposentado_em: null,
+      criado_em: iso(hoje0 - 120 * DIA),
+    },
+    {
+      id: 'demo-tn2',
+      org_id: org.id,
+      aluno_id: A,
+      nome: 'Nike Vaporfly 3',
+      inicio: dia(hoje0 - 60 * DIA),
+      km_inicial: 38,
+      limite_km: 400,
+      principal: false,
+      aposentado_em: null,
+      criado_em: iso(hoje0 - 60 * DIA),
+    },
+  ];
+  corr.forEach((c) => {
+    if (c.aluno_id === A && ['corrida', 'trail', 'esteira'].includes(c.tipo || 'corrida')) c.tenis_id = 'demo-tn1';
+  });
   return {
     org,
     tabelas: {
       nx_membros: membros,
+      nx_tenis: tenis,
       nx_orgs: [org],
       nx_corridas: corr,
       nx_prontidao: pront,

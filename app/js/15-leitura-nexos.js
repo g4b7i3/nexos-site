@@ -713,6 +713,7 @@ async function viewCorrida(id) {
       ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
     </div>
     ${ehCorr(c) ? nexosIntHTML(niR) : ''}
+    <div id="tn-corr"></div>
     ${S.staff && !c.comentario_treinador ? '<div id="sug-corr"></div>' : ''}
     ${c.dor ? `<div class="card" style="margin-top:12px;border-color:rgba(214,120,0,.35)"><span class="eyebrow" style="color:var(--warn)">Relatou dor${c.dor_local ? ': ' + esc(c.dor_local) : ''}</span></div>` : ''}
     ${corpoTags(c) ? `<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">${corpoTags(c)}</div>` : ''}
@@ -754,6 +755,7 @@ async function viewCorrida(id) {
     <p class="tiny dim" style="margin-top:16px">Fonte: ${c.fonte === 'garmin' ? 'Garmin' : c.fonte === 'arquivo' ? 'arquivo do relógio' : c.fonte === 'celular' ? 'GPS do celular' : c.fonte === 'intervals' ? 'Intervals.icu' : 'digitado'} · <button class="link-btn tiny" id="apagar-c">Apagar corrida</button></p>`;
   const gc = document.getElementById('gerar-card');
   if (gc) gc.onclick = () => abrirCardCorrida(c, plano);
+  tnCorrida(c).catch((e) => console.error(e));
   const rp = document.getElementById('replay');
   if (rp) rp.onclick = () => abrirReplay(c, pc);
   vcvHTML(c, S.staff ? membroC : null)
