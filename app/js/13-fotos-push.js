@@ -413,6 +413,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   pedidoInstalar = e;
   if (location.hash === '#/conexoes') viewConexoes();
+  if (location.hash === '#/instalar' && AREA === 'treinador') viewInstalarTreinador();
 });
 window.addEventListener('appinstalled', () => {
   pedidoInstalar = null;
@@ -425,9 +426,12 @@ const IC_COMPART =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
 const IC_MAIS =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-3px"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
+const TREINADOR_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>';
 function instalarHTML() {
+  const qual = AREA === 'treinador' ? 'o app do treinador' : 'o app da Nexos';
   if (instalado())
-    return `<div class="card inst-card ok"><b>App instalado ✓</b><p class="small muted" style="margin-top:4px">Você já está usando o app da Nexos pela tela de início.</p></div>`;
+    return `<div class="card inst-card ok"><b>App instalado ✓</b><p class="small muted" style="margin-top:4px">Você já está usando ${qual} pela tela de início.</p></div>`;
   if (ehIOS())
     return `<div class="card inst-card"><b>No iPhone, pelo Safari</b><ol class="inst-passos">
       <li>Abra este link no <b>Safari</b>.</li>
@@ -452,8 +456,17 @@ function bindInstalar(root) {
     const r = await pedidoInstalar.userChoice.catch(() => null);
     pedidoInstalar = null;
     if (r && r.outcome === 'accepted') toast('App instalado! Procure o ícone da Nexos na tela de início.');
-    viewConexoes();
+    AREA === 'treinador' ? viewInstalarTreinador() : viewConexoes();
   };
+}
+// área do treinador: instalar o app do treinador (ícone preto), separado do app de aluno
+function viewInstalarTreinador() {
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Treinador</p><h1 class="h1">Instalar o app do treinador</h1>
+    <p class="small muted" style="margin-top:6px">Fica na tela de início com o ícone preto, separado do app de aluno, e abre direto na área do treinador.</p>
+    <div class="row" style="gap:14px;margin:16px 0"><img src="icons/treinador-192.png" alt="" width="64" height="64" style="border-radius:16px"><div><b>Nexos Treinador</b><div class="small muted">Área do treinador</div></div></div>
+    <div id="inst-box">${instalarHTML()}</div>
+    <p class="tiny dim" style="margin-top:12px">Instale abrindo nexosperformanceesaude.com.br/treinador. Se você também usa o app de aluno, os dois ficam instalados, cada um com o seu ícone.</p>`;
+  bindInstalar($app);
 }
 let swReg = null;
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

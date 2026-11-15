@@ -6,21 +6,21 @@
   "start_url": "/treinador/",
   "scope": "/treinador/",
   "display": "standalone",
-  "background_color": "#050c1c",
+  "background_color": "#000000",
   "theme_color": "#f3f6fb",
   "icons": [
     {
-      "src": "/app/icons/icon-192.png",
+      "src": "/app/icons/treinador-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/app/icons/icon-512.png",
+      "src": "/app/icons/treinador-512.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "/app/icons/icon-maskable-512.png",
+      "src": "/app/icons/treinador-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
