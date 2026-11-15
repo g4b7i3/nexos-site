@@ -1583,6 +1583,12 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
     return isoDia(d);
   })();
   let escopo = null; // 'todas' ou 'semana'
+  // treino que o aluno ainda nunca fez (acabou de ser montado): mudança vale para todas as semanas, sem perguntar
+  if (!ehModelo && !novo && t.id) {
+    const { count } = await sb.from('nx_sessoes').select('id', { count: 'exact', head: true }).eq('treino_id', t.id);
+    if (count === 0) escopo = 'todas';
+  }
+  const escopoInicial = escopo;
   let draw = () => {
     $app.innerHTML = `
       <a class="back" href="${voltar}">${I.back} ${ehModelo ? 'Treinos' : esc(aluno?.nome || 'Aluno')}</a>
@@ -2039,7 +2045,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
           'salvar treino ' + t.itens.length + ' exercícios',
         );
         btn.disabled = false;
-        escopo = null;
+        escopo = escopoInicial;
         toast('Não foi possível salvar o treino.', true);
       }
       return;
