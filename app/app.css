@@ -4629,3 +4629,10 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .lib-prox{display:flex;align-items:center;gap:12px}
 .lib-prox>svg{flex:none;width:18px;height:18px;color:var(--mute)}
 .section-h>.small.muted{white-space:nowrap;flex:none}
+/* dias por conta do aluno: bike (verde-água) e caminhada (verde) */
+.off-ic.bk,.mod-bk .off-faixa,.off-faixa.grande.fo.bk,.wletter.fo.bk{background:linear-gradient(135deg,#0d9488,#22b8c9)}
+.off-ic.cm,.mod-cm .off-faixa,.off-faixa.grande.fo.cm,.wletter.fo.cm{background:linear-gradient(135deg,#15803d,#34c46b)}
+.ses.forca-l.extra-bk{border-color:color-mix(in srgb,#0d9488 55%,transparent);background:linear-gradient(135deg,color-mix(in srgb,#0d9488 10%,var(--bg2)),var(--bg2))}
+.ses.forca-l.extra-cm{border-color:color-mix(in srgb,#16a34a 55%,transparent);background:linear-gradient(135deg,color-mix(in srgb,#16a34a 10%,var(--bg2)),var(--bg2))}
+.wcard.dia-bk{border-color:color-mix(in srgb,#0d9488 45%,var(--line))}.wcard.dia-bk .eyebrow{color:#0d9488}
+.wcard.dia-cm{border-color:color-mix(in srgb,#16a34a 45%,var(--line))}.wcard.dia-cm .eyebrow{color:#16a34a}

@@ -800,7 +800,7 @@ async function trocarTreinoDaCorrida(c) {
       .eq('aluno_id', c.aluno_id)
       .gte('data', somaDias(d, -7))
       .lte('data', somaDias(d, 7))
-      .not('tipo', 'in', '(folga,forca)')
+      .not('tipo', 'in', '(folga,forca,bike,caminhada)')
       .order('data'),
     sb
       .from('nx_corridas')

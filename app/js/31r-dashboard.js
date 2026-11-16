@@ -61,7 +61,7 @@ function dashMontar(d) {
     const proxLib = prox.some((p) => p.liberado !== false) || fs.some((f) => f.semana === segProx);
     const tr = d.treinos.filter((t) => t.aluno_id === a.id);
     const naSemana = tr.filter((t) => dashDia(t.quando) >= seg && dashDia(t.quando) <= dom);
-    const previstos = libC.filter((p) => p.tipo !== 'folga' && p.tipo !== 'forca').length;
+    const previstos = libC.filter((p) => !['folga', 'forca', 'bike', 'caminhada'].includes(p.tipo)).length;
     const ult = tr.reduce((m, t) => Math.max(m, t.quando), 0);
     const viu = a.ultimo_acesso ? Date.parse(a.ultimo_acesso) : 0;
     return {

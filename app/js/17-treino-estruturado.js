@@ -112,6 +112,24 @@ const MODELOS_PADRAO = [
     cat: 'off',
     info: 'Dia do treino de força que o aluno faz por conta própria (academia ou outro profissional). Nesse dia não tem corrida.',
   },
+  {
+    id: 'p-bike',
+    nome: 'Bike',
+    tipo: 'bike',
+    estrutura: [],
+    niv: TODOS_NIV,
+    cat: 'off',
+    info: 'Dia de bike que o aluno faz por conta própria. Os minutos são opcionais. Nesse dia não tem corrida.',
+  },
+  {
+    id: 'p-caminhada',
+    nome: 'Caminhada',
+    tipo: 'caminhada',
+    estrutura: [],
+    niv: TODOS_NIV,
+    cat: 'off',
+    info: 'Dia de caminhada com os minutos que o treinador definir. Nesse dia não tem corrida.',
+  },
   // ---------- INICIANTE ----------
   {
     id: 'i-cc8',

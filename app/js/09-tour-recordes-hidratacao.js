@@ -858,6 +858,7 @@ async function alunoHoje() {
   if (offForca) prox = null;
   const corrDoDia = fC ? planoSem.filter((p) => p.data === hoje && !semCorrida(p)) : [];
   const forcaHoje = fC ? planoSem.find((p) => p.data === hoje && p.tipo === 'forca') : null;
+  const extraHoje = fC ? planoSem.filter((p) => p.data === hoje && DIA_EXTRA[p.tipo]) : [];
   const proxCorr = fC ? planoSem.find((p) => p.data > hoje && !semCorrida(p)) : null;
   const h = new Date().getHours();
   const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
@@ -894,7 +895,7 @@ async function alunoHoje() {
       ? `<div class="card wcard feito" style="display:flex"><div class="wletter">✓</div><div class="grow"><span class="eyebrow">Musculação</span><div class="h3" style="margin-top:2px">${esc(muscHoje.treino_titulo || 'Treino')} feito</div><div class="small muted">${fixoHoje ? 'Bom trabalho! Treino do dia concluído.' : 'Próximo da sequência: ' + esc(prox.titulo)}</div></div></div>`
       : `<a class="card tap wcard" href="#/treino/${prox.id}" style="display:flex"><div class="wletter">${esc(letraTreino(prox, ativos.indexOf(prox)))}</div><div class="grow"><span class="eyebrow">Musculação · ${fixoHoje ? 'treino de hoje' : 'próximo da sequência'}</span><div class="h3" style="margin-top:2px">${esc(prox.titulo)}</div>${prox.foco ? `<div class="small muted">${esc(prox.foco)}</div>` : ''}<div class="meta"><span class="tag">${prox.nx_treino_itens.length} exercícios</span></div></div><span class="go">${I.play}</span></a>`
     : '';
-  const descanso = !corrDoDia.length && !cardMusc && !forcaHoje;
+  const descanso = !corrDoDia.length && !cardMusc && !forcaHoje && !extraHoje.length;
   const resumoDia = (() => {
     if (descanso) return 'Dia de descanso.';
     const itens = [
@@ -957,6 +958,16 @@ async function alunoHoje() {
     <p class="sec-lbl">${descanso ? 'Hoje' : 'Treino de hoje'}</p>
     <div class="stack">
       ${forcaHoje ? `<div class="card wcard dia-forca" style="display:flex"><div class="wletter fo">${FORCA_IC}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de força</div><div class="small">${forcaHoje.descricao ? esc(forcaHoje.descricao) : 'Treino de força por sua conta. Hoje não tem corrida.'}</div></div></div>` : ''}
+      ${extraHoje
+        .map((p) => {
+          const x = DIA_EXTRA[p.tipo];
+          const txt =
+            p.tipo === 'caminhada'
+              ? `${p.duracao_min ? `${p.duracao_min} min de caminhada.` : 'Caminhada.'} ${p.descricao ? esc(p.descricao) : 'Hoje não tem corrida.'}`
+              : `${p.duracao_min ? `${p.duracao_min} min de pedal. ` : ''}${p.descricao ? esc(p.descricao) : 'Pedal por sua conta. Hoje não tem corrida.'}`;
+          return `<div class="card wcard dia-forca dia-${x.cls}" style="display:flex"><div class="wletter fo ${x.cls}">${x.ic}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">Hoje é dia de ${x.nome.toLowerCase()}</div><div class="small">${txt}</div></div></div>`;
+        })
+        .join('')}
       ${corrDoDia.map(cardCorr).join('')}
       ${cardMusc}
       ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}

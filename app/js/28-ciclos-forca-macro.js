@@ -3156,7 +3156,7 @@ async function staffTreinos(aba) {
     md,
     meu,
   ) => `<div class="card mod-corr"><div class="row between" style="gap:10px;align-items:flex-start"><div style="min-width:0"><b>${esc(md.nome)}</b><div class="mc-tags">${meu ? '<span class="tag acc">meu modelo</span>' : (md.niv || []).length === 4 ? '<span class="tag">todos os níveis</span>' : (md.niv || []).map((n) => `<span class="tag niv-${n}">${nomeNiv[n]}</span>`).join('')}</div></div>${meu ? `<button class="link-btn tiny" data-delmc="${md.id}" style="color:var(--err)">Excluir</button>` : ''}</div>
-    <div style="margin:10px 0 6px">${md.tipo === 'folga' ? `<div class="off-faixa grande">${OFF_IC}</div>` : md.tipo === 'forca' ? `<div class="off-faixa grande fo">${FORCA_IC}</div>` : perfilHTML(md.estrutura, perfil, true)}</div>
+    <div style="margin:10px 0 6px">${md.tipo === 'folga' ? `<div class="off-faixa grande">${OFF_IC}</div>` : md.tipo === 'forca' ? `<div class="off-faixa grande fo">${FORCA_IC}</div>` : DIA_EXTRA[md.tipo] ? `<div class="off-faixa grande fo ${DIA_EXTRA[md.tipo].cls}">${DIA_EXTRA[md.tipo].ic}</div>` : perfilHTML(md.estrutura, perfil, true)}</div>
     ${semCorrida(md) ? '' : `<p class="small"><b>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</b> · ~${fmtDur(resumoEstrutura(md.estrutura, perfil).seg)}</p><p class="small muted" style="margin-top:2px">${esc(descreverEstrutura(md.estrutura))}</p>`}
     ${md.info ? `<p class="mc-info">${esc(md.info)}</p>` : ''}</div>`;
   const desenhar = () => {

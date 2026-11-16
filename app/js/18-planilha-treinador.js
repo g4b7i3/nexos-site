@@ -1600,12 +1600,96 @@ async function polimentoSheet(alunoId, prova, perfil, aoAplicar) {
 }
 
 /* ---------- calendário da planilha ---------- */
-// dias sem corrida na planilha: day off e dia de força por conta do aluno
-const semCorrida = (p) => !!p && (p.tipo === 'folga' || p.tipo === 'forca');
+// dias sem corrida na planilha: day off e dias por conta do aluno (força, bike e caminhada)
+const semCorrida = (p) =>
+  !!p && (p.tipo === 'folga' || p.tipo === 'forca' || p.tipo === 'bike' || p.tipo === 'caminhada');
 const FORCA_IC =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>';
 const OFF_IC =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" opacity=".5"><rect x="2" y="7.6" width="3.6" height="11" rx="1.7"/><rect x="2.6" y="14.8" width="14.6" height="3.8" rx="1.7"/><rect x="3.8" y="18.2" width="2.2" height="3.2" rx=".9"/><rect x="14.4" y="18.2" width="2.2" height="3.2" rx=".9"/></g><g fill="none" stroke="currentColor" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 8.8 9.7 13.4h6.2l1.6 6.6h2.4"/><path d="M8.6 10.4l4.2 2"/></g><circle cx="8" cy="4.5" r="2.5" fill="currentColor"/></svg>'; // pessoa sentada na poltrona
+const BIKE_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9h6l3.5 7.5M12 16.5 9 9M8 6h3M15 9l-1-3h2"/></svg>';
+const CAMINHADA_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2" fill="currentColor" stroke="none"/><path d="M10 21l2-6 2.5 2.5V21M12 15l1-6-3 1.5L8.5 13M13 9l2 3 2.5 1"/></svg>';
+// dias por conta do aluno além da força: bike (minutos opcionais) e caminhada (com minutos)
+const DIA_EXTRA = {
+  bike: {
+    nome: 'Bike',
+    ic: BIKE_IC,
+    cls: 'bk',
+    padrao: 'por conta do aluno',
+    ex: 'Ex.: pedal leve, giro solto',
+    expl: 'O aluno pedala por conta própria e não tem corrida nesse dia. Ele vê “Hoje é dia de bike” na tela inicial.',
+  },
+  caminhada: {
+    nome: 'Caminhada',
+    ic: CAMINHADA_IC,
+    cls: 'cm',
+    padrao: 'caminhada',
+    min: 30,
+    ex: 'Ex.: ritmo confortável, dá para conversar',
+    expl: 'Dia de caminhada, sem corrida. O aluno vê “Hoje é dia de caminhada” na tela inicial, com os minutos.',
+  },
+};
+const diaExtraTxt = (p) =>
+  [p.duracao_min ? `${p.duracao_min} min` : '', p.descricao || ''].filter(Boolean).join(' · ') ||
+  DIA_EXTRA[p.tipo].padrao;
+// marcar ou editar um dia de bike ou caminhada (p = dia já marcado; sem p, cria no dia `data`)
+function diaExtraSheet({ tipo, p, data, alunoId, aoSalvar }) {
+  const x = DIA_EXTRA[tipo];
+  const minIni = p ? p.duracao_min || '' : x.min || '';
+  openSheet(
+    `<p class="eyebrow">${fmtDia(p ? p.data : data)}</p><div class="h2" style="margin-top:4px">${x.nome}</div><p class="small muted" style="margin-top:6px">${x.expl}</p>
+    <label class="field" style="margin-top:14px"><span>Minutos${tipo === 'bike' ? ' (opcional)' : ''}</span><input class="input" id="dx-min" type="number" inputmode="numeric" min="5" max="600" step="5" value="${minIni}" placeholder="${tipo === 'bike' ? 'Ex.: 45' : '30'}"></label>
+    <label class="field"><span>Recado para o aluno (opcional)</span><input class="input" id="dx-obs" maxlength="120" placeholder="${x.ex}" value="${esc((p && p.descricao) || '')}"></label>
+    <button class="btn block" id="dx-ok" style="margin-top:12px">${p ? 'Salvar' : 'Marcar ' + x.nome.toLowerCase()}</button>${p ? `<button class="btn ghost danger block" id="dx-del" style="margin-top:8px">Tirar ${tipo === 'bike' ? 'o dia de bike' : 'a caminhada'}</button>` : ''}`,
+    (r) => {
+      r.querySelector('#dx-ok').onclick = async (e) => {
+        const min = parseInt(r.querySelector('#dx-min').value, 10);
+        if (tipo === 'caminhada' && !(min >= 5)) return toast('Coloque os minutos da caminhada.', true);
+        const row = {
+          duracao_min: min > 0 ? Math.min(600, min) : 0,
+          descricao: r.querySelector('#dx-obs').value.trim() || null,
+        };
+        e.target.disabled = true;
+        const { error } = p
+          ? await sb.from('nx_plano_corrida').update(row).eq('id', p.id)
+          : await sb.from('nx_plano_corrida').insert({
+              org_id: S.org.id,
+              aluno_id: alunoId,
+              data,
+              tipo,
+              titulo: x.nome,
+              estrutura: [],
+              distancia_km: 0,
+              zona: null,
+              criado_por: S.user.id,
+              ...row,
+            });
+        closeSheet();
+        if (error) return toast('Não foi possível salvar.', true);
+        toast(
+          tipo === 'bike'
+            ? p
+              ? 'Dia de bike salvo.'
+              : 'Dia de bike marcado.'
+            : p
+              ? 'Caminhada salva.'
+              : 'Caminhada marcada.',
+        );
+        aoSalvar && aoSalvar();
+      };
+      const del = r.querySelector('#dx-del');
+      if (del)
+        del.onclick = async () => {
+          await sb.from('nx_plano_corrida').delete().eq('id', p.id);
+          closeSheet();
+          toast(tipo === 'bike' ? 'Dia de bike removido.' : 'Caminhada removida.');
+          aoSalvar && aoSalvar();
+        };
+    },
+  );
+}
 // treino feito em outro dia da semana: "Antecipado (feito na segunda)" ou "Feito depois, na quinta"
 const DIA_LONGO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 function diaFeitoTxt(c, p) {
@@ -1615,6 +1699,10 @@ function diaFeitoTxt(c, p) {
   return k < p.data ? `Antecipado · feito na ${dia}` : `Feito depois · na ${dia}`;
 }
 function cartaoSessao(p, perfil, feito, staff) {
+  if (DIA_EXTRA[p.tipo]) {
+    const x = DIA_EXTRA[p.tipo];
+    return `<div class="ses forca-l extra-${x.cls} ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic ${x.cls}">${x.ic}</span><b>${x.nome}</b></div><span class="ses-m">${esc(diaExtraTxt(p))}</span></div>`;
+  }
   if (p.tipo === 'forca')
     return `<div class="ses forca-l ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic fo">${FORCA_IC}</span><b>Força</b></div><span class="ses-m">${p.descricao ? esc(p.descricao) : 'por conta do aluno'}</span></div>`;
   if (p.tipo === 'folga')
@@ -1988,7 +2076,9 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
                     ? `<div class="mod mod-off" data-mod="${md.id}"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></div>`
                     : md.tipo === 'forca'
                       ? `<div class="mod mod-forca" data-mod="${md.id}"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></div>`
-                      : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc((CATS_CORR.find((c) => c[0] === md.cat) || [])[1] || '')}</span></div>`,
+                      : DIA_EXTRA[md.tipo]
+                        ? `<div class="mod mod-forca mod-${DIA_EXTRA[md.tipo].cls}" data-mod="${md.id}"><div class="off-faixa">${DIA_EXTRA[md.tipo].ic}</div><b>${DIA_EXTRA[md.tipo].nome}</b><span>${md.tipo === 'bike' ? 'por conta do aluno' : 'com minutos'}</span></div>`
+                        : `<div class="mod" data-mod="${md.id}" ${passaNiv(md, store.get('nx_bib_niv', 'todos')) ? '' : 'hidden'}>${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km · ${md.org_id ? 'meu modelo' : esc((CATS_CORR.find((c) => c[0] === md.cat) || [])[1] || '')}</span></div>`,
                 )
                 .join('')}</div></aside>`
             : ''
@@ -2495,6 +2585,10 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       if (se) {
         const p = plano.find((x) => x.id === se.dataset.ses);
         if (!p) return;
+        if (DIA_EXTRA[p.tipo])
+          return staff
+            ? diaExtraSheet({ tipo: p.tipo, p, alunoId, aoSalvar: recarregar })
+            : toast(`${DIA_EXTRA[p.tipo].nome}: ${diaExtraTxt(p)}.`);
         if (p.tipo === 'forca')
           return staff
             ? openSheet(
@@ -2565,7 +2659,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             const card = (md) =>
               `<button class="mod" data-pick="${md.id}">${perfilHTML(md.estrutura, perfil)}<b>${esc(md.nome)}</b><span>${f1(resumoEstrutura(md.estrutura, perfil).km)} km</span></button>`;
             r.querySelector('#pick-l').innerHTML =
-              `<div class="pick-g"><div class="biblio-l"><button class="mod mod-off" data-pick="p-off"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></button><button class="mod mod-forca" data-pick="p-forca"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></button><button class="mod" data-pick=""><div class="perfil-int vazio"></div><b>Em branco</b><span>montar do zero</span></button></div></div>` +
+              `<div class="pick-g"><div class="biblio-l"><button class="mod mod-off" data-pick="p-off"><div class="off-faixa">${OFF_IC}</div><b>Day off</b><span>Descanso</span></button><button class="mod mod-forca" data-pick="p-forca"><div class="off-faixa">${FORCA_IC}</div><b>Força</b><span>por conta do aluno</span></button><button class="mod mod-forca mod-bk" data-pick="p-bike"><div class="off-faixa">${BIKE_IC}</div><b>Bike</b><span>por conta do aluno</span></button><button class="mod mod-forca mod-cm" data-pick="p-caminhada"><div class="off-faixa">${CAMINHADA_IC}</div><b>Caminhada</b><span>com minutos</span></button><button class="mod" data-pick=""><div class="perfil-int vazio"></div><b>Em branco</b><span>montar do zero</span></button></div></div>` +
               (meus.length
                 ? `<p class="mes-rot">Meus modelos</p><div class="biblio-l">${meus.map(card).join('')}</div>`
                 : '') +
@@ -2585,6 +2679,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             const b = e.target.closest('[data-pick]');
             if (!b) return;
             const md = modelos.find((x) => x.id === b.dataset.pick);
+            if (md && DIA_EXTRA[md.tipo]) return diaExtraSheet({ tipo: md.tipo, data, alunoId, aoSalvar: recarregar });
             if (md && semCorrida(md)) {
               const { error } = await sb.from('nx_plano_corrida').insert({
                 org_id: S.org.id,
@@ -2662,7 +2757,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
               titulo: md.nome,
               estrutura: md.estrutura,
               distancia_km: Math.round(rs.km * 10) / 10,
-              duracao_min: Math.round(rs.seg / 60),
+              duracao_min: DIA_EXTRA[md.tipo] ? DIA_EXTRA[md.tipo].min || 0 : Math.round(rs.seg / 60),
               zona: null,
               criado_por: S.user.id,
             });

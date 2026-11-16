@@ -850,6 +850,8 @@ async function viewCalendarioMes(alunoId, box) {
     const x = doDia(k);
     const corPl = x.pl.map((p) => {
       if (p.tipo === 'forca') return 'var(--fpc-ac)';
+      if (p.tipo === 'bike') return '#0ea5a4';
+      if (p.tipo === 'caminhada') return '#16a34a';
       const z = achatar(estruturaDe(p), perfil)
         .filter((s) => s.k === 'co')
         .sort((a, b) => b.seg - a.seg)[0];
