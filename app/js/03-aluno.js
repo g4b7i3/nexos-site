@@ -449,7 +449,13 @@ function abrirProntidao(aoSalvar) {
           console.error(error);
           return toast('Não foi possível enviar. Tente de novo.', true);
         }
-        if (row.alerta) notificar('prontidao', data.id);
+        // avisa o treinador se o check-in pede atenção ou se o app vai sugerir trocar o treino de hoje
+        ajusteDoCheckin(row)
+          .catch(() => null)
+          .then((aj) => {
+            if (row.alerta || aj)
+              notificar('prontidao', data.id, aj ? { ajuste: `${aj.novo.titulo} ${aj.novo.min} min` } : null);
+          });
         let novoIni = false;
         if (cic && cicR && (cicR.menstruada != null || (cicR.sintomas || []).length)) {
           const rc = await salvarDiaCiclo(

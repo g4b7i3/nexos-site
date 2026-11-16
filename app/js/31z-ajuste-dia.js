@@ -82,6 +82,66 @@ function ajusteDia(r) {
 /* ajuste:puro:fim */
 
 /* ---------- dados e cartão do treinador ---------- */
+/** sono, FC de repouso (com a média pessoal) e VFC (pela faixa pessoal) do dia, a partir das linhas do Garmin */
+function relogioDoDia(g, hoje) {
+  const gh = g.find((x) => x.dia === hoje);
+  if (!gh) return null;
+  return {
+    sonoH: gh.sono_s > 0 ? gh.sono_s / 3600 : null,
+    fcRep: gh.fc_repouso > 0 ? +gh.fc_repouso : null,
+    fcBase: mediaPessoal(
+      g.filter((x) => x.fc_repouso > 0).map((x) => ({ dia: x.dia, v: +x.fc_repouso })),
+      hoje,
+      30,
+      7,
+    ),
+    vfc: leituraVfc(
+      g.filter((x) => x.vfc > 0).map((x) => ({ dia: x.dia, v: +x.vfc })),
+      hoje,
+    ).estado,
+  };
+}
+/** no celular do aluno, logo depois do check-in: a mesma conta do cartão do treinador, para avisá-lo na hora */
+async function ajusteDoCheckin(row) {
+  const hoje = row.dia;
+  const lista = (q) =>
+    q.then(
+      (r) => r.data || [],
+      () => [],
+    );
+  const [pl, g] = await Promise.all([
+    lista(sb.from('nx_plano_corrida').select('*').eq('aluno_id', S.user.id).eq('data', hoje)),
+    lista(
+      sb
+        .from('nx_garmin_dia')
+        .select('dia,sono_s,fc_repouso,vfc')
+        .eq('aluno_id', S.user.id)
+        .gte('dia', somaDias(hoje, -66))
+        .lte('dia', hoje),
+    ),
+  ]);
+  const q = pl.find((x) => !semCorrida(x) && x.tipo !== 'prova' && x.liberado !== false);
+  if (!q) return null;
+  const perfil = perfilCorrida(S.me || {});
+  const tt = estimaTotalSeg(estruturaDe(q), perfil);
+  return ajusteDia({
+    nome: '',
+    plano: {
+      tipo: q.tipo,
+      titulo: q.titulo || nomeTipo(q.tipo),
+      forte: ehForte(q),
+      min: tt && tt[1] ? Math.round((tt[0] + tt[1]) / 2 / 60) : +q.duracao_min || null,
+    },
+    ck: {
+      sono: row.sono,
+      energia: row.energia,
+      estresse: row.estresse,
+      total: row.total ?? row.sono + row.energia + row.dor + row.estresse,
+      locais: row.dor_locais,
+    },
+    rel: relogioDoDia(g, hoje),
+  });
+}
 /** sugestões de hoje para os alunos do treinador (uma busca por tabela) */
 async function ajustesDoDia(alunos) {
   const hoje = hojeISO();
@@ -142,26 +202,10 @@ async function ajustesDoDia(alunos) {
     // o treinador já decidiu (manteve, trocou ou desfez a troca): não pergunta de novo
     if (oc.has(chave) || (aj && aj.desfeito_em)) continue;
     const pr = pronts.find((x) => x.aluno_id === q.aluno_id);
-    const g = rel.filter((x) => x.aluno_id === q.aluno_id);
-    const gh = g.find((x) => x.dia === hoje);
-    let r2 = null;
-    if (gh) {
-      const lv = leituraVfc(
-        g.filter((x) => x.vfc > 0).map((x) => ({ dia: x.dia, v: +x.vfc })),
-        hoje,
-      );
-      r2 = {
-        sonoH: gh.sono_s > 0 ? gh.sono_s / 3600 : null,
-        fcRep: gh.fc_repouso > 0 ? +gh.fc_repouso : null,
-        fcBase: mediaPessoal(
-          g.filter((x) => x.fc_repouso > 0).map((x) => ({ dia: x.dia, v: +x.fc_repouso })),
-          hoje,
-          30,
-          7,
-        ),
-        vfc: lv.estado,
-      };
-    }
+    const r2 = relogioDoDia(
+      rel.filter((x) => x.aluno_id === q.aluno_id),
+      hoje,
+    );
     if (!pr && !r2) continue;
     const mb = membs.find((x) => x.user_id === q.aluno_id) || {};
     const perfil = perfilCorrida({ ...m, ...mb });
