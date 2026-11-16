@@ -150,6 +150,12 @@ function buscaTelasEquipe() {
       'Rascunho da semana de cada aluno para enviar',
       'resumo semanal semana relatorio sono vfc enviar aluno',
     ],
+    [
+      '#/minha-voz',
+      'Minha voz',
+      'Frases gravadas que os alunos ouvem no GPS',
+      'voz audio gravar frase gps treino falar',
+    ],
     ['#/checkup', 'Check-up do Corredor', 'Avaliação de entrada e saída', 'checkup avaliacao entrada'],
     ['#/relogios', 'Relógios dos alunos', 'Quem está conectado e com qual relógio', 'garmin relogio conexao'],
     ['#/desativados', 'Alunos desativados', 'Quem saiu da Nexos e a opção de reativar', 'inativo reativar saiu'],

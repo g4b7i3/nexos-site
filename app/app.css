@@ -4658,3 +4658,18 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .ses-salto .ic-t,.ses-salto svg{width:12px;height:12px;flex:none}
 .salto-ed{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:9px 11px;border-radius:10px;font-size:.84rem;line-height:1.35;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--ink)}
 .salto-ed .ic-t,.salto-ed svg{width:15px;height:15px;flex:none;margin-top:2px}
+/* minha voz (treinador) */
+.voz-dicas{margin-top:14px}
+.voz-dicas ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
+.voz-card{border-left:4px solid var(--warn)}
+.voz-card.ok{border-left-color:var(--ok)}
+.voz-top{display:flex;align-items:center;gap:10px}
+.voz-top .tag{display:inline-flex;align-items:center;gap:4px;flex:none}
+.voz-top .tag .ic-t,.voz-top .tag svg{width:12px;height:12px;margin:0}
+.voz-n{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:.78rem;font-weight:800;background:var(--s2,rgba(127,127,127,.12))}
+.voz-frase{margin:10px 0 12px;font-size:1.12rem;font-weight:700;line-height:1.35}
+.voz-bts{gap:8px;align-items:center;flex-wrap:wrap}
+.voz-bts .btn{display:inline-flex;align-items:center;gap:6px}
+.voz-bts .btn.gravando{background:var(--err);border-color:var(--err);color:#fff}
+.voz-rec{width:10px;height:10px;border-radius:50%;background:#fff;animation:vozPisca 1s infinite}
+@keyframes vozPisca{50%{opacity:.25}}

@@ -274,16 +274,65 @@ async function viewGps(id, modo) {
       speechSynthesis.speak(u);
     } catch {}
   };
+  // voz do treinador (Minha voz): toca as frases gravadas e, em seguida, os números com a voz do celular.
+  // Sem nenhuma frase gravada para aquele momento, fica a fala de sempre (semVoz).
+  const voz = { urls: {}, el: null };
+  vozCarregar(vozDeQuem())
+    .then((m) => (voz.urls = m))
+    .catch(() => {});
+  const dizer = (itens, semVoz) => {
+    if (!st.voz) return;
+    const fila = itens.filter((x) => x && (x.t || voz.urls[x.c]));
+    if (!fila.some((x) => x.c)) return semVoz && falar(semVoz);
+    try {
+      speechSynthesis.cancel();
+    } catch {}
+    const el = voz.el || (voz.el = new Audio());
+    const proximo = () => {
+      const x = fila.shift();
+      if (!x) return;
+      if (x.t) {
+        if (!window.speechSynthesis) return proximo();
+        try {
+          const u = new SpeechSynthesisUtterance(x.t);
+          u.lang = 'pt-BR';
+          u.rate = 1.05;
+          u.onend = proximo;
+          speechSynthesis.speak(u);
+        } catch {
+          proximo();
+        }
+        return;
+      }
+      el.onended = proximo;
+      el.src = voz.urls[x.c];
+      el.play().catch(() => (fila.length ? proximo() : semVoz && falar(semVoz)));
+    };
+    try {
+      el.pause();
+    } catch {}
+    proximo();
+  };
+  // no toque de Começar: libera o som no iPhone para as frases tocarem depois
+  const liberarSom = () => {
+    try {
+      const el = voz.el || (voz.el = new Audio());
+      if (!el.src) {
+        el.src = URL.createObjectURL(vozMudo());
+        el.play().catch(() => {});
+      }
+    } catch {}
+  };
   const paceFala = (s) => {
     const x = Math.round(s);
     return `${Math.floor(x / 60)} e ${String(x % 60).padStart(2, '0')}`;
   };
-  const anunciar = (s) => {
+  const anunciar = (s, primeiro) => {
     if (!s) return;
     const z = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
-    falar(
-      `${gpsNomePasso(s)}. ${gpsAlvoTxt(s).replace(',', ' vírgula ').replace(/ km$/, ' quilômetros').replace(/ m$/, ' metros').replace(/ min$/, ' minutos')}. ${z.d.replace(/\s*\(.*\)/, '')}, ${est ? `velocidade de ${kmhDe(s.pb).replace(',', ' vírgula ')} a ${kmhDe(s.pa).replace(',', ' vírgula ')}` : `pace de ${paceFala(s.pa)} a ${paceFala(s.pb)}`}.`,
-    );
+    const i = passos.indexOf(s);
+    const txt = `${gpsNomePasso(s)}. ${gpsAlvoTxt(s).replace(',', ' vírgula ').replace(/ km$/, ' quilômetros').replace(/ m$/, ' metros').replace(/ min$/, ' minutos')}. ${z.d.replace(/\s*\(.*\)/, '')}, ${est ? `velocidade de ${kmhDe(s.pb).replace(',', ' vírgula ')} a ${kmhDe(s.pa).replace(',', ' vírgula ')}` : `pace de ${paceFala(s.pa)} a ${paceFala(s.pb)}`}.`;
+    dizer([primeiro && { c: 'inicio' }, { c: vozChavePasso(s, i > 0 ? passos[i - 1] : null) }, { t: txt }], txt);
   };
   const vibrar = (p2) => {
     try {
@@ -328,10 +377,25 @@ async function viewGps(id, modo) {
     foraDir = 0,
     foraDesde = 0,
     foraFalas = 0,
-    ultFora = 0;
+    ultFora = 0,
+    nPaceOk = 0;
+  // tempo total previsto do treino estruturado (para a frase da metade); sem ritmo-alvo, não dá para prever
+  const totPrev = passos.length
+    ? passos.reduce(
+        (a, s) => (a == null ? null : s.t ? a + s.t : s.pa ? a + (s.d / 1000) * ((s.pa + s.pb) / 2) : null),
+        0,
+      )
+    : null;
   const falarPace = () => {
     if (st.estado !== 'correndo' || !st.voz) return;
     const ag = Date.now();
+    if (!st.metade && totPrev >= 600 && movAgora() / 1000 >= totPrev / 2 && passoAtual() && ag - ultTroca > 8000) {
+      st.metade = true;
+      if (voz.urls.metade) {
+        ultFalaPace = ag;
+        return dizer([{ c: 'metade' }]);
+      }
+    }
     if (ag - ultTroca < 20000) return;
     const pa = paceAgora();
     if (!pa) return;
@@ -349,7 +413,7 @@ async function viewGps(id, modo) {
     if (dir !== foraDir) {
       // mudou de situação: começa a contar de novo
       if (foraDir && !dir && foraFalas) {
-        falar('Agora sim, no ritmo.');
+        dizer([{ c: 'ritmo' }], 'Agora sim, no ritmo.');
         ultFalaPace = ag;
       }
       foraDir = dir;
@@ -362,13 +426,21 @@ async function viewGps(id, modo) {
         foraFalas++;
         ultFora = ag;
         ultFalaPace = ag;
-        falar(`Pace ${est ? 'aproximado ' : ''}${paceFala(pa)}. ${txtFora(dir)}`);
+        if (est) falar(`Pace aproximado ${paceFala(pa)}. ${txtFora(dir)}`);
+        else
+          dizer(
+            [{ c: dir > 0 ? 'rapido' : 'lento' }, { t: `Pace ${paceFala(pa)}.` }],
+            `Pace ${paceFala(pa)}. ${txtFora(dir)}`,
+          );
       }
       return;
     }
     if (ag - ultFalaPace < 120000) return;
     ultFalaPace = ag;
-    falar(`Pace ${est ? 'aproximado ' : ''}${paceFala(pa)}.${alvo ? ' No ritmo.' : ''}`);
+    const fala = `Pace ${est ? 'aproximado ' : ''}${paceFala(pa)}.${alvo ? ' No ritmo.' : ''}`;
+    // de vez em quando (1 a cada 3 avisos, uns 6 min) a voz do treinador incentiva quem está no ritmo
+    if (alvo && ++nPaceOk % 3 === 0) dizer([{ t: fala }, { c: 'constancia' }], fala);
+    else falar(fala);
   };
   const desenha = () => {
     if (!minha()) return;
@@ -609,7 +681,11 @@ async function viewGps(id, modo) {
       tom(1320, 0.7);
       contou = 9;
       if (nx) anunciar(nx);
-      else falar('Treino completo. Muito bem! Toque em terminar para salvar.');
+      else
+        dizer(
+          [{ c: 'fim' }, { t: 'Toque em terminar para salvar.' }],
+          'Treino completo. Muito bem! Toque em terminar para salvar.',
+        );
     } else {
       vibrar(200);
       beep(1);
@@ -694,7 +770,7 @@ async function viewGps(id, modo) {
       if (!autoBase) autoBase = fp;
       else if (gpsDist(autoBase, fp) > Math.max(15, c.accuracy)) {
         continuar();
-        falar('Retomando.');
+        dizer([{ c: 'retomando' }], 'Retomando.');
       }
     }
     if (st.estado !== 'correndo') {
@@ -857,9 +933,10 @@ async function viewGps(id, modo) {
     pedirTela();
     beep(1);
     vibrar(200);
+    liberarSom();
     const s = passoAtual();
-    if (s) anunciar(s);
-    else falar('Corrida iniciada.');
+    if (s) anunciar(s, true);
+    else dizer([{ c: 'inicio' }], 'Corrida iniciada.');
     salvar();
     desenha();
   };
@@ -883,7 +960,9 @@ async function viewGps(id, modo) {
     marcaMov = Date.now();
     ultimo = null;
     pedirTela();
-    recuperado && falar('Continuando.');
+    liberarSom();
+    // a frase gravada toca em toda volta de pausa; sem ela, a voz do celular só fala quando o treino foi recuperado
+    dizer([{ c: 'retomando' }], recuperado ? 'Continuando.' : '');
     salvar();
     desenha();
   };
