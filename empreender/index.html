@@ -90,6 +90,7 @@ dialog::backdrop{background:rgba(11,24,52,.45)}
 .socio .linhas b{font-size:.92rem}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
 .ex-emp{border-top:1px solid var(--line);padding:12px 0}.ex-emp:first-of-type{border-top:0}.ex-t{display:block;font-size:.95rem;margin-bottom:8px}.ex-f{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.ex-f div{background:var(--s1);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}.ex-f b{font-family:'JetBrains Mono',monospace;font-size:.95rem;color:var(--acc)}.ex-f small{font-size:.72rem;line-height:1.35}
+.contas-mes{display:grid;gap:2px}.contas-mes div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}.contas-mes span{display:flex;flex-direction:column;min-width:0}.contas-mes small{font-size:.75rem}.contas-mes b{font-family:'JetBrains Mono',monospace}.contas-mes .tot{border-bottom:0;cursor:default;font-weight:800}.barra-cob{height:10px;border-radius:99px;background:var(--errb);margin-top:12px;overflow:hidden}.barra-cob i{display:block;height:100%;background:var(--ok);border-radius:99px}
 .tr-lista{display:grid;gap:10px}.tr-emp{border:1px solid var(--line);border-radius:14px;padding:12px}.tr-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}.tr-top b{font-size:1.05rem}.tr-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}.tr-nums div{display:flex;flex-direction:column;gap:2px;min-width:0}.tr-nums b{font-family:'JetBrains Mono',monospace;font-size:1rem}
 .fases-emp{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}.fases-emp div{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px}.fases-emp div.on{border-color:var(--acc);background:#e3f1fb}.fases-emp b{font-size:.95rem}.fases-emp .num{font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:700;color:var(--acc)}
 @media (max-width:600px){.fases-emp{grid-template-columns:1fr}}
@@ -579,7 +580,6 @@ const FASES_EMP = [
   { k: 'estavel', nome: 'Estável', ate: Infinity, pct: 15, txt: 'acima de R$ 8.000 por mês' },
 ];
 const faseDaReceita = (v) => FASES_EMP.find((f) => v <= f.ate) || FASES_EMP[2];
-const RESERVA_FIXA = 250; // custos fixos pequenos e reserva para CNPJ, contador, app e anúncios
 const impostoPct = () => { try { return +(localStorage.getItem('nx-emp-imposto') || 0); } catch { return 0; } };
 let divCalc = { valor: 180, plano: 'corrida_essencial', forma: 'pix', n: 3, fase: 'auto' };
 function dividir(valor, plano, forma, n, fasePct) {
@@ -597,7 +597,11 @@ function telaDivisao() {
   const receita = Math.max(prevista, recebido);
   const fase = faseDaReceita(receita);
   const custosMes = cent(porMesTotais()[hoje] || 0);
-  const orcamento = cent(custosMes + RESERVA_FIXA);
+  // contas do mês: o que vence neste mês dos gastos lançados (parcelas e compras à vista)
+  // o que a empresa ainda deve até este mês (parcelas e compras vencidas que os sócios ainda não pagaram)
+  const faltaDe = (g) => cent(NOMES.reduce((a, n) => a + contaSocio(g, n, hoje).faltaAgora, 0));
+  const contasMes = itens.map((g) => ({ g, v: (parcelas(g).find((p) => p.mes === hoje) || {}).v || 0, falta: faltaDe(g) })).filter((x) => x.v > 0 || x.falta > 0).sort((a, b) => b.falta - a.falta || b.v - a.v);
+  const orcamento = cent(contasMes.reduce((a, x) => a + x.falta, 0));
   const liqPrev = (t) => cent((+t.mensal - +t.cartao) * (1 - taxaDe('pix')) + +t.cartao * (1 - taxaDe('cartao')));
   const empDe = (liq) => cent((liq * (1 - impostoPct() / 100) * fase.pct) / 100);
   const empMes = cent(prev.reduce((a, t) => a + empDe(liqPrev(t)), 0));
@@ -613,7 +617,7 @@ function telaDivisao() {
   const porMes = {};
   recs.forEach((r) => { const m = mesDe(r.recebido_em); (porMes[m] = porMes[m] || []).push(r); });
   const caixa = cent(Object.values(porMes).reduce((a, l) => { const f = faseDaReceita(l.reduce((x, r) => x + +r.valor, 0)); return a + l.reduce((x, r) => x + (+r.liquido * (1 - impostoPct() / 100) * f.pct) / 100, 0); }, 0));
-  const teto = cent(orcamento * 3);
+  const teto = cent(Math.max(custosMes, 1) * 3);
   const linhaEx = (titulo, valor, plano, forma, n) => {
     const cel = FASES_EMP.map((f) => { const d = dividir(valor, plano, forma, n, f.pct); return `<div><span class="tiny dim">${f.nome} ${f.pct}%</span><b>${brl(d.emp)}</b><small class="muted">${PLANOS_REC[plano].tipo === 'integral' ? `Gabriel ${brl(d.g)}<br>Orlando ${brl(d.o)}` : `treinador ${brl(d.g + d.o)}`}</small></div>`; }).join('');
     return `<div class="ex-emp"><b class="ex-t">${titulo}</b><div class="ex-f">${cel}</div></div>`;
@@ -622,10 +626,13 @@ function telaDivisao() {
   return `<div class="sec-h"><div><h1>Divisão de cada mensalidade</h1><p class="small muted" style="margin:4px 0 0">Quanto fica para a empresa e quanto para cada treinador. A parte da empresa paga os custos da Nexos e diminui conforme ela cresce.</p></div></div>
     <div class="kpis">
       <div class="card kpi"><span>Receita do mês</span><div class="num">${brl(receita)}</div><span class="tiny dim">${alunosTot} ${alunosTot === 1 ? 'aluno que paga' : 'alunos que pagam'} · fase ${fase.nome} (${fase.pct}%)</span></div>
-      <div class="card kpi"><span>Empresa recebe no mês</span><div class="num" style="color:${empMes >= orcamento ? 'var(--ok)' : 'var(--err)'}">${brl(empMes)}</div><span class="tiny dim">${empMes >= orcamento ? 'cobre o orçamento' : `faltam ${brl(orcamento - empMes)} para o orçamento`}</span></div>
-      <div class="card kpi"><span>Orçamento da empresa</span><div class="num">${brl(orcamento)}</div><span class="tiny dim">parcelas ${brl(custosMes)} + reserva ${brl(RESERVA_FIXA)}</span></div>
+      <div class="card kpi"><span>Empresa recebe no mês</span><div class="num" style="color:${empMes >= orcamento ? 'var(--ok)' : 'var(--err)'}">${brl(empMes)}</div><span class="tiny dim">${empMes >= orcamento ? `paga as contas e sobram ${brl(empMes - orcamento)}` : `faltam ${brl(orcamento - empMes)} para pagar as contas`}</span></div>
+      <div class="card kpi"><span>Contas da empresa em ${MESES[new Date().getMonth()]}</span><div class="num">${brl(orcamento)}</div><span class="tiny dim">o que ainda falta pagar até este mês · vence no mês ${brl(custosMes)}</span></div>
       <div class="card kpi"><span>Caixa da empresa</span><div class="num">${brl(caixa)}</div><span class="tiny dim">${caixa > teto ? `passou do teto: ${brl(caixa - teto)} vira lucro, ${brl((caixa - teto) / 2)} para cada` : `teto de 3 meses: ${brl(teto)}`}</span></div>
     </div>
+    <div class="card" style="margin-top:12px"><h2>Contas da empresa em ${MESES[new Date().getMonth()]}</h2><p class="small muted" style="margin:4px 0 10px">O que vence neste mês e o que ainda falta pagar, pelos gastos lançados na aba Gastos (os pagamentos dos sócios já saem da conta). A parte da empresa de cada mensalidade serve para pagar isso.</p>
+      ${contasMes.length ? `<div class="contas-mes">${contasMes.map(({ g, v, falta }) => { const ps = parcelas(g), k = ps.findIndex((p) => p.mes === hoje) + 1; return `<div data-g="${g.id}"><span>${esc(g.descricao)}<small class="muted">${k ? (ps.length > 1 ? `parcela ${k} de ${ps.length} · ${brl(v)}` : `à vista · ${brl(v)}`) : 'de meses anteriores'}</small></span>${falta > 0 ? `<b style="color:var(--err)">falta ${brl(falta)}</b>` : '<b style="color:var(--ok)">pago</b>'}</div>`; }).join('')}<div class="tot"><span>Falta pagar</span><b>${brl(orcamento)}</b></div></div>` : '<p class="small muted">Nenhuma conta vence neste mês.</p>'}
+      <div class="barra-cob"><i style="width:${orcamento ? Math.min(100, (empMes / orcamento) * 100) : 100}%"></i></div><p class="tiny dim" style="margin-top:6px">${orcamento ? `A parte da empresa no mês (${brl(empMes)}) paga ${Math.round(Math.min(100, (empMes / orcamento) * 100))}% do que falta.` : 'Tudo pago até este mês.'}</p></div>
     <div class="card" style="margin-top:12px"><h2>Por treinador</h2><p class="small muted" style="margin:4px 0 10px">Sai sozinho dos planos cadastrados no app: só alunos ativos que pagam. Parceria (R$ 0) não entra. Já desconta a taxa do Mercado Pago.</p><div class="tr-lista">${porTreinador || '<p class="small muted">Nenhum treinador encontrado.</p>'}</div></div>
     <div class="card" style="margin-top:12px"><h2>As fases</h2><div class="fases-emp">${FASES_EMP.map((f) => `<div class="${f.k === fase.k ? 'on' : ''}"><b>${f.nome}</b><span class="num">${f.pct}%</span><small class="muted">${f.txt}</small><small>treinador fica com ${100 - f.pct}%</small></div>`).join('')}</div>
       <p class="small muted" style="margin-top:10px">A fase sai da receita do mês: a soma dos planos dos alunos que pagam, cadastrados no app (ou o que foi lançado na aba Assessoria, se for maior). Quando a receita passa de uma faixa, a porcentagem da empresa cai sozinha.</p></div>
@@ -643,8 +650,8 @@ function telaDivisao() {
       <li>Do valor pago sai primeiro a <b>taxa do Mercado Pago</b> (Pix 0,99%, cartão 3,99%, parcelado 3,99% mais a taxa das parcelas) e o <b>imposto</b>, se houver.</li>
       <li>Do líquido, a <b>empresa</b> fica com a porcentagem da fase do mês.</li>
       <li>O resto vai para o <b>treinador do serviço</b>: corrida para o Gabriel, força para o Orlando e o Integral dividido 53,66% e 46,34%, pelo peso de cada serviço.</li>
-      <li>O caixa da empresa paga as parcelas dos equipamentos e os custos do mês. O orçamento é a soma das parcelas do mês com uma reserva de ${brl(RESERVA_FIXA)}.</li>
-      <li>Quando o caixa passa de <b>3 meses de orçamento</b>, o que passar vira lucro, dividido meio a meio entre os dois.</li>
+      <li>A parte da empresa paga as <b>contas do mês</b>: as parcelas e compras lançadas na aba Gastos que vencem naquele mês.</li>
+      <li>Quando o caixa passa de <b>3 meses de contas</b>, o que passar vira lucro, dividido meio a meio entre os dois.</li>
       <li>Plano parceria (R$ 0) não entra na conta.</li></ol></div>`;
 }
 function ligarDivisao() {
