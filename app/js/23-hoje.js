@@ -832,6 +832,7 @@ async function staffHoje() {
         ? `<div class="section"><div class="section-h"><h2 class="h2">Seus alunos pedem atenção</h2>${slashes}</div><div class="stack" id="alertas">${alMeus.map(card).join('')}</div></div>`
         : '';
     })()}
+    <div id="aj-dia"></div>
     <div id="sug-hoje"></div>
     ${ehSeg ? '' : resumoHTML}
     <div class="section"><div class="section-h"><h2 class="h2">Atividade da semana</h2><div class="row" style="gap:6px;align-items:center"><a class="link-btn" href="#/feed">Retornos</a><a class="link-btn" href="#/semanas">Anteriores</a><button type="button" class="ocultar-btn ${store.get('nx_ativ_oculta', false) ? 'fechado' : ''}" id="ocultar-ativ" aria-label="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'} atividade da semana" title="${store.get('nx_ativ_oculta', false) ? 'Mostrar' : 'Ocultar'}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
@@ -858,6 +859,7 @@ async function staffHoje() {
       }</div>
       ${store.get('nx_ativ_oculta', false) ? `<p class="small muted" id="ativ-oculta-txt">${recentes.length} ${recentes.length === 1 ? 'atividade oculta' : 'atividades ocultas'}. Toque na seta para mostrar.</p>` : ''}
     </div>`;
+  ajusteDiaEquipe(document.getElementById('aj-dia'), ativos).catch((e) => console.error(e));
   dadosSugestoes(
     ativos.map((m) => m.user_id),
     1,
