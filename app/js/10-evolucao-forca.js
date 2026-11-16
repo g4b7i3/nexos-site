@@ -359,12 +359,12 @@ function stopRest() {
   const r = document.getElementById('rest');
   if (r) r.hidden = true;
 }
-function startRest(seg) {
+function startRest(seg, rotulo) {
   stopRest();
   const r = document.getElementById('rest');
   let left = seg;
   const C = 2 * Math.PI * 100;
-  r.innerHTML = `<p class="eyebrow">Descanso</p><div class="ring"><svg viewBox="0 0 220 220"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#46d6ff"/></linearGradient></defs><circle class="bgc" cx="110" cy="110" r="100"/><circle class="fgc" id="rest-c" cx="110" cy="110" r="100" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg><div class="t mono" id="rest-t">${left}</div></div><div class="row" style="gap:10px"><button class="btn ghost sm" id="rest-mais">+15 s</button><button class="btn sm" id="rest-pular">Pular</button></div>`;
+  r.innerHTML = `<p class="eyebrow">${rotulo || 'Descanso'}</p><div class="ring"><svg viewBox="0 0 220 220"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#46d6ff"/></linearGradient></defs><circle class="bgc" cx="110" cy="110" r="100"/><circle class="fgc" id="rest-c" cx="110" cy="110" r="100" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg><div class="t mono" id="rest-t">${left}</div></div><div class="row" style="gap:10px"><button class="btn ghost sm" id="rest-mais">+15 s</button><button class="btn sm" id="rest-pular">Pular</button></div>`;
   r.hidden = false;
   let total = seg;
   const tick = () => {
@@ -375,7 +375,7 @@ function startRest(seg) {
       try {
         navigator.vibrate && navigator.vibrate([180, 80, 180]);
       } catch {}
-      toast('Descanso concluído. Próxima série!');
+      toast(rotulo ? 'Tempo concluído!' : 'Descanso concluído. Próxima série!');
     }
     left--;
   };
@@ -410,12 +410,62 @@ function arred(kg, passo) {
    Terminar a série com 1 a 3 repetições sobrando dá praticamente o mesmo ganho que ir à falha, com menos cansaço
    (Refalo et al. 2023 e 2024; Robinson et al. 2024). Iniciante erra mais a conta de quantas sobravam, e erra menos
    quanto mais perto da falha (Halperin et al. 2022): por isso a calibração usa uma série quase até a falha. */
+/* ---------- opções do exercício: combinado (bi-set, tri-set, circuito), tempo, técnica e cadência ---------- */
+const TECNICAS = {
+  '': ['Normal', ''],
+  drop: ['Drop-set', 'Ao chegar perto da falha, tire uns 20 a 30% do peso e continue, sem descanso.'],
+  rest: ['Rest-pause', 'Perto da falha, descanse uns 15 segundos e faça mais algumas repetições com o mesmo peso.'],
+  cluster: ['Cluster', 'Divida a série em blocos curtos, com 10 a 20 segundos de pausa entre eles.'],
+  exc: ['Excêntrica lenta', 'Desça o peso devagar, em 3 a 4 segundos, e suba normal.'],
+  iso: ['Isometria', 'Segure a posição parada pelo tempo indicado.'],
+  uni: ['Unilateral', 'Faça um lado de cada vez. O número vale para cada lado.'],
+  expl: ['Explosivo', 'Suba o mais rápido possível, com a descida controlada.'],
+  falha: ['Até a falha técnica', 'Faça o máximo de repetições com boa técnica. Pare quando a técnica piorar.'],
+  alt: ['Alternado', 'Alterne os lados a cada repetição.'],
+};
+const TEMPO_RE = /^\s*\d+([.,]\d+)?\s*(s|seg|segundos?|´´|''|"|min|minutos?)\s*$/i;
+const ehTempo = (it) => !!(it.extra && it.extra.tempo) || TEMPO_RE.test(String(it.repeticoes || ''));
+const tempoSeg = (it) => {
+  const v = String(it.repeticoes || '');
+  const n = parseFloat(v.replace(',', '.'));
+  if (!(n > 0)) return 0;
+  return /min/i.test(v) ? Math.round(n * 60) : Math.round(n);
+};
+const tempoTxt = (s) => (s < 60 ? s + ' s' : s % 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : s / 60 + ' min');
+// exercícios ligados por "combinar com o próximo" formam um grupo feito em sequência
+function gruposCombo(itens) {
+  const r = [];
+  let ini = 0,
+    letra = 0;
+  for (let i = 0; i < itens.length; i++) {
+    const liga = itens[i].extra && itens[i].extra.comb && i < itens.length - 1;
+    if (!liga) {
+      const n = i - ini + 1;
+      const l = n > 1 ? String.fromCharCode(65 + letra++) : '';
+      for (let k = ini; k <= i; k++) r[k] = { ini, pos: k - ini, n, l };
+      ini = i + 1;
+    }
+  }
+  return r;
+}
+const nomeCombo = (n) => (n === 2 ? 'Bi-set' : n === 3 ? 'Tri-set' : 'Circuito');
+const extraLimpo = (x) => {
+  if (!x) return null;
+  const o = {};
+  if (x.comb) o.comb = true;
+  if (x.tempo) o.tempo = true;
+  if (x.tec && TECNICAS[x.tec]) o.tec = x.tec;
+  if (String(x.cad || '').trim()) o.cad = String(x.cad).trim().slice(0, 20);
+  return Object.keys(o).length ? o : null;
+};
+
 const SEM_CARGA_G = ['Core', 'Pliometria', 'Alongamento', 'Cardio', 'Mobilidade', 'Corrida/Educativo', 'Funcional'];
 const semCarga = (it) => {
   const ex = it.nx_exercicios || {};
   return (
     SEM_CARGA_G.includes(ex.grupo) ||
     /\d\s*(s|seg|min)\b/i.test(String(it.repeticoes || '')) ||
+    ehTempo(it) ||
     /peso do corpo|peso corporal|nenhum/i.test(ex.equipamento || '')
   );
 };
@@ -670,6 +720,7 @@ async function viewExecucao(treinoId, preview) {
 
   const render = () => {
     marcaPresc();
+    const grupos = gruposCombo(itens);
     const pct = itens.length ? Math.round((feitos.size / itens.length) * 100) : 0;
     $app.innerHTML = `
       <div class="exec-head">
@@ -689,8 +740,17 @@ async function viewExecucao(treinoId, preview) {
         .map((it, i) => {
           const ex = it.nx_exercicios || {};
           const done = feitos.has(it.id);
-          return `<div class="card ex ${done ? 'done' : ''}" data-item="${it.id}">
-          <span class="ex-num">${String(i + 1).padStart(2, '0')}</span>
+          const g = grupos[i] || { n: 1 };
+          const x = it.extra || {};
+          const emCombo = g.n > 1,
+            fimCombo = emCombo && g.pos === g.n - 1;
+          const tSeg = ehTempo(it) ? tempoSeg(it) : 0;
+          const cab =
+            emCombo && g.pos === 0
+              ? `<div class="combo-h"><b>${nomeCombo(g.n)} ${g.l}</b><span>Faça os ${g.n} exercícios em sequência, sem descanso entre eles. Descanse no fim de cada volta.</span></div>`
+              : '';
+          return `${cab}<div class="card ex ${done ? 'done' : ''} ${emCombo ? 'combo' + (fimCombo ? ' combo-fim' : '') + (g.pos === 0 ? ' combo-ini' : '') : ''}" data-item="${it.id}">
+          <span class="ex-num">${emCombo ? g.l + (g.pos + 1) : String(i + 1).padStart(2, '0')}</span>
           <div class="grow" data-toggle-info>
             ${exFig(ex, 'ex-fig')}
             <div class="ex-name">${esc(ex.nome || 'Exercício')}</div>
@@ -708,19 +768,23 @@ async function viewExecucao(treinoId, preview) {
               ${
                 it._presc
                   ? `<span class="pill fase-p"><b>${it._presc.series}</b> séries</span><span class="pill fase-p"><b>${esc(it._presc.reps)}</b> reps</span><span class="pill fase-p">${it._presc.rapido ? '<b>rápido</b>, sem chegar perto da falha' : `sobrando <b>${it._presc.rir}</b>`}</span>`
-                  : `${it.series ? `<span class="pill"><b>${it.series}</b> séries</span>` : ''}
-              ${it.repeticoes ? `<span class="pill"><b>${esc(it.repeticoes)}</b> reps</span>` : ''}`
+                  : `${it.series ? `<span class="pill"><b>${it.series}</b> ${it.series == 1 ? 'série' : 'séries'}</span>` : ''}
+              ${tSeg ? `<span class="pill"><b>${tempoTxt(tSeg)}</b> por série</span>` : it.repeticoes ? `<span class="pill"><b>${esc(it.repeticoes)}</b> ${x.tec === 'uni' ? 'reps cada lado' : 'reps'}</span>` : ''}`
               }
               ${it.carga ? `<span class="pill">prescrita <b>${esc(it.carga)}</b></span>` : ''}
-              ${it.descanso_seg ? `<span class="pill">descanso <b>${it.descanso_seg}s</b></span>` : ''}
+              ${x.cad ? `<span class="pill">cadência <b>${esc(x.cad)}</b></span>` : ''}
+              ${emCombo && !fimCombo ? '<span class="pill pill-seg">sem descanso, vá para o próximo</span>' : it.descanso_seg ? `<span class="pill">descanso <b>${it.descanso_seg} s</b></span>` : ''}
             </div>`
             }
-            ${it.observacao ? `<p class="small" style="margin-top:8px;color:var(--warn)">${esc(it.observacao)}</p>` : ''}
+            ${x.tec && TECNICAS[x.tec] ? `<p class="ex-tec"><b>${TECNICAS[x.tec][0]}</b> ${TECNICAS[x.tec][1]}</p>` : ''}
+            ${x.cad ? `<p class="tiny dim" style="margin-top:4px">Cadência ${esc(x.cad)}: segundos descendo, parado e subindo.</p>` : ''}
+            ${it.observacao ? `<p class="ex-obs">${esc(it.observacao)}</p>` : ''}
             ${cargaHTML(it)}
             <div class="ex-more">${exDetalhe(ex)}</div>
             <button type="button" class="link-btn ex-how" data-how>Como fazer</button>
             <div class="ex-actions">
-              ${it.descanso_seg ? `<button class="btn ghost sm" data-rest="${it.descanso_seg}">${I.timer} Descanso</button>` : ''}
+              ${tSeg ? `<button class="btn sm" data-tempo="${tSeg}">${I.timer} Cronômetro ${tempoTxt(tSeg)}</button>` : ''}
+              ${it.descanso_seg && !(emCombo && !fimCombo) ? `<button class="btn ghost sm" data-rest="${it.descanso_seg}">${I.timer} Descanso</button>` : ''}
               ${ex.video_url ? (ehVideoArquivo(ex.video_url) ? `<button type="button" class="btn ghost sm" data-vid>${I.play} Vídeo</button>` : `<a class="btn ghost sm" href="${esc(ex.video_url)}" target="_blank" rel="noopener">${I.play} Vídeo</a>`) : ''}
             </div>
           </div>
@@ -821,6 +885,12 @@ async function viewExecucao(treinoId, preview) {
     if (restB) {
       e.stopPropagation();
       startRest(+restB.dataset.rest);
+      return;
+    }
+    const tempoB = e.target.closest('[data-tempo]');
+    if (tempoB) {
+      e.stopPropagation();
+      startRest(+tempoB.dataset.tempo, 'Exercício');
       return;
     }
     const serB = e.target.closest('[data-ser]');

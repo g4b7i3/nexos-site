@@ -4574,3 +4574,31 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .tn-card.apos{opacity:.7}
 .tn-corr{display:flex;gap:12px;align-items:center;margin-top:12px}
 .danger-txt{color:var(--err)}
+/* treino: números separados do texto, grupos combinados, técnica, tempo e observação */
+.ex-pres .pill{gap:.32em}
+.pill-seg{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
+.combo-h{display:flex;flex-direction:column;gap:2px;margin:6px 2px -4px;padding:10px 14px;border-radius:14px 14px 0 0;background:color-mix(in srgb,var(--acc) 12%,transparent);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);border-bottom:0}
+.combo-h b{font-size:.92rem;color:var(--acc)}
+.combo-h span{font-size:.8rem;color:var(--mute);line-height:1.35}
+.card.ex.combo{border-left:3px solid var(--acc);border-radius:0;margin-top:-8px}
+.card.ex.combo.combo-ini{margin-top:0}
+.card.ex.combo.combo-fim{border-radius:0 0 18px 18px}
+.ex-tec{margin-top:8px;font-size:.84rem;line-height:1.4;padding:8px 10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line)}
+.ex-tec b{color:var(--acc);margin-right:4px}
+.ex-obs{margin-top:8px;font-size:.88rem;line-height:1.4;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.ex-obs::before{content:"Observação do treinador";display:block;font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--warn) 55%,var(--ink));margin-bottom:2px}
+/* editor: opções do exercício */
+.ex-opc{display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:end;margin-top:10px}
+.ex-opc .seg-mini{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;height:40px}
+.ex-opc .seg-mini button{border:0;background:var(--bg);color:var(--mute);font:inherit;font-size:.78rem;font-weight:700;padding:0 10px;cursor:pointer}
+.ex-opc .seg-mini button.on{background:var(--acc);color:#041026}
+.ex-opc select,.ex-opc input{height:40px}
+.ex-comb{display:flex;align-items:center;gap:8px;margin-top:10px;width:100%;justify-content:center;padding:9px;border-radius:12px;border:1px dashed color-mix(in srgb,var(--acc) 50%,transparent);background:none;color:var(--acc);font:inherit;font-size:.82rem;font-weight:700;cursor:pointer}
+.ex-comb.on{border-style:solid;background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.ex-li.combo{border-left:3px solid var(--acc)}
+.combo-tag{font-family:var(--f-m);font-size:.72rem;font-weight:800;color:#041026;background:var(--acc);border-radius:6px;padding:2px 6px;flex:none}
+.combo-ed{font-size:.75rem;font-weight:800;color:var(--acc);letter-spacing:.04em;text-transform:uppercase;padding:8px 14px 0}
+@media (max-width:480px){.ex-opc{grid-template-columns:1fr 1fr}.ex-opc .seg-mini{grid-column:1/-1}}
+.pill-seg{font-family:var(--f-b)!important;font-size:.76rem!important}
+.ex-opc select{padding:0 10px;line-height:normal}
+.ex-opc .seg-mini button{flex:1}

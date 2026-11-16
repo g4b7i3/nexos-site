@@ -1590,6 +1590,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
   }
   const escopoInicial = escopo;
   let draw = () => {
+    const gr = gruposCombo(t.itens);
     $app.innerHTML = `
       <a class="back" href="${voltar}">${I.back} ${ehModelo ? 'Treinos' : esc(aluno?.nome || 'Aluno')}</a>
       <p class="eyebrow">${ehModelo ? (novo ? 'Novo modelo de treino' : 'Modelo de treino') : novo ? 'Novo treino' : 'Editar treino'}</p>${!ehModelo && novo ? `<button class="aviso-linha" id="usar-modelo">${I.lib}<span><b>Começar de um modelo pronto</b> e só ajustar</span>${I.chev}</button>` : ''}
@@ -1619,9 +1620,34 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
                     .filter(Boolean)
                     .map(esc)
                     .join(' · ');
+              const g = gr[i] || { n: 1 };
+              const x = it.extra || {};
+              const tag = g.n > 1 ? `<span class="combo-tag">${g.l}${g.pos + 1}</span>` : '';
+              const cabG =
+                g.n > 1 && g.pos === 0
+                  ? `<div class="combo-ed">${nomeCombo(g.n)} ${g.l} · sem descanso entre eles</div>`
+                  : '';
+              const cls = g.n > 1 ? ' combo' : '';
+              const extraRes = [x.tec ? TECNICAS[x.tec][0] : '', x.cad ? 'cadência ' + x.cad : '']
+                .filter(Boolean)
+                .map(esc)
+                .join(' · ');
               if (!it._aberto)
-                return `<div class="ex-li" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span>${exFig(ex, 'thumb')}<span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${resumo || 'toque para definir séries e carga'}</small></span><span class="ex-chev">${I.chev}</span></button></div>`;
-              return `<div class="ex-li aberto card" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span><span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${esc(ex.grupo || '')}</small></span><span class="ex-chev up">${I.chev}</span></button>
+                return `${cabG}<div class="ex-li${cls}" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span>${tag}${exFig(ex, 'thumb')}<span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${[resumo, extraRes].filter(Boolean).join(' · ') || 'toque para definir séries e carga'}</small></span><span class="ex-chev">${I.chev}</span></button></div>`;
+              const tempo = ehTempo(it);
+              const ultimo = i === t.itens.length - 1;
+              const opc = `<div class="ex-opc">
+                <div class="seg-mini" role="group" aria-label="Repetições ou tempo"><button type="button" data-xrep="reps" class="${tempo ? '' : 'on'}">Repetições</button><button type="button" data-xrep="tempo" class="${tempo ? 'on' : ''}">Tempo</button></div>
+                <label><span class="tiny dim">Técnica</span><select class="select" data-x="tec">${Object.entries(
+                  TECNICAS,
+                )
+                  .map(([k, v]) => `<option value="${k}" ${(x.tec || '') === k ? 'selected' : ''}>${v[0]}</option>`)
+                  .join('')}</select></label>
+                <label><span class="tiny dim">Cadência</span><input class="input c" data-x="cad" value="${esc(x.cad || '')}" placeholder="ex. 3-1-1"></label>
+              </div>
+              ${x.tec && TECNICAS[x.tec] ? `<p class="tiny dim" style="margin-top:6px">${TECNICAS[x.tec][1]}</p>` : ''}
+              ${ultimo && !x.comb ? '' : `<button type="button" class="ex-comb ${x.comb ? 'on' : ''}" data-comb>${x.comb ? `Combinado com o próximo (${nomeCombo(g.n)}) · toque para separar` : 'Combinar com o próximo (bi-set, tri-set, circuito)'}</button>`}`;
+              return `${cabG}<div class="ex-li aberto card${cls}" data-i="${i}"><button type="button" class="ex-li-h" data-tg><span class="mono ex-n">${String(i + 1).padStart(2, '0')}</span>${tag}<span class="grow ex-li-t"><b>${esc(ex.nome)}</b><small>${esc(ex.grupo || '')}</small></span><span class="ex-chev up">${I.chev}</span></button>
             <div class="item-row" style="margin-top:12px"><div class="ex-fig-g">${exFig(ex, '')}</div>
             <div class="row" style="gap:6px;align-items:flex-start"><div class="reorder"><button type="button" data-mv="-1" aria-label="Subir">${I.up}</button><button type="button" data-mv="1" aria-label="Descer">${I.down}</button></div><button type="button" class="icon-btn" data-rm aria-label="Remover" style="width:36px;height:36px">${I.x}</button></div></div>
             ${
@@ -1630,13 +1656,14 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
               <div class="sd-acoes"><button type="button" class="link-btn small" data-sdadd>${I.plus} Adicionar série</button><button type="button" class="link-btn small" data-sdoff style="color:var(--mute)">Voltar para séries iguais</button></div></div>`
                 : `<div class="grid4" style="margin-top:12px">
               <label><span class="tiny dim">Séries</span><input class="input c" data-mask="num" data-max="2" inputmode="numeric" data-f="series" value="${esc(it.series ?? '')}" placeholder="3"></label>
-              <label><span class="tiny dim">Reps</span><input class="input c" data-f="repeticoes" value="${esc(it.repeticoes ?? '')}" placeholder="12"></label>
+              ${tempo ? `<label><span class="tiny dim">Tempo (s)</span><input class="input c" data-f="repeticoes" data-tempo-in inputmode="numeric" value="${tempoSeg(it) || ''}" placeholder="30"></label>` : `<label><span class="tiny dim">Reps</span><input class="input c" data-f="repeticoes" value="${esc(it.repeticoes ?? '')}" placeholder="12"></label>`}
               <label><span class="tiny dim">Carga</span><input class="input c" data-f="carga" value="${esc(it.carga ?? '')}" placeholder="20 kg"></label>
               <label><span class="tiny dim">Desc. (s)</span><input class="input c" data-mask="num" inputmode="numeric" data-f="descanso_seg" value="${esc(it.descanso_seg ?? '')}" placeholder="60"></label>
             </div><p class="tiny dim" style="margin-top:6px">${String(it.repeticoes ?? '').trim() ? 'Com as repetições escritas, séries e repetições ficam fixas. A carga continua subindo pelos registros do aluno.' : 'Reps em branco: séries e repetições seguem a fase de cada semana do ciclo, sozinhas, e a carga sobe pelos registros do aluno.'}</p><button type="button" class="link-btn small sd-on" data-sdon>Séries com carga ou reps diferentes (pirâmide, aquecimento)</button>`
             }
+            ${opc}
             ${semCarga({ ...it, nx_exercicios: ex }) ? '' : `<div class="rm-linha">${+it.rm_est > 0 ? `<span class="tag ok">Máximo estimado ${fmtKg(+it.rm_est)}</span><span class="tiny dim">a carga de cada fase sai daqui</span>` : ''}<button type="button" class="link-btn small" data-rmteste>${+it.rm_est > 0 ? 'Refazer o cálculo' : 'Não sabe a carga do aluno?'}</button></div>`}
-            <input class="input" data-f="observacao" value="${esc(it.observacao ?? '')}" placeholder="Observação (opcional): ex. cadência 3-1-1" style="margin-top:8px"></div>`;
+            <input class="input" data-f="observacao" value="${esc(it.observacao ?? '')}" placeholder="Observação (opcional): ex. pegada fechada, joelho alinhado" style="margin-top:8px"></div>`;
             })
             .join('') ||
           '<div class="empty"><div class="h3">Nenhum exercício</div><p class="small">Adicione da sua biblioteca.</p></div>'
@@ -1658,6 +1685,14 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
       if (!it) return;
       card.querySelectorAll('[data-f]').forEach((inp) => {
         it[inp.dataset.f] = inp.value;
+        // tempo: guarda em segundos ("30 s"), que o app do aluno mostra com cronômetro
+        if (inp.hasAttribute('data-tempo-in')) {
+          const n = parseInt(String(inp.value).replace(/\D/g, ''), 10);
+          it.repeticoes = n > 0 ? n + ' s' : '';
+        }
+      });
+      card.querySelectorAll('[data-x]').forEach((inp) => {
+        it.extra = { ...(it.extra || {}), [inp.dataset.x]: inp.value };
       });
       card.querySelectorAll('.sd-l').forEach((l) => {
         const d = it.series_det && it.series_det[+l.dataset.k];
@@ -1701,6 +1736,13 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
   draw();
   telaEditando = true;
   $app.oninput = guardarRasc;
+  // trocar a técnica mostra na hora a explicação dela
+  $app.onchange = (e) => {
+    if (e.target.matches && e.target.matches('[data-x="tec"]')) {
+      syncCampos();
+      draw();
+    }
+  };
   if (rascAntigo && rascAntigo.t && Date.now() - rascAntigo.em < 7 * 864e5 && assinaturaDe(rascAntigo.t) !== inicial) {
     const quando = new Date(rascAntigo.em).toLocaleString('pt-BR', {
       day: '2-digit',
@@ -1737,6 +1779,25 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
         j = i + +e.target.closest('[data-mv]').dataset.mv;
       if (j < 0 || j >= t.itens.length) return;
       [t.itens[i], t.itens[j]] = [t.itens[j], t.itens[i]];
+      draw();
+      return;
+    }
+    if (card && e.target.closest('[data-comb]')) {
+      syncCampos();
+      const it = t.itens[+card.dataset.i];
+      it.extra = { ...(it.extra || {}), comb: !(it.extra && it.extra.comb) };
+      // abre o próximo para ajustar junto
+      if (it.extra.comb && t.itens[+card.dataset.i + 1]) t.itens[+card.dataset.i + 1]._aberto = true;
+      draw();
+      return;
+    }
+    if (card && e.target.closest('[data-xrep]')) {
+      syncCampos();
+      const it = t.itens[+card.dataset.i];
+      const querTempo = e.target.closest('[data-xrep]').dataset.xrep === 'tempo';
+      if (querTempo === ehTempo(it)) return;
+      it.extra = { ...(it.extra || {}), tempo: querTempo };
+      it.repeticoes = querTempo ? '30 s' : '12';
       draw();
       return;
     }
@@ -2003,6 +2064,7 @@ async function staffTreinoEditor(alunoId, treinoId, modo) {
               descanso_seg: num(it.descanso_seg),
               observacao: String(it.observacao || '').trim() || null,
               rm_est: +it.rm_est > 0 ? +it.rm_est : null,
+              extra: extraLimpo(it.extra),
             })),
           );
           if (error) throw error;
@@ -2093,6 +2155,7 @@ const itensLimpos = (itens) =>
     carga: String(it.carga || '').trim() || null,
     descanso_seg: numInt(it.descanso_seg),
     observacao: String(it.observacao || '').trim() || null,
+    extra: extraLimpo(it.extra),
   }));
 async function buscarModelosTreino() {
   const { data } = await sb.from('nx_modelos_treino').select('*').eq('org_id', S.org.id).order('nome');
