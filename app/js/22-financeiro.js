@@ -177,6 +177,21 @@ async function carregarFinanceiroBase() {
     alunos: (alunos || []).filter(ehMeuResponsavel).map((a) => ({ ...a, financeiro: fin[a.user_id] || {} })),
   }; // financeiro de cada treinador: só os próprios alunos
 }
+/** mensalidades canceladas deste mês em diante: ao salvar ou reativar o plano, elas saem para o app gerar de novo
+    (senão a cancelada "ocupa" o mês e o aluno some daquele mês, mesmo continuando no plano) */
+function limparCanceladasFuturas(alunoId) {
+  return sb
+    .from('nx_cobrancas')
+    .delete()
+    .eq('org_id', S.org.id)
+    .eq('aluno_id', alunoId)
+    .eq('status', 'cancelada')
+    .gte('competencia', compDe())
+    .then(
+      () => {},
+      () => {},
+    );
+}
 /** grava o plano do aluno (só o treinador dele consegue) */
 function salvarFinAluno(alunoId, financeiro) {
   return sb
@@ -297,6 +312,7 @@ async function reativarMensalidade(aluno, depois) {
   const { error } = await salvarFinAluno(aluno.user_id, fz);
   if (error) return toast('Não foi possível salvar.', true);
   aluno.financeiro = fz;
+  await limparCanceladasFuturas(aluno.user_id);
   await gerarCobrancas(compDe(), { ...(await carregarFinanceiroBase()) }, aluno.user_id).catch(() => 0);
   toast(`Mensalidade de ${firstName(aluno.nome)} ativa de novo, a partir deste mês.`);
   (depois || staffFinanceiro)();
@@ -913,6 +929,7 @@ function bindPlanoDoAluno(m, info, recarregar) {
       const { error } = await salvarFinAluno(m.user_id, financeiro);
       if (error) return toast('Não foi possível salvar.', true);
       m.financeiro = financeiro;
+      if (financeiro.plano_id) await limparCanceladasFuturas(m.user_id);
       const base = { ...info.base, alunos: [{ ...m, ativo: m.ativo }] };
       const n = await gerarCobrancas(compDe(), base, m.user_id);
       toast(n ? 'Plano salvo e mensalidade do mês gerada!' : 'Plano salvo!');
