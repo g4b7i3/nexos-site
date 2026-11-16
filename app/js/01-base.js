@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261116152958';
+const NX_BUILD = 'v20261116205628';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -512,7 +512,14 @@ const estIc = (svg, tom = 'acc') => `<div class="est-ic t-${tom}">${svg}</div>`;
 
 /* ---------- telas vazias: ícone do assunto em cima do texto (automático) ---------- */
 const EMPTY_IC = [
+  [/notifica|aviso/i, 'bell'],
+  [/recado|mural/i, 'feed'],
   [/mensag|conversa/i, 'feed'],
+  [/check-up|checkup/i, 'saude'],
+  [/foto/i, 'cam'],
+  [/agend|compromiss|videochamada/i, 'cal'],
+  [/medalh|conquist|desafio/i, 'flag'],
+  [/sono|relógio|vfc/i, 'watch'],
   [/prova/i, 'flag'],
   [/avalia/i, 'ficha'],
   [/mensalid|pagament/i, 'money'],
@@ -529,8 +536,10 @@ function enfeitarVazios(raiz) {
   raiz.querySelectorAll('.empty:not(.com-ic)').forEach((e) => {
     e.classList.add('com-ic');
     if (e.querySelector('.est-ic')) return;
+    // procura o assunto no título e, se não achar, no texto todo; sem assunto, um ícone neutro de caixa
     const t = (e.querySelector('.h3') || e).textContent || '';
-    const k = (EMPTY_IC.find(([re]) => re.test(t)) || [, 'grid'])[1];
+    const k = (EMPTY_IC.find(([re]) => re.test(t)) ||
+      EMPTY_IC.find(([re]) => re.test(e.textContent || '')) || [, 'caixa'])[1];
     e.insertAdjacentHTML('afterbegin', `<div class="est-ic">${I[k] || I.grid}</div>`);
   });
 }

@@ -11,8 +11,9 @@ const desFmt = (t, v) => {
 };
 async function desafioCard(box, ativos) {
   if (!box || !S.org) return;
+  // só conta como desafio se vier com datas e meta (resposta incompleta não vira "Invalid Date" na tela)
   const d = await sb.rpc('nx_desafio_atual', { p_org: S.org.id }).then(
-    (r) => r.data || null,
+    (r) => (r.data && r.data.inicio && r.data.fim && r.data.meta ? r.data : null),
     () => null,
   );
   if (!d) {

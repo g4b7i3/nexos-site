@@ -1563,7 +1563,7 @@ button.ciclo-l{cursor:pointer}.ciclo-l .chev{width:16px;height:16px;flex:none}
 .ic-t svg{width:100%;height:100%}
 .ic-t.warn{color:var(--warn)}
 .ic-t.pr,.pr>.ic-t{color:#ea580c}
-.ic-t:only-child{margin-right:0}
+.ic-t.so{margin-right:0}
 .est-ic{width:58px;height:58px;margin:0 auto 10px;border-radius:18px;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
 .est-ic svg{width:28px;height:28px}
 .est-ic.t-ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
@@ -4618,3 +4618,14 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .rs-st{margin-top:8px}
 .rs-al>summary>svg{width:18px;height:18px;flex-shrink:0;margin-top:12px;color:var(--dim);transition:transform .2s}
 .rs-al[open]>summary>svg{transform:rotate(90deg)}
+/* check-up de layout (nov/2026) */
+.cal-mini .eyebrow{display:block;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.cic-leg.cal{flex-direction:row;gap:6px 14px;align-items:center}
+/* alunos que pedem atenção: selo de nível em cima e "Já vi" embaixo, na coluna da direita; texto quebra sem passar por baixo */
+.list-item.alerta .tag{white-space:normal;max-width:100%;line-height:1.35;text-align:left}
+.list-item.alerta.com-javi{min-height:76px;align-items:flex-start}
+.list-item.alerta.com-javi .nivel{position:absolute;top:12px;right:10px}
+.list-item.alerta.com-javi .alerta-wa{position:absolute;top:44px;right:12px}
+.lib-prox{display:flex;align-items:center;gap:12px}
+.lib-prox>svg{flex:none;width:18px;height:18px;color:var(--mute)}
+.section-h>.small.muted{white-space:nowrap;flex:none}
