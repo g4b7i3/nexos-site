@@ -4652,3 +4652,9 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .ajd-msg summary{cursor:pointer;color:var(--acc2);font-weight:600}
 .ajd-msg textarea{margin:8px 0}
 .ajd-card .btn{white-space:nowrap;padding-left:10px;padding-right:10px}
+/* aviso de salto na planilha (só a equipe vê) */
+.ses-salto{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:6px;padding:3px 8px;border-radius:999px;font-size:.72rem;font-weight:700;line-height:1.2;background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--ink)}
+.ses-salto.alto{background:color-mix(in srgb,var(--err) 16%,transparent)}
+.ses-salto .ic-t,.ses-salto svg{width:12px;height:12px;flex:none}
+.salto-ed{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:9px 11px;border-radius:10px;font-size:.84rem;line-height:1.35;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--ink)}
+.salto-ed .ic-t,.salto-ed svg{width:15px;height:15px;flex:none;margin-top:2px}

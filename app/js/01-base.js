@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261116224324';
+const NX_BUILD = 'v20261116225713';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -399,7 +399,9 @@ function toast(msg, err = false) {
   t.className = 'toast show' + (err ? ' err' : '') + (neutro ? ' neutro' : '');
   if (!neutro) vibrar(err ? [40, 60, 40] : 18);
   clearTimeout(toastT);
-  toastT = setTimeout(() => (t.className = 'toast' + (err ? ' err' : '')), 2800);
+  // texto longo fica mais tempo na tela (cerca de 55 ms por letra, até 8 segundos)
+  const ms = Math.min(8000, Math.max(2800, String(msg).length * 55));
+  toastT = setTimeout(() => (t.className = 'toast' + (err ? ' err' : '')), ms);
 }
 
 /* ---------- painel (sheet) ---------- */

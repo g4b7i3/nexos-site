@@ -1376,6 +1376,27 @@ function gerarModelo(c) {
   });
 }
 
+/* salto:puro:inicio */
+/** aviso na planilha: treino mais de 10% acima do mais longo dos 30 dias anteriores (Frandsen et al. 2025, Br J Sports Med,
+ *  5.205 corredores: acima de 10% o risco de lesão aumentou; acima de 30%, ainda mais).
+ *  refs = [{ id, dia, km }] com as corridas feitas e os treinos planejados (de hoje em diante) antes da data. */
+function saltoTreino(data, km, refs, id) {
+  const d0 = Date.parse(data + 'T12:00:00Z'),
+    ini = d0 - 30 * 864e5;
+  const ant = (refs || []).filter((r) => {
+    const t = Date.parse(r.dia + 'T12:00:00Z');
+    return t < d0 && t >= ini && r.km > 0 && (id == null || r.id !== id);
+  });
+  if (!ant.length || !(km > 0)) return null;
+  const mx = Math.max(...ant.map((r) => r.km));
+  // meio quilômetro de folga para não acusar diferença de arredondamento
+  if (km <= mx * 1.1 || km - mx < 0.5) return null;
+  // arredonda para cima: 10,3% acima aparece como 11%, nunca como 10%
+  const pct = Math.ceil((km / mx - 1) * 100 - 1e-9);
+  return { mx, pct, nivel: pct > 30 ? 'alto' : 'medio', lim: Math.floor(mx * 1.1 * 2) / 2 };
+}
+/* salto:puro:fim */
+
 /* Limite de salto por treino (Frandsen et al. 2025, Br J Sports Med): nenhum treino com mais de 10% acima do mais longo
    dos 30 dias anteriores. Depois de 2 semanas de ciclo, o treino que passar disso é encurtado (menos repetições ou menos km). */
 const fmtN = (x) => String(x).replace('.', ',');

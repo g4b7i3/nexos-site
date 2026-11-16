@@ -961,6 +961,17 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       return `<b>${tt.soDist ? '' : '≈ '}${tt.km}</b> · ${tt.soTempo ? '' : '≈ '}${tt.tempo}`;
     })()}${perfil.paces ? '' : ' <span class="tiny dim">(estimativa com paces médios)</span>'}`;
     r.querySelector('#desc-auto').textContent = descreverEstrutura(t.estrutura, perfil);
+    // aviso de salto ao vivo, enquanto o treinador mexe na distância
+    const se = r.querySelector('#salto-ed'),
+      sR = S.cache.saltoRefs;
+    const sa =
+      sR && sR.alunoId === alunoId && base.data >= hojeISO() && t.tipo !== 'prova' && !temCaminhada(t.estrutura)
+        ? saltoTreino(base.data, resumoEstrutura(t.estrutura, perfil).km, sR.refs, sessao && sessao.id)
+        : null;
+    if (se) {
+      se.hidden = !sa;
+      se.innerHTML = sa ? `${icT(I.alerta)}<span>${esc(saltoTxt(sa))}</span>` : '';
+    }
   };
   const pega = (cam) => {
     const [a, b] = String(cam).split('.').map(Number);
@@ -974,7 +985,9 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       ZONAS_INFO,
     )
       .map(([, z]) => `<i style="background:${z.c}" title="${z.n}"></i>`)
-      .join('')}</span></div><p class="tiny dim" id="desc-auto" style="margin-top:6px"></p></div>
+      .join(
+        '',
+      )}</span></div><p class="tiny dim" id="desc-auto" style="margin-top:6px"></p><p class="salto-ed" id="salto-ed" hidden></p></div>
     <div id="passos" class="passos"></div>
     <div class="add-passos">${Object.entries(PASSOS)
       .map(([k, l]) => `<button type="button" class="chip" data-add="${k}">+ ${l}</button>`)
@@ -1202,12 +1215,21 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
           return toast('Não foi possível salvar.', true);
         }
         closeSheet();
+        // aviso de salto: o treino salvo ficou mais de 10% acima do mais longo dos 30 dias anteriores
+        const sR = S.cache.saltoRefs;
+        const sa =
+          sR && sR.alunoId === alunoId && row.data >= hojeISO() && row.tipo !== 'prova' && !temCaminhada(row.estrutura)
+            ? saltoTreino(row.data, row.distancia_km, sR.refs, sessao && sessao.id)
+            : null;
         toast(
-          proximos.length
+          (proximos.length
             ? `Treino salvo, e também nos próximos ${proximos.length}.`
             : datasNovas.length
               ? `Treino salvo em ${datasNovas.length + 1} semanas.`
-              : 'Treino salvo!',
+              : 'Treino salvo!') +
+            (sa
+              ? ` Atenção, ele ficou ${sa.pct}% acima do treino mais longo dos últimos 30 dias (${f1(sa.mx)} km). Para ficar no limite, até ${f1(sa.lim)} km.`
+              : ''),
         );
         aoSalvar();
         // próximos treinos que já estavam no relógio: manda a versão nova
@@ -1698,7 +1720,28 @@ function diaFeitoTxt(c, p) {
   const dia = DIA_LONGO[new Date(k + 'T12:00:00').getDay()];
   return k < p.data ? `Antecipado · feito na ${dia}` : `Feito depois · na ${dia}`;
 }
-function cartaoSessao(p, perfil, feito, staff) {
+/* aviso de salto na planilha (só a equipe vê): referências = corridas feitas e treinos planejados de hoje em diante */
+function refsSalto(corridas, planos, perfil) {
+  const hoje = hojeISO();
+  return [
+    ...corridas
+      .filter((c) => ehCorr(c) && c.tipo !== 'caminhada' && c.distancia_m > 0)
+      .map((c) => ({ id: 'c' + c.id, dia: isoDia(c.data), km: c.distancia_m / 1000 })),
+    ...planos
+      .filter((p) => p.data >= hoje && !semCorrida(p) && p.tipo !== 'prova')
+      .map((p) => ({ id: p.id, dia: p.data, km: resumoEstrutura(estruturaDe(p), perfil).km })),
+  ];
+}
+// corre e caminha tem progressão própria (por tempo) e a distância inclui a caminhada: fica fora do aviso
+const temCaminhada = (est) => (est || []).some((x) => x.k === 'ca' || (x.passos || []).some((y) => y.k === 'ca'));
+function saltoDe(p, perfil, refs, feito) {
+  if (!refs || feito || p.data < hojeISO() || semCorrida(p) || p.tipo === 'prova' || temCaminhada(estruturaDe(p)))
+    return null;
+  return saltoTreino(p.data, resumoEstrutura(estruturaDe(p), perfil).km, refs, p.id);
+}
+const saltoTxt = (sa) =>
+  `${sa.pct}% acima do treino mais longo dos últimos 30 dias (${f1(sa.mx)} km). Acima de 10% o risco de lesão aumenta (Frandsen et al., 2025). Para ficar no limite, até ${f1(sa.lim)} km.`;
+function cartaoSessao(p, perfil, feito, staff, salto) {
   if (DIA_EXTRA[p.tipo]) {
     const x = DIA_EXTRA[p.tipo];
     return `<div class="ses forca-l extra-${x.cls} ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic ${x.cls}">${x.ic}</span><b>${x.nome}</b></div><span class="ses-m">${esc(diaExtraTxt(p))}</span></div>`;
@@ -1716,7 +1759,7 @@ function cartaoSessao(p, perfil, feito, staff) {
     <div class="ses-t"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b>${!feito && st === 'perdido' ? '<span class="ses-x">!</span>' : ''}</div>
     ${perfilHTML(est, perfil)}
     ${feito ? `<div class="ses-res"><div><small>Distância</small><b>${fmtKm(feito.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(feito)).replace('/km', '')}<em>/km</em></b></div></div>` : ''}
-    <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km && rs.mostraKm ? f1(rs.km) + ' km' : ''}${rs.seg && rs.mostraSeg ? (rs.km && rs.mostraKm ? ' · ' : '') + fmtDur(rs.seg) : ''}</span></div>`;
+    <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km && rs.mostraKm ? f1(rs.km) + ' km' : ''}${rs.seg && rs.mostraSeg ? (rs.km && rs.mostraKm ? ' · ' : '') + fmtDur(rs.seg) : ''}</span>${staff && salto ? `<span class="ses-salto ${salto.nivel}" title="${esc(saltoTxt(salto))}">${icT(I.alerta)}+${salto.pct}% do maior treino</span>` : ''}</div>`;
 }
 // etiqueta de força (Nexos) no dia da semana de corrida: prevista, feita ou rascunho (só o treinador vê)
 function forcaDiaHTML(fc, k, semana, staff) {
@@ -1802,9 +1845,22 @@ const semRel = (n) =>
           ? `Daqui a ${n} semanas`
           : `Há ${-n} semanas`;
 const diaMes = (d) => `${d.getDate()}/${d.getMonth() + 1}`;
-function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], m = null, fc = null, ciclo = null) {
+function calendarioHTML(
+  ini,
+  semanas,
+  plano,
+  ativs,
+  perfil,
+  staff,
+  provas = [],
+  m = null,
+  fc = null,
+  ciclo = null,
+  planoAntes = [],
+) {
   const corridas = ativs.filter(ehCorr),
     outras = ativs.filter((c) => !ehCorr(c));
+  const refs = staff ? refsSalto(corridas, [...planoAntes, ...plano], perfil) : null;
   const hoje = isoDia(new Date());
   let h = '';
   for (let w = 0; w < semanas; w++) {
@@ -1874,6 +1930,12 @@ function calendarioHTML(ini, semanas, plano, ativs, perfil, staff, provas = [], 
               perfil,
               corridas.find((c) => c.plano_id === p.id),
               staff,
+              saltoDe(
+                p,
+                perfil,
+                refs,
+                corridas.find((c) => c.plano_id === p.id),
+              ),
             ),
           )
           .join('')}
@@ -2003,6 +2065,11 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
         : Promise.resolve([]),
       comCiclo ? buscarCiclo(alunoId).catch(() => null) : Promise.resolve(null), // fase do ciclo em cada dia da planilha
     ]);
+  // treinos planejados entre hoje e a semana mostrada: entram na conta do aviso de salto (só a equipe vê)
+  const planoAntes =
+    staff && isoDia(ini) > hojeISO()
+      ? await buscarPlano(alunoId, hojeISO(), somaDias(isoDia(ini), -1)).catch(() => [])
+      : [];
   const [forcaMov, forcaAvul] = comForca
     ? await Promise.all([
         buscarMovidos(alunoId, isoDia(inicioSemana(ini)), isoDia(fim)),
@@ -2018,6 +2085,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   S.cache.garmOn = !!garm || icuEscreve(integ);
   S.cache.relNome = garm ? 'Garmin' : 'relógio';
   const perfil = perfilCorrida(m);
+  if (staff) S.cache.saltoRefs = { alunoId, refs: refsSalto(ativsTodas, [...planoAntes, ...plano], perfil) };
   const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
   // testes da planilha que o aluno já correu: o treinador confere e confirma as zonas em Ritmos e zonas
   if (staff && st.testesDe !== alunoId) {
@@ -2092,7 +2160,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
                 )
                 .join('')}<span class="dim">vazado = previsão</span></div>`
             : ''
-        }${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m, forcaCal, ciclo)}</div>
+        }${calendarioHTML(ini, semanas, plano, ativsTodas, perfil, staff, provas, m, forcaCal, ciclo, planoAntes)}</div>
       </div>
       ${staff ? '<div class="lixeira" id="lixeira">Solte aqui para excluir</div><p class="tiny dim" style="margin-top:12px">Dica: arraste os modelos da biblioteca para os dias. Arraste um treino de um dia para outro para mudar a data (segure Ctrl ou Alt no computador para copiar). Toque no treino para editar os passos.</p>' : ''}
       ${!staff && !plano.length ? '<p class="small muted" style="margin-top:12px">Quando o seu treinador montar a planilha de corrida, os treinos aparecem aqui.</p>' : ''}`;
