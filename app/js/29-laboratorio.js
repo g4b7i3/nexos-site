@@ -1885,6 +1885,7 @@ function staffMais() {
       ${it('#/instalar', TREINADOR_IC, 'Instalar o app do treinador', 'Ícone preto na tela de início, separado do app de aluno')}
       ${it('#/demonstracao', I.cam, DEMO_ON ? 'Sair do modo demonstração' : 'Modo demonstração', DEMO_ON ? 'Voltar aos dados reais' : 'Atleta fictícia para gravar vídeos e mostrar o app')}
       ${it('#/dashboard', DASH_GRAF_IC, 'Dashboard', 'Feedbacks dados (treinos com Visto) e as planilhas liberadas da semana')}
+      ${it('#/semana', SEM_IC, 'Resumo da semana', 'Rascunho pronto da semana de cada aluno para conferir e enviar')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
       ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}
       ${it('#/checkup', I.check, 'Check-up do Corredor', 'Avaliação de entrada e saída: pré-temporada, aluno novo, ciclo de prova')}

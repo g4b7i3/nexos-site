@@ -4602,3 +4602,19 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .pill-seg{font-family:var(--f-b)!important;font-size:.76rem!important}
 .ex-opc select{padding:0 10px;line-height:normal}
 .ex-opc .seg-mini button{flex:1}
+/* resumo da semana (treinador) */
+.rs-al>summary{list-style:none;cursor:pointer}
+.rs-al>summary::-webkit-details-marker{display:none}
+.rs-al>summary .tag{flex-shrink:0}
+.rs-chips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:3px;font-size:.78rem;color:var(--mute);font-variant-numeric:tabular-nums}
+.rs-corpo{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.rs-lbl{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:8px 0 4px}
+.rs-lbl.at{color:var(--warn)} .rs-lbl.ok{color:var(--ok)}
+.rs-lista{margin:0;padding-left:18px;font-size:.88rem;line-height:1.45}
+.rs-lista li+li{margin-top:4px}
+.rs-tx{font-size:.92rem;line-height:1.45}
+.mes-nav b.rs-per{text-transform:none;font-size:.95rem}
+.rs-res{grid-template-columns:repeat(3,1fr)}
+.rs-st{margin-top:8px}
+.rs-al>summary>svg{width:18px;height:18px;flex-shrink:0;margin-top:12px;color:var(--dim);transition:transform .2s}
+.rs-al[open]>summary>svg{transform:rotate(90deg)}
