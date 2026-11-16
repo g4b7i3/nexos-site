@@ -89,6 +89,8 @@ dialog::backdrop{background:rgba(11,24,52,.45)}
 .socio .linhas span{display:block;font-size:.72rem;color:var(--mute);font-weight:700}
 .socio .linhas b{font-size:.92rem}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+.fases-emp{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}.fases-emp div{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px}.fases-emp div.on{border-color:var(--acc);background:#e3f1fb}.fases-emp b{font-size:.95rem}.fases-emp .num{font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:700;color:var(--acc)}
+@media (max-width:600px){.fases-emp{grid-template-columns:1fr}}
 @media (max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
 .kpi span{display:block;font-size:.76rem;color:var(--mute);font-weight:700}
 .kpi .num{font-size:1.15rem;margin-top:4px}
@@ -270,7 +272,7 @@ async function carregar(s) {
 async function recarregar() { await carregar(senha); desenhar(); }
 
 /* ---------- estrutura ---------- */
-const ABAS = [['geral', 'Visão geral'], ['assessoria', 'Assessoria'], ['gastos', 'Gastos'], ['pagamentos', 'Gastos pagos'], ['meses', 'Por mês']];
+const ABAS = [['geral', 'Visão geral'], ['assessoria', 'Assessoria'], ['divisao', 'Divisão'], ['gastos', 'Gastos'], ['pagamentos', 'Gastos pagos'], ['meses', 'Por mês']];
 function desenhar() {
   const y = window.scrollY;
   $raiz.innerHTML = `<header class="topo"><div class="topo-in">
@@ -280,7 +282,8 @@ function desenhar() {
     <main class="wrap" id="corpo"></main>
     <button class="btn fab so-cel" data-acao="novo">+ Gasto</button>`;
   const corpo = document.getElementById('corpo');
-  corpo.innerHTML = aba === 'assessoria' ? telaAssessoria() : aba === 'gastos' ? telaGastos() : aba === 'pagamentos' ? telaPagamentos() : aba === 'meses' ? telaMeses() : telaGeral();
+  corpo.innerHTML = aba === 'divisao' ? telaDivisao() : aba === 'assessoria' ? telaAssessoria() : aba === 'gastos' ? telaGastos() : aba === 'pagamentos' ? telaPagamentos() : aba === 'meses' ? telaMeses() : telaGeral();
+  if (aba === 'divisao') ligarDivisao();
   const fm = document.getElementById('rec-mes');
   if (fm) fm.onchange = () => { recMes = fm.value; desenhar(); };
   $raiz.onclick = cliques;
@@ -560,6 +563,94 @@ function detalheRec(r) {
     if (error || !data || data.erro) return toast(msgErro(data && data.erro), true);
     $dlg.close(); await recarregar(); toast('Lançamento desfeito.');
   };
+}
+/* ---------- divisão: quanto de cada mensalidade fica para a empresa ----------
+   A empresa fica com uma porcentagem do líquido de cada mensalidade (depois da taxa do Mercado Pago e do imposto).
+   A porcentagem cai conforme a receita do mês cresce: começo 30%, crescendo 20%, estável 15%.
+   O resto vai para o treinador do serviço (corrida Gabriel, força Orlando, Integral na proporção 53,66% e 46,34%).
+   Quando o caixa da empresa passa de 3 meses de custos, o que sobra vira lucro dividido meio a meio. */
+const FASES_EMP = [
+  { k: 'comeco', nome: 'Começo', ate: 3000, pct: 30, txt: 'até R$ 3.000 por mês' },
+  { k: 'crescendo', nome: 'Crescendo', ate: 8000, pct: 20, txt: 'de R$ 3.000 a R$ 8.000 por mês' },
+  { k: 'estavel', nome: 'Estável', ate: Infinity, pct: 15, txt: 'acima de R$ 8.000 por mês' },
+];
+const faseDaReceita = (v) => FASES_EMP.find((f) => v <= f.ate) || FASES_EMP[2];
+const RESERVA_FIXA = 250; // custos fixos pequenos e reserva para CNPJ, contador, app e anúncios
+const impostoPct = () => { try { return +(localStorage.getItem('nx-emp-imposto') || 0); } catch { return 0; } };
+let divCalc = { valor: 180, plano: 'corrida_essencial', forma: 'pix', n: 3, fase: 'auto' };
+function dividir(valor, plano, forma, n, fasePct) {
+  const tx = cent(valor * taxaDe(forma, n)), imp = cent((valor - tx) * impostoPct() / 100);
+  const liq = cent(valor - tx - imp), emp = cent((liq * fasePct) / 100), resto = cent(liq - emp);
+  const pg = pctGabriel(plano, 50), g = cent((resto * pg) / 100);
+  return { tx, imp, liq, emp, g, o: cent(resto - g) };
+}
+function telaDivisao() {
+  const atual = new Date().toISOString().slice(0, 7), hoje = hojeMes();
+  const doMes = recs.filter((r) => mesDe(r.recebido_em) === atual);
+  const receita = cent(doMes.reduce((a, r) => a + +r.valor, 0));
+  const fase = faseDaReceita(receita);
+  const custosMes = cent(porMesTotais()[hoje] || 0);
+  const orcamento = cent(custosMes + RESERVA_FIXA);
+  const empMes = cent(doMes.reduce((a, r) => a + (+r.liquido * (1 - impostoPct() / 100) * fase.pct) / 100, 0));
+  // caixa acumulado: parte da empresa de todos os meses lançados (cada mês na fase da receita dele)
+  const porMes = {};
+  recs.forEach((r) => { const m = mesDe(r.recebido_em); (porMes[m] = porMes[m] || []).push(r); });
+  const caixa = cent(Object.values(porMes).reduce((a, l) => { const f = faseDaReceita(l.reduce((x, r) => x + +r.valor, 0)); return a + l.reduce((x, r) => x + (+r.liquido * (1 - impostoPct() / 100) * f.pct) / 100, 0); }, 0));
+  const teto = cent(orcamento * 3);
+  const linhaEx = (titulo, valor, plano, forma, n) => {
+    const cel = FASES_EMP.map((f) => { const d = dividir(valor, plano, forma, n, f.pct); return `<td class="r nw"><b>${brl(d.emp)}</b><small class="muted" style="display:block">${PLANOS_REC[plano].tipo === 'integral' ? `G ${brl(d.g)} · O ${brl(d.o)}` : `treinador ${brl(d.g + d.o)}`}</small></td>`; }).join('');
+    return `<tr><td class="desc"><b>${titulo}</b></td>${cel}</tr>`;
+  };
+  const opts = Object.entries(PLANOS_REC).filter(([k]) => k !== 'outro').map(([k, p]) => `<option value="${k}" ${k === divCalc.plano ? 'selected' : ''}>${p.nome}</option>`).join('');
+  return `<div class="sec-h"><div><h1>Divisão de cada mensalidade</h1><p class="small muted" style="margin:4px 0 0">Quanto fica para a empresa e quanto para cada treinador. A parte da empresa paga os custos da Nexos e diminui conforme ela cresce.</p></div></div>
+    <div class="kpis">
+      <div class="card kpi"><span>Fase agora</span><div class="num">${fase.nome}</div><span class="tiny dim">empresa fica com ${fase.pct}% · receita de ${MESES[new Date().getMonth()]} ${brl(receita)}</span></div>
+      <div class="card kpi"><span>Orçamento da empresa no mês</span><div class="num">${brl(orcamento)}</div><span class="tiny dim">parcelas ${brl(custosMes)} + reserva ${brl(RESERVA_FIXA)}</span></div>
+      <div class="card kpi"><span>Empresa recebeu no mês</span><div class="num" style="color:${empMes >= orcamento ? 'var(--ok)' : 'var(--err)'}">${brl(empMes)}</div><span class="tiny dim">${empMes >= orcamento ? 'cobre o orçamento' : `faltam ${brl(orcamento - empMes)}`}</span></div>
+      <div class="card kpi"><span>Caixa da empresa</span><div class="num">${brl(caixa)}</div><span class="tiny dim">${caixa > teto ? `passou do teto: ${brl(caixa - teto)} vira lucro, ${brl((caixa - teto) / 2)} para cada` : `teto de 3 meses: ${brl(teto)}`}</span></div>
+    </div>
+    <div class="card" style="margin-top:12px"><h2>As fases</h2><div class="fases-emp">${FASES_EMP.map((f) => `<div class="${f.k === fase.k ? 'on' : ''}"><b>${f.nome}</b><span class="num">${f.pct}%</span><small class="muted">${f.txt}</small><small>treinador fica com ${100 - f.pct}%</small></div>`).join('')}</div>
+      <p class="small muted" style="margin-top:10px">A fase sai da receita bruta da Nexos no mês (os pagamentos lançados na aba Assessoria). Quando a receita passa de uma faixa, a porcentagem da empresa cai sozinha.</p></div>
+    <div class="card" style="margin-top:12px"><h2>Calculadora</h2>
+      <div class="grid2"><label class="f"><span>Mensalidade</span><input class="in" id="dc-v" inputmode="decimal" value="${String(divCalc.valor).replace('.', ',')}"></label>
+      <label class="f"><span>Plano</span><select class="in" id="dc-p">${opts}</select></label></div>
+      <div class="f"><span class="small" style="display:block;font-weight:700;color:var(--mute);margin-bottom:6px">Forma de pagamento</span><div class="chips" id="dc-f">${[['pix', 'Pix'], ['cartao', 'Cartão (todo mês)'], ['parcelado', 'Cartão parcelado'], ['dinheiro', 'Dinheiro']].map(([k, t]) => `<button type="button" class="chip ${k === divCalc.forma ? 'on' : ''}" data-dcf="${k}">${t}</button>`).join('')}</div></div>
+      <label class="f" id="dc-nl" ${divCalc.forma === 'parcelado' ? '' : 'hidden'}><span>Parcelas</span><select class="in" id="dc-n">${Array.from({ length: 11 }, (_, i) => i + 2).map((x) => `<option ${x === divCalc.n ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <div class="f"><span class="small" style="display:block;font-weight:700;color:var(--mute);margin-bottom:6px">Fase</span><div class="chips" id="dc-fase">${[['auto', `Agora (${fase.nome})`], ...FASES_EMP.map((f) => [f.k, `${f.nome} ${f.pct}%`])].map(([k, t]) => `<button type="button" class="chip ${k === divCalc.fase ? 'on' : ''}" data-dcfase="${k}">${t}</button>`).join('')}</div></div>
+      <label class="f"><span>Imposto do CNPJ sobre o líquido (%)</span><input class="in" id="dc-imp" inputmode="decimal" value="${String(impostoPct()).replace('.', ',')}" style="max-width:140px"><small class="tiny dim" style="display:block;margin-top:4px">Depende do enquadramento do CNPJ. Confirme com o contador. Fica gravado neste aparelho.</small></label>
+      <div class="card" id="dc-res" style="background:var(--s1)"></div></div>
+    <div class="card" style="margin-top:12px;padding:0;overflow:hidden"><div style="padding:16px 16px 0"><h2>Exemplos (no Pix)</h2><p class="small muted" style="margin:4px 0 10px">Quanto fica para a empresa em cada fase e o que sobra para o treinador.</p></div>
+      <table class="tabela"><thead><tr><th>Mensalidade</th>${FASES_EMP.map((f) => `<th class="r">${f.nome} ${f.pct}%</th>`).join('')}</tr></thead><tbody>
+      ${linhaEx('Corrida Essencial R$ 180', 180, 'corrida_essencial', 'pix', 1)}${linhaEx('Corrida Evolução R$ 220', 220, 'corrida_evolucao', 'pix', 1)}${linhaEx('Força Online R$ 190', 190, 'forca_online', 'pix', 1)}${linhaEx('Força com Avaliação R$ 220', 220, 'forca_presencial', 'pix', 1)}${linhaEx('Integral R$ 389', 389, 'integral', 'pix', 1)}</tbody></table></div>
+    <div class="card" style="margin-top:12px"><h2>Como funciona</h2><ol class="small" style="margin:8px 0 0;padding-left:18px;line-height:1.6">
+      <li>Do valor pago sai primeiro a <b>taxa do Mercado Pago</b> (Pix 0,99%, cartão 3,99%, parcelado 3,99% mais a taxa das parcelas) e o <b>imposto</b>, se houver.</li>
+      <li>Do líquido, a <b>empresa</b> fica com a porcentagem da fase do mês.</li>
+      <li>O resto vai para o <b>treinador do serviço</b>: corrida para o Gabriel, força para o Orlando e o Integral dividido 53,66% e 46,34%, pelo peso de cada serviço.</li>
+      <li>O caixa da empresa paga as parcelas dos equipamentos e os custos do mês. O orçamento é a soma das parcelas do mês com uma reserva de ${brl(RESERVA_FIXA)}.</li>
+      <li>Quando o caixa passa de <b>3 meses de orçamento</b>, o que passar vira lucro, dividido meio a meio entre os dois.</li>
+      <li>Plano parceria (R$ 0) não entra na conta.</li></ol></div>`;
+}
+function ligarDivisao() {
+  const res = document.getElementById('dc-res');
+  if (!res) return;
+  const atual = new Date().toISOString().slice(0, 7);
+  const receita = recs.filter((r) => mesDe(r.recebido_em) === atual).reduce((a, r) => a + +r.valor, 0);
+  const calc = () => {
+    const f = divCalc.fase === 'auto' ? faseDaReceita(receita) : FASES_EMP.find((x) => x.k === divCalc.fase);
+    const d = dividir(divCalc.valor, divCalc.plano, divCalc.forma, divCalc.n, f.pct);
+    const integral = PLANOS_REC[divCalc.plano].tipo === 'integral';
+    const L = (a, b, cor) => `<div style="display:flex;justify-content:space-between"><span ${cor ? `style="color:${cor}"` : 'class="muted"'}>${a}</span><b>${b}</b></div>`;
+    res.innerHTML = divCalc.valor > 0 ? `<div class="small" style="display:grid;gap:5px">${L('Mensalidade', brl(divCalc.valor))}${L('Taxa do Mercado Pago', '−' + brl(d.tx))}${d.imp ? L(`Imposto (${String(impostoPct()).replace('.', ',')}%)`, '−' + brl(d.imp)) : ''}${L('Líquido', brl(d.liq))}
+      <div style="border-top:1px solid var(--line);margin:4px 0"></div>${L(`Empresa (${f.nome}, ${f.pct}%)`, brl(d.emp), 'var(--acc)')}${d.g ? L(integral ? 'Gabriel (corrida, 53,66%)' : 'Gabriel', brl(d.g), COR_SOCIO.Gabriel) : ''}${d.o ? L(integral ? 'Orlando (força, 46,34%)' : 'Orlando', brl(d.o), COR_SOCIO.Orlando) : ''}</div>` : '<span class="small muted">Digite a mensalidade.</span>';
+  };
+  document.getElementById('dc-v').oninput = (e) => { divCalc.valor = numDe(e.target.value); calc(); };
+  document.getElementById('dc-p').onchange = (e) => { divCalc.plano = e.target.value; calc(); };
+  document.getElementById('dc-n').onchange = (e) => { divCalc.n = +e.target.value; calc(); };
+  document.getElementById('dc-imp').oninput = (e) => { try { localStorage.setItem('nx-emp-imposto', String(numDe(e.target.value))); } catch {} calc(); };
+  document.getElementById('dc-imp').onchange = () => desenhar();
+  document.getElementById('dc-f').onclick = (e) => { const b = e.target.closest('[data-dcf]'); if (!b) return; divCalc.forma = b.dataset.dcf; document.querySelectorAll('[data-dcf]').forEach((x) => x.classList.toggle('on', x === b)); document.getElementById('dc-nl').hidden = divCalc.forma !== 'parcelado'; calc(); };
+  document.getElementById('dc-fase').onclick = (e) => { const b = e.target.closest('[data-dcfase]'); if (!b) return; divCalc.fase = b.dataset.dcfase; document.querySelectorAll('[data-dcfase]').forEach((x) => x.classList.toggle('on', x === b)); calc(); };
+  calc();
 }
 /* ---------- menu: planilha e sair ---------- */
 function menu() {
