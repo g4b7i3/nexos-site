@@ -227,6 +227,7 @@ async function fichaEntrevistaPdf(folha, nomeArq) {
   const caixa = document.createElement('div');
   caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none';
   const copia = folha.cloneNode(true);
+  copia.classList.add('fe-pdf');
   caixa.appendChild(copia);
   document.body.appendChild(caixa);
   // o gerador de PDF não desenha SVG: troca a logo por PNG
@@ -257,9 +258,19 @@ async function fichaEntrevistaPdf(folha, nomeArq) {
         margin: [10, 0, 10, 0],
         filename: nomeArq,
         image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 760, windowWidth: 760 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          width: 760,
+          windowWidth: 760,
+          height: copia.scrollHeight,
+          windowHeight: copia.scrollHeight,
+          scrollX: 0,
+          scrollY: 0,
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css'], avoid: ['.fe-sec', '.fe-l', '.fe-enc', '.fe-id'] },
+        pagebreak: { mode: ['avoid-all', 'css'], avoid: ['.fe-l', '.fe-enc', '.fe-id', '.fe-perg li'] },
       })
       .from(copia)
       .outputPdf('blob');
