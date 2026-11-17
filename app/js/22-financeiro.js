@@ -1381,7 +1381,7 @@ function comprovanteBlocoHTML(soComprovante) {
     <p class="sec-lbl">${soComprovante ? 'Comprovante' : 'Depois de pagar'}</p>
     <label class="comp-anexo" id="comp-lbl"><input type="file" id="comp-arq" accept="image/*,application/pdf" hidden><span class="comp-ic">${COMP_IC}</span><span class="grow"><b id="comp-txt">Anexar o comprovante</b><small id="comp-sub">Print ou PDF do comprovante do banco</small></span></label>
     <button class="btn block" id="comp-enviar" disabled>${I.check} ${soComprovante ? 'Enviar comprovante' : 'Enviar comprovante e avisar que paguei'}</button>
-    ${soComprovante ? '' : '<button type="button" class="link-btn small center" id="ja-paguei" style="display:block;margin:12px auto 0">Avisar que paguei sem o comprovante</button>'}
+    <p class="tiny dim center" style="margin-top:8px">O aviso de pagamento só vai junto com o comprovante.</p>
   </div>`;
 }
 /** imagem do comprovante: no máximo 1600 px e JPEG, para subir rápido; PDF vai como está (até 5 MB) */
@@ -1427,11 +1427,11 @@ function bindComprovante(r, c) {
     env.disabled = false;
   };
   const avisar = async (path) => {
-    const { data, error } = await sb.rpc('nx_informar_pagamento', { cobranca: c.id, comprovante: path || null });
+    const { data, error } = await sb.rpc('nx_informar_pagamento', { cobranca: c.id, comprovante: path });
     if (error || data === false) throw new Error('Não foi possível avisar agora.');
     notificar('pagamento', c.id);
     closeSheet();
-    toast(path ? 'Comprovante enviado! Seu treinador vai confirmar.' : 'Obrigado! Seu treinador vai confirmar.');
+    toast('Comprovante enviado! Seu treinador vai confirmar.');
     router();
   };
   env.onclick = async () => {
@@ -1451,8 +1451,6 @@ function bindComprovante(r, c) {
       toast(e.message || 'Não foi possível enviar.', true);
     }
   };
-  const sem = r.querySelector('#ja-paguei');
-  if (sem) sem.onclick = () => avisar(null).catch((e) => toast(e.message, true));
 }
 /** aluno que avisou sem o comprovante pode mandar depois, pelo cartão da mensalidade */
 function enviarComprovanteDepois(c) {
