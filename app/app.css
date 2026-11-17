@@ -4673,3 +4673,27 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .voz-bts .btn.gravando{background:var(--err);border-color:var(--err);color:#fff}
 .voz-rec{width:10px;height:10px;border-radius:50%;background:#fff;animation:vozPisca 1s infinite}
 @keyframes vozPisca{50%{opacity:.25}}
+/* ficha para a entrevista (folha de papel: cores fixas para o PDF sair igual em qualquer tema) */
+.fe-tela{overflow-x:auto;margin:0 -4px;padding:4px}
+.fe-folha{background:#fff;color:#16213a;border-radius:14px;padding:28px 30px;box-shadow:0 2px 14px rgba(0,0,0,.08);font-size:13.5px;line-height:1.45;max-width:760px}
+.fe-cab{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:14px;border-bottom:2px solid #1f6feb}
+.fe-cab img{height:30px;width:auto}
+.fe-cab div{text-align:right;display:flex;flex-direction:column}
+.fe-cab b{font-size:14px;letter-spacing:.02em;color:#1f6feb;text-transform:uppercase}
+.fe-cab span{font-size:12px;color:#5b6b88}
+.fe-id h1{margin:16px 0 2px;font-size:22px;line-height:1.2;color:#0d1b38}
+.fe-id p{margin:0;color:#5b6b88}
+.fe-enc{margin-top:14px;padding:12px 14px;border-radius:10px;background:#eaf2ff;border:1px solid #c8dcff}
+.fe-enc b{display:block;color:#0d1b38}
+.fe-enc span{display:block;color:#3d4f70;font-size:12.5px;margin-top:2px}
+.fe-enc p{margin:8px 0 0;font-style:italic;color:#0d1b38}
+.fe-sec{margin-top:16px;break-inside:avoid}
+.fe-sec h3{margin:0 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:#1f6feb}
+.fe-l{display:grid;grid-template-columns:150px 1fr;gap:10px;padding:5px 0;border-bottom:1px solid #edf0f6;break-inside:avoid}
+.fe-l span{color:#5b6b88}
+.fe-l b{font-weight:600;color:#16213a;overflow-wrap:anywhere}
+.fe-alerta{color:#c62f3c;font-weight:800}
+.fe-perg{margin:4px 0 0;padding-left:18px;display:grid;gap:4px}
+.fe-rod{margin-top:22px;padding-top:10px;border-top:1px solid #edf0f6;font-size:11px;color:#7a88a8}
+@media (max-width:520px){.fe-folha{padding:20px 16px}.fe-l{grid-template-columns:1fr;gap:0}}
+#enc-card b .ic-t,#enc-card b svg{width:16px;height:16px;margin-right:6px;vertical-align:-3px}

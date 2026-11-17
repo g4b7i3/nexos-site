@@ -969,6 +969,7 @@ async function staffAluno(alunoId, aba, extra) {
       <label class="field" style="margin-top:12px"><span>Treinador de força</span><select class="select" id="resp-forca"><option value="">O mesmo responsável</option>${eqD.map((p) => `<option value="${p.user_id}" ${p.user_id === m.treinador_forca_id ? 'selected' : ''}>${esc(p.nome)}${p.user_id === S.user.id ? ' (você)' : ''}</option>`).join('')}</select></label>
       <p class="tiny dim" style="margin-top:6px">Quando outro treinador cuida da força, o aluno aparece para ele também, com a força, o check-in e a conversa. Corrida, plano e mensalidades continuam com o responsável.</p></div>
       <div class="card" id="mods-card"><b>O que o aluno faz com a Nexos</b><p class="small muted" style="margin:4px 0 10px">O app do aluno mostra só o que estiver marcado.</p>${modsHTML(m.modalidades)}</div>` +
+      encaminharCardHTML(m) +
       planoInfo.html +
       corpo;
   }
@@ -1462,6 +1463,8 @@ async function staffAluno(alunoId, aba, extra) {
           : 'Aluno sem responsável.',
       );
     };
+    const ea = document.getElementById('enc-abrir');
+    if (ea) ea.onclick = () => encaminharSheet(m, () => staffAluno(alunoId, 'dados'));
     const mc = document.getElementById('mods-card');
     mc.onchange = async () => {
       const sel = [...mc.querySelectorAll('input:checked')].map((i) => i.value);
