@@ -306,7 +306,7 @@ function bindAjusteDia(box, lista, depois) {
 /** caixa "Ajuste do dia" na tela inicial do treinador */
 async function ajusteDiaEquipe(box, alunos) {
   if (!box) return;
-  const lista = await ajustesDoDia(alunos.filter(ehMeuResponsavel));
+  const lista = await ajustesDoDia(alunos.filter(ehMinhaCorrida));
   if (!lista.length) return (box.innerHTML = '');
   const pend = lista.filter((x) => !x.ajuste).length;
   box.innerHTML = `<div class="section"><div class="section-h"><h2 class="h2">Ajuste do dia</h2>${pend ? `<span class="tag acc">${pend}</span>` : ''}</div>

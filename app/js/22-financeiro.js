@@ -165,7 +165,7 @@ async function carregarFinanceiroBase() {
     sb.from('nx_planos').select('*').eq('org_id', S.org.id).eq('dono', S.user.id).order('valor'), // cada treinador com os próprios planos
     sb
       .from('nx_membros')
-      .select('user_id,nome,ativo,telefone,treinador_id,treinador_forca_id')
+      .select('user_id,nome,ativo,telefone,treinador_id,treinador_forca_id,treinador_corrida_id')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .order('nome'),

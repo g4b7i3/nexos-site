@@ -131,8 +131,8 @@ function fichaEntrevistaHTML(D, enc) {
       enc
         ? `<div class="fe-enc"><b>${esc(nomeEq(enc.para) || 'Novo treinador')} vai cuidar da ${ENC_AREA[enc.area]}</b><span>Acrescentado por ${esc(nomeEq(enc.de) || 'a equipe')}. ${
             enc.area === 'musculacao'
-              ? `A corrida continua com ${esc(nomeEq(m.treinador_id) || 'o treinador atual')}.`
-              : `A força continua com ${esc(nomeEq(m.treinador_forca_id) || 'o treinador atual')}.`
+              ? `A corrida continua com ${esc(nomeEq(m.treinador_corrida_id || m.treinador_id) || 'o treinador atual')}.`
+              : `A força continua com ${esc(nomeEq(m.treinador_forca_id || m.treinador_id) || 'o treinador atual')}.`
           }</span>${enc.recado ? `<p>“${esc(enc.recado)}”</p>` : ''}</div>`
         : ''
     }
@@ -341,7 +341,7 @@ async function encaminharSheet(m, depois) {
   const falta = ['musculacao', 'corrida'].filter((k) => !(m.modalidades || []).includes(k));
   if (!falta.length) return;
   const st = { area: falta[0] };
-  const atual = () => (st.area === 'musculacao' ? m.treinador_id : m.treinador_forca_id || m.treinador_id); // quem já cuida do aluno
+  const atual = () => m.treinador_id; // o responsável, que já cuida do aluno
   openSheet(
     `<p class="eyebrow">${esc(m.nome)}</p><div class="h2" style="margin-top:4px">Acrescentar modalidade</div>
     ${falta.length > 1 ? `<div class="seg" id="enc-area" style="margin-top:12px">${falta.map((k) => `<button type="button" data-a="${k}" class="${k === st.area ? 'on' : ''}">${ENC_AREA[k][0].toUpperCase() + ENC_AREA[k].slice(1)}</button>`).join('')}</div>` : `<p class="small muted" style="margin-top:6px">Modalidade nova: <b>${ENC_AREA[st.area]}</b></p>`}
@@ -367,13 +367,9 @@ async function encaminharSheet(m, depois) {
         btn.textContent = 'Salvando…';
         // corrida e força: quem já cuida continua; o treinador novo entra só na modalidade nova
         const upd = { modalidades: [...new Set([...(m.modalidades || []), st.area])] };
-        if (st.area === 'musculacao') upd.treinador_forca_id = para === m.treinador_id ? null : para;
-        else {
-          // a corrida fica com o responsável; quem cuidava do aluno passa a cuidar só da força
-          const antes = m.treinador_forca_id || m.treinador_id;
-          upd.treinador_id = para;
-          upd.treinador_forca_id = antes && antes !== para ? antes : null;
-        }
+        // regra do responsável fixo: o responsável não muda; o treinador novo cuida só da modalidade que entrou
+        const campo = st.area === 'musculacao' ? 'treinador_forca_id' : 'treinador_corrida_id';
+        upd[campo] = para === m.treinador_id ? null : para;
         upd.encaminhamento = {
           area: st.area,
           de: S.user.id,

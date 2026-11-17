@@ -55,7 +55,9 @@ async function viewMural() {
   // aluno: o WhatsApp dos treinadores dele; equipe: os dois, para conferir como o aluno vê
   const ids = S.staff
     ? cont.map((p) => p.user_id)
-    : [S.me.treinador_id, S.me.treinador_forca_id].filter((x, i, a) => x && a.indexOf(x) === i);
+    : [S.me.treinador_id, S.me.treinador_corrida_id, S.me.treinador_forca_id].filter(
+        (x, i, a) => x && a.indexOf(x) === i,
+      );
   const trs = ids.map((id) => cont.find((p) => p.user_id === id)).filter((p) => p && telWa(p.telefone));
   const zap = (p) =>
     `<a class="mr-ct wa" href="https://wa.me/${telWa(p.telefone)}" target="_blank" rel="noopener">${I.wa}<span>WhatsApp<b>${esc(firstName(p.nome))}</b></span></a>`;

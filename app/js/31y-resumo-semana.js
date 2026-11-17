@@ -294,7 +294,9 @@ async function staffResumoSemana(sel) {
   const [membT, salvos] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,apelido,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,criado_em')
+      .select(
+        'user_id,nome,apelido,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades,criado_em',
+      )
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .order('nome')

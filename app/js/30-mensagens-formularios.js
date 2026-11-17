@@ -19,7 +19,7 @@ async function staffMensagens(alunoId) {
   const [{ data: membrosT }, { data: msgsT }] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,foto_url,treinador_id,treinador_forca_id,ativo')
+      .select('user_id,nome,foto_url,treinador_id,treinador_forca_id,treinador_corrida_id,ativo')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .order('nome'),
@@ -2038,7 +2038,7 @@ async function staffVideochamadas() {
   const [{ data: ms }, abertas, semNot] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,foto_url,papel,treinador_id,treinador_forca_id,telefone,ativo')
+      .select('user_id,nome,foto_url,papel,treinador_id,treinador_forca_id,treinador_corrida_id,telefone,ativo')
       .eq('org_id', S.org.id)
       .eq('ativo', true)
       .order('nome'),

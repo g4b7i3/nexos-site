@@ -483,7 +483,9 @@ async function staffDashboard(modo) {
     const [{ data: mem }, { data: pl }, { data: fs }, { data: ss }, { data: cs }] = await Promise.all([
       sb
         .from('nx_membros')
-        .select('user_id,nome,email,foto_url,ultimo_acesso,ativo,aprovacao,treinador_id,treinador_forca_id')
+        .select(
+          'user_id,nome,email,foto_url,ultimo_acesso,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id',
+        )
         .eq('org_id', S.org.id)
         .eq('papel', 'aluno'),
       sb
@@ -553,7 +555,9 @@ async function staffDashFeedbacks() {
   const [{ data: mem }, { data: ss }, { data: cs }] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,email,foto_url,treinador_id,treinador_forca_id,ativo,aprovacao,modalidades')
+      .select(
+        'user_id,nome,email,foto_url,treinador_id,treinador_forca_id,treinador_corrida_id,ativo,aprovacao,modalidades',
+      )
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno'),
     sb

@@ -343,17 +343,28 @@ async function marcarVisto(b) {
 }
 // separação por treinador: cada um vê só os próprios alunos (e os que ainda estão sem treinador, para alguém assumir)
 const formMeu = (f) => !f.criado_por || f.criado_por === S.user.id;
-// alunos do treinador: os que ele é o responsável e os que ele cuida só da força (treinador de força)
+// regra do responsável fixo: o responsável (treinador_id) fica com o plano, a cobrança e o contato principal e não muda
+// quando o aluno ganha uma modalidade; cada modalidade pode ter o seu treinador (vazio = o próprio responsável)
+// alunos do treinador: os que ele é o responsável e os que ele treina na força ou na corrida
 const ehMeuAluno = (m) =>
-  !!m && (!m.treinador_id || m.treinador_id === S.user.id || m.treinador_forca_id === S.user.id);
-// só o responsável: corrida, plano, mensalidades e financeiro ficam com ele
+  !!m &&
+  (!m.treinador_id ||
+    m.treinador_id === S.user.id ||
+    m.treinador_forca_id === S.user.id ||
+    m.treinador_corrida_id === S.user.id);
+// só o responsável: plano, mensalidades e financeiro ficam com ele
 const ehMeuResponsavel = (m) => !!m && (!m.treinador_id || m.treinador_id === S.user.id);
+// a corrida do aluno é comigo: sou o treinador de corrida ou, sem um, o responsável
+const ehMinhaCorrida = (m) =>
+  !!m && (m.treinador_corrida_id ? m.treinador_corrida_id === S.user.id : ehMeuResponsavel(m));
 // aluno de outro treinador que treina força comigo
 const soForcaComigo = (m) => !!m && m.treinador_forca_id === S.user.id && !ehMeuResponsavel(m);
+// aluno de outro treinador que treina corrida comigo
+const soCorridaComigo = (m) => !!m && m.treinador_corrida_id === S.user.id && !ehMeuResponsavel(m);
 async function idsMeusAlunos() {
   const { data } = await sb
     .from('nx_membros')
-    .select('user_id,treinador_id,treinador_forca_id')
+    .select('user_id,treinador_id,treinador_forca_id,treinador_corrida_id')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno');
   return new Set((data || []).filter(ehMeuAluno).map((m) => m.user_id));
@@ -417,7 +428,7 @@ async function staffHoje() {
       sb
         .from('nx_membros')
         .select(
-          'user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,treinador_forca_id,foto_url,nascimento,telefone,modalidades,disponibilidade,corrida',
+          'user_id,nome,email,ativo,aprovacao,pedido_em,objetivo,criado_em,sexo,treinador_id,treinador_forca_id,treinador_corrida_id,foto_url,nascimento,telefone,modalidades,disponibilidade,corrida',
         )
         .eq('org_id', S.org.id)
         .eq('papel', 'aluno')
@@ -484,11 +495,14 @@ async function staffHoje() {
   const membros = (membrosT || []).filter(ehMeuAluno),
     vis = new Set(membros.map((m) => m.user_id)),
     soMeus = (l) => (l || []).filter((x) => vis.has(x.aluno_id));
-  // aluno que só treina força comigo: a corrida, as provas e as mensalidades dele ficam com o responsável
+  // as mensalidades ficam com o responsável; a corrida e as provas, com quem treina a corrida do aluno
   const visResp = new Set(membros.filter(ehMeuResponsavel).map((m) => m.user_id)),
     soResp = (l) => (l || []).filter((x) => visResp.has(x.aluno_id));
+  const visCorr = new Set(membros.filter(ehMinhaCorrida).map((m) => m.user_id)),
+    soCorr = (l) => (l || []).filter((x) => visCorr.has(x.aluno_id));
   const [sess, anams, avs, treinosRes, libsRes] = [sessT, anamsT, avsT, treinosResT, libsResT].map(soMeus);
-  const [corr, cobs, provasEq, planoRes] = [corrT, cobsT, provasEqT, planoResT].map(soResp);
+  const [corr, provasEq, planoRes] = [corrT, provasEqT, planoResT].map(soCorr);
+  const cobs = soResp(cobsT);
   dockStaff();
   const [fimPl] = await Promise.all([fimPlP, jaViP]);
   const ativos = (membros || []).filter((m) => m.ativo);
@@ -534,7 +548,7 @@ async function staffHoje() {
           p: cg.nivel === 'alto' ? 1 : 2,
           t: cg.curto,
           cls: cg.nivel === 'alto' ? 'err' : 'warn',
-          ir: `#/aluno/${id}/${faz('corrida', m) && ehMeuResponsavel(m) ? 'corrida' : 'forca'}`,
+          ir: `#/aluno/${id}/${faz('corrida', m) && ehMinhaCorrida(m) ? 'corrida' : 'forca'}`,
         });
       const pr = pronts.find((x) => x.aluno_id === id && x.alerta);
       if (pr)
@@ -608,7 +622,7 @@ async function staffHoje() {
           ir: `#/aluno/${id}/conversa`,
           resg: ult && dd >= RESGATE_DIAS && !rsg ? dd : 0,
         });
-      if (faz('corrida', m) && ehMeuResponsavel(m)) {
+      if (faz('corrida', m) && ehMinhaCorrida(m)) {
         const sp = statusPlanilha(fimPl[id]);
         if (sp.d < 0)
           l.push({
@@ -695,7 +709,7 @@ async function staffHoje() {
       });
     let prev = 0,
       fez = 0;
-    if (faz('corrida', m) && ehMeuResponsavel(m)) {
+    if (faz('corrida', m) && ehMinhaCorrida(m)) {
       const pl = planoRes.filter((p) => p.aluno_id === id && !semCorrida(p) && p.liberado && naSem(p.data, segPass));
       prev += pl.length;
       fez += pl.filter((p) => cP.some((c) => c.plano_id === p.id || (ehCorr(c) && isoDia(c.data) === p.data))).length;
@@ -719,7 +733,7 @@ async function staffHoje() {
       });
     }
     const falta = [];
-    if (faz('corrida', m) && ehMeuResponsavel(m)) {
+    if (faz('corrida', m) && ehMinhaCorrida(m)) {
       const pl = planoRes.filter((p) => p.aluno_id === id && naSem(p.data, alvoLib));
       if (!pl.length) falta.push('corrida vazia');
       else if (pl.some((p) => !p.liberado)) falta.push('corrida');
@@ -1323,7 +1337,7 @@ async function staffSemanas() {
   const [{ data: membrosT }, { data: sessT }, { data: corrT }, { data: faltT }] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,treinador_id,treinador_forca_id,foto_url,papel')
+      .select('user_id,nome,treinador_id,treinador_forca_id,treinador_corrida_id,foto_url,papel')
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno'),
     sb

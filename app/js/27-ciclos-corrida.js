@@ -1987,7 +1987,9 @@ function viewCiclo(id) {
 async function cicAplicar(c, S2) {
   const ms = await sb
     .from('nx_membros')
-    .select('user_id,nome,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,corrida,nascimento')
+    .select(
+      'user_id,nome,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades,corrida,nascimento',
+    )
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .eq('ativo', true)
@@ -1997,7 +1999,7 @@ async function cicAplicar(c, S2) {
       () => [],
     );
   const alunos = ms.filter(
-    (m) => ehMeuResponsavel(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m),
+    (m) => ehMinhaCorrida(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado' && faz('corrida', m),
   );
   const prox = (() => {
     const d = inicioSemana();

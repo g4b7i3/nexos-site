@@ -791,7 +791,9 @@ async function ckLista() {
   const [ms, rs] = await Promise.all([
     sb
       .from('nx_membros')
-      .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,corrida')
+      .select(
+        'user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades,corrida',
+      )
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
       .eq('ativo', true)
@@ -809,7 +811,7 @@ async function ckLista() {
         () => [],
       ),
   ]);
-  const alunos = ms.filter((m) => ehMeuResponsavel(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
+  const alunos = ms.filter((m) => ehMinhaCorrida(m) && m.aprovacao !== 'pendente' && m.aprovacao !== 'recusado');
   const ciclos = [
     ...new Set([
       ...rs.sort((a, b) => (a.criado_em < b.criado_em ? 1 : -1)).map((r) => r.ciclo),

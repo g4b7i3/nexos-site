@@ -151,7 +151,7 @@ async function staffLaboratorio() {
   dockStaff();
   const membT = await sb
     .from('nx_membros')
-    .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades')
+    .select('user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades')
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
     .order('nome')
@@ -761,7 +761,7 @@ async function staffAssessoria(mesSel) {
     sb
       .from('nx_membros')
       .select(
-        'user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,sexo,nascimento,criado_em,desativado_em,objetivo',
+        'user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades,sexo,nascimento,criado_em,desativado_em,objetivo',
       )
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')
@@ -1151,7 +1151,7 @@ async function staffRelatorios() {
     sb
       .from('nx_membros')
       .select(
-        'user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,modalidades,corrida,nascimento,criado_em',
+        'user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades,corrida,nascimento,criado_em',
       )
       .eq('org_id', S.org.id)
       .eq('papel', 'aluno')

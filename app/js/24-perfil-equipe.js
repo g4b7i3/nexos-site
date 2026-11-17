@@ -250,13 +250,21 @@ function viewPerfil() {
         // o aluno vê com quem está treinando
         const box = document.getElementById('meu-tr');
         const t = eq.find((p) => p.user_id === S.me.treinador_id);
-        const tf =
-          S.me.treinador_forca_id &&
-          eq.find((p) => p.user_id === S.me.treinador_forca_id && p.user_id !== S.me.treinador_id);
+        const outro = (id) => id && id !== S.me.treinador_id && eq.find((p) => p.user_id === id);
+        const tf = outro(S.me.treinador_forca_id),
+          tc = outro(S.me.treinador_corrida_id);
         if (!box || !t) return;
         const item = (p, txt) =>
           `<a class="list-item" href="#/conversa" style="color:inherit">${fotoHTML(p, 'md')}<div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(p.nome)}</b><div class="small muted">${txt} · toque para conversar</div></div>${I.chev}</a>`;
-        box.innerHTML = `<div class="section-h"><h2 class="h2">${tf ? 'Meus treinadores' : 'Meu treinador'}</h2></div>${tf ? `<div class="stack">${item(t, 'Corrida e responsável pelos seus treinos')}${item(tf, 'Treinador de força')}</div>` : item(t, 'Responsável pelos seus treinos')}`;
+        // o responsável aparece com as modalidades que ele mesmo treina; os outros, com a modalidade de cada um
+        const mods = [faz('corrida') && !tc ? 'corrida' : '', faz('musculacao') && !tf ? 'força' : ''].filter(Boolean);
+        const txtResp = `${mods.length ? mods.join(' e ').replace(/^./, (c) => c.toUpperCase()) + ' e r' : 'R'}esponsável pelos seus treinos`;
+        const lista = [
+          item(t, txtResp),
+          tc ? item(tc, 'Treinador de corrida') : '',
+          tf ? item(tf, 'Treinador de força') : '',
+        ].filter(Boolean);
+        box.innerHTML = `<div class="section-h"><h2 class="h2">${lista.length > 1 ? 'Meus treinadores' : 'Meu treinador'}</h2></div>${lista.length > 1 ? `<div class="stack">${lista.join('')}</div>` : lista[0]}`;
         box.hidden = false;
       },
       () => {},

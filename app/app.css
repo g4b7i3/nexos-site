@@ -4698,3 +4698,5 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 @media (max-width:520px){.fe-folha{padding:20px 16px}.fe-l{grid-template-columns:1fr;gap:0}}
 #enc-card b .ic-t,#enc-card b svg{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
 .fe-folha.fe-pdf{box-shadow:none;border-radius:0;max-width:none;width:760px;padding:24px 34px}
+.mod-dono{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;background:color-mix(in srgb,var(--warn) 12%,var(--s1));border-color:color-mix(in srgb,var(--warn) 35%,transparent);font-size:.9rem;line-height:1.4}
+.mod-dono .ic-t,.mod-dono svg{width:18px;height:18px;flex:none;margin-top:1px;color:var(--warn)}
