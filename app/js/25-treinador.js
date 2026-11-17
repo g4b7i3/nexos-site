@@ -727,7 +727,7 @@ async function staffAluno(alunoId, aba, extra) {
     ],
     ['Resultados', ['dossie', 'relmes', 'avaliacoes', 'passada', 'movimento', 'fotos']],
     ['Saúde', ['saude', 'energia', 'relogio']],
-    ['Contato e cadastro', ['conversa', 'dados']],
+    ['Contato e cadastro', ['entrevista', 'conversa', 'dados']],
   ];
   const SEC_MODS = [
     ['forca', 'Força', I.lib, 'Planilha de musculação', fM],
@@ -758,6 +758,13 @@ async function staffAluno(alunoId, aba, extra) {
       'Conversa',
       I.feed,
       (S.cache.msgPorAluno || {})[alunoId] ? `${S.cache.msgPorAluno[alunoId]} mensagem nova` : 'Falar com o aluno',
+      true,
+    ],
+    [
+      'entrevista',
+      'Relatório para entrevista',
+      I.ficha,
+      'Ficha de entrada e roteiro da conversa de início, com PDF',
       true,
     ],
     ['dados', 'Dados e plano', I.money, 'Cadastro, plano e acesso', true],
@@ -792,12 +799,13 @@ async function staffAluno(alunoId, aba, extra) {
       <div class="card ov-card"><div class="row between"><b>Engajamento</b><span class="tag ${st[1]}">${st[0]}</span></div>
         <div class="ov-num"><div><span>Último treino há</span><b>${diasSem == null ? '–' : diasSem === 0 ? 'hoje' : diasSem + (diasSem === 1 ? ' dia' : ' dias')}</b></div><div><span>Frequência média</span><b>${media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x semana</b></div></div></div>
       ${diasSem != null && diasSem >= RESGATE_DIAS ? `<button class="list-item resg-item" id="al-resg" data-dias="${diasSem}" style="width:100%;text-align:left"><span class="ativ-ic wa">${I.wa}</span><div class="grow"><b>Mandar mensagem de resgate</b><div class="small muted">Sem treinar há ${diasSem} dias · texto pronto para o WhatsApp</div></div>${I.chev}</button>` : ''}
+      ${diasDesde(m.criado_em) < 45 ? `<a class="list-item ent-item" href="#/ficha-entrevista/${alunoId}" style="color:inherit"><span class="ativ-ic">${I.ficha}</span><div class="grow"><b>Relatório para entrevista</b><div class="small muted">Aluno novo · ficha de entrada e roteiro da conversa de início, com PDF</div></div>${I.chev}</a>` : ''}
       <div id="energia-al"></div>
       <div id="meta-al" style="margin-top:14px"></div>
       ${GRUPOS_FICHA.map(([tit, ks]) => {
         const xs = ks.map((k) => SECOES.find((x) => x[0] === k)).filter(Boolean);
         return xs.length
-          ? `<p class="sec-lbl">${tit}</p><div class="sec-grid">${xs.map(([k, l, ic, d]) => `<a class="sec-tile" href="#/aluno/${alunoId}/${k}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`
+          ? `<p class="sec-lbl">${tit}</p><div class="sec-grid">${xs.map(([k, l, ic, d]) => `<a class="sec-tile" href="${k === 'entrevista' ? '#/ficha-entrevista/' + alunoId : `#/aluno/${alunoId}/${k}`}"><span class="st-ic">${ic}</span><b>${l}</b><small>${d}</small></a>`).join('')}</div>`
           : '';
       }).join('')}
       <button type="button" class="btn ghost block sm" id="ficha-ativo" style="margin-top:18px;${m.ativo ? 'color:var(--err)' : ''}">${m.ativo ? 'Desativar aluno' : 'Reativar aluno'}</button>`;

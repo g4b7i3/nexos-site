@@ -1,4 +1,4 @@
-/* Nexos App · Acrescentar modalidade com outro treinador e Ficha para a entrevista.
+/* Nexos App · Acrescentar modalidade com outro treinador e Relatório para entrevista.
    O aluno não sai de ninguém: quem faz corrida ganha a força com outro treinador (ou o contrário), o app marca a
    modalidade nova, avisa o treinador que entrou e monta a ficha do aluno (tudo o que ele já respondeu e fez no app)
    para a entrevista, com PDF para baixar. Sem formulário novo: usa a ficha de entrada, a anamnese e o histórico. */
@@ -96,36 +96,14 @@ function fichaEntrevistaHTML(D, enc) {
     ]),
   ];
   const energia = D.mulher && D.mulher.energia;
-  // perguntas para a entrevista: as da área nova e as que a ficha pede para aprofundar
+  // roteiro da entrevista de início: por modalidade, pelo que a ficha respondeu e pelo que ela pede para aprofundar
   const area = enc && enc.area;
-  const perguntas = [
-    ...(area === 'musculacao'
-      ? [
-          'Experiência com musculação: há quanto tempo, com que frequência e se já parou e voltou.',
-          'Onde vai treinar a força (academia, casa, condomínio) e que equipamentos tem.',
-          'Dias e horários para a força, combinando com os dias de corrida.',
-          'O que espera da força (desempenho na corrida, prevenção de lesão, composição corporal).',
-        ]
-      : area === 'corrida'
-        ? [
-            'Experiência com corrida: maior distância, tempos recentes e se já teve lesão correndo.',
-            'Onde vai correr (rua, esteira, pista) e se usa relógio.',
-            'Dias e horários para correr, combinando com os dias de força.',
-            'Objetivo com a corrida (prova, tempo, saúde) e prazo.',
-          ]
-        : []),
-    ...(rs.histSim.some(([q]) => /lesão|cirurgia/i.test(q))
-      ? ['Lesões e cirurgias: o que foi, quando, se ainda dói e o que evitar nos exercícios.']
-      : []),
-    ...(rs.histSim.some(([q]) => /medicamento/i.test(q)) ? ['Medicamentos em uso e para quê.'] : []),
-    ...(rs.histSim.some(([q]) => /dores/i.test(q)) || dores.length
-      ? ['Dores atuais: onde, desde quando e em que movimento.']
-      : []),
-    ...(rs.sim.length ? ['PAR-Q com resposta SIM: confirmar a liberação médica antes de começar.'] : []),
-  ];
+  const ds = f.desemp || null;
+  const A = ds && typeof analisarDesemp === 'function' ? analisarDesemp(ds) : null;
+  const roteiro = roteiroEntrevista({ m, f, an, rs, dores, area, ds });
   const hoje = new Date().toLocaleDateString('pt-BR');
   return `<div class="fe-folha">
-    <header class="fe-cab"><img src="icons/wordmark-escuro.svg" alt="Nexos Performance e Saúde"><div><b>Ficha para a entrevista</b><span>${hoje}</span></div></header>
+    <header class="fe-cab"><img src="icons/wordmark-escuro.svg" alt="Nexos Performance e Saúde"><div><b>Relatório para entrevista</b><span>${hoje}</span></div></header>
     <div class="fe-id"><div><h1>${esc(m.nome || f.nome || 'Aluno')}</h1><p>${[idade != null ? `${idade} anos` : '', m.sexo === 'F' ? 'feminino' : m.sexo === 'M' ? 'masculino' : '', m.matricula ? `matrícula ${m.matricula}` : '', m.criado_em ? `na Nexos desde ${fmtCurto(m.criado_em)}` : ''].filter(Boolean).join(' · ')}</p></div></div>
     ${
       enc
@@ -150,7 +128,8 @@ function fichaEntrevistaHTML(D, enc) {
         lin('Força', dias(dp.forca) || (area === 'musculacao' ? 'combinar na entrevista' : '')) +
         lin('Horário', esc(lista(f.horario, FICHA_HOR))) +
         lin('Local', esc(lista(f.local, FICHA_LOCAL))) +
-        lin('Comentário', esc(dp.obs || f.disp_obs || '')),
+        lin('Comentário', esc(dp.obs || f.disp_obs || '')) +
+        lin('Recado na ficha', esc(f.obs || '')),
     )}
     ${sec(
       'Histórico esportivo',
@@ -162,6 +141,7 @@ function fichaEntrevistaHTML(D, enc) {
         lin('Tempo recente', esc(f.tempo_recente || '')) +
         lin('Relógio', esc(f.relogio || '')),
     )}
+    ${A ? sec('Momento atual na corrida', momentoCorridaHTML(ds, A, lin)) : ''}
     ${sec(
       'Saúde',
       lin(
@@ -206,9 +186,130 @@ function fichaEntrevistaHTML(D, enc) {
         lin('Corridas', cs.length ? `${cs.length}, ${f1(kmCs)} km no total` : 'nenhuma registrada') +
         lin('Dores marcadas', esc(dores.join(', '))),
     )}
-    ${perguntas.length ? `<section class="fe-sec"><h3>Para conversar na entrevista</h3><ul class="fe-perg">${perguntas.map((q) => `<li>${esc(q)}</li>`).join('')}</ul></section>` : ''}
+    ${
+      roteiro.length
+        ? `<section class="fe-sec fe-roteiro"><h3>Roteiro da entrevista</h3>${roteiro.map(([t, qs]) => `<div class="fe-bloco"><b>${esc(t)}</b><ul class="fe-perg">${qs.map((q) => `<li>${esc(q)}</li>`).join('')}</ul></div>`).join('')}</section>`
+        : ''
+    }
     <footer class="fe-rod">Documento interno da equipe Nexos. Contém dados de saúde do aluno: use só para montar e acompanhar o treino (LGPD).</footer>
   </div>`;
+}
+
+/** momento atual na corrida, pelo que o aluno marcou na ficha de entrada (e a sugestão de ciclo do app) */
+function momentoCorridaHTML(ds, A, lin) {
+  const nomeDe = (l, k) => (l.find((x) => x[0] === k) || [, k])[1];
+  return (
+    lin('Corre sem parar', ds.cont ? esc(nomeDe(FICHA_CONT, ds.cont)) : '') +
+    lin(
+      'Volume hoje',
+      ds.km_sem != null || ds.dias_sem != null
+        ? [ds.km_sem != null ? `${ds.km_sem} km por semana` : '', ds.dias_sem != null ? `${ds.dias_sem} dias` : '']
+            .filter(Boolean)
+            .join(' · ')
+        : '',
+    ) +
+    A.pv
+      .map((x) =>
+        lin(
+          x.l,
+          esc(
+            [
+              x.seg ? fmtDurLongo(x.seg) : (ds.p[x.k] || {}).t ? `tempo informado ${ds.p[x.k].t}` : '',
+              nomeDe(FICHA_QUANDO, x.q),
+              x.vdot && x.recente ? `VDOT ${Math.round(x.vdot)}` : '',
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          ),
+        ),
+      )
+      .join('') +
+    lin('Quer treinar', ds.alvo ? esc(nomeDe(FICHA_ALVO, ds.alvo)) : '') +
+    lin(
+      'Sugestão do app',
+      A.ciclo ? `${esc(A.ciclo.nome)} (${A.ciclo.sem} semanas)<br><small>${A.motivos.map(esc).join(' ')}</small>` : '',
+    )
+  );
+}
+
+/** perguntas da entrevista de início, em blocos. Cada pergunta sai do que a ficha respondeu (ou deixou em branco). */
+function roteiroEntrevista({ m, f, an, rs, dores, area, ds }) {
+  const mods = m.modalidades || f.modalidades || [];
+  const corre = area ? area === 'corrida' : mods.includes('corrida');
+  const forca = area ? area === 'musculacao' : mods.includes('musculacao');
+  const esportes = f.esportes || [];
+  const nomeEsp = (k) => ((FICHA_ESPORTES.find((x) => x[0] === k) || [])[1] || k).toLowerCase();
+  const contMin = ds && { nao: 0, 10: 10, 20: 20, 30: 30, 60: 60, mais: 90 }[ds.cont];
+  const B = [];
+  if (corre)
+    B.push([
+      'Corrida',
+      [
+        ds && ds.cont
+          ? `Na ficha marcou que corre ${(FICHA_CONT.find((x) => x[0] === ds.cont) || [, ds.cont])[1].toLowerCase()} sem parar. Confirmar, ver em que ritmo e como se sente no dia seguinte.`
+          : 'Quanto tempo corre hoje sem parar, em que ritmo e como se sente no dia seguinte.',
+        ...(contMin != null &&
+        contMin < 30 &&
+        ds.p &&
+        ['5', '10'].some((k) => ds.p[k] && ['3m', '6m'].includes(ds.p[k].q))
+          ? [
+              'Marcou 5 km ou mais nos últimos meses, mas corre pouco tempo sem parar. Confirmar se foi intercalando com caminhada e qual foi o tempo.',
+            ]
+          : []),
+        'Já teve dor ou lesão correndo (joelho, canela, tornozelo, pé, quadril)? O que foi, quando e se ainda incomoda. Lesão anterior é o que mais pesa no risco de nova lesão.',
+        'Onde vai correr (rua, esteira, pista), se o percurso tem subida e quanto tempo tem por treino.',
+        f.prova && !/^(ainda )?n[aã]o\.?$/i.test(String(f.prova).trim())
+          ? `Prova em vista: "${f.prova}". Confirmar data e distância.`
+          : 'Tem alguma prova em mente? Uma data ajuda a dar prazo ao ciclo.',
+        `Tênis que usa (modelo e há quanto tempo) e relógio${f.relogio ? ` (marcou "${f.relogio}")` : ''}. Se for Garmin, conectar no app.`,
+      ],
+    ]);
+  if (forca)
+    B.push([
+      'Força',
+      [
+        'Experiência com musculação: há quanto tempo, com que frequência e se já parou e voltou.',
+        'Onde vai treinar a força (academia, casa, condomínio) e que equipamentos tem.',
+        'Dias e horários para a força, combinando com os dias de corrida.',
+        'O que espera da força (desempenho na corrida, prevenção de lesão, composição corporal).',
+      ],
+    ]);
+  const rot = [];
+  if (corre && !forca && esportes.includes('musculacao'))
+    rot.push(
+      'Faz musculação por fora: quem prescreve e em que dias treina perna. Evitar o treino forte de corrida no dia seguinte ao de perna.',
+    );
+  const outros = esportes.filter((k) => !['nunca', 'corrida', 'musculacao', 'outros'].includes(k));
+  if (outros.length)
+    rot.push(
+      `Outros esportes (${outros.map(nomeEsp).join(', ')}): frequência e intensidade hoje, para contar na carga da semana.`,
+    );
+  rot.push('Sono (horas por noite), trabalho ou estudo e como anda o estresse.');
+  if (f.obs) rot.push(`Recado na ficha: "${f.obs}". Responder na conversa.`);
+  B.push(['Rotina e recuperação', rot]);
+  const sau = [];
+  if ((m.sexo || '') === 'F' || f.sexo === 'feminino')
+    sau.push(
+      'Ciclo menstrual: se é regular, se tem cólica forte e se usa anticoncepcional. Mostrar o acompanhamento do ciclo no app.',
+    );
+  if (rs.histSim.some(([q]) => /lesão|cirurgia/i.test(q)))
+    sau.push('Lesões e cirurgias: o que foi, quando, se ainda dói e o que evitar nos exercícios.');
+  if (rs.histSim.some(([q]) => /medicamento/i.test(q))) sau.push('Medicamentos em uso e para quê.');
+  if (rs.histSim.some(([q]) => /dores/i.test(q)) || dores.length)
+    sau.push('Dores atuais: onde, desde quando e em que movimento.');
+  if (rs.sim.length) sau.push('PAR-Q com resposta SIM: confirmar a liberação médica antes de começar.');
+  if (an.fuma === 'sim') sau.push('Fuma: quanto por dia.');
+  if (sau.length) B.push(['Saúde', sau]);
+  const fecha = [];
+  if (corre)
+    fecha.push(
+      contMin != null && contMin < 30
+        ? 'Ainda não corre 30 minutos seguidos: começar pelo corre e caminha. O teste de entrada fica para depois da adaptação.'
+        : 'Combinar o teste de entrada no Check-up (5 km ou 30 min). É ele que define as zonas e os ritmos.',
+    );
+  fecha.push('Explicar o check-in do dia e como registrar os treinos no app.');
+  B.push(['Para fechar', fecha]);
+  return B;
 }
 
 /* ---------- PDF ---------- */
@@ -222,12 +323,39 @@ async function carregarHtml2pdf() {
     document.head.appendChild(sc);
   });
 }
+/** quebra as páginas do PDF sem cortar linha nem deixar título sozinho no pé da página: mede cada item e, se ele
+   passar do fim da página (A4 com 10 mm de margem em cima e embaixo, 277 mm úteis), empurra para a página seguinte */
+function paginarFolha(folha, W) {
+  const pagH = Math.floor((277 * W) / 210);
+  const y0 = folha.getBoundingClientRect().top;
+  const itens = folha.querySelectorAll('.fe-id, .fe-enc, .fe-sec>h3, .fe-l, .fe-bloco>b, .fe-perg li, .fe-rod');
+  for (const el of itens) {
+    const r = el.getBoundingClientRect();
+    const topo = r.top - y0;
+    let fim = r.bottom - y0;
+    // título vai junto com o primeiro item que vem depois dele
+    if (el.matches('.fe-sec>h3, .fe-bloco>b')) {
+      const prox = el.nextElementSibling;
+      const alvo = prox && prox.matches('.fe-perg, .fe-bloco') ? prox.querySelector('li, b') : prox;
+      if (alvo) fim = alvo.getBoundingClientRect().bottom - y0;
+    }
+    const fimPag = (Math.floor(topo / pagH) + 1) * pagH;
+    if (fim > fimPag && fim - topo < pagH) {
+      const esp = document.createElement('div');
+      esp.style.height = Math.ceil(fimPag - topo + 6) + 'px';
+      el.parentNode.insertBefore(esp, el);
+    }
+  }
+}
 async function fichaEntrevistaPdf(folha, nomeArq) {
   await carregarHtml2pdf();
   const caixa = document.createElement('div');
-  caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none';
+  // largura de uma A4 em px (210 mm a 96 dpi): a mesma que o gerador usa para calcular onde cada página termina
+  const W = 794;
+  caixa.style.cssText = `position:fixed;left:0;top:0;width:${W}px;z-index:-1;pointer-events:none`;
   const copia = folha.cloneNode(true);
   copia.classList.add('fe-pdf');
+  copia.style.width = W + 'px';
   caixa.appendChild(copia);
   document.body.appendChild(caixa);
   // o gerador de PDF não desenha SVG: troca a logo por PNG
@@ -251,6 +379,7 @@ async function fichaEntrevistaPdf(folha, nomeArq) {
     im.style.height = h + 'px';
     im.src = cv.toDataURL('image/png');
   }
+  paginarFolha(copia, W);
   try {
     const blob = await window
       .html2pdf()
@@ -262,15 +391,15 @@ async function fichaEntrevistaPdf(folha, nomeArq) {
           scale: 2,
           useCORS: true,
           backgroundColor: '#ffffff',
-          width: 760,
-          windowWidth: 760,
+          width: W,
+          windowWidth: W,
           height: copia.scrollHeight,
           windowHeight: copia.scrollHeight,
           scrollX: 0,
           scrollY: 0,
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css'], avoid: ['.fe-l', '.fe-enc', '.fe-id', '.fe-perg li'] },
+        pagebreak: { mode: ['legacy'] },
       })
       .from(copia)
       .outputPdf('blob');
@@ -280,7 +409,7 @@ async function fichaEntrevistaPdf(folha, nomeArq) {
   }
 }
 
-/* ---------- tela: Ficha para a entrevista ---------- */
+/* ---------- tela: Relatório para entrevista ---------- */
 async function staffFichaEntrevista(alunoId) {
   loading();
   const D = await fichaEntrevistaDados(alunoId);
@@ -291,9 +420,9 @@ async function staffFichaEntrevista(alunoId) {
   }
   // o encaminhamento mais recente fica guardado no próprio aluno (quem acrescentou, para quem, a área e o recado)
   const enc = D.m.encaminhamento || null;
-  const nomeArq = `Ficha-entrevista-Nexos-${firstName(D.m.nome).replace(/[^\p{L}\d]/gu, '')}.pdf`;
-  $app.innerHTML = `<a class="back" href="#/aluno/${alunoId}/dados">${I.back} ${esc(firstName(D.m.nome))}</a><p class="eyebrow">Equipe</p><h1 class="h1">Ficha para a entrevista</h1>
-    <p class="small muted" style="margin-top:6px">Tudo o que o aluno já respondeu e fez no app, para a conversa de começo com o treinador novo. Não precisa de formulário novo.</p>
+  const nomeArq = `Relatorio-entrevista-Nexos-${firstName(D.m.nome).replace(/[^\p{L}\d]/gu, '')}.pdf`;
+  $app.innerHTML = `<a class="back" href="#/aluno/${alunoId}/dados">${I.back} ${esc(firstName(D.m.nome))}</a><p class="eyebrow">Equipe</p><h1 class="h1">Relatório para entrevista</h1>
+    <p class="small muted" style="margin-top:6px">Tudo o que o aluno respondeu na ficha de entrada e já fez no app, com o roteiro da conversa de início. Baixe o PDF antes da chamada.</p>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin:14px 0"><button class="btn" id="fe-pdf">${icT(BAIXAR_IC)}Baixar PDF</button>${D.m.telefone ? `<a class="btn ghost" href="https://wa.me/${telWa(D.m.telefone)}" target="_blank" rel="noopener">WhatsApp do aluno</a>` : ''}</div>
     <div class="fe-tela">${fichaEntrevistaHTML(D, enc)}</div>`;
   document.getElementById('fe-pdf').onclick = async (e) => {
@@ -332,9 +461,9 @@ function encaminharCardHTML(m) {
   const tem = (k) => (m.modalidades || []).includes(k);
   const falta = ['musculacao', 'corrida'].filter((k) => !tem(k));
   return `<div class="card" id="enc-card"><b>${icT(ENC_IC)}Acrescentar modalidade com outro treinador</b>
-    <p class="small muted" style="margin:4px 0 10px">O aluno continua com quem já treina. Ele ganha a ${falta.length ? falta.map((k) => ENC_AREA[k]).join(' ou a ') : 'outra modalidade'} com o treinador que você escolher, que recebe um aviso com a ficha para a entrevista (com PDF).</p>
+    <p class="small muted" style="margin:4px 0 10px">O aluno continua com quem já treina. Ele ganha a ${falta.length ? falta.map((k) => ENC_AREA[k]).join(' ou a ') : 'outra modalidade'} com o treinador que você escolher, que recebe um aviso com o relatório para entrevista (com PDF).</p>
     ${falta.length ? `<button class="btn sm" id="enc-abrir">${icT(ENC_IC)}Acrescentar ${falta.map((k) => ENC_AREA[k]).join(' ou ')}</button>` : '<p class="small muted">Este aluno já faz corrida e força. Para trocar quem cuida de cada uma, use os campos acima.</p>'}
-    <a class="link-btn small" href="#/ficha-entrevista/${m.user_id}" style="display:block;margin-top:10px">Ver a ficha para a entrevista</a></div>`;
+    <a class="link-btn small" href="#/ficha-entrevista/${m.user_id}" style="display:block;margin-top:10px">Ver o relatório para entrevista</a></div>`;
 }
 async function encaminharSheet(m, depois) {
   const eq = (await carregarEquipe()).filter((p) => p.user_id);
@@ -347,7 +476,7 @@ async function encaminharSheet(m, depois) {
     ${falta.length > 1 ? `<div class="seg" id="enc-area" style="margin-top:12px">${falta.map((k) => `<button type="button" data-a="${k}" class="${k === st.area ? 'on' : ''}">${ENC_AREA[k][0].toUpperCase() + ENC_AREA[k].slice(1)}</button>`).join('')}</div>` : `<p class="small muted" style="margin-top:6px">Modalidade nova: <b>${ENC_AREA[st.area]}</b></p>`}
     <label class="field" style="margin-top:12px"><span>Quem vai cuidar da <span id="enc-nome">${ENC_AREA[st.area]}</span></span><select class="select" id="enc-para">${eq.map((p) => `<option value="${p.user_id}" ${p.user_id !== S.user.id && p.user_id !== atual() ? 'selected' : ''}>${esc(p.nome)}${p.user_id === S.user.id ? ' (você)' : ''}</option>`).join('')}</select></label>
     <label class="field"><span>Recado para o treinador (opcional)</span><textarea class="textarea" id="enc-recado" rows="3" placeholder="Ex.: ela quer começar na semana que vem, de manhã"></textarea></label>
-    <p class="small muted">O aluno continua com quem já treina. A ficha para a entrevista vai junto, com tudo o que ele já respondeu.</p>
+    <p class="small muted">O aluno continua com quem já treina. O relatório para entrevista vai junto, com tudo o que ele já respondeu.</p>
     <button class="btn block" id="enc-ok" style="margin-top:12px">${I.check} Acrescentar e avisar</button>`,
     (r) => {
       const ar = r.querySelector('#enc-area');

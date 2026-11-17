@@ -4709,3 +4709,7 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .comp-ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc2)}
 .comp-ic svg{width:22px;height:22px}
 .comp-tag{margin-top:4px}
+.fe-bloco{margin-top:8px;break-inside:avoid}
+.fe-bloco>b{display:block;font-size:12.5px;color:#0d1b38;margin-bottom:2px}
+.fe-l small{display:block;font-weight:400;color:#5b6b88;margin-top:3px;line-height:1.4}
+.fe-folha.fe-pdf .fe-l{grid-template-columns:150px 1fr;gap:10px}
