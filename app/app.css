@@ -4700,3 +4700,12 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .fe-folha.fe-pdf{box-shadow:none;border-radius:0;max-width:none;width:760px;padding:24px 34px}
 .mod-dono{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;background:color-mix(in srgb,var(--warn) 12%,var(--s1));border-color:color-mix(in srgb,var(--warn) 35%,transparent);font-size:.9rem;line-height:1.4}
 .mod-dono .ic-t,.mod-dono svg{width:18px;height:18px;flex:none;margin-top:1px;color:var(--warn)}
+/* comprovante do Pix */
+.comp-box{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.comp-anexo{display:flex;align-items:center;gap:12px;margin:8px 0 12px;padding:14px;border:1.5px dashed var(--line2);border-radius:14px;cursor:pointer;background:var(--s1)}
+.comp-anexo b{display:block;font-size:.95rem}
+.comp-anexo small{display:block;color:var(--mute);font-size:.8rem;margin-top:2px}
+.comp-anexo.ok{border-style:solid;border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--s1))}
+.comp-ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc2)}
+.comp-ic svg{width:22px;height:22px}
+.comp-tag{margin-top:4px}

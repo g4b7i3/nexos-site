@@ -1305,6 +1305,8 @@ async function alunoHoje() {
       );
   const pp = document.getElementById('pagar-pix');
   if (pp) pp.onclick = () => pagarComPix(cobP);
+  const mc = document.getElementById('mandar-comp');
+  if (mc) mc.onclick = () => enviarComprovanteDepois(cobP);
   // oferta de cobrança automática feita pelo treinador
   assinaturaDoAluno(S.user.id)
     .then((a) => {

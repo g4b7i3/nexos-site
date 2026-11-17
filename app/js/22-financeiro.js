@@ -413,7 +413,7 @@ async function staffFinanceiro() {
           const a = nome[c.aluno_id] || {};
           if (c.status === 'prevista')
             return `<div class="list-item cob prev" data-cob="${c.id}"><div class="av">${esc(initials(a.nome))}</div><div class="grow"><b class="ellip" style="display:block">${esc(a.nome || 'Aluno')}</b><span class="small muted">vence ${fmtData(c.vencimento + 'T12:00:00')}</span></div><div class="cob-v"><b>${brl(c.valor)}</b><span class="tag">Prevista</span></div></div>`;
-          return `<div class="list-item cob" data-cob="${c.id}"><div class="av">${esc(initials(a.nome))}</div><div class="grow"><b class="ellip" style="display:block">${esc(a.nome || 'Aluno')}</b><span class="small muted">${quandoVence(c)}</span></div><div class="cob-v"><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span></div>${s.k === 'informada' ? `<button class="mini-acao ok" data-conf="${c.id}" aria-label="Confirmar pagamento">${I.check}</button>` : s.k === 'paga' ? '' : `<button class="mini-acao" data-lemb="${c.id}" aria-label="Lembrar aluno">${I.bell}</button>`}</div>`;
+          return `<div class="list-item cob" data-cob="${c.id}"><div class="av">${esc(initials(a.nome))}</div><div class="grow"><b class="ellip" style="display:block">${esc(a.nome || 'Aluno')}</b><span class="small muted">${quandoVence(c)}</span></div><div class="cob-v"><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span>${c.comprovante_path && s.k !== 'paga' ? '<span class="tag ok comp-tag">comprovante</span>' : ''}</div>${s.k === 'informada' ? `<button class="mini-acao ok" data-conf="${c.id}" aria-label="Confirmar pagamento">${I.check}</button>` : s.k === 'paga' ? '' : `<button class="mini-acao" data-lemb="${c.id}" aria-label="Lembrar aluno">${I.bell}</button>`}</div>`;
         })
         .join('') ||
       `<div class="empty"><div class="h3">${lista.length ? 'Nada neste filtro' : 'Nenhuma mensalidade neste mês'}</div><p class="small">${lista.length ? '' : base.planos.length ? 'Defina o plano dos alunos para as mensalidades aparecerem aqui.' : 'Comece criando os planos da Nexos.'}</p></div>`
@@ -573,6 +573,7 @@ function detalheCobranca(c, aluno, depois) {
   openSheet(
     `<p class="eyebrow">${esc(c.descricao || nomeMes(c.competencia))}</p><div class="h2" style="margin-top:4px">${esc(aluno.nome || 'Aluno')}</div>
     <div class="cob-det"><b>${brl(c.valor)}</b><span class="tag ${s.cls}">${s.l}</span></div><p class="small muted">${quandoVence(c)}${c.informada_em && s.k === 'informada' ? ` · avisou ${quando(c.informada_em)}` : ''}${c.lembrete_em ? ` · último lembrete ${quando(c.lembrete_em)}` : ''}</p>
+    ${c.comprovante_path ? `<button class="btn block" id="d-comp" style="margin-top:14px">${icT(COMP_IC)}Ver comprovante${c.comprovante_em ? ` · enviado ${quando(c.comprovante_em)}` : ''}</button>` : s.k === 'informada' ? '<p class="small muted" style="margin-top:10px">O aluno avisou que pagou, sem anexar o comprovante.</p>' : ''}
     ${
       s.k !== 'paga'
         ? `<div class="card" style="margin-top:16px"><b>Registrar pagamento</b><div class="seg four" id="formas" style="margin-top:12px">${FORMAS.map(([k, l]) => `<button type="button" data-forma="${k}">${l}</button>`).join('')}</div></div>
@@ -590,6 +591,8 @@ function detalheCobranca(c, aluno, depois) {
           const b = e.target.closest('[data-forma]');
           if (b) marcarPaga(c, b.dataset.forma, depois);
         };
+      const dc = r.querySelector('#d-comp');
+      if (dc) dc.onclick = () => verComprovante(c);
       const en = r.querySelector('#d-enc');
       if (en) en.onclick = () => encerrarMensalidade(aluno, c.competencia, depois);
       const lb = r.querySelector('#d-lemb');
@@ -1328,7 +1331,7 @@ function cartaoCobrancaHTML(c) {
   if (!c) return '';
   const s = statusCob(c);
   if (s.k === 'informada')
-    return `<div class="card cob-card info"><div class="row" style="gap:12px"><span class="go">${I.check}</span><div class="grow"><b>Pagamento informado</b><div class="small muted">Mensalidade de ${esc(nomeMes(c.competencia).split(' ')[0])} · aguardando confirmação do treinador</div></div></div></div>`;
+    return `<div class="card cob-card info"><div class="row" style="gap:12px"><span class="go">${I.check}</span><div class="grow"><b>Pagamento informado</b><div class="small muted">Mensalidade de ${esc(nomeMes(c.competencia).split(' ')[0])} · ${c.comprovante_path ? 'comprovante enviado · ' : ''}aguardando confirmação do treinador</div></div>${c.comprovante_path ? '' : `<button class="btn sm ghost" id="mandar-comp" data-cob="${c.id}">Enviar comprovante</button>`}</div></div>`;
   return `<div class="card cob-card ${s.k === 'atrasada' ? 'atraso' : ''}"><div class="row" style="gap:12px"><span class="go">${I.money}</span><div class="grow"><b>Mensalidade de ${esc(nomeMes(c.competencia).split(' ')[0])} · ${brl(c.valor)}</b><div class="small muted">${quandoVence(c)}</div></div><button class="btn sm" id="pagar-pix" data-cob="${c.id}">Pagar</button></div></div>`;
 }
 async function pagarComPix(c) {
@@ -1350,7 +1353,7 @@ async function pagarComPix(c) {
     <label class="field"><span>Pix copia e cola</span><textarea class="textarea mono" id="pix-cod" readonly rows="3">${esc(codigo)}</textarea></label>
     <button class="btn block" id="copiar-pix">Copiar código Pix</button>
     <p class="tiny dim center" style="margin-top:8px">No app do banco: Pix → Pagar → Pix copia e cola (ou ler QR Code).</p>
-    <button class="btn ghost block" id="ja-paguei" style="margin-top:16px">${I.check} Já paguei</button>`,
+    ${comprovanteBlocoHTML()}`,
     async (r) => {
       try {
         r.querySelector('#qr').innerHTML = await qrSVG(codigo);
@@ -1366,16 +1369,106 @@ async function pagarComPix(c) {
           toast('Selecione e copie o código.', true);
         }
       };
-      r.querySelector('#ja-paguei').onclick = async () => {
-        const { error } = await sb.rpc('nx_informar_pagamento', { cobranca: c.id });
-        if (error) return toast('Não foi possível avisar agora.', true);
-        notificar('pagamento', c.id);
-        closeSheet();
-        toast('Obrigado! Seu treinador vai confirmar.');
-        router();
-      };
+      bindComprovante(r, c);
     },
   );
+}
+/* ---------- comprovante do Pix: o aluno anexa antes de avisar que pagou ---------- */
+const COMP_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+function comprovanteBlocoHTML(soComprovante) {
+  return `<div class="comp-box">
+    <p class="sec-lbl">${soComprovante ? 'Comprovante' : 'Depois de pagar'}</p>
+    <label class="comp-anexo" id="comp-lbl"><input type="file" id="comp-arq" accept="image/*,application/pdf" hidden><span class="comp-ic">${COMP_IC}</span><span class="grow"><b id="comp-txt">Anexar o comprovante</b><small id="comp-sub">Print ou PDF do comprovante do banco</small></span></label>
+    <button class="btn block" id="comp-enviar" disabled>${I.check} ${soComprovante ? 'Enviar comprovante' : 'Enviar comprovante e avisar que paguei'}</button>
+    ${soComprovante ? '' : '<button type="button" class="link-btn small center" id="ja-paguei" style="display:block;margin:12px auto 0">Avisar que paguei sem o comprovante</button>'}
+  </div>`;
+}
+/** imagem do comprovante: no máximo 1600 px e JPEG, para subir rápido; PDF vai como está (até 5 MB) */
+async function prepararComprovante(arq) {
+  if (arq.type === 'application/pdf') {
+    if (arq.size > 5 * 1024 * 1024) throw new Error('O PDF passa de 5 MB. Mande um print do comprovante.');
+    return { blob: arq, ext: 'pdf', tipo: 'application/pdf' };
+  }
+  if (!/^image\//.test(arq.type)) throw new Error('Envie uma imagem ou um PDF.');
+  const url = URL.createObjectURL(arq);
+  try {
+    const im = await new Promise((ok, erro) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => erro(new Error('Não foi possível abrir a imagem.'));
+      i.src = url;
+    });
+    const f = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(im.naturalWidth * f);
+    cv.height = Math.round(im.naturalHeight * f);
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff';
+    cx.fillRect(0, 0, cv.width, cv.height);
+    cx.drawImage(im, 0, 0, cv.width, cv.height);
+    const blob = await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', 0.85));
+    if (!blob) throw new Error('Não foi possível preparar a imagem.');
+    return { blob, ext: 'jpg', tipo: 'image/jpeg' };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+function bindComprovante(r, c) {
+  const inp = r.querySelector('#comp-arq'),
+    env = r.querySelector('#comp-enviar');
+  let arq = null;
+  inp.onchange = () => {
+    arq = inp.files && inp.files[0];
+    if (!arq) return;
+    r.querySelector('#comp-lbl').classList.add('ok');
+    r.querySelector('#comp-txt').textContent = arq.name.length > 34 ? arq.name.slice(0, 31) + '…' : arq.name;
+    r.querySelector('#comp-sub').textContent = 'Toque para trocar o arquivo';
+    env.disabled = false;
+  };
+  const avisar = async (path) => {
+    const { data, error } = await sb.rpc('nx_informar_pagamento', { cobranca: c.id, comprovante: path || null });
+    if (error || data === false) throw new Error('Não foi possível avisar agora.');
+    notificar('pagamento', c.id);
+    closeSheet();
+    toast(path ? 'Comprovante enviado! Seu treinador vai confirmar.' : 'Obrigado! Seu treinador vai confirmar.');
+    router();
+  };
+  env.onclick = async () => {
+    if (!arq) return;
+    env.disabled = true;
+    env.textContent = 'Enviando…';
+    try {
+      const p = await prepararComprovante(arq);
+      const path = `${S.org.id}/${S.user.id}/comprovantes/${c.id}-${Date.now()}.${p.ext}`;
+      const { error } = await sb.storage.from('nx-fotos').upload(path, p.blob, { contentType: p.tipo });
+      if (error) throw new Error('Não foi possível enviar o arquivo. Tente de novo.');
+      await avisar(path);
+    } catch (e) {
+      console.error(e);
+      env.disabled = false;
+      env.innerHTML = `${I.check} Tentar de novo`;
+      toast(e.message || 'Não foi possível enviar.', true);
+    }
+  };
+  const sem = r.querySelector('#ja-paguei');
+  if (sem) sem.onclick = () => avisar(null).catch((e) => toast(e.message, true));
+}
+/** aluno que avisou sem o comprovante pode mandar depois, pelo cartão da mensalidade */
+function enviarComprovanteDepois(c) {
+  openSheet(
+    `<p class="eyebrow">Mensalidade de ${esc(nomeMes(c.competencia).split(' ')[0])}</p><div class="h2" style="margin-top:4px">${brl(c.valor)}</div>${comprovanteBlocoHTML(true)}`,
+    (r) => bindComprovante(r, c),
+  );
+}
+/** equipe: abre o comprovante que o aluno mandou */
+async function verComprovante(c) {
+  const { data } = await sb.storage
+    .from('nx-fotos')
+    .createSignedUrl(c.comprovante_path, 600)
+    .catch(() => ({ data: null }));
+  if (!data || !data.signedUrl) return toast('Não foi possível abrir o comprovante.', true);
+  window.open(data.signedUrl, '_blank', 'noopener');
 }
 /** minhas mensalidades; com o id de uma cobrança (vindo do aviso de vencimento), já abre o Pix dela */
 async function viewPagamentos(abrir) {
