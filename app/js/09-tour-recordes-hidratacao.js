@@ -1531,16 +1531,51 @@ function condicaoHora(h, i) {
 // valor de agora entre duas horas (a previsão é de hora em hora)
 const entreHoras = (a, b, frac) => (a == null ? b : b == null ? a : a + (b - a) * frac);
 /* calor:puro:fim */
-// posição do celular agora (só para achar a cidade; o ponto não é guardado)
-const posicaoCelular = (pedir) =>
-  new Promise((res) => {
-    if (!navigator.geolocation) return res(null);
+// posição do celular (só para achar a cidade da previsão; fica no próprio celular, arredondada a ~100 m, por até 12 h).
+// Ao abrir o app nunca aparece o pedido de localização: o iPhone não guarda a permissão de app da tela inicial e
+// perguntava toda vez. Sem permissão já dada, usa a última posição guardada (ou a última cidade, no servidor).
+const POS_CEL = 'nx-pos-cel';
+function guardarPosCelular(c) {
+  try {
+    localStorage.setItem(
+      POS_CEL,
+      JSON.stringify({ lat: +c.latitude.toFixed(3), lon: +c.longitude.toFixed(3), t: Date.now() }),
+    );
+  } catch {}
+}
+function posGuardada() {
+  try {
+    const p = JSON.parse(localStorage.getItem(POS_CEL) || 'null');
+    return p && Date.now() - p.t < 12 * 3600e3 ? { latitude: p.lat, longitude: p.lon } : null;
+  } catch {
+    return null;
+  }
+}
+async function posicaoCelular(pedir) {
+  if (!navigator.geolocation) return null;
+  if (!pedir) {
+    const g = posGuardada();
+    if (g) return g;
+    // só pega a posição se a permissão já estiver dada (sem abrir a janela de pedido)
+    const estado = await (navigator.permissions && navigator.permissions.query
+      ? navigator.permissions.query({ name: 'geolocation' }).then(
+          (r) => r.state,
+          () => 'prompt',
+        )
+      : Promise.resolve('prompt'));
+    if (estado !== 'granted') return null;
+  }
+  return new Promise((res) =>
     navigator.geolocation.getCurrentPosition(
-      (p) => res(p.coords),
+      (p) => {
+        guardarPosCelular(p.coords);
+        res(p.coords);
+      },
       () => res(null),
       { maximumAge: pedir ? 0 : 30 * 60e3, timeout: pedir ? 20000 : 8000, enableHighAccuracy: false },
-    );
-  });
+    ),
+  );
+}
 async function localCalor() {
   const modo = (S.me && S.me.local_clima && S.me.local_clima.modo) || 'auto';
   let data = null;

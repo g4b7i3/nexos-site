@@ -743,7 +743,13 @@ async function viewGps(id, modo) {
     kf.t = t;
     return [+kf.la.toFixed(6), +kf.lo.toFixed(6)];
   };
+  let posGuardadaGps = false;
   const onPos = (pos) => {
+    // a posição da corrida também serve para a previsão do tempo da tela Hoje, sem pedir de novo
+    if (!posGuardadaGps && pos.coords.accuracy < 200) {
+      posGuardadaGps = true;
+      guardarPosCelular(pos.coords);
+    }
     if (!document.getElementById('g-sinal') || !minha()) return; // já saiu da tela do treino
     const c = pos.coords,
       pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6)],
