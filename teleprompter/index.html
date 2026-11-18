@@ -652,14 +652,16 @@ async function ligarCam() {
   try {
     fluxo = await navigator.mediaDevices.getUserMedia({
       // 4:3 é o formato do sensor da câmera da frente: pedir 9:16 faz o celular cortar e parecer zoom
-      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1440 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30 } },
+      // resizeMode 'none': pega o modo nativo do sensor, sem o navegador reduzir e esticar a imagem
+      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1440 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30 }, resizeMode: { ideal: 'none' } },
       // som de gravação, não de chamada: sem o filtro de eco, de ruído e o volume automático (são eles que abafam a voz)
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: { ideal: 48000 }, channelCount: { ideal: 1 } },
     });
-    // se o navegador permitir, deixa a câmera no zoom mínimo (campo de visão mais aberto)
+    // zoom em 1x: abaixo disso alguns celulares (Samsung) trocam para a lente grande-angular da frente,
+    // que tem menos definição e deixa a imagem com cara de câmera de ré
     try {
       const v = fluxo.getVideoTracks()[0], cap = v.getCapabilities ? v.getCapabilities() : {};
-      if (cap.zoom) await v.applyConstraints({ advanced: [{ zoom: cap.zoom.min }] });
+      if (cap.zoom) await v.applyConstraints({ advanced: [{ zoom: Math.min(cap.zoom.max, Math.max(cap.zoom.min, 1)) }] });
     } catch {}
     $('cam').srcObject = fluxo; $('tp').classList.add('com-cam'); fxAtualizar(); return true;
   } catch (e) {
@@ -709,7 +711,10 @@ async function mostrarVideo() {
   const ext = tipo.includes('mp4') ? 'mp4' : 'webm';
   const nome = (atual.titulo || 'video').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'video';
   $('rev').src = urlVideo; $('rv-baixar').href = urlVideo; $('rv-baixar').download = `${nome}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${ext}`;
-  $('rv-info').textContent = `${mmss((Date.now() - inicioRec) / 1000)} · ${(blob.size / 1048576).toFixed(1)} MB · ${ext.toUpperCase()}. Salve o vídeo antes de gravar de novo. Depois é só mandar para editar.`;
+  // mostra a resolução que a câmera entregou de verdade (ajuda a entender um vídeo com pouca definição)
+  let res = '';
+  try { const st = fluxo.getVideoTracks()[0].getSettings(); if (st.width) res = ` · ${Math.max(st.width, st.height)}x${Math.min(st.width, st.height)}${st.zoom ? ` · zoom ${st.zoom}` : ''}`; } catch {}
+  $('rv-info').textContent = `${mmss((Date.now() - inicioRec) / 1000)} · ${(blob.size / 1048576).toFixed(1)} MB · ${ext.toUpperCase()}${res}${fxLigado() ? ' · pele suave ligada (reduz a definição)' : ''}. Salve o vídeo antes de gravar de novo. Depois é só mandar para editar.`;
   rotuloRec('Toque para gravar'); $('rv-fechar').textContent = 'Gravar de novo';
   abrirFolha('rv', true);
 }
