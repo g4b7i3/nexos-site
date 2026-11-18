@@ -3,7 +3,7 @@
    Motor: three.js (MIT), carregado só quando a tela abre. Modelos: Z-Anatomy (CC BY-SA 4.0), em app/corpo3d. */
 'use strict';
 
-const C3D_VER = 1;
+const C3D_VER = 2;
 const C3D_DIR = '/app/'; // aluno e treinador usam os mesmos arquivos
 const C3D_ORDEM = ['joelho', 'perna', 'tornozelo-pe', 'coxa', 'quadril', 'lombar', 'ombro'];
 const C3D_TIPO = {
@@ -21,7 +21,12 @@ const C3D_IC_CAM =
 const C3D_IC_CENTRO =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
 let c3dLibP = null;
-const c3dLib = () => c3dLibP || (c3dLibP = import(C3D_DIR + 'vendor/three-corpo.js'));
+const c3dLib = () =>
+  c3dLibP ||
+  (c3dLibP = import(C3D_DIR + 'vendor/three-corpo.js').catch((e) => {
+    c3dLibP = null;
+    throw e;
+  }));
 const c3dBase = (n) => String(n || '').replace(/\.[a-z0-9]*$/, '');
 const c3dNome = (n) => C3D_NOMES[c3dBase(n)] || c3dBase(n);
 
@@ -29,7 +34,10 @@ const c3dNome = (n) => C3D_NOMES[c3dBase(n)] || c3dBase(n);
 async function c3dModelo(reg) {
   const url = `${C3D_DIR}corpo3d/${reg}.glb?v=${C3D_VER}`;
   try {
-    const c = await caches.open('nx-corpo3d-v1');
+    const nome = 'nx-corpo3d-v' + C3D_VER;
+    // apaga os modelos de versões anteriores
+    caches.keys().then((ks) => ks.forEach((k) => k.startsWith('nx-corpo3d-') && k !== nome && caches.delete(k)));
+    const c = await caches.open(nome);
     let r = await c.match(url);
     if (!r) {
       r = await fetch(url);
@@ -69,6 +77,13 @@ function viewCorpo3d(reg, lado, sel) {
         `<a class="list-item" href="#/corpo3d/${r}" style="color:inherit"><span class="ativ-ic">${C3D_IC}</span><div class="grow"><b>${C3D_REG[r].t}</b><div class="small muted">${C3D_REG[r].d} ${C3D_REG[r].cond.length} ${C3D_REG[r].cond.length === 1 ? 'condição' : 'condições'}.</div></div>${I.chev}</a>`,
     ).join('')}</div>
     <p class="tiny dim c3d-pe">${C3D_AVISO}<br>Modelos 3D: Z-Anatomy (CC BY-SA 4.0), a partir do BodyParts3D, © DBCLS (CC BY-SA 2.1 JP). Motor 3D: three.js.</p>`;
+  // adianta o carregamento: o motor já na lista, e o modelo assim que o dedo encosta na região
+  c3dLib().catch(() => {});
+  $app.querySelectorAll('a[href^="#/corpo3d/"]').forEach((a) =>
+    a.addEventListener('pointerdown', () => c3dModelo(a.getAttribute('href').split('/')[2]).catch(() => {}), {
+      once: true,
+    }),
+  );
 }
 
 /* ---------- tela da região ---------- */
@@ -279,8 +294,9 @@ async function c3dCena(vp, reg, lado) {
   const vermelho = new THREE.Color('#e5484d');
   const W = () => vp.clientWidth,
     H = () => vp.clientHeight;
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  // 1,5 de densidade já fica nítido no celular e desenha quase metade dos pontos de 2
+  renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
   renderer.setSize(W(), H());
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   vp.prepend(renderer.domElement);
@@ -295,7 +311,10 @@ async function c3dCena(vp, reg, lado) {
   const camera = new THREE.PerspectiveCamera(35, W() / H(), 0.01, 20);
   const ctr = new OrbitControls(camera, renderer.domElement);
   ctr.enableDamping = true;
-  ctr.dampingFactor = 0.08;
+  // giro mais solto e parada mais curta: responde rápido ao dedo
+  ctr.dampingFactor = 0.16;
+  ctr.rotateSpeed = 1.3;
+  ctr.zoomSpeed = 1.4;
   ctr.enablePan = false;
   const gltf = await new Promise((ok, falha) => {
     const ld = new GLTFLoader();
@@ -309,8 +328,13 @@ async function c3dCena(vp, reg, lado) {
   const malhas = [];
   root.traverse((o) => {
     if (!o.isMesh) return;
-    const a = gltf.parser.associations.get(o) || gltf.parser.associations.get(o.parent) || {};
-    const nome = (a.nodes != null && gltf.parser.json.nodes[a.nodes].name) || o.name;
+    // nome original: sobe pelos pais até achar um nó com nome (malhas repetidas vêm sem nome próprio)
+    let nome = '';
+    for (let x = o; x && !nome; x = x.parent) {
+      const a = gltf.parser.associations.get(x);
+      nome = (a && a.nodes != null && gltf.parser.json.nodes[a.nodes].name) || '';
+    }
+    nome = nome || o.name;
     const tipo = /ligament|capsule|meniscus|labrum|retinaculum|membrane|disc|nucleus|symphysis|aponeurosis|tract/i.test(
       nome,
     )
@@ -331,13 +355,15 @@ async function c3dCena(vp, reg, lado) {
       roughness: t === 'osso' ? 0.75 : 0.55,
       metalness: 0,
       side: THREE.DoubleSide,
-      transparent: true,
+      transparent: false,
       opacity: 1,
     });
     o.userData.base = o.material.color.clone();
     malhas.push(o);
   });
   scene.add(root);
+  // o modelo não se mexe: as matrizes ficam calculadas uma vez só
+  root.traverse((o) => (o.matrixAutoUpdate = false));
   // enquadra a região e define o ângulo inicial
   // enquadra pelas estruturas centrais da região (os músculos longos passam das bordas)
   const ancora = malhas.filter((m) => (C3D_REG[reg].foco || []).includes(c3dBase(m.userData.nx)));
@@ -362,6 +388,7 @@ async function c3dCena(vp, reg, lado) {
   camera.position.copy(centro).add(dir.clone().multiplyScalar(tam * 1.75));
   ctr.update();
   // estado de destaque
+  const selC = new THREE.Vector3();
   let sel = null,
     pulsar = [],
     destaque = new Set();
@@ -371,6 +398,8 @@ async function c3dCena(vp, reg, lado) {
       const on = destaque.has(m);
       m.material.color.copy(m.userData.base);
       m.material.emissive.setRGB(0, 0, 0);
+      // só fica transparente o que está apagado; o resto desenha sem custo extra
+      m.material.transparent = algum && !on;
       m.material.opacity = !algum || on ? 1 : 0.22;
       m.material.depthWrite = !algum || on;
       m.renderOrder = on ? 2 : 1;
@@ -397,6 +426,7 @@ async function c3dCena(vp, reg, lado) {
     aoRotulo: null,
     selecionar(m) {
       sel = m || null;
+      if (sel) new THREE.Box3().setFromObject(sel).getCenter(selC);
       pulsar = [];
       destaque = new Set(m ? [m] : []);
       pintar();
@@ -475,7 +505,7 @@ async function c3dCena(vp, reg, lado) {
     requestAnimationFrame(quadro);
     if (document.hidden) return;
     if (voo) {
-      const k = reduzir ? 1 : Math.min(1, (t - voo.t0) / 650),
+      const k = reduzir ? 1 : Math.min(1, (t - voo.t0) / 420),
         e = 1 - Math.pow(1 - k, 3);
       ctr.target.lerpVectors(voo.de[0], voo.para[0], e);
       camera.position.lerpVectors(voo.de[1], voo.para[1], e);
@@ -496,8 +526,7 @@ async function c3dCena(vp, reg, lado) {
     renderer.render(scene, camera);
     if (api.aoRotulo) {
       if (sel) {
-        new THREE.Box3().setFromObject(sel).getCenter(proj);
-        proj.project(camera);
+        proj.copy(selC).project(camera);
         api.aoRotulo(c3dNome(sel.userData.nx), ((proj.x + 1) / 2) * W(), ((1 - proj.y) / 2) * H());
       } else api.aoRotulo('', 0, 0);
     }
