@@ -325,42 +325,103 @@ const prontAlerta = (r) =>
   r.sono + r.energia + r.dor + r.estresse <= 10;
 const prontNivel = (t) => (t >= 16 ? ['Boa', 'ok'] : t >= 12 ? ['Moderada', 'warn'] : ['Baixa', 'err']);
 function prontCardHTML() {
-  return `<button class="list-item msg-row pront-row" id="pront-abrir" style="width:100%;text-align:left"><span class="ativ-ic">${PRONT_IC}</span><div class="grow"><b>Check-in do dia</b><div class="small muted">Sono, energia, dor e estresse · 20 segundos</div></div>${I.chev}</button>`;
+  return `<button class="list-item msg-row pront-row" id="pront-abrir" style="width:100%;text-align:left"><span class="ativ-ic">${PRONT_IC}</span><div class="grow"><b>Check-in do dia</b><div class="small muted">Sono, energia, dor, estresse e humor · 20 segundos</div></div>${I.chev}</button>`;
+}
+// humor: só registro para o treinador (não entra no total da escala de Hooper, que é validada com 4 itens)
+const PRONT_HUMOR = ['humor', 'E o seu humor?', ['Irritado', 'Triste', 'Neutro', 'Bem', 'Animado']];
+const PRONT_SUB = {
+  sono: 'A noite de ontem',
+  energia: 'Agora, antes de treinar',
+  dor: 'Alguma dor ou incômodo no corpo?',
+  estresse: 'Trabalho, estudo, vida',
+  humor: 'Como você está se sentindo',
+};
+const PRONT_TIT = { estresse: 'E o estresse?', dor: 'Dor muscular' };
+// rostinho desenhado para o check-in: a boca vai da tristeza ao sorriso; olhos fechados no sono ruim, franzidos na dor
+function prontRosto(n, k, pre = 'q') {
+  const c = PRONT_COR[n - 1],
+    id = `pr-${pre}-${k}-${n}`;
+  const boca = ['M15 33Q25 25 35 33', 'M16 32Q25 28 34 32', 'M16 31H34', 'M15 29Q25 36 35 29', 'M14 28Q25 40 36 28Z'][
+    n - 1
+  ];
+  const olho =
+    k === 'sono' && n <= 2
+      ? '<path d="M14 20q4 3 8 0M28 20q4 3 8 0" fill="none" stroke-width="2.4"/>'
+      : k === 'dor' && n <= 2
+        ? '<path d="M14 18l7 3-7 3M36 18l-7 3 7 3" fill="none" stroke-width="2.2"/>'
+        : (k === 'humor' || k === 'estresse') && n === 1
+          ? '<circle cx="18" cy="21" r="2.6" stroke="none"/><circle cx="32" cy="21" r="2.6" stroke="none"/><path d="M13 14l8 3M37 14l-8 3" stroke-width="2.2"/>'
+          : n === 5
+            ? '<path d="M14 21q4-5 8 0M28 21q4-5 8 0" fill="none" stroke-width="2.4"/>'
+            : '<circle cx="18" cy="20" r="2.8" stroke="none"/><circle cx="32" cy="20" r="2.8" stroke="none"/>';
+  return `<svg viewBox="0 0 50 50" aria-hidden="true"><defs><radialGradient id="${id}" cx="35%" cy="30%"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".45" stop-color="${c}"/><stop offset="1" stop-color="${c}" stop-opacity=".88"/></radialGradient></defs><circle cx="25" cy="25" r="23" fill="url(#${id})"/><g fill="#1a1205" stroke="#1a1205" stroke-linecap="round" stroke-linejoin="round">${olho}${n === 5 ? `<path d="${boca}" stroke="none"/>` : `<path d="${boca}" fill="none" stroke-width="2.6"/>`}</g></svg>`;
 }
 function abrirProntidao(aoSalvar) {
   const r = {},
     sel = new Set();
-  let dInt = null;
+  let dInt = null,
+    passo = 0;
+  const fem = S.me.sexo === 'F';
+  const nomeOp = (o) =>
+    fem
+      ? o
+          .replace(/^(Exaust|Cansad|Dispost|Irritad|Animad|Neutr)o$/, '$1a')
+          .replace(/^Muito disposto$/, 'Muito disposta')
+      : o;
+  const QS = [...PRONT_Q, PRONT_HUMOR];
+  const qHTML = ([k, t, op]) =>
+    `<section class="ck-q" data-k="${k}"><h3 class="ck-tit">${PRONT_TIT[k] || t}</h3><p class="small muted">${PRONT_SUB[k]}</p>
+      <div class="ck-faces" role="radiogroup" aria-label="${esc(PRONT_TIT[k] || t)}">${op
+        .map(
+          (o, i) =>
+            `<button type="button" class="ck-f" role="radio" aria-checked="false" data-q="${k}" data-v="${i + 1}" style="--pc:${PRONT_COR[i]}">${prontRosto(i + 1, k)}<span>${nomeOp(o)}</span></button>`,
+        )
+        .join('')}</div><p class="ck-nome" aria-live="polite"></p>
+      ${
+        k === 'dor'
+          ? `<div class="ck-dor" id="pront-dor" hidden><div class="pq"><b>Onde dói?</b>${mapaCorpoHTML(S.me.sexo)}</div>
+        <div class="pq"><b>Intensidade da dor</b><div class="pq-int">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-int="${i}">${i}</button>`).join('')}</div><div class="row between tiny dim" style="margin-top:4px"><span>sem dor</span><span>pior dor possível</span></div></div>
+        <button type="button" class="btn block" id="ck-dor-ok">Continuar</button></div>`
+          : ''
+      }</section>`;
+  const nPassos = QS.length + 1;
   openSheet(
-    `<p class="eyebrow">Check-in da manhã</p><div class="h2" style="margin-top:4px">Como você está hoje?</div><p class="small muted" style="margin-top:4px">Seu treinador usa essas respostas para ajustar o treino.</p>
-    <form id="f-pront" style="margin-top:14px">${PRONT_Q.map(
-      ([k, t, op]) =>
-        `<div class="pq"><b>${t}</b><div class="pq-op">${op
-          .map((o) =>
-            S.me.sexo === 'F'
-              ? o.replace(/^(Exaust|Cansad|Dispost)o$/, '$1a').replace(/^Muito disposto$/, 'Muito disposta')
-              : o,
-          )
-          .map(
-            (o, i) =>
-              `<button type="button" data-q="${k}" data-v="${i + 1}" style="--pc:${PRONT_COR[i]}">${o}</button>`,
-          )
-          .join('')}</div></div>`,
-    ).join('')}
-    <div id="pront-dor" hidden><div class="pq"><b>Onde dói?</b>${mapaCorpoHTML(S.me.sexo)}</div>
-      <div class="pq"><b>Intensidade da dor</b><div class="pq-int">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-int="${i}">${i}</button>`).join('')}</div><div class="row between tiny dim" style="margin-top:4px"><span>sem dor</span><span>pior dor possível</span></div></div></div>
-    <div id="pront-ciclo"></div>
-    <label class="field" style="margin-top:6px"><span>Algo mais para o treinador? (opcional)</span><textarea class="input" name="obs" rows="2" maxlength="500" placeholder="Ex.: dormi pouco por causa do trabalho"></textarea></label>
-    <button class="btn block" id="pront-env" disabled>Enviar check-in</button></form>`,
+    `<form id="f-pront" class="ck" novalidate>
+      <div class="ck-cab"><button type="button" class="ck-volta" id="ck-volta" aria-label="Voltar" hidden>${I.back}</button><span class="small muted">Check-in de hoje</span><div class="ck-prog" aria-hidden="true">${'<i><b></b></i>'.repeat(nPassos)}</div></div>
+      <div class="ck-vp"><div class="ck-trk" id="ck-trk">${QS.map(qHTML).join('')}
+        <section class="ck-q" data-k="obs"><h3 class="ck-tit">Algo mais para o treinador?</h3><p class="small muted">Opcional</p>
+          <div id="pront-ciclo"></div>
+          <textarea class="input ck-obs" name="obs" rows="3" maxlength="500" placeholder="Ex.: dormi pouco por causa do trabalho"></textarea>
+          <button class="btn block" id="pront-env" style="margin-top:14px">Enviar sem recado</button></section>
+      </div></div>
+      <div class="ck-fim" id="ck-fim" hidden></div></form>`,
     (root) => {
       const f = root.querySelector('#f-pront'),
         btn = root.querySelector('#pront-env'),
-        boxDor = root.querySelector('#pront-dor');
+        trk = root.querySelector('#ck-trk'),
+        boxDor = root.querySelector('#pront-dor'),
+        volta = root.querySelector('#ck-volta'),
+        barras = root.querySelectorAll('.ck-prog b'),
+        secs = root.querySelectorAll('.ck-q');
+      const irPara = (i) => {
+        passo = Math.max(0, Math.min(secs.length - 1, i));
+        trk.style.transform = `translateX(${-100 * passo}%)`;
+        secs.forEach((s, j) => {
+          s.inert = j !== passo;
+          s.classList.toggle('atual', j === passo);
+        });
+        barras.forEach((b, j) => b.classList.toggle('on', j < passo));
+        volta.hidden = passo === 0;
+        const sh = root.closest('.sheet');
+        if (sh) sh.scrollTop = 0;
+      };
+      volta.onclick = () => irPara(passo - 1);
+      irPara(0);
       // ciclo: só para alunas com o acompanhamento ativo; perguntas completas nos dias de menstruação (prevista ou já registrada)
       let cic = null,
         cicR = null,
         cicAntes = null;
-      if (S.me.sexo === 'F') {
+      if (fem) {
         const hj = hojeISO();
         Promise.all([
           buscarCiclo(S.user.id).catch(() => null),
@@ -404,27 +465,56 @@ function abrirProntidao(aoSalvar) {
         });
       }
       bindMapaCorpo(boxDor, sel);
-      const pronto = () => {
-        btn.disabled = !(r.sono && r.energia && r.dor && r.estresse);
-      };
+      let tAvanca = null;
       f.onclick = (e) => {
         const b = e.target.closest('[data-q]');
         if (b) {
-          r[b.dataset.q] = +b.dataset.v;
-          b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-          if (b.dataset.q === 'dor') boxDor.hidden = r.dor > 2;
-          pronto();
+          const k = b.dataset.q,
+            v = +b.dataset.v;
+          r[k] = v;
+          const sec = b.closest('.ck-q');
+          sec.classList.add('escolheu');
+          sec.querySelectorAll('.ck-f').forEach((x) => {
+            x.classList.toggle('on', x === b);
+            x.setAttribute('aria-checked', x === b ? 'true' : 'false');
+          });
+          const nm = sec.querySelector('.ck-nome');
+          nm.textContent = b.querySelector('span').textContent;
+          nm.style.color = PRONT_COR[v - 1];
+          try {
+            navigator.vibrate && navigator.vibrate(8);
+          } catch {}
+          clearTimeout(tAvanca);
+          if (k === 'dor' && v <= 2) {
+            boxDor.hidden = false;
+            return;
+          }
+          if (k === 'dor') boxDor.hidden = true;
+          tAvanca = setTimeout(() => irPara(passo + 1), 520);
+          return;
         }
         const ib = e.target.closest('[data-int]');
         if (ib) {
           dInt = +ib.dataset.int;
           ib.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === ib));
         }
+        if (e.target.closest('#ck-dor-ok')) {
+          if (!sel.size) return toast('Toque no boneco para mostrar onde dói.', true);
+          irPara(passo + 1);
+        }
+      };
+      f.obs.oninput = () => {
+        btn.textContent = f.obs.value.trim() ? 'Enviar check-in' : 'Enviar sem recado';
       };
       f.onsubmit = async (e) => {
         e.preventDefault();
+        const falta = PRONT_Q.findIndex(([k]) => !r[k]);
+        if (falta >= 0) return irPara(falta);
         const comDor = r.dor <= 2;
-        if (comDor && !sel.size) return toast('Toque no boneco para mostrar onde dói.', true);
+        if (comDor && !sel.size) {
+          irPara(PRONT_Q.findIndex(([k]) => k === 'dor'));
+          return toast('Toque no boneco para mostrar onde dói.', true);
+        }
         const row = {
           org_id: S.org.id,
           aluno_id: S.user.id,
@@ -433,6 +523,7 @@ function abrirProntidao(aoSalvar) {
           energia: r.energia,
           dor: r.dor,
           estresse: r.estresse,
+          humor: r.humor || null,
           dor_locais: comDor ? [...sel] : null,
           dor_int: comDor ? dInt : null,
           obs: f.obs.value.trim() || null,
@@ -470,14 +561,48 @@ function abrirProntidao(aoSalvar) {
           );
           novoIni = !!rc.novoInicio;
         }
-        closeSheet();
-        toast(
-          novoIni ? 'Check-in enviado. O início da menstruação foi registrado.' : 'Check-in enviado ao seu treinador.',
-        );
-        if (aoSalvar) aoSalvar(row);
+        mostrarFimProntidao(root, row, novoIni, aoSalvar);
       };
     },
   );
+}
+// tela final do check-in: anel com o total (escala de 4 a 20) e os rostinhos escolhidos
+function mostrarFimProntidao(root, row, novoIni, aoSalvar) {
+  const tot = row.sono + row.energia + row.dor + row.estresse;
+  const [nivel, cls] = prontNivel(tot);
+  const msg =
+    cls === 'ok'
+      ? 'Bom para treinar. Seu treinador já recebeu.'
+      : cls === 'warn'
+        ? 'Seu treinador já recebeu e vai acompanhar o treino de hoje.'
+        : 'Seu treinador já recebeu e pode ajustar o treino de hoje.';
+  const itens = [...PRONT_Q, PRONT_HUMOR].filter(([k]) => row[k]);
+  const fim = root.querySelector('#ck-fim');
+  fim.innerHTML = `<div class="ck-anel ${cls}" style="--ck-p:0"><div class="ck-anel-c"><b>${tot}</b><span>de 20</span></div></div>
+    <h3 class="ck-tit ck-niv ${cls}">Prontidão ${nivel.toLowerCase()}</h3><p class="small muted" style="text-align:center;margin-top:6px">${msg}</p>
+    <div class="ck-res">${itens.map(([k]) => `<div>${prontRosto(row[k], k, 'r')}<span>${k === 'humor' ? 'Humor' : PRONT_CURTO[k]}</span></div>`).join('')}</div>
+    ${row.dor_locais && row.dor_locais.length ? `<div class="ck-aviso">Seu treinador foi avisado da dor que você marcou${row.dor_int != null ? ` (${row.dor_int} de 10)` : ''}.<div class="ck-aviso-t">${row.dor_locais.map((d) => `<span class="tag err">${esc(nomeRegDor(d))}</span>`).join(' ')}</div></div>` : ''}
+    ${novoIni ? '<p class="small muted" style="text-align:center;margin-top:10px">O início da menstruação foi registrado.</p>' : ''}
+    <button type="button" class="btn block" id="ck-fechar" style="margin-top:22px">Fechar</button>`;
+  root.querySelector('.ck-vp').hidden = true;
+  root.querySelector('.ck-cab').hidden = true;
+  fim.hidden = false;
+  const an = fim.querySelector('.ck-anel');
+  requestAnimationFrame(() => requestAnimationFrame(() => an.style.setProperty('--ck-p', (tot / 20).toFixed(3))));
+  // o número sobe junto com o anel
+  const b = fim.querySelector('.ck-anel-c b'),
+    t0 = performance.now(),
+    dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1300;
+  const passo = (t) => {
+    const k = dur ? Math.min(1, (t - t0) / dur) : 1;
+    b.textContent = Math.round(tot * (1 - Math.pow(1 - k, 3)));
+    if (k < 1) requestAnimationFrame(passo);
+  };
+  requestAnimationFrame(passo);
+  fim.querySelector('#ck-fechar').onclick = () => {
+    closeSheet();
+    if (aoSalvar) aoSalvar(row);
+  };
 }
 // respostas completas de um check-in (toque numa linha da tabela de prontidão)
 const PRONT_ROWS = new Map();
@@ -620,7 +745,7 @@ async function prontStaffHTML(m) {
       .map((x) => {
         PRONT_ROWS.set(x.id, { ...x, _nome: m.nome, _mat: m.matricula });
         const [n, cls] = prontNivel(x.total);
-        return `<div class="ps-lin${x.alerta ? ' alerta' : ''}" data-pront="${x.id}" role="button" tabindex="0"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`;
+        return `<div class="ps-lin${x.alerta ? ' alerta' : ''}" data-pront="${x.id}" role="button" tabindex="0"><span class="tiny">${fmtCurto(x.dia)}</span>${['sono', 'energia', 'dor', 'estresse'].map((k) => `<i style="background:${PRONT_COR[x[k] - 1]}" title="${PRONT_Q.find((q) => q[0] === k)[2][x[k] - 1]}">${x[k]}</i>`).join('')}<b class="tag ${cls}">${x.total} · ${n}</b></div>${x.dor_locais && x.dor_locais.length ? `<div class="ps-dor small">Dor${x.dor_int != null ? ` ${x.dor_int}/10` : ''}: ${x.dor_locais.map((k) => esc(nomeRegDor(k))).join(', ')}</div>` : ''}${x.humor ? `<div class="ps-dor small muted">Humor: ${PRONT_HUMOR[2][x.humor - 1]}</div>` : ''}${x.obs ? `<div class="ps-dor small muted">"${esc(x.obs)}"</div>` : ''}`;
       })
       .join('')}</div>`;
 }

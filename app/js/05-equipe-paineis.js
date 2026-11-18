@@ -817,7 +817,7 @@ async function staffProntidao(diaSel) {
       c = cargas[m.user_id];
     return `<a class="card pe-lin" href="#/aluno/${m.user_id}/saude" style="color:inherit"><div class="row" style="gap:12px;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0">
       <div class="row between" style="gap:8px"><b class="ellip">${esc(m.nome)}</b><span class="pe-tot ${cls}">${p.total}<small>/20</small></span></div>
-      <div class="pe-itens">${['sono', 'energia', 'dor', 'estresse'].map((k) => `<span><i style="background:${PRONT_COR[p[k] - 1]}"></i>${PRONT_CURTO[k]} <b>${p[k]}</b></span>`).join('')}</div>
+      <div class="pe-itens">${['sono', 'energia', 'dor', 'estresse'].map((k) => `<span><i style="background:${PRONT_COR[p[k] - 1]}"></i>${PRONT_CURTO[k]} <b>${p[k]}</b></span>`).join('')}${p.humor ? `<span><i style="background:${PRONT_COR[p.humor - 1]}"></i>Humor <b>${PRONT_HUMOR[2][p.humor - 1]}</b></span>` : ''}</div>
       ${p.dor_locais && p.dor_locais.length ? `<div class="pe-dor">${p.dor_locais.map((k) => `<span class="tag err">${esc(nomeRegDor(k))}</span>`).join('')}${p.dor_int != null ? `<span class="small muted">intensidade ${p.dor_int}/10</span>` : ''}</div>` : ''}
       ${p.obs ? `<p class="small muted pe-obs">"${esc(p.obs)}"</p>` : ''}
       ${cicD[m.user_id] && resumoDiaCiclo(cicD[m.user_id]) ? `<div class="pe-dor"><span class="tag pe-cic">${esc(resumoDiaCiclo(cicD[m.user_id]))}</span></div>` : ''}
