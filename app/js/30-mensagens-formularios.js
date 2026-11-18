@@ -1478,6 +1478,7 @@ async function staffFichaResposta(id) {
 }
 
 /* ================= VIDEOCHAMADA (Daily, sala privada criada pela função nx-video) ================= */
+const VS_HD = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
 const DAILY_JS = 'https://unpkg.com/@daily-co/daily-js@0.93.0/dist/daily.js';
 let dailyP = null;
 const carregarDaily = () =>
@@ -1558,7 +1559,7 @@ function vsLobby({ titulo, frase, outro, recusar }) {
     };
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', ...VS_HD }, audio: true });
         if (!document.body.contains(el)) return stream.getTracks().forEach((t) => t.stop());
         v.srcObject = stream;
       } catch {
@@ -1791,7 +1792,17 @@ async function abrirSalaVideo(
     };
   box.querySelector('#vs-sair').onclick = () => fecharSalaVideo(true);
   try {
-    await call.join({ url: d.url, token: d.token, startVideoOff: !cam, startAudioOff: !mic });
+    // câmera em HD (1280x720, 30 quadros) em vez do padrão mais baixo do navegador
+    await call.join({
+      url: d.url,
+      token: d.token,
+      startVideoOff: !cam,
+      startAudioOff: !mic,
+      inputSettings: { video: { settings: VS_HD } },
+    });
+    // manda e recebe na camada de melhor qualidade; se a internet cair, o Daily baixa sozinho
+    call.updateSendSettings({ video: 'quality-optimized' }).catch(() => {});
+    call.updateReceiveSettings({ '*': { video: { layer: 2 } } }).catch(() => {});
     desenhar();
   } catch (e) {
     await fecharSalaVideo(false, true);
