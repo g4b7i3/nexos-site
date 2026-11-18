@@ -391,8 +391,8 @@ const C3D_FUNC = {
   'Vertebra L4': 'Quarta vértebra lombar.',
   'Vertebra L5': 'Última vértebra lombar, apoiada no sacro. Uma das regiões que mais recebe carga na coluna.',
 };
-// regiões, condições, exercícios e ligação com o mapa de dor do check-in. Textos revisados a partir de consensos e revisões
-// (fontes em scripts/testes/corpo3d-fontes.md). Nada aqui é diagnóstico: o texto diz o que costuma acontecer e quando procurar ajuda.
+// regiões, condições, exercícios e ligação com o mapa de dor do check-in. Textos revisados a partir de consensos e revisões.
+// Nada aqui é diagnóstico: o texto diz o que costuma acontecer e quando procurar ajuda.
 const C3D_REG = {
   joelho: {
     t: 'Joelho',
