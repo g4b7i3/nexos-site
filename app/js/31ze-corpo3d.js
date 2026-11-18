@@ -3,15 +3,55 @@
    Motor: three.js (MIT), carregado só quando a tela abre. Modelos: Z-Anatomy (CC BY-SA 4.0), em app/corpo3d. */
 'use strict';
 
-const C3D_VER = 2;
+const C3D_VER = 3;
 const C3D_DIR = '/app/'; // aluno e treinador usam os mesmos arquivos
-const C3D_ORDEM = ['joelho', 'perna', 'tornozelo-pe', 'coxa', 'quadril', 'lombar', 'ombro'];
+// em cima, o que mais pesa em corrida e musculação; embaixo, o resto do corpo
+const C3D_ORDEM = ['joelho', 'tornozelo-pe', 'perna', 'quadril', 'lombar', 'coxa', 'ombro', 'braco', 'core', 'tronco'];
+const C3D_ORDEM2 = [
+  'antebraco-mao',
+  'cabeca',
+  'pescoco',
+  'coluna',
+  'coracao',
+  'nervoso',
+  'orgaos',
+  'esqueleto',
+  'musculos',
+];
 const C3D_TIPO = {
   musculo: 'Músculos',
   tendao: 'Tendões e ligamentos',
   ligamento: 'Tendões e ligamentos',
   osso: 'Ossos',
+  nervo: 'Nervos e cérebro',
+  arteria: 'Artérias',
+  veia: 'Veias',
+  coracao: 'Coração',
+  orgao: 'Órgãos',
 };
+// camadas que dá para ligar e desligar (cada tipo cai numa delas)
+const C3D_CAMADA = {
+  musculo: 'musculo',
+  tendao: 'tendao',
+  ligamento: 'tendao',
+  osso: 'osso',
+  nervo: 'nervo',
+  arteria: 'vaso',
+  veia: 'vaso',
+  coracao: 'vaso',
+  orgao: 'orgao',
+};
+const C3D_CAMADA_T = {
+  musculo: 'Músculos',
+  tendao: 'Tendões e ligamentos',
+  osso: 'Ossos',
+  nervo: 'Nervos e cérebro',
+  vaso: 'Coração e vasos',
+  orgao: 'Órgãos',
+};
+// nomes e funções que vêm dentro dos modelos novos (o dicionário fixo cobre os antigos)
+const C3D_PT = {},
+  C3D_FN = {};
 const C3D_AVISO =
   'Material educativo. Não substitui avaliação, diagnóstico ou tratamento por um profissional de saúde.';
 const C3D_IC =
@@ -28,7 +68,8 @@ const c3dLib = () =>
     throw e;
   }));
 const c3dBase = (n) => String(n || '').replace(/\.[a-z0-9]*$/, '');
-const c3dNome = (n) => C3D_NOMES[c3dBase(n)] || c3dBase(n);
+const c3dNome = (n) => C3D_NOMES[c3dBase(n)] || C3D_PT[c3dBase(n)] || c3dBase(n);
+const c3dFunc = (n) => C3D_FUNC[c3dBase(n)] || C3D_FN[c3dBase(n)] || '';
 
 // modelo da região: guarda no Cache Storage depois do primeiro uso (abre sem internet nas próximas vezes)
 async function c3dModelo(reg) {
@@ -67,15 +108,17 @@ function c3dBotaoDor(locais, rotulo = 'Ver em 3D') {
 }
 
 /* ---------- lista de regiões ---------- */
+const c3dItem = (r) => {
+  const n = C3D_REG[r].cond.length;
+  return `<a class="list-item" href="#/corpo3d/${r}" style="color:inherit"><span class="ativ-ic">${C3D_IC}</span><div class="grow"><b>${C3D_REG[r].t}</b><div class="small muted">${C3D_REG[r].d}${n ? ` ${n} ${n === 1 ? 'condição' : 'condições'}.` : ''}</div></div>${I.chev}</a>`;
+};
 function viewCorpo3d(reg, lado, sel) {
-  if (reg && C3D_REG[reg]) return viewCorpo3dRegiao(reg, lado === 'e' ? 'e' : 'd', sel || '');
+  if (reg && C3D_REG[reg]) return viewCorpo3dRegiao(reg, lado === 'e' && !C3D_REG[reg].bi ? 'e' : 'd', sel || '');
   layout(S.staff ? 'wide' : '');
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Anatomia</p><h1 class="h1">Corpo 3D</h1>
     <p class="small muted" style="margin-top:6px">Gire, aproxime e toque nas estruturas. Veja as dores mais comuns na corrida e o que cada exercício trabalha.</p>
-    <div class="stack" style="margin-top:16px">${C3D_ORDEM.map(
-      (r) =>
-        `<a class="list-item" href="#/corpo3d/${r}" style="color:inherit"><span class="ativ-ic">${C3D_IC}</span><div class="grow"><b>${C3D_REG[r].t}</b><div class="small muted">${C3D_REG[r].d} ${C3D_REG[r].cond.length} ${C3D_REG[r].cond.length === 1 ? 'condição' : 'condições'}.</div></div>${I.chev}</a>`,
-    ).join('')}</div>
+    <p class="sec-lbl" style="margin-top:16px">Corrida e musculação</p><div class="stack">${C3D_ORDEM.map(c3dItem).join('')}</div>
+    <p class="sec-lbl" style="margin-top:20px">O resto do corpo</p><div class="stack">${C3D_ORDEM2.map(c3dItem).join('')}</div>
     <p class="tiny dim c3d-pe">${C3D_AVISO}<br>Modelos 3D: Z-Anatomy (CC BY-SA 4.0), a partir do BodyParts3D, © DBCLS (CC BY-SA 2.1 JP). Motor 3D: three.js.</p>`;
   // adianta o carregamento: o motor já na lista, e o modelo assim que o dedo encosta na região
   c3dLib().catch(() => {});
@@ -92,12 +135,12 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
   const R = C3D_REG[reg];
   $app.innerHTML = `<a class="back" href="#/corpo3d">${I.back} Corpo 3D</a>
     <div class="row between" style="align-items:flex-end;gap:10px"><div><p class="eyebrow">Corpo 3D</p><h1 class="h1">${R.t}</h1></div>
-      ${reg === 'lombar' ? '' : `<div class="c3d-lado" role="group" aria-label="Lado"><button type="button" data-lado="d" class="${lado === 'd' ? 'on' : ''}">Direito</button><button type="button" data-lado="e" class="${lado === 'e' ? 'on' : ''}">Esquerdo</button></div>`}</div>
+      ${R.bi ? '' : `<div class="c3d-lado" role="group" aria-label="Lado"><button type="button" data-lado="d" class="${lado === 'd' ? 'on' : ''}">Direito</button><button type="button" data-lado="e" class="${lado === 'e' ? 'on' : ''}">Esquerdo</button></div>`}</div>
     <div class="c3d-vp" id="c3d-vp"><div class="c3d-carga" id="c3d-carga"><span class="c3d-spin"></span><span class="small muted">Carregando o modelo 3D</span></div>
       <div class="c3d-rot" id="c3d-rot" hidden></div>
       <div class="c3d-ferr"><button type="button" class="c3d-fb" id="c3d-cam" aria-label="Camadas">${C3D_IC_CAM}</button><button type="button" class="c3d-fb" id="c3d-centro" aria-label="Centralizar">${C3D_IC_CENTRO}</button></div>
-      <div class="c3d-camadas" id="c3d-camadas" hidden>${['musculo', 'tendao', 'osso'].map((t) => `<label><input type="checkbox" data-camada="${t}" checked> ${C3D_TIPO[t]}</label>`).join('')}</div></div>
-    <div class="tabs c3d-abas" role="tablist"><button type="button" data-aba="exp">Explorar</button><button type="button" data-aba="cond">Condições</button><button type="button" data-aba="ex">Exercícios</button></div>
+      <div class="c3d-camadas" id="c3d-camadas" hidden></div></div>
+    <div class="tabs c3d-abas" role="tablist"><button type="button" data-aba="exp">Explorar</button>${R.cond.length ? '<button type="button" data-aba="cond">Condições</button>' : ''}${Object.values(C3D_EX).some((e) => e.r === reg) ? '<button type="button" data-aba="ex">Exercícios</button>' : ''}</div>
     <div id="c3d-painel"></div>
     <p class="tiny dim c3d-pe">${C3D_AVISO}<br>Modelos 3D: Z-Anatomy (CC BY-SA 4.0), a partir do BodyParts3D, © DBCLS (CC BY-SA 2.1 JP).</p>`;
   const vp = $app.querySelector('#c3d-vp'),
@@ -134,6 +177,12 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
     const c = vp.querySelector('#c3d-camadas');
     c.hidden = !c.hidden;
   };
+  // camadas: só as que existem no modelo desta região
+  const camadas = [...new Set(cena.malhas.map((m) => C3D_CAMADA[m.userData.tipo]))].filter(Boolean);
+  vp.querySelector('#c3d-camadas').innerHTML = Object.keys(C3D_CAMADA_T)
+    .filter((t) => camadas.includes(t))
+    .map((t) => `<label><input type="checkbox" data-camada="${t}" checked> ${C3D_CAMADA_T[t]}</label>`)
+    .join('');
   vp.querySelectorAll('[data-camada]').forEach((i) => (i.onchange = () => cena.camada(i.dataset.camada, i.checked)));
   vp.querySelector('#c3d-centro').onclick = () => cena.enquadrar();
 
@@ -142,7 +191,7 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
     const n = m ? c3dBase(m.userData.nx) : null;
     painel.innerHTML = m
       ? `<div class="card"><p class="eyebrow">${C3D_TIPO[m.userData.tipo] || ''}</p><h3 class="c3d-tit">${esc(c3dNome(n))}</h3>
-          <p class="small" style="margin-top:6px">${esc(C3D_FUNC[n] || 'Toque em outras estruturas para comparar, ou abra a lista para ver todas.')}</p>
+          <p class="small" style="margin-top:6px">${esc(c3dFunc(n) || 'Toque em outras estruturas para comparar, ou abra a lista para ver todas.')}</p>
           <div class="row" style="gap:8px;margin-top:12px"><button type="button" class="btn ghost sm" id="c3d-lista">Lista de estruturas</button><button type="button" class="btn ghost sm" id="c3d-tudo">Mostrar tudo</button></div></div>`
       : `<div class="card"><p class="small"><b>Toque numa estrutura</b> para ver o nome e para que ela serve. Gire com um dedo e aproxime com dois.</p>
           <div class="row" style="gap:8px;margin-top:12px"><button type="button" class="btn ghost sm" id="c3d-lista">Lista de estruturas</button><button type="button" class="btn ghost sm" id="c3d-tudo">Mostrar tudo</button></div></div>`;
@@ -155,7 +204,7 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
   const listaEstruturas = () => {
     const grupos = {};
     cena.malhas.forEach((m) => {
-      const g = C3D_TIPO[m.userData.tipo] || 'Outros';
+      const g = C3D_CAMADA_T[C3D_CAMADA[m.userData.tipo]] || 'Outros';
       const n = c3dNome(m.userData.nx);
       (grupos[g] = grupos[g] || new Map()).set(n, m);
     });
@@ -324,7 +373,39 @@ async function c3dCena(vp, reg, lado) {
   const root = gltf.scene;
   if (lado === 'e') root.scale.x = -1; // lado esquerdo: o mesmo modelo espelhado
   root.updateMatrixWorld(true);
-  const COR = { osso: '#ece4d4', musculo: '#c4665b', tendao: '#e9edf2', ligamento: '#dfe6ee' };
+  const COR = {
+    osso: '#ece4d4',
+    musculo: '#c4665b',
+    tendao: '#e9edf2',
+    ligamento: '#dfe6ee',
+    nervo: '#e9c46a',
+    arteria: '#c8423b',
+    veia: '#4c6fb5',
+    coracao: '#b8443c',
+    orgao: '#d69a86',
+  };
+  // cor própria de alguns órgãos, para dar para distinguir um do outro
+  const COR_ORG = {
+    Liver: '#8e3b2f',
+    Gallbladder: '#5f8a3a',
+    'Left lung': '#e3a6a6',
+    'Right lung': '#e3a6a6',
+    Stomach: '#d98a7e',
+    Duodenum: '#e0a98a',
+    Jejunum: '#e0a98a',
+    Pancreas: '#e6bb84',
+    Spleen: '#7c3a4c',
+    Kidney: '#9b4638',
+    'Renal pelvis': '#e2c27a',
+    Ureter: '#e2c27a',
+    'Urinary bladder': '#e2c27a',
+    'Suprarenal gland': '#d8a54a',
+    'Thyroid gland': '#b55a5a',
+    Thymus: '#d9b3a0',
+    'Tracheobronchial tree': '#e8dcd0',
+    Trachea: '#e8dcd0',
+    Oesophagus: '#d98a7e',
+  };
   const malhas = [];
   root.traverse((o) => {
     if (!o.isMesh) return;
@@ -335,6 +416,14 @@ async function c3dCena(vp, reg, lado) {
       nome = (a && a.nodes != null && gltf.parser.json.nodes[a.nodes].name) || '';
     }
     nome = nome || o.name;
+    // extras gravados na exportação: nome em português, tipo, função e se é só fundo (esqueleto de referência)
+    let ex = {};
+    for (let x = o; x && !ex.tp; x = x.parent) {
+      const a = gltf.parser.associations.get(x);
+      if (a && a.nodes != null) ex = gltf.parser.json.nodes[a.nodes].extras || {};
+    }
+    if (ex.pt) C3D_PT[c3dBase(nome)] = ex.pt;
+    if (ex.fn) C3D_FN[c3dBase(nome)] = ex.fn;
     const tipo = /ligament|capsule|meniscus|labrum|retinaculum|membrane|disc|nucleus|symphysis|aponeurosis|tract/i.test(
       nome,
     )
@@ -347,11 +436,11 @@ async function c3dCena(vp, reg, lado) {
           ? 'musculo'
           : 'osso';
     // ".o/.e" no fim são as áreas de origem e inserção dos músculos: aparecem como tendão
-    const t = /\.(o|e)\d*[rl]?$/.test(nome) && tipo === 'musculo' ? 'tendao' : tipo;
+    const t = ex.tp || (/\.(o|e)\d*[rl]?$/.test(nome) && tipo === 'musculo' ? 'tendao' : tipo);
     o.userData.nx = nome;
     o.userData.tipo = t;
     o.material = new THREE.MeshStandardMaterial({
-      color: COR[t],
+      color: (t === 'orgao' && COR_ORG[c3dBase(nome)]) || COR[t] || COR.osso,
       roughness: t === 'osso' ? 0.75 : 0.55,
       metalness: 0,
       side: THREE.DoubleSide,
@@ -359,6 +448,13 @@ async function c3dCena(vp, reg, lado) {
       opacity: 1,
     });
     o.userData.base = o.material.color.clone();
+    // esqueleto de fundo (nos órgãos, nervos e vasos) fica translúcido para não esconder o que importa
+    o.userData.op = ex.ctx ? 0.28 : 1;
+    if (ex.ctx) {
+      o.material.transparent = true;
+      o.material.opacity = 0.28;
+      o.material.depthWrite = false;
+    }
     malhas.push(o);
   });
   scene.add(root);
@@ -375,7 +471,9 @@ async function c3dCena(vp, reg, lado) {
   const v = C3D_REG[reg].vista || [0, 0, 1];
   const dir = new THREE.Vector3(lado === 'e' ? -v[0] : v[0], v[1], v[2]).normalize();
   ctr.minDistance = tam * 0.3;
-  ctr.maxDistance = tam * 4;
+  // dá para se afastar até ver o modelo inteiro (nos vasos e nervos, o corpo todo)
+  const tudo = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3()).length();
+  ctr.maxDistance = Math.max(tam * 4, tudo * 1.6);
   let voo = null;
   const voar = (alvo, dist, d = dir) => {
     voo = {
@@ -398,10 +496,11 @@ async function c3dCena(vp, reg, lado) {
       const on = destaque.has(m);
       m.material.color.copy(m.userData.base);
       m.material.emissive.setRGB(0, 0, 0);
-      // só fica transparente o que está apagado; o resto desenha sem custo extra
-      m.material.transparent = algum && !on;
-      m.material.opacity = !algum || on ? 1 : 0.22;
-      m.material.depthWrite = !algum || on;
+      // só fica transparente o que está apagado (e o esqueleto de fundo); o resto desenha sem custo extra
+      const op = m.userData.op;
+      m.material.opacity = on ? 1 : algum ? 0.22 * op : op;
+      m.material.transparent = m.material.opacity < 1;
+      m.material.depthWrite = !m.material.transparent;
       m.renderOrder = on ? 2 : 1;
       if (on && !pulsar.length) {
         m.material.color.copy(acc);
@@ -456,8 +555,7 @@ async function c3dCena(vp, reg, lado) {
     },
     camada(t, on) {
       malhas.forEach((m) => {
-        const g = m.userData.tipo === 'ligamento' ? 'tendao' : m.userData.tipo;
-        if (g === t) m.visible = on;
+        if (C3D_CAMADA[m.userData.tipo] === t) m.visible = on;
       });
       sujo = true;
     },
@@ -476,7 +574,9 @@ async function c3dCena(vp, reg, lado) {
     pt.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(pt, camera);
     const vis = malhas.filter((m) => m.visible && (!destaque.size || destaque.has(m) || m.material.opacity > 0.5));
-    const hit = ray.intersectObjects(vis.length ? vis : malhas, false)[0];
+    // o esqueleto de fundo só é escolhido se o toque não pegar em mais nada
+    const hits = ray.intersectObjects(vis.length ? vis : malhas, false);
+    const hit = hits.find((h) => h.object.userData.op === 1) || hits[0];
     api.selecionar(hit ? hit.object : null);
     if (api.aoTocar) api.aoTocar(hit ? hit.object : null);
   });

@@ -161,7 +161,7 @@ function buscaTelasEquipe() {
       '#/corpo3d',
       'Corpo 3D',
       'Anatomia em 3D, dores e exercícios',
-      'corpo 3d anatomia musculo osso joelho dor lesao tendao',
+      'corpo 3d anatomia musculo osso joelho dor lesao tendao coracao cerebro nervo orgaos esqueleto coluna cabeca mao',
     ],
     ['#/relogios', 'Relógios dos alunos', 'Quem está conectado e com qual relógio', 'garmin relogio conexao'],
     ['#/desativados', 'Alunos desativados', 'Quem saiu da Nexos e a opção de reativar', 'inativo reativar saiu'],

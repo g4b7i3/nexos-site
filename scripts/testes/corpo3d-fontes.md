@@ -33,5 +33,11 @@ Ao mudar um texto, confira a fonte. Não invente número nem prevalência.
 ## Ombro
 - Dor no ombro e manguito rotador: Littlewood C et al. 2015 Exercise for rotator cuff tendinopathy: a systematic review, Physiotherapy 101(2):101-110. Lähdeoja T et al. 2020 Subacromial decompression surgery for adults with shoulder pain: a systematic review with meta-analysis, Br J Sports Med 54:665-673 (cirurgia não foi melhor que exercício ou placebo).
 
+## Braço e cotovelo
+- Dor no lado de fora do cotovelo (epicondilalgia lateral): Coombes BK, Bisset L, Vicenzino B 2015 Management of lateral elbow tendinopathy: one size does not fit all, J Orthop Sports Phys Ther 45(11):938-949. Faixa de idade: Shiri R et al. 2006 Prevalence and determinants of lateral and medial epicondylitis: a population study, Am J Epidemiol 164(11):1065-1074 (maior prevalência dos 45 aos 54 anos).
+
+## Regiões do resto do corpo
+- Antebraço e mão, cabeça e rosto, pescoço, coluna inteira, coração e vasos, sistema nervoso, órgãos, esqueleto completo e músculos do corpo todo são só para explorar (sem condições). As funções de cada estrutura são descrições anatômicas básicas.
+
 ## Modelos 3D
 - Z-Anatomy (CC BY-SA 4.0), a partir do BodyParts3D © DBCLS (CC BY-SA 2.1 JP). Ver app/corpo3d/LEIAME.txt.

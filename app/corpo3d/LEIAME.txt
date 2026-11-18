@@ -7,6 +7,8 @@ Licença dos modelos: Creative Commons Atribuição-CompartilhaIgual 4.0 Interna
 https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR
 BodyParts3D: CC BY-SA 2.1 Japão.
 
-O que mudou em relação ao original: separação por região do lado direito, retirada de vasos, nervos e órgãos,
+O que mudou em relação ao original: separação por região (as de corrida e musculação a partir do lado direito,
+as do resto do corpo inteiras), junção de partes em estruturas maiores (lobos do cérebro, pulmões, fígado),
+nervos e vasos transformados de curvas em malhas, nomes em português gravados em cada peça,
 simplificação das malhas e compressão (meshopt). Os modelos modificados seguem a mesma licença CC BY-SA 4.0
 e podem ser baixados livremente deste repositório.

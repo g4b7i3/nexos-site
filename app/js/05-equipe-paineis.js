@@ -899,7 +899,7 @@ function alunoMais() {
       ${it('#/relogio', I.watch, 'Dados do relógio', 'Sono, VFC, frequência de repouso e mais')}
       ${S.me.sexo === 'F' ? `<a class="list-item" id="mais-ciclo" href="#/mulher" style="color:inherit"><span class="ativ-ic" style="color:#e85d75">${FV_IC}</span><div class="grow"><b>Saúde da mulher</b><div class="small muted">Ciclo, energia, assoalho pélvico, ferro e mais</div></div>${I.chev}</a>` : ''}
       ${it('#/seguranca', SM_IC.escudo, 'Corrida segura', S.me.contato_seguro ? `Link ao vivo para ${esc(firstName(S.me.contato_seguro.nome) || S.me.contato_seguro.nome)}` : 'Alguém de confiança acompanha o seu treino pelo link')}
-      ${it('#/corpo3d', C3D_IC, 'Corpo 3D', 'Anatomia em 3D, dores comuns na corrida e o que cada exercício trabalha')}
+      ${it('#/corpo3d', C3D_IC, 'Corpo 3D', 'O corpo inteiro em 3D, dores comuns na corrida e o que cada exercício trabalha')}
       ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
       <span id="mais-dicas" style="display:contents">${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Sono, alimentação, recuperação e prova')}</span>
     </div>
