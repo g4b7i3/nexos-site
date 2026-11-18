@@ -48,7 +48,7 @@ function sugestaoProntidao(x, nomeAluno) {
   );
   const dorLoc = locs.length > 1 ? locs.slice(0, -1).join(', ') + ' e ' + locs[locs.length - 1] : locs[0] || '';
   const p = [];
-  if (!baixos.length && x.total >= 16)
+  if (!baixos.length && x.total >= PRONT_BOA)
     return `${oi} Vi seu check-in: corpo pronto. Pode fazer o treino como está na planilha. Bom treino!`;
   p.push(`${oi} Vi seu check-in.`);
   if (x.dor <= 2 || dorLoc) {
@@ -816,7 +816,7 @@ async function staffHoje() {
     ${(() => {
       const resp = ativos.filter((m) => pronts.some((p) => p.aluno_id === m.user_id));
       const at = pronts.filter((p) => p.alerta && vis.has(p.aluno_id)).length;
-      const ok = pronts.filter((p) => !p.alerta && p.total >= 16 && vis.has(p.aluno_id)).length;
+      const ok = pronts.filter((p) => !p.alerta && p.total >= PRONT_BOA && vis.has(p.aluno_id)).length;
       const cgN = ativos.filter((m) => cargas[m.user_id] && cargas[m.user_id].nivel).length;
       return ativos.length
         ? `<a class="card pe-card" id="pront-eq" href="#/prontidao-equipe" style="color:inherit"><span class="ativ-ic">${PRONT_IC}</span><div class="grow" style="min-width:0"><b>Prontidão de hoje</b><div class="small muted">${resp.length} de ${ativos.length} responderam o check-in${at ? ` · <span style="color:var(--err)">${at} pede${at > 1 ? 'm' : ''} atenção</span>` : ''}${ok ? ` · ${ok} pronto${ok > 1 ? 's' : ''} para treinar` : ''}${cgN ? ` · <span style="color:var(--warn)">${cgN} com alerta de carga</span>` : ''}</div></div>${I.chev}</a>`

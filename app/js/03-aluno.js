@@ -323,7 +323,10 @@ const prontAlerta = (r) =>
   ['sono', 'energia', 'dor', 'estresse'].some((k) => r[k] === 1) ||
   r.dor <= 2 ||
   r.sono + r.energia + r.dor + r.estresse <= 10;
-const prontNivel = (t) => (t >= 16 ? ['Boa', 'ok'] : t >= 12 ? ['Moderada', 'warn'] : ['Baixa', 'err']);
+// cortes do nível de prontidão (total de 4 a 20). "Normal" (3) conta como neutro: 4 itens em 3,5 de média já é boa
+const PRONT_BOA = 14,
+  PRONT_MOD = 11;
+const prontNivel = (t) => (t >= PRONT_BOA ? ['Boa', 'ok'] : t >= PRONT_MOD ? ['Moderada', 'warn'] : ['Baixa', 'err']);
 function prontCardHTML() {
   return `<button class="list-item msg-row pront-row" id="pront-abrir" style="width:100%;text-align:left"><span class="ativ-ic">${PRONT_IC}</span><div class="grow"><b>Check-in do dia</b><div class="small muted">Sono, energia, dor, estresse e humor · 20 segundos</div></div>${I.chev}</button>`;
 }
@@ -619,7 +622,7 @@ function prontDetalhe(x) {
     : '';
   const nome = x._nome || (!S.staff && S.me ? S.me.nome : '') || 'Atleta';
   // cor e situação no estilo de um boletim clínico
-  const nivel = x.alerta ? 'alerta' : x.total >= 16 ? 'boa' : x.total >= 12 ? 'mod' : 'alerta';
+  const nivel = x.alerta ? 'alerta' : x.total >= PRONT_BOA ? 'boa' : x.total >= PRONT_MOD ? 'mod' : 'alerta';
   const SIT = {
     boa: ['Pronto para treinar', '#3ef0b0'],
     mod: ['Atenção ao volume', '#f5c04a'],
@@ -669,7 +672,7 @@ function prontDetalhe(x) {
             : ''
         }
         ${x.obs ? `<div class="md-obs"><p class="md-rot">Relato do atleta</p><p>“${esc(x.obs)}”</p></div>` : ''}
-        <div class="md-rodape"><img src="icons/simbolo.svg" alt=""><span>Escala de bem-estar de Hooper e McLean: 4 perguntas de 1 a 5, total de 4 a 20. Boa de 16 a 20 · moderada de 12 a 15 · baixa até 11.</span></div>
+        <div class="md-rodape"><img src="icons/simbolo.svg" alt=""><span>Escala de bem-estar de Hooper e McLean: 4 perguntas de 1 a 5, total de 4 a 20. Boa de 14 a 20 · moderada de 11 a 13 · baixa até 10.</span></div>
       </div>
       <div id="sug-pront"></div>
     </div>`,
@@ -715,7 +718,7 @@ function prontDetalheAluno(x) {
       ${k === 'dor' && (x.dor_locais || []).length ? `<p class="small" style="margin-top:6px;color:var(--err)">Onde dói${x.dor_int != null ? ` (${x.dor_int}/10)` : ''}: ${x.dor_locais.map((d) => esc(nomeRegDor(d))).join(', ')}</p>` : ''}</div>`,
     ).join('')}</div>
     ${x.obs ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Comentário do aluno</span><p style="margin-top:6px">${esc(x.obs)}</p></div>` : ''}
-    <div class="card" style="margin-top:12px"><span class="eyebrow">Como ler</span><p class="small" style="margin-top:6px">A prontidão é a soma das 4 respostas (de 4 a 20). <b>Boa</b>: 16 a 20 · <b>Moderada</b>: 12 a 15 · <b>Baixa</b>: 11 ou menos.${motivos.length ? ` Em alerta por: ${motivos.join('; ')}.` : ''}</p></div>`);
+    <div class="card" style="margin-top:12px"><span class="eyebrow">Como ler</span><p class="small" style="margin-top:6px">A prontidão é a soma das 4 respostas (de 4 a 20). <b>Boa</b>: 14 a 20 · <b>Moderada</b>: 11 a 13 · <b>Baixa</b>: 10 ou menos.${motivos.length ? ` Em alerta por: ${motivos.join('; ')}.` : ''}</p></div>`);
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-pront]');

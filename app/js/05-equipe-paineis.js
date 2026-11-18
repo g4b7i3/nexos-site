@@ -802,10 +802,10 @@ async function staffProntidao(diaSel) {
     sem = al.filter((m) => !pr[m.user_id]);
   const atencao = resp.filter((m) => pr[m.user_id].alerta).sort((a, b) => pr[a.user_id].total - pr[b.user_id].total);
   const moder = resp
-    .filter((m) => !pr[m.user_id].alerta && pr[m.user_id].total < 16)
+    .filter((m) => !pr[m.user_id].alerta && pr[m.user_id].total < PRONT_BOA)
     .sort((a, b) => pr[a.user_id].total - pr[b.user_id].total);
   const prontos = resp
-    .filter((m) => !pr[m.user_id].alerta && pr[m.user_id].total >= 16)
+    .filter((m) => !pr[m.user_id].alerta && pr[m.user_id].total >= PRONT_BOA)
     .sort((a, b) => pr[b.user_id].total - pr[a.user_id].total);
   const comCarga = al
     .filter((m) => cargas[m.user_id] && cargas[m.user_id].nivel)
@@ -840,7 +840,7 @@ async function staffProntidao(diaSel) {
     </div>
     ${grupo('pe-atencao', 'Pedem atenção', 'Prontidão baixa, dor ou algum item no pior nível. Vale conversar e ajustar o treino de hoje.', atencao)}
     ${grupo('pe-moder', 'Prontidão moderada', 'Podem treinar, com atenção à intensidade.', moder)}
-    ${grupo('pe-prontos', 'Prontos para treinar', 'Prontidão boa (16 a 20): podem seguir o treino planejado, inclusive os mais fortes.', prontos)}
+    ${grupo('pe-prontos', 'Prontos para treinar', 'Prontidão boa (14 a 20): podem seguir o treino planejado, inclusive os mais fortes.', prontos)}
     ${
       ehHoje
         ? `<div class="section" id="pe-carga"><div class="section-h"><h2 class="h2">Alerta de carga</h2>${comCarga.length ? `<span class="tag warn">${comCarga.length}</span>` : ''}</div>

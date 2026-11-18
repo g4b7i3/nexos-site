@@ -50,7 +50,8 @@ function resumoSugestoes(r) {
     melhorar.push(
       `${r.forca ? `Só ${r.forca} treino${r.forca === 1 ? '' : 's'}` : 'Nenhum treino'} de força no mês. Duas vezes por semana ajuda a prevenir lesões e a correr melhor.`,
     );
-  if (r.pront && r.pront.dias >= 3 && r.pront.media < 12)
+  if (r.pront && r.pront.dias >= 3 && r.pront.media < 11)
+    // 11 = PRONT_MOD (bloco puro testado à parte, não enxerga o global)
     melhorar.push(
       `Prontidão média baixa (${resumoKm(r.pront.media)} de 20): sono e recuperação merecem atenção neste mês.`,
     );
