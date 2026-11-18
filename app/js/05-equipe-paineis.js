@@ -818,7 +818,7 @@ async function staffProntidao(diaSel) {
     return `<a class="card pe-lin" href="#/aluno/${m.user_id}/saude" style="color:inherit"><div class="row" style="gap:12px;align-items:flex-start">${avAluno(m)}<div class="grow" style="min-width:0">
       <div class="row between" style="gap:8px"><b class="ellip">${esc(m.nome)}</b><span class="pe-tot ${cls}">${p.total}<small>/20</small></span></div>
       <div class="pe-itens">${['sono', 'energia', 'dor', 'estresse'].map((k) => `<span><i style="background:${PRONT_COR[p[k] - 1]}"></i>${PRONT_CURTO[k]} <b>${p[k]}</b></span>`).join('')}${p.humor ? `<span><i style="background:${PRONT_COR[p.humor - 1]}"></i>Humor <b>${PRONT_HUMOR[2][p.humor - 1]}</b></span>` : ''}</div>
-      ${p.dor_locais && p.dor_locais.length ? `<div class="pe-dor">${p.dor_locais.map((k) => `<span class="tag err">${esc(nomeRegDor(k))}</span>`).join('')}${p.dor_int != null ? `<span class="small muted">intensidade ${p.dor_int}/10</span>` : ''}</div>` : ''}
+      ${p.dor_locais && p.dor_locais.length ? `<div class="pe-dor">${p.dor_locais.map((k) => `<span class="tag err">${esc(nomeRegDor(k))}</span>`).join('')}${p.dor_int != null ? `<span class="small muted">intensidade ${p.dor_int}/10</span>` : ''}${c3dBotaoDor(p.dor_locais, 'Abrir no Corpo 3D')}</div>` : ''}
       ${p.obs ? `<p class="small muted pe-obs">"${esc(p.obs)}"</p>` : ''}
       ${cicD[m.user_id] && resumoDiaCiclo(cicD[m.user_id]) ? `<div class="pe-dor"><span class="tag pe-cic">${esc(resumoDiaCiclo(cicD[m.user_id]))}</span></div>` : ''}
       ${c && c.nivel ? `<div class="pe-dor">${cargaTag(c)}<span class="small muted">${esc(c.txt)}</span></div>` : ''}
@@ -899,6 +899,7 @@ function alunoMais() {
       ${it('#/relogio', I.watch, 'Dados do relógio', 'Sono, VFC, frequência de repouso e mais')}
       ${S.me.sexo === 'F' ? `<a class="list-item" id="mais-ciclo" href="#/mulher" style="color:inherit"><span class="ativ-ic" style="color:#e85d75">${FV_IC}</span><div class="grow"><b>Saúde da mulher</b><div class="small muted">Ciclo, energia, assoalho pélvico, ferro e mais</div></div>${I.chev}</a>` : ''}
       ${it('#/seguranca', SM_IC.escudo, 'Corrida segura', S.me.contato_seguro ? `Link ao vivo para ${esc(firstName(S.me.contato_seguro.nome) || S.me.contato_seguro.nome)}` : 'Alguém de confiança acompanha o seu treino pelo link')}
+      ${it('#/corpo3d', C3D_IC, 'Corpo 3D', 'Anatomia em 3D, dores comuns na corrida e o que cada exercício trabalha')}
       ${it('#/saude', I.check, 'Minha ficha de saúde', 'Anamnese e PAR-Q')}
       <span id="mais-dicas" style="display:contents">${it('#/dicas', I.ficha, 'Dicas da Nexos', 'Sono, alimentação, recuperação e prova')}</span>
     </div>

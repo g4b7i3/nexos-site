@@ -1,0 +1,12 @@
+Modelos 3D do Corpo 3D da Nexos
+
+Estes arquivos (.glb) são recortes por região do atlas Z-Anatomy (https://github.com/Z-Anatomy),
+que por sua vez é baseado no BodyParts3D, © The Database Center for Life Science (DBCLS).
+
+Licença dos modelos: Creative Commons Atribuição-CompartilhaIgual 4.0 Internacional (CC BY-SA 4.0)
+https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR
+BodyParts3D: CC BY-SA 2.1 Japão.
+
+O que mudou em relação ao original: separação por região do lado direito, retirada de vasos, nervos e órgãos,
+simplificação das malhas e compressão (meshopt). Os modelos modificados seguem a mesma licença CC BY-SA 4.0
+e podem ser baixados livremente deste repositório.

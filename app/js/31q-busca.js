@@ -157,6 +157,12 @@ function buscaTelasEquipe() {
       'voz audio gravar frase gps treino falar',
     ],
     ['#/checkup', 'Check-up do Corredor', 'Avaliação de entrada e saída', 'checkup avaliacao entrada'],
+    [
+      '#/corpo3d',
+      'Corpo 3D',
+      'Anatomia em 3D, dores e exercícios',
+      'corpo 3d anatomia musculo osso joelho dor lesao tendao',
+    ],
     ['#/relogios', 'Relógios dos alunos', 'Quem está conectado e com qual relógio', 'garmin relogio conexao'],
     ['#/desativados', 'Alunos desativados', 'Quem saiu da Nexos e a opção de reativar', 'inativo reativar saiu'],
     ['#/videochamadas', 'Videochamadas', 'Ligar para um professor ou para um aluno', 'video chamada ligar'],

@@ -584,7 +584,7 @@ function mostrarFimProntidao(root, row, novoIni, aoSalvar) {
   fim.innerHTML = `<div class="ck-anel ${cls}" style="--ck-p:0"><div class="ck-anel-c"><b>${tot}</b><span>de 20</span></div></div>
     <h3 class="ck-tit ck-niv ${cls}">Prontidão ${nivel.toLowerCase()}</h3><p class="small muted" style="text-align:center;margin-top:6px">${msg}</p>
     <div class="ck-res">${itens.map(([k]) => `<div>${prontRosto(row[k], k, 'r')}<span>${k === 'humor' ? 'Humor' : PRONT_CURTO[k]}</span></div>`).join('')}</div>
-    ${row.dor_locais && row.dor_locais.length ? `<div class="ck-aviso">Seu treinador foi avisado da dor que você marcou${row.dor_int != null ? ` (${row.dor_int} de 10)` : ''}.<div class="ck-aviso-t">${row.dor_locais.map((d) => `<span class="tag err">${esc(nomeRegDor(d))}</span>`).join(' ')}</div></div>` : ''}
+    ${row.dor_locais && row.dor_locais.length ? `<div class="ck-aviso">Seu treinador foi avisado da dor que você marcou${row.dor_int != null ? ` (${row.dor_int} de 10)` : ''}.<div class="ck-aviso-t">${row.dor_locais.map((d) => `<span class="tag err">${esc(nomeRegDor(d))}</span>`).join(' ')}</div>${c3dBotaoDor(row.dor_locais)}</div>` : ''}
     ${novoIni ? '<p class="small muted" style="text-align:center;margin-top:10px">O início da menstruação foi registrado.</p>' : ''}
     <button type="button" class="btn block" id="ck-fechar" style="margin-top:22px">Fechar</button>`;
   root.querySelector('.ck-vp').hidden = true;
@@ -715,7 +715,7 @@ function prontDetalheAluno(x) {
         op,
       ]) => `<div class="pd-q"><div class="row between" style="gap:8px"><b>${t}</b><span class="pd-v" style="background:${PRONT_COR[x[k] - 1]}">${x[k]} de 5</span></div>
       <div class="pd-op">${op.map((o, i) => `<span class="${i + 1 === x[k] ? 'on' : ''}" style="${i + 1 === x[k] ? `border-color:${PRONT_COR[i]};background:color-mix(in srgb,${PRONT_COR[i]} 18%,transparent)` : ''}">${o}</span>`).join('')}</div>
-      ${k === 'dor' && (x.dor_locais || []).length ? `<p class="small" style="margin-top:6px;color:var(--err)">Onde dói${x.dor_int != null ? ` (${x.dor_int}/10)` : ''}: ${x.dor_locais.map((d) => esc(nomeRegDor(d))).join(', ')}</p>` : ''}</div>`,
+      ${k === 'dor' && (x.dor_locais || []).length ? `<p class="small" style="margin-top:6px;color:var(--err)">Onde dói${x.dor_int != null ? ` (${x.dor_int}/10)` : ''}: ${x.dor_locais.map((d) => esc(nomeRegDor(d))).join(', ')}</p>${c3dBotaoDor(x.dor_locais)}` : ''}</div>`,
     ).join('')}</div>
     ${x.obs ? `<div class="card" style="margin-top:12px"><span class="eyebrow">Comentário do aluno</span><p style="margin-top:6px">${esc(x.obs)}</p></div>` : ''}
     <div class="card" style="margin-top:12px"><span class="eyebrow">Como ler</span><p class="small" style="margin-top:6px">A prontidão é a soma das 4 respostas (de 4 a 20). <b>Boa</b>: 14 a 20 · <b>Moderada</b>: 11 a 13 · <b>Baixa</b>: 10 ou menos.${motivos.length ? ` Em alerta por: ${motivos.join('; ')}.` : ''}</p></div>`);
