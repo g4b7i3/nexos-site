@@ -4713,3 +4713,32 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .fe-bloco>b{display:block;font-size:12.5px;color:#0d1b38;margin-bottom:2px}
 .fe-l small{display:block;font-weight:400;color:#5b6b88;margin-top:3px;line-height:1.4}
 .fe-folha.fe-pdf .fe-l{grid-template-columns:150px 1fr;gap:10px}
+/* card de km do mês no Hoje: bonequinho correndo sobre a onda da Nexos */
+.hh-stats>div.hh-mes{background:linear-gradient(120deg,rgba(31,111,235,.30),rgba(13,27,56,.35));border-color:rgba(70,214,255,.28);overflow:hidden}
+.hh-pista{position:relative;flex:none;width:46px;height:44px;margin:-6px 0;border-radius:12px;overflow:hidden;background:radial-gradient(30px 22px at 50% 70%,rgba(70,214,255,.22),transparent 70%)}
+.hp-ondas{position:absolute;left:0;bottom:3px;width:184px;height:16px;animation:hp-onda .9s linear infinite}
+@keyframes hp-onda{to{transform:translateX(-46px)}}
+.hp-risco{position:absolute;top:10px;left:2px;width:12px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,#46d6ff);animation:hp-risco .6s linear infinite}
+.hp-risco.r2{top:20px;left:0;width:9px;animation-delay:-.3s}
+@keyframes hp-risco{from{transform:translateX(30px);opacity:0}30%{opacity:1}to{transform:translateX(-30px);opacity:0}}
+.hp-boneco{position:absolute;left:5px;top:0;width:36px;height:36px;overflow:visible}
+.hp-corpo{animation:hp-bob .3s ease-in-out infinite alternate}
+@keyframes hp-bob{to{transform:translateY(-1.4px)}}
+.hp-coxa,.hp-canela,.hp-braco{transform-box:view-box;animation:.6s linear infinite}
+.hp-coxa{transform-origin:16px 19px;animation-name:hp-coxa}
+.hp-canela{transform-origin:16px 25.5px;animation-name:hp-canela}
+.hp-braco{transform-origin:19.5px 11px;animation-name:hp-braco}
+.hp-boneco .l2{animation-delay:-.3s;opacity:.55}
+.hp-boneco .l2 .l2{opacity:1}
+@keyframes hp-coxa{0%,100%{transform:rotate(-42deg)}50%{transform:rotate(34deg)}}
+@keyframes hp-canela{0%,100%{transform:rotate(12deg)}40%{transform:rotate(26deg)}60%{transform:rotate(95deg)}80%{transform:rotate(70deg)}}
+@keyframes hp-braco{0%,100%{transform:rotate(42deg)}50%{transform:rotate(-46deg)}}
+/* sem corrida no mês: parado, em pé */
+.hh-pista.parado *{animation:none!important}
+.hh-pista.parado .hp-risco{display:none}
+@media (prefers-reduced-motion:reduce){.hh-pista *{animation:none!important}.hh-pista .hp-risco{display:none}}
+.hh-stats>div.hh-mes{gap:8px;padding-left:8px}
+.hh-mes .hh-pista{width:40px}
+.hh-mes .hp-boneco{left:2px}
+.hh-mes>span:last-child{white-space:nowrap}
+.hh-mes b{letter-spacing:-.02em}

@@ -761,57 +761,67 @@ async function alunoHoje() {
   loading();
   const hoje = isoDia(new Date());
   // tudo o que a tela precisa sai junto numa leva só (antes eram três idas e voltas ao servidor)
-  const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx, semNota, histDatas, forcaLib] = await Promise.all([
-    buscarTreinosDoAluno(S.user.id),
-    buscarSessoes(S.user.id, 40),
-    contarMsgNovas(),
-    buscarPlano(S.user.id, hoje, isoDia(Date.now() + 13 * 864e5)).catch(() => []),
-    minhaCobrancaPendente().catch(() => null),
-    sb
-      .from('nx_corridas')
-      .select('id,data,tipo,distancia_m,duracao_s,plano_id,titulo,elevacao_m,fc_media,cadencia,rota')
-      .eq('aluno_id', S.user.id)
-      .gte('data', isoDia(Date.now() - 8 * 864e5))
-      .then((r) => (r.data || []).filter(ehCorr))
-      .catch(() => []),
-    sb
-      .from('nx_participacoes')
-      .select('*')
-      .eq('aluno_id', S.user.id)
-      .gte('data', hoje)
-      .order('data')
-      .limit(1)
-      .then((r) => (r.data || [])[0] || null)
-      .catch(() => null),
-    // corridas que chegaram do relógio sem o check-in (esforço/dor)
-    sb
-      .from('nx_corridas')
-      .select('id,data,tipo,distancia_m,duracao_s,fonte,titulo,comentario')
-      .eq('aluno_id', S.user.id)
-      .is('rpe', null)
-      .gte('data', isoDia(Date.now() - 3 * 864e5))
-      .order('data', { ascending: false })
-      .limit(1)
-      .then((r) => (r.data || [])[0] || null)
-      .catch(() => null),
-    sb
-      .from('nx_corridas')
-      .select('data')
-      .eq('aluno_id', S.user.id)
-      .gte('data', isoDia(Date.now() - 120 * 864e5))
-      .then(
-        (r) => (r.data || []).map((x) => x.data),
-        () => [],
-      ),
-    sb
-      .from('nx_forca_semanas')
-      .select('id')
-      .eq('aluno_id', S.user.id)
-      .eq('semana', isoDia(inicioSemana()))
-      .maybeSingle()
-      .then((r) => !!r.data)
-      .catch(() => false),
-  ]);
+  const iniMes = hoje.slice(0, 8) + '01';
+  const [treinos, sessoes, , planoSem, cobP, corrSem, provaProx, semNota, histDatas, forcaLib, corrMes] =
+    await Promise.all([
+      buscarTreinosDoAluno(S.user.id),
+      buscarSessoes(S.user.id, 40),
+      contarMsgNovas(),
+      buscarPlano(S.user.id, hoje, isoDia(Date.now() + 13 * 864e5)).catch(() => []),
+      minhaCobrancaPendente().catch(() => null),
+      sb
+        .from('nx_corridas')
+        .select('id,data,tipo,distancia_m,duracao_s,plano_id,titulo,elevacao_m,fc_media,cadencia,rota')
+        .eq('aluno_id', S.user.id)
+        .gte('data', isoDia(Date.now() - 8 * 864e5))
+        .then((r) => (r.data || []).filter(ehCorr))
+        .catch(() => []),
+      sb
+        .from('nx_participacoes')
+        .select('*')
+        .eq('aluno_id', S.user.id)
+        .gte('data', hoje)
+        .order('data')
+        .limit(1)
+        .then((r) => (r.data || [])[0] || null)
+        .catch(() => null),
+      // corridas que chegaram do relógio sem o check-in (esforço/dor)
+      sb
+        .from('nx_corridas')
+        .select('id,data,tipo,distancia_m,duracao_s,fonte,titulo,comentario')
+        .eq('aluno_id', S.user.id)
+        .is('rpe', null)
+        .gte('data', isoDia(Date.now() - 3 * 864e5))
+        .order('data', { ascending: false })
+        .limit(1)
+        .then((r) => (r.data || [])[0] || null)
+        .catch(() => null),
+      sb
+        .from('nx_corridas')
+        .select('data')
+        .eq('aluno_id', S.user.id)
+        .gte('data', isoDia(Date.now() - 120 * 864e5))
+        .then(
+          (r) => (r.data || []).map((x) => x.data),
+          () => [],
+        ),
+      sb
+        .from('nx_forca_semanas')
+        .select('id')
+        .eq('aluno_id', S.user.id)
+        .eq('semana', isoDia(inicioSemana()))
+        .maybeSingle()
+        .then((r) => !!r.data)
+        .catch(() => false),
+      // km do mês, para o card de cima
+      sb
+        .from('nx_corridas')
+        .select('data,tipo,distancia_m')
+        .eq('aluno_id', S.user.id)
+        .gte('data', iniMes)
+        .then((r) => (r.data || []).filter(ehCorr))
+        .catch(() => []),
+    ]);
   const corrNova = corrSem
     .filter(
       (c) =>
@@ -911,6 +921,8 @@ async function alunoHoje() {
   const seq = semanasSeguidas([...sessoes.map((x) => x.iniciado_em), ...histDatas]);
   const kmSem = corrSem.reduce((a, c) => a + (+c.distancia_m || 0), 0) / 1000;
   const nTreinosSem = ativSem.filter((x) => isoDia(x.iniciado_em) >= isoDia(inicioSemana())).length;
+  const kmMes = corrMes.reduce((a, c) => a + (+c.distancia_m || 0), 0) / 1000;
+  const nTreinosMes = sessoes.filter((x) => isoDia(x.iniciado_em) >= iniMes).length;
   const minTreinoHoje =
     (corrDoDia.length
       ? corrDoDia.reduce((a, p) => {
@@ -943,7 +955,7 @@ async function alunoHoje() {
       <p>${resumoDia}</p><p class="hh-agua" id="hh-agua" hidden></p>
       <div class="hh-stats">
         <div><span class="hh-ic fogo">${FOGO_IC}</span><span><b>${seq}</b> ${seq === 1 ? 'semana' : 'semanas'}<small>em sequência</small></span></div>
-        ${fC ? `<div><span class="hh-ic">${icCorr(S.me)}</span><span><b>${kmSem ? f1(kmSem) : '0'}</b> km<small>nesta semana</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosSem}</b> ${nTreinosSem === 1 ? 'treino' : 'treinos'}<small>nesta semana</small></span></div>`}
+        ${fC ? `<div class="hh-mes"><span class="hh-pista${kmMes ? '' : ' parado'}" aria-hidden="true">${BONECO_CORRE}</span><span><b>${kmMes ? f1(kmMes) : '0'}</b> km<small>neste mês</small></span></div>` : `<div><span class="hh-ic">${FORCA_IC}</span><span><b>${nTreinosMes}</b> ${nTreinosMes === 1 ? 'treino' : 'treinos'}<small>neste mês</small></span></div>`}
       </div>
     </section>
     <div id="atend-hoje" class="atend-hoje"></div>
@@ -1838,3 +1850,6 @@ function trocarCidadeCalor(loc, depois) {
     },
   );
 }
+
+// bonequinho correndo sobre a onda da Nexos (card de km do mês no Hoje). A animação é só CSS (.hh-pista em app.css).
+const BONECO_CORRE = `<span class="hp-risco"></span><span class="hp-risco r2"></span><svg class="hp-ondas" viewBox="0 0 184 16" preserveAspectRatio="none"><defs><linearGradient id="hp-g" x1="0" x2="1"><stop offset="0" stop-color="#1f6feb"/><stop offset="1" stop-color="#46d6ff"/></linearGradient></defs><path d="M0 9 Q11.5 3 23 9 T46 9 T69 9 T92 9 T115 9 T138 9 T161 9 T184 9" fill="none" stroke="url(#hp-g)" stroke-width="2.2" stroke-linecap="round"/><path d="M0 13 Q11.5 8 23 13 T46 13 T69 13 T92 13 T115 13 T138 13 T161 13 T184 13" fill="none" stroke="#1f6feb" stroke-opacity=".55" stroke-width="1.6"/></svg><svg class="hp-boneco" viewBox="0 0 36 36"><g class="hp-corpo" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><g class="hp-coxa l2"><line x1="16" y1="19" x2="16" y2="25.5"/><g class="hp-canela l2"><line x1="16" y1="25.5" x2="16" y2="32"/></g></g><g class="hp-braco l2"><line x1="19.5" y1="11" x2="19.5" y2="16.5"/><line x1="19.5" y1="16.5" x2="23.5" y2="15"/></g><line x1="20" y1="10" x2="16" y2="19" stroke="#46d6ff"/><circle cx="22.3" cy="5.4" r="3.1" fill="#46d6ff" stroke="none"/><g class="hp-coxa"><line x1="16" y1="19" x2="16" y2="25.5"/><g class="hp-canela"><line x1="16" y1="25.5" x2="16" y2="32"/></g></g><g class="hp-braco"><line x1="19.5" y1="11" x2="19.5" y2="16.5"/><line x1="19.5" y1="16.5" x2="23.5" y2="15"/></g></g></svg>`;
