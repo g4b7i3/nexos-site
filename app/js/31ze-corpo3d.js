@@ -119,7 +119,12 @@ function viewCorpo3d(reg, lado, sel) {
     <p class="small muted" style="margin-top:6px">Gire, aproxime e toque nas estruturas. Veja as dores mais comuns na corrida e o que cada exercício trabalha.</p>
     <p class="sec-lbl" style="margin-top:16px">Corrida e musculação</p><div class="stack">${C3D_ORDEM.map(c3dItem).join('')}</div>
     <p class="sec-lbl" style="margin-top:20px">O resto do corpo</p><div class="stack">${C3D_ORDEM2.map(c3dItem).join('')}</div>
-    <p class="tiny dim c3d-pe">${C3D_AVISO}<br>Modelos 3D: Z-Anatomy (CC BY-SA 4.0), a partir do BodyParts3D, © DBCLS (CC BY-SA 2.1 JP). Motor 3D: three.js.</p>`;
+    <p class="tiny dim c3d-pe">${C3D_AVISO}<br><button type="button" class="link-btn" id="c3d-sobre" style="color:inherit;font-weight:500;font-size:inherit;text-decoration:underline;padding:0;margin-top:4px">Sobre os modelos 3D</button></p>`;
+  // a licença dos modelos pede o crédito; fica aqui, discreto, em vez do rodapé de cada tela
+  $app.querySelector('#c3d-sobre').onclick = () =>
+    openSheet(
+      `<h3 class="h2">Sobre os modelos 3D</h3><p class="small" style="margin-top:8px">Modelos do projeto Z-Anatomy (licença CC BY-SA 4.0), feitos a partir do BodyParts3D, © DBCLS (CC BY-SA 2.1 Japão). Motor 3D: three.js (licença MIT).</p>`,
+    );
   // adianta o carregamento: o motor já na lista, e o modelo assim que o dedo encosta na região
   c3dLib().catch(() => {});
   $app.querySelectorAll('a[href^="#/corpo3d/"]').forEach((a) =>
@@ -142,7 +147,7 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
       <div class="c3d-camadas" id="c3d-camadas" hidden></div></div>
     <div class="tabs c3d-abas" role="tablist"><button type="button" data-aba="exp">Explorar</button>${R.cond.length ? '<button type="button" data-aba="cond">Condições</button>' : ''}${Object.values(C3D_EX).some((e) => e.r === reg) ? '<button type="button" data-aba="ex">Exercícios</button>' : ''}</div>
     <div id="c3d-painel"></div>
-    <p class="tiny dim c3d-pe">${C3D_AVISO}<br>Modelos 3D: Z-Anatomy (CC BY-SA 4.0), a partir do BodyParts3D, © DBCLS (CC BY-SA 2.1 JP).</p>`;
+    <p class="tiny dim c3d-pe">${C3D_AVISO}</p>`;
   const vp = $app.querySelector('#c3d-vp'),
     painel = $app.querySelector('#c3d-painel'),
     rot = $app.querySelector('#c3d-rot');
