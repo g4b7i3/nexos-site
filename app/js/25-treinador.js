@@ -2621,15 +2621,17 @@ async function escolherExercicio(exs, onPick) {
 }
 /** corta um trecho do vídeo no próprio aparelho (sem servidor): toca o trecho num canvas e grava.
  *  Sai um clipe curto, leve e sem som, que o app toca em loop como um GIF. */
-async function cortarVideo(src, ini, fim, aoProgresso) {
+async function cortarVideo(src, ini, fim, aoProgresso, opts = {}) {
   const v = document.createElement('video');
-  v.muted = true;
+  // com som: o áudio vai para a gravação por dentro (Web Audio), sem tocar no alto-falante
+  v.muted = !opts.audio;
   v.playsInline = true;
   v.crossOrigin = 'anonymous';
   v.preload = 'auto';
   v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0';
   document.body.appendChild(v);
   const url = src instanceof Blob ? URL.createObjectURL(src) : src;
+  let ac = null;
   try {
     v.src = url;
     await new Promise((ok, erro) => {
@@ -2645,12 +2647,30 @@ async function cortarVideo(src, ini, fim, aoProgresso) {
       (t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t),
     );
     if (!tipo || !cv.captureStream) throw new Error('sem suporte');
-    v.currentTime = ini;
+    // vai ao começo; se o celular não avisar que chegou, segue em 3 s (não trava)
     await new Promise((ok) => {
-      v.onseeked = ok;
+      const tm = setTimeout(ok, 3000);
+      v.onseeked = () => {
+        clearTimeout(tm);
+        ok();
+      };
+      v.currentTime = ini;
     });
     ctx.drawImage(v, 0, 0, cv.width, cv.height);
-    const rec = new MediaRecorder(cv.captureStream(30), { mimeType: tipo, videoBitsPerSecond: 2500000 });
+    const fluxo = cv.captureStream(30);
+    if (opts.audio) {
+      try {
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        const dest = ac.createMediaStreamDestination();
+        ac.createMediaElementSource(v).connect(dest);
+        dest.stream.getAudioTracks().forEach((t) => fluxo.addTrack(t));
+        await ac.resume().catch(() => {});
+      } catch {
+        // sem como gravar o som aqui: desiste da conversão e o vídeo original vai como está
+        throw new Error('sem áudio');
+      }
+    }
+    const rec = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: 2500000 });
     const partes = [];
     rec.ondataavailable = (e) => {
       if (e.data && e.data.size) partes.push(e.data);
@@ -2661,14 +2681,20 @@ async function cortarVideo(src, ini, fim, aoProgresso) {
     rec.start(250);
     await v.play();
     await new Promise((ok) => {
+      let feito = false;
+      const acabar = () => {
+        if (feito) return;
+        feito = true;
+        v.pause();
+        ok();
+      };
+      // no fim do arquivo não chega mais quadro novo: o 'ended' encerra
+      v.onended = acabar;
       const passo = () => {
+        if (feito) return;
         ctx.drawImage(v, 0, 0, cv.width, cv.height);
         if (aoProgresso) aoProgresso(Math.min(1, (v.currentTime - ini) / (fim - ini)));
-        if (v.currentTime >= fim || v.ended) {
-          v.pause();
-          ok();
-          return;
-        }
+        if (v.currentTime >= fim - 0.04 || v.ended) return acabar();
         v.requestVideoFrameCallback ? v.requestVideoFrameCallback(passo) : requestAnimationFrame(passo);
       };
       passo();
@@ -2682,8 +2708,24 @@ async function cortarVideo(src, ini, fim, aoProgresso) {
   } finally {
     if (src instanceof Blob) URL.revokeObjectURL(url);
     v.remove();
+    if (ac) ac.close().catch(() => {});
   }
 }
+// duração de um vídeo escolhido (sem tocar)
+const duracaoVideo = (file) =>
+  new Promise((ok) => {
+    const v = document.createElement('video'),
+      url = URL.createObjectURL(file);
+    const fim = (d) => {
+      URL.revokeObjectURL(url);
+      ok(d);
+    };
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => fim(isFinite(v.duration) ? v.duration : 0);
+    v.onerror = () => fim(0);
+    setTimeout(() => fim(0), 8000);
+    v.src = url;
+  });
 const mmssC = (t) =>
   `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}${t % 1 >= 0.05 ? ',' + Math.floor((t % 1) * 10) : ''}`;
 /** painel de corte: prévia, começo/fim e atalhos de 5, 10 e 15 s. Devolve { ativo, ini, fim } atualizado */
@@ -2765,14 +2807,27 @@ function painelCorte(box, src, cortarPadrao) {
   };
   return st;
 }
-async function enviarMidiaEx(file) {
+// envia a mídia mostrando quanto já foi (aoProgresso de 0 a 1)
+async function enviarMidiaEx(file, aoProgresso) {
   const ext =
     (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '') || file.type.split('/')[1] || 'bin';
   const path = `${S.org.id}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await sb.storage
-    .from('nx-exvideos')
-    .upload(path, file, { contentType: file.type || undefined, cacheControl: '31536000' });
-  if (error) throw error;
+  const {
+    data: { session },
+  } = await sb.auth.getSession();
+  await new Promise((ok, erro) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', `${SUPABASE_URL}/storage/v1/object/nx-exvideos/${path}`);
+    x.setRequestHeader('Authorization', 'Bearer ' + ((session && session.access_token) || SUPABASE_KEY));
+    x.setRequestHeader('apikey', SUPABASE_KEY);
+    x.setRequestHeader('cache-control', 'max-age=31536000');
+    if (file.type) x.setRequestHeader('content-type', file.type);
+    x.upload.onprogress = (e) => e.lengthComputable && aoProgresso && aoProgresso(e.loaded / e.total);
+    x.onload = () => (x.status < 300 ? ok() : erro(new Error('envio ' + x.status + ' ' + x.responseText)));
+    x.onerror = () => erro(new Error('rede'));
+    x.ontimeout = () => erro(new Error('tempo'));
+    x.send(file);
+  });
   return sb.storage.from('nx-exvideos').getPublicUrl(path).data.publicUrl;
 }
 /** criar ou editar exercício. opts.aoSalvar recebe o exercício salvo; opts.voltar volta para a lista de onde veio */
@@ -2916,6 +2971,27 @@ async function formExercicio(exLista, opts = {}) {
               );
             }
             btn.textContent = 'Enviando a mídia…';
+          } else if (midia === 'video' && arq && arq.size > 4 * 1024 * 1024) {
+            // vídeo inteiro: converte no celular para MP4 leve (720p) antes de enviar.
+            // Fica bem menor (envio rápido) e toca em qualquer celular (o .mov do iPhone não abre em muitos Android).
+            const dur = await duracaoVideo(arq);
+            if (dur > 0 && dur <= 120) {
+              try {
+                const leve = await cortarVideo(
+                  arq,
+                  0,
+                  dur,
+                  (p) => {
+                    btn.textContent = `Preparando o vídeo… ${Math.round(p * 100)}%`;
+                  },
+                  { audio: !f.sem_audio.checked },
+                );
+                if (leve.size > 50000 && leve.size < arq.size) arqFinal = leve;
+              } catch (er) {
+                console.error(er);
+              }
+            }
+            btn.textContent = 'Enviando a mídia…';
           }
           const linhas = f.instrucoes.value
             .split('\n')
@@ -2931,7 +3007,10 @@ async function formExercicio(exLista, opts = {}) {
             instrucoes: linhas,
             descricao: linhas[0] || null,
           };
-          const url = arqFinal ? (await enviarMidiaEx(arqFinal)) + (vaiCortar ? '#loop' : '') : null;
+          const url = arqFinal
+            ? (await enviarMidiaEx(arqFinal, (p) => (btn.textContent = `Enviando a mídia… ${Math.round(p * 100)}%`))) +
+              (vaiCortar ? '#loop' : '')
+            : null;
           if (midia === 'nenhuma') Object.assign(d, { video_url: null, imagens: daBib });
           else if (midia === 'foto')
             Object.assign(d, { video_url: null, imagens: url ? [url] : proprias.length ? proprias : daBib });
