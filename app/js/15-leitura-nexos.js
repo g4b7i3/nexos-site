@@ -16,6 +16,7 @@ function zonaDoPace(pace, perfil) {
   }
   return 'rec';
 }
+/* voltas:puro:inicio — separação esforço x recuperação (testada em scripts/testes/series.test.js) */
 const media = (l) => (l.length ? l.reduce((a, b) => a + b, 0) / l.length : null);
 const fmtSeg = (s) => {
   s = Math.round(Math.abs(s));
@@ -70,6 +71,7 @@ function tirosDasVoltas(voltas, comAqDq, repPl) {
   if (esf.length < 2 || !rec.length || a > b * 0.88) return null; // não é um treino de tiros de verdade
   return { esf, rec };
 }
+/* voltas:puro:fim */
 /** tempo em cada zona de FC (Z1 a Z5, as mesmas do perfil do aluno) pela série do relógio */
 function tempoZonasFC(serie, zs) {
   const T = serie && serie.t,

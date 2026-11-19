@@ -912,46 +912,61 @@ function cardValores(c) {
     passos: E.passos ? { l: 'Passos', v: Math.round(E.passos).toLocaleString('pt-BR'), u: '' } : null,
   };
 }
-// voltas fortes (tiros): separa as voltas rápidas das de recuperação pelo pace
-// tipo do treino de qualidade (pela planilha ou pelo título): o card de séries leva esse nome
+/* serie:puro:inicio — tipo do treino e tiros do card (testados em scripts/testes/series.test.js) */
+// tipo do treino para o card: a estrutura da planilha manda (blocos de repetição = séries), depois o tipo e o título
+const NOME_LEVE = { rodagem: 'Rodagem', regenerativo: 'Regenerativo', longao: 'Longão' };
+const ZONA_SERIE = { tiros: 'Tiros', intervalado: 'Intervalado', limiar: 'Limiar', maratona: 'Ritmo de prova' };
 function serieDe(c, plano) {
   const t = `${(plano && plano.titulo) || ''} ${c.titulo || ''}`.toLowerCase(),
     tp = plano && plano.tipo;
-  if (/sub\s*-?\s*limiar/.test(t)) return { titulo: 'Sublimiar', qual: true };
-  if (tp === 'fartlek' || /fartlek/.test(t)) return { titulo: 'Fartlek', qual: true };
-  if (tp === 'ritmo' || /limiar|ritmo/.test(t)) return { titulo: 'Limiar', qual: true };
-  if (tp === 'tiros' || /tiro/.test(t)) return { titulo: 'Tiros', qual: true };
-  if (tp === 'intervalado' || /intervalad/.test(t)) return { titulo: 'Intervalado', qual: true };
-  if (tp === 'teste') return { titulo: 'Teste', qual: true };
+  const est = plano ? estruturaDe(plano) : [];
+  // bloco de repetição com passo de corrida: é treino em séries, mesmo que o dia seja "regenerativo" com acelerações
+  const rep = est.find((s) => s.k === 'rep' && s.n >= 1 && (s.passos || []).some((x) => x.k === 'co')) || null;
+  const aq = est.some((s) => s.k === 'aq');
+  const nomePl = plano && plano.titulo ? plano.titulo.split(' · ')[0].trim() : '';
+  const leveTp = !!NOME_LEVE[tp];
+  if (rep) {
+    const co = rep.passos.find((x) => x.k === 'co');
+    const titulo = /aceler|educativ/.test(t)
+      ? 'Acelerações'
+      : /sub\s*-?\s*limiar/.test(t)
+        ? 'Sublimiar'
+        : tp === 'fartlek' || /fartlek/.test(t)
+          ? 'Fartlek'
+          : ZONA_SERIE[co.z] || (/tiro/.test(t) ? 'Tiros' : 'Séries');
+    return { titulo, qual: true, rep, aq, nome: leveTp ? nomePl || NOME_LEVE[tp] : null };
+  }
+  if (/sub\s*-?\s*limiar/.test(t)) return { titulo: 'Sublimiar', qual: true, aq };
+  if (tp === 'fartlek' || /fartlek/.test(t)) return { titulo: 'Fartlek', qual: true, aq };
+  if (tp === 'ritmo' || /limiar|ritmo/.test(t)) return { titulo: 'Limiar', qual: true, aq };
+  if (tp === 'tiros' || /tiro/.test(t)) return { titulo: 'Tiros', qual: true, aq };
+  if (tp === 'intervalado' || /intervalad/.test(t)) return { titulo: 'Intervalado', qual: true, aq };
+  if (tp === 'teste') return { titulo: 'Teste', qual: true, aq };
   // treinos leves ganham o card minimalista com o nome do treino
-  const NOME_LEVE = { rodagem: 'Rodagem', regenerativo: 'Regenerativo', longao: 'Longão' };
-  if (NOME_LEVE[tp]) return { titulo: 'Tiros', qual: false, leve: true, nome: NOME_LEVE[tp] };
+  if (leveTp) return { titulo: 'Tiros', qual: false, leve: true, nome: nomePl || NOME_LEVE[tp] };
   if (tp) return { titulo: 'Tiros', qual: false, leve: tp === 'folga' };
   if (/long[aã]o/.test(t)) return { titulo: 'Tiros', qual: false, leve: true, nome: 'Longão' };
   if (/regenerativ/.test(t)) return { titulo: 'Tiros', qual: false, leve: true, nome: 'Regenerativo' };
   if (/rodagem/.test(t)) return { titulo: 'Tiros', qual: false, leve: true, nome: 'Rodagem' };
   return { titulo: 'Tiros', qual: false };
 }
+// voltas fortes (tiros): a mesma separação da Leitura Nexos; com a planilha, o tiro é a volta com a distância
+// (ou a duração) do passo forte, e o aquecimento e a recuperação ficam de fora
 function tirosDe(c) {
   const sr = c._serie || {};
-  const vs = ((c.analise && c.analise.voltas) || [])
-    .filter((v) => v && v.d >= 100 && v.seg > 0)
-    .map((v, i) => ({ ...v, i, p: v.seg / (v.d / 1000) }));
-  if (vs.length < 3 || sr.leve) return [];
-  const ord = vs.map((v) => v.p).sort((a, b) => a - b);
-  let corte = null,
-    maior = 1;
-  for (let i = 1; i < ord.length; i++) {
-    const r = ord[i] / ord[i - 1];
-    if (r > maior) {
-      maior = r;
-      corte = (ord[i] + ord[i - 1]) / 2;
-    }
+  if (sr.leve && !sr.rep) return [];
+  const voltas = ((c.analise && c.analise.voltas) || []).filter((v) => v && v.d > 0 && v.seg > 0);
+  const r = tirosDasVoltas(voltas, sr.rep ? sr.aq || true : true, sr.rep || null);
+  if (!r || !r.esf.length) return [];
+  // sem planilha e sem nome de treino forte: só vale se os tiros forem bem mais rápidos que a recuperação
+  if (!sr.rep && !sr.qual) {
+    const pe = media(r.esf.map((v) => v.pace)),
+      pr = media(r.rec.map((v) => v.pace));
+    if (r.esf.length < 3 || !(pe < pr * 0.85)) return [];
   }
-  if (maior < (sr.qual ? 1.06 : 1.12) || corte == null) return [];
-  const fortes = vs.filter((v) => v.p < corte);
-  return fortes.length >= (sr.qual ? 1 : 2) && fortes.length < vs.length ? fortes.slice(0, 10) : [];
+  return r.esf.slice(0, 12).map((v) => ({ ...v, p: v.pace }));
 }
+/* serie:puro:fim */
 // clima da hora e do lugar da corrida (Open-Meteo, sem chave); se não der, a temperatura do relógio
 const CLIMA_CACHE = {};
 async function climaDe(c) {
@@ -1394,17 +1409,13 @@ async function desenharCard(cv, c, o) {
     const lh = Math.min(post ? 74 : 92, (H - (post ? 560 : 760)) / Math.max(1, tr.length));
     let y = (H - (190 + tr.length * lh + 260)) / 2;
     const tit = (c._serie && c._serie.titulo) || 'Tiros';
-    txt(tit, 100, y + 70, `800 ${tit.length > 9 ? 70 : 84}px ${FH}`, tx, 'left', -2);
-    txt(
-      iguais
-        ? `${tr.length} × ${dists[0] >= 1000 ? (dists[0] / 1000).toString().replace('.', ',') + ' km' : dists[0] + ' m'}`
-        : `${tr.length} ${tr.length > 1 ? 'séries' : 'série'}`,
-      W - 100,
-      y + 66,
-      `700 40px ${FB}`,
-      AC,
-      'right',
-    );
+    const qtd = iguais
+      ? `${tr.length} × ${dists[0] >= 1000 ? (dists[0] / 1000).toString().replace('.', ',') + ' km' : dists[0] + ' m'}`
+      : `${tr.length} ${tr.length > 1 ? 'séries' : 'série'}`;
+    let tpx = 84;
+    while (tpx > 44 && larg(tit, `800 ${tpx}px ${FH}`, -2) > W - 260 - larg(qtd, `700 40px ${FB}`, 0)) tpx -= 2;
+    txt(tit, 100, y + 70, `800 ${tpx}px ${FH}`, tx, 'left', -2);
+    txt(qtd, W - 100, y + 66, `700 40px ${FB}`, AC, 'right');
     y += 150;
     txt('#', 100, y + 10, LBL(24), sub, 'left', 3);
     txt('PACE', W - 100, y + 10, LBL(24), sub, 'right', 3);
@@ -3318,6 +3329,7 @@ async function abrirCardCorrida(c, plano) {
           (k !== 'velocidade' || !!cardVel(c)) &&
           (k !== 'gigante' || !!V.dist),
       );
+  if (!c._x.recorde && temTiros && c._serie.rep) o.layout = 'tiros';
   if (!modelos.some(([k]) => k === o.layout))
     o.layout = modelos.some(([k]) => k === 'classico') ? 'classico' : modelos[0][0];
   const seg = (k, ops, val) =>
