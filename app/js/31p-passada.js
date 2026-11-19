@@ -2300,6 +2300,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
               : `<p style="margin-top:6px;white-space:pre-line">${x.comentario ? esc(x.comentario) : 'Seu treinador vai olhar o vídeo e deixar o comentário aqui. Você recebe uma notificação.'}</p>`
           }</div>`
     }
+    ${previa ? '' : cr3HTML(x)}
     <p class="tiny dim" style="margin-top:12px">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. As faixas são referências gerais, e quem interpreta é o treinador. Baseado em Souza (2016), Heiderscheit et al. (2011) e Bramah et al. (2018).</p>`;
 }
 
@@ -3463,6 +3464,7 @@ async function viewPassada(sub) {
         <div class="card ps-rel pronto"><span class="eyebrow">Relatório do seu treinador</span><p class="small muted" style="margin-top:2px">Enviado em ${fmtDia(x.relatorio_em || x.comentado_em)}</p>
           ${x.comentario ? `<p style="margin-top:10px;white-space:pre-line">${esc(x.comentario)}</p>` : ''}
           <button class="btn block" id="ps-baixar" style="margin-top:14px">${PS_UP_IC.replace('M12 15V4', 'M12 4v11').replace('m7 9 5-5 5 5', 'm7 10 5 5 5-5')} Baixar o relatório (PDF)</button></div>
+        ${cr3HTML(x)}
         ${ant ? `<button class="btn ghost block" id="ps-ad" style="margin-top:12px">Ver antes e depois (${fmtDia(ant.criado_em)})</button>` : ''}
         ${psQuadrosHTML(x, urls)}
         ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
@@ -3472,6 +3474,7 @@ async function viewPassada(sub) {
         ${psLadosHTML(x, false)}
         <p class="tiny dim" style="margin-top:12px">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. Quem interpreta é o seu treinador. Baseado em Souza (2016), Heiderscheit et al. (2011) e Bramah et al. (2018).</p>`;
       psLigarQuadros($app);
+      cr3Ligar($app, x);
       const bAd = document.getElementById('ps-ad');
       if (bAd) bAd.onclick = () => psComparar($app, ant, x, () => viewPassada(sub), false);
       document.getElementById('ps-baixar').onclick = async (e) => {
@@ -3547,6 +3550,7 @@ async function psTreinador(box, m, sub) {
     const reabrir = () => psTreinador(box, m, sub);
     box.innerHTML = `<a class="back" href="${base}">${I.back} Todas as análises</a>${psDetalheHTML(x, urls, ant, true, false, outras)}`;
     psLigarQuadros(box);
+    cr3Ligar(box, x);
     psReplay(document.getElementById('ps-rp'), x.serie);
     box.querySelectorAll('.ps-conf-it').forEach((b) => (b.onclick = () => psConferir(box, x, +b.dataset.i, reabrir)));
     const cmp = document.getElementById('ps-comp-ir');

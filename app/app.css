@@ -4828,3 +4828,13 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .list-item.on{border-color:var(--acc)}
 .c3d-volta svg,#c3d-volta-c svg{width:16px;height:16px;vertical-align:-3px}
 #c3d-painel .list-item{text-align:left;width:100%}
+
+/* corredor 3D da análise da passada */
+.cr3-vp{position:relative;height:300px;margin:10px -4px 0;border-radius:var(--r-sm);overflow:hidden;background:linear-gradient(180deg,var(--s1),var(--bg2));touch-action:pan-y}
+.cr3-vp canvas{display:block;width:100%;height:100%}
+.cr3-carga{position:absolute;inset:0;display:grid;place-items:center}
+.cr3-rot{position:absolute;left:0;top:0;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--bg) 75%,transparent);border:1px solid var(--line2);pointer-events:none;white-space:nowrap}
+.cr3-rot.h{color:var(--mute)}.cr3-rot.d{color:var(--acc)}
+.cr3-tab{margin-top:10px}
+.cr3-lin{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;font-size:13.5px;padding:7px 0;border-bottom:1px solid var(--line)}
+.cr3-lin:last-child{border:0}.cr3-lin .h{color:var(--mute)}.cr3-lin .d{color:var(--acc)}.cr3-lin i{color:var(--dim);font-style:normal}
