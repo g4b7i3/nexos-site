@@ -1194,12 +1194,18 @@ async function psFpsVideo(v) {
   const f = m ? 1 / m : 30;
   return f > 180 ? 240 : f > 90 ? 120 : f > 50 ? 60 : 30;
 }
+// vai até um tempo do vídeo; se o celular não avisar que chegou (acontece em vídeo grande), segue depois de 3 s
 const psBuscar = (v, t) =>
   new Promise((ok) => {
+    let feito = false;
     const fim = () => {
+      if (feito) return;
+      feito = true;
       v.removeEventListener('seeked', fim);
+      clearTimeout(tm);
       ok();
     };
+    const tm = setTimeout(fim, 3000);
     v.addEventListener('seeked', fim);
     v.currentTime = t;
   });
@@ -1215,10 +1221,8 @@ async function psProcessar(v, ini, fim, prog, fator = 1) {
   const passo = 1 / fpsUso;
   const W = v.videoWidth,
     H = v.videoHeight;
-  const fr = [];
   let ts = Math.floor(performance.now());
-  for (let t = ini; t <= fim; t += passo) {
-    await psBuscar(v, t);
+  const detectar = (t) => {
     ts = Math.max(ts + 1, Math.floor(performance.now()));
     let p = null;
     try {
@@ -1226,10 +1230,75 @@ async function psProcessar(v, ini, fim, prog, fator = 1) {
       const lm = r && r.landmarks && r.landmarks[0];
       if (lm) p = lm.map((q) => [q.x * W, q.y * H, q.visibility ?? 1]);
     } catch {}
-    fr.push({ t: +((t - ini) / fator).toFixed(5), tv: +t.toFixed(4), p });
-    if (prog) prog((t - ini) / (fim - ini || 1), p, W, H);
+    if (prog) prog(Math.min(1, (t - ini) / (fim - ini || 1)), p, W, H);
+    return { t: +((t - ini) / fator).toFixed(5), tv: +t.toFixed(4), p };
+  };
+  // jeito principal: toca o vídeo devagar, sem som, e para em cada quadro para medir.
+  // Pular de quadro em quadro (busca) é muito lento em vídeo de celular em alta resolução e às vezes trava.
+  if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+    const fr = await psTocarQuadros(v, ini, fim, passo, detectar);
+    if (fr && fr.length > 5) return { fr, W, H, fps };
+  }
+  // reserva: busca quadro a quadro
+  const fr = [];
+  for (let t = ini; t <= fim; t += passo) {
+    await psBuscar(v, t);
+    fr.push(detectar(t));
   }
   return { fr, W, H, fps };
+}
+function psTocarQuadros(v, ini, fim, passo, detectar) {
+  return new Promise(async (ok) => {
+    const fr = [];
+    let ultimo = -1,
+      acabou = false,
+      vigia = null;
+    const encerra = () => {
+      if (acabou) return;
+      acabou = true;
+      clearTimeout(vigia);
+      v.pause();
+      v.playbackRate = 1;
+      ok(fr);
+    };
+    // se nenhum quadro chegar em 5 s, para e usa o que tiver (ou cai na busca quadro a quadro)
+    const armar = () => {
+      clearTimeout(vigia);
+      vigia = setTimeout(encerra, 5000);
+    };
+    v.muted = true;
+    v.playsInline = true;
+    await psBuscar(v, Math.max(0, ini - 0.05));
+    // devagar o bastante para não perder quadros enquanto mede
+    v.playbackRate = 0.25;
+    const cb = async (_, meta) => {
+      if (acabou) return;
+      armar();
+      const t = meta.mediaTime;
+      if (t > fim + 1e-3 || v.ended) return encerra();
+      if (t >= ini - 1e-3 && t - ultimo >= passo * 0.9) {
+        v.pause();
+        fr.push(detectar(t));
+        ultimo = t;
+        v.requestVideoFrameCallback(cb);
+        try {
+          await v.play();
+        } catch {
+          encerra();
+        }
+        return;
+      }
+      v.requestVideoFrameCallback(cb);
+    };
+    v.onended = encerra;
+    v.requestVideoFrameCallback(cb);
+    armar();
+    try {
+      await v.play();
+    } catch {
+      encerra();
+    }
+  });
 }
 
 /* ---------- desenho dos quadros marcados ---------- */
