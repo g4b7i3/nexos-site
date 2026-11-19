@@ -1236,7 +1236,9 @@ async function psProcessar(v, ini, fim, prog, fator = 1) {
   // jeito principal: toca o vídeo devagar, sem som, e para em cada quadro para medir.
   // Pular de quadro em quadro (busca) é muito lento em vídeo de celular em alta resolução e às vezes trava.
   if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-    const fr = await psTocarQuadros(v, ini, fim, passo, detectar);
+    // vídeo comum (30 quadros) toca na velocidade normal; 60 a meia; 120 a um quarto (sem perder quadro)
+    const vel = Math.max(0.25, Math.min(1, 30 / fpsV));
+    const fr = await psTocarQuadros(v, ini, fim, passo, detectar, vel);
     if (fr && fr.length > 5) return { fr, W, H, fps };
   }
   // reserva: busca quadro a quadro
@@ -1247,7 +1249,7 @@ async function psProcessar(v, ini, fim, prog, fator = 1) {
   }
   return { fr, W, H, fps };
 }
-function psTocarQuadros(v, ini, fim, passo, detectar) {
+function psTocarQuadros(v, ini, fim, passo, detectar, vel = 0.25) {
   return new Promise(async (ok) => {
     const fr = [];
     let ultimo = -1,
@@ -1269,8 +1271,8 @@ function psTocarQuadros(v, ini, fim, passo, detectar) {
     v.muted = true;
     v.playsInline = true;
     await psBuscar(v, Math.max(0, ini - 0.05));
-    // devagar o bastante para não perder quadros enquanto mede
-    v.playbackRate = 0.25;
+    // devagar o bastante para não perder quadros (o vídeo para em cada quadro enquanto mede)
+    v.playbackRate = vel;
     const cb = async (_, meta) => {
       if (acabou) return;
       armar();
