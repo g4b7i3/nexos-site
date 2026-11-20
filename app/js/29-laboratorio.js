@@ -1879,6 +1879,7 @@ function staffMais() {
   $app.innerHTML = `<p class="eyebrow">Mais</p><h1 class="h1">Gestão da assessoria</h1>
     ${buscaCampoHTML()}
     <p class="sec-lbl">Acompanhar os alunos</p><div class="stack">
+      ${it('#/avaliacoes-equipe', I.check, 'Avaliações dos alunos', 'Análise da corrida, movimento, física e postural de todos, com o que espera por você')}
       ${it('#/agenda', AG_IC, 'Agenda', 'Videochamadas, avaliações, treinos presenciais e outros compromissos')}
       ${it('#/nexos', MURAL_IC, 'Mural da Nexos', 'Recados para os alunos: avisos, treinões, camisa nova')}
       ${it('/teleprompter/', TELEPROMPTER_IC, 'Teleprompter', 'Texto rolando perto da câmera para gravar vídeos')}

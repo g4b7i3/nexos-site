@@ -163,6 +163,12 @@ function buscaTelasEquipe() {
       'Frases gravadas que os alunos ouvem no GPS',
       'voz audio gravar frase gps treino falar',
     ],
+    [
+      '#/avaliacoes-equipe',
+      'Avaliações dos alunos',
+      'Corrida, movimento, física e postural de todos num lugar',
+      'avaliacao avaliacoes analise biomecanica passada corrida movimento postura postural fisica bioimpedancia dobras relatorio pendente',
+    ],
     ['#/checkup', 'Check-up do Corredor', 'Avaliação de entrada e saída', 'checkup avaliacao entrada'],
     [
       '#/corpo3d',
