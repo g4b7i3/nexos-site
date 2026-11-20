@@ -154,8 +154,9 @@ async function viewGps(id, modo) {
   let btsChave = '',
     nTick = 0,
     podeSemSinal = false,
-    ultimo = null,
-    ultimoT = 0,
+    // treino retomado depois do app fechar: continua do último ponto, para o trecho sem sinal entrar na distância
+    ultimo = st.estado === 'correndo' && st.ult ? st.ult[0] : null,
+    ultimoT = st.estado === 'correndo' && st.ult ? st.ult[1] : 0,
     tickRef = 0,
     watch = null,
     lock = null,
@@ -837,6 +838,7 @@ async function viewGps(id, modo) {
     }
     ultimo = fp;
     ultimoT = t;
+    st.ult = [fp, t];
     st.rota.push(fp);
     const mov = movAgora() / 1000;
     janela.push({ t: Date.now(), d: st.dist });
@@ -973,6 +975,7 @@ async function viewGps(id, modo) {
     st.estado = 'correndo';
     marcaMov = Date.now();
     ultimo = null;
+    st.ult = null;
     ultMov = Date.now();
     st.auto = false;
     pedirTela();
@@ -992,6 +995,7 @@ async function viewGps(id, modo) {
     st.estado = 'pausado';
     st.auto = false;
     ultimo = null;
+    st.ult = null;
     metroParar();
     salvar();
     falar('Pausado.');
@@ -1006,6 +1010,7 @@ async function viewGps(id, modo) {
     ultMov = Date.now();
     marcaMov = Date.now();
     ultimo = null;
+    st.ult = null;
     pedirTela();
     liberarSom();
     metroGps();
@@ -1023,6 +1028,7 @@ async function viewGps(id, modo) {
     st.auto = true;
     autoBase = eu;
     ultimo = null;
+    st.ult = null;
     metroParar();
     vibrar(150);
     falar('Pausa automática.');
@@ -1196,8 +1202,8 @@ async function viewGps(id, modo) {
   };
   // tela apagou e voltou: GPS e tela acesa de novo; o tempo corre certo porque é pelo relógio do aparelho
   const onVis = () => {
+    // não zera o último ponto: o trecho em que a tela ficou apagada (sem GPS) entra em linha reta na distância
     if (document.visibilityState === 'visible') {
-      ultimo = null;
       if (st.estado === 'correndo') pedirTela();
       desenha();
     } else salvar();
