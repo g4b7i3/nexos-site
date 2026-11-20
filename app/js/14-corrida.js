@@ -738,6 +738,8 @@ function formCorrida(alunoId, d, plano, onSalvo) {
         // corrigiu a distância (GPS errou): os tiros, as parciais e os gráficos vão junto, na proporção da distância certa
         const fator = lido && !reaproveitaArquivo && d.distancia_m > 0 ? (km * 1000) / d.distancia_m : 0;
         const ajustada = fator >= 0.2 && fator <= 5 && d.analise ? escalarAnalise(d.analise, fator) : null;
+        // guarda o que o GPS (ou o arquivo) marcou, para o treinador saber que a distância foi trocada
+        if (ajustada) ajustada.extras.distancia_gps_m = Math.round(d.distancia_m);
         const row = {
           org_id: S.org.id,
           aluno_id: alunoId,
