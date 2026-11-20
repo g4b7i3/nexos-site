@@ -1564,7 +1564,7 @@ async function staffAluno(alunoId, aba, extra) {
 async function carregarExercicios(force) {
   if (!S.cache.ex || force) {
     const cols =
-      'id,nome,nome_en,grupo,categoria,equipamento,imagens,video_url,video_credito,com_audio,nivel,fonte,ref_externa,criado_por';
+      'id,nome,nome_en,grupo,categoria,equipamento,imagens,video_url,capa_url,video_credito,com_audio,nivel,fonte,ref_externa,criado_por';
     let all = [],
       from = 0;
     for (;;) {
@@ -3022,6 +3022,8 @@ async function formExercicio(exLista, opts = {}) {
             });
           else Object.assign(d, { video_url: yt, imagens: proprias.length ? [] : daBib });
           if (!d.video_url || midia !== 'video') d.com_audio = false;
+          // vídeo novo pede capa nova (a equipe gera sozinha em segundo plano)
+          if (novo || d.video_url !== ex.video_url) d.capa_url = null;
           const r = novo
             ? await sb
                 .from('nx_exercicios')

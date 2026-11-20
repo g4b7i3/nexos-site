@@ -568,7 +568,7 @@ async function viewExecucao(treinoId, preview) {
   const { data: t, error } = await sb
     .from('nx_treinos')
     .select(
-      '*, nx_treino_itens(*, nx_exercicios(nome,grupo,equipamento,descricao,video_url,video_credito,com_audio,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa))',
+      '*, nx_treino_itens(*, nx_exercicios(nome,grupo,equipamento,descricao,video_url,capa_url,video_credito,com_audio,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa))',
     )
     .eq('id', treinoId)
     .maybeSingle();
@@ -628,7 +628,7 @@ async function viewExecucao(treinoId, preview) {
       const exs = await sb
         .from('nx_exercicios')
         .select(
-          'id,nome,grupo,equipamento,descricao,video_url,video_credito,com_audio,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa',
+          'id,nome,grupo,equipamento,descricao,video_url,capa_url,video_credito,com_audio,imagens,instrucoes,musculos,musculos_sec,nivel,ref_externa',
         )
         .in(
           'id',

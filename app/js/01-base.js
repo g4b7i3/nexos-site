@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261120135725';
+const NX_BUILD = 'v20261120234152';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -336,8 +336,11 @@ const selo = (k, extra = '') =>
 const imgURL = (p) => (/^https?:/.test(p) ? p : 'ex/' + p);
 function exFig(ex, cls = '') {
   const im = (ex && ex.imagens) || [];
+  // lista nunca carrega vídeo: mostra a capa (foto tirada do vídeo) ou um quadro com o grupo e o símbolo de vídeo
   if (!im.length && ex && ehVideoArquivo(ex.video_url))
-    return `<div class="exfig ${cls}"><video src="${esc(ex.video_url.split('#')[0])}#t=0.5" muted playsinline preload="metadata" aria-hidden="true"></video></div>`;
+    return ex.capa_url
+      ? `<div class="exfig ${cls}"><img src="${esc(ex.capa_url)}" alt="${esc(ex.nome || '')}" loading="lazy" decoding="async"></div>`
+      : `<div class="exfig empty vid ${cls}" aria-hidden="true"><span>${esc(ex.grupo || '')}</span></div>`;
   if (!im.length)
     return `<div class="exfig empty ${cls}" aria-hidden="true"><span>${esc((ex && ex.grupo) || '')}</span></div>`;
   return `<div class="exfig ${im.length > 1 ? 'anim' : ''} ${cls}">${im
@@ -366,7 +369,7 @@ async function hidratarInstrucoes(root = document) {
 const ehVideoArquivo = (u) => /\.(mp4|mov|m4v|webm)(\?|$)/i.test(u || '') || /\/storage\/v1\/object\//.test(u || '');
 const exVideoHTML = (ex) =>
   ex && ex.video_url && ehVideoArquivo(ex.video_url)
-    ? `<div class="ex-vid">${/#loop$/.test(ex.video_url) ? `<video src="${esc(ex.video_url.split('#')[0])}" autoplay muted loop playsinline preload="metadata" disablepictureinpicture></video>` : `<video src="${esc(ex.video_url)}" controls playsinline ${ex.com_audio ? '' : 'muted'} loop preload="none"></video>`}${ex.video_credito ? `<p class="tiny dim">Vídeo: ${esc(ex.video_credito).replace('CC BY-SA 4.0', '<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" target="_blank" rel="noopener" class="dim">CC BY-SA 4.0</a>')}</p>` : ''}</div>`
+    ? `<div class="ex-vid">${/#loop$/.test(ex.video_url) ? `<video data-exv="${esc(ex.video_url.split('#')[0])}" ${ex.capa_url ? `poster="${esc(ex.capa_url)}"` : ''} autoplay muted loop playsinline preload="none" disablepictureinpicture></video>` : `<video data-exv="${esc(ex.video_url.split('#')[0])}" ${ex.capa_url ? `poster="${esc(ex.capa_url)}"` : ''} controls playsinline ${ex.com_audio ? '' : 'muted'} preload="none"></video>`}${ex.video_credito ? `<p class="tiny dim">Vídeo: ${esc(ex.video_credito).replace('CC BY-SA 4.0', '<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" target="_blank" rel="noopener" class="dim">CC BY-SA 4.0</a>')}</p>` : ''}</div>`
     : '';
 function exDetalhe(ex) {
   const passos =
