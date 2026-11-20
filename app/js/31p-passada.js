@@ -626,6 +626,9 @@ function psFinais(x) {
       if (v.length) m[k] = Math.max(...v);
       if (conf.has('E.' + k) || conf.has('D.' + k)) conf.add(k);
     });
+  // análises antigas, de antes da trava: tempo de contato impossível não aparece
+  if (m.contato != null && psContatoOk(m.contato) == null) delete m.contato;
+  Object.values(lados).forEach((L) => L && L.contato != null && psContatoOk(L.contato) == null && delete L.contato);
   return { m, lados, conf };
 }
 // diferença entre os lados: em graus para ângulos, em % para tempos
@@ -2868,7 +2871,7 @@ async function psDataUrl(url) {
 }
 const PS_NIVEL_TXT = { ok: 'Dentro do comum', atencao: 'Atenção', fora: 'Fora do comum', info: 'Informativo' };
 const PS_NIVEL_COR = { ok: '#15803d', atencao: '#b45309', fora: '#b91c1c', info: '#475569' };
-function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
+function psRelatorioHTML(x, imgs, ant, m, logo, pares = [], ex2 = {}) {
   const rel = (x.extra || {}).rel || {};
   const passos = String(rel.passos ?? '')
     .split('\n')
@@ -2890,7 +2893,7 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
         : '';
       const corDt = c && c.efeito === 'melhorou' ? '#15803d' : c && c.efeito === 'piorou' ? '#b91c1c' : '#64748b';
       return `<div class="psr-l" style="display:flex;border-bottom:1px solid #e2e8f0"><div style="padding:10px 8px;width:34%;box-sizing:border-box"><b style="font-size:13px">${PS_TITULO[k]}</b><div style="font-size:10.5px;color:#64748b;margin-top:3px;line-height:1.4">${esc(ex.sobre || '')}</div></div>
-        <div style="padding:10px 8px;width:18%;box-sizing:border-box;white-space:nowrap"><b style="font-size:18px">${psFmt(k, me[k])}</b>${psUn(k) === '°' ? '' : ' '}<span style="font-size:11px;color:#64748b">${psUn(k)}</span>${dt ? `<div style="font-size:10px;color:${corDt};margin-top:2px;white-space:normal">${dt}</div>` : ''}${fin.conf.has(k) ? '<div style="font-size:9.5px;color:#1d4ed8;margin-top:2px;font-weight:700">conferido pelo treinador</div>' : ''}${psEsperado(k, psKmh(x)) ? `<div style="font-size:10px;color:#475569;margin-top:3px;white-space:normal">Esperado ${esc(psEspTxt(k, psEsperado(k, psKmh(x))))}</div>` : ''}</div>
+        <div style="padding:10px 8px;width:18%;box-sizing:border-box;white-space:nowrap"><b style="font-size:18px">${psFmt(k, me[k])}</b>${psUn(k) === '°' ? '' : ' '}<span style="font-size:11px;color:#64748b">${psUn(k)}</span>${dt ? `<div style="font-size:10px;color:${corDt};margin-top:2px;white-space:normal">${dt}</div>` : ''}${fin.conf.has(k) ? '<div style="font-size:9.5px;color:#1d4ed8;margin-top:2px;font-weight:700">conferido pelo treinador</div>' : ''}${psEsperado(k, psKmh(x)) ? `<div style="font-size:10px;color:#475569;margin-top:3px;white-space:normal">Esperado ${esc(psEspTxt(k, psEsperado(k, psKmh(x))))}</div>${psReguaPdf(me[k], psEsperado(k, psKmh(x)), PS_NIVEL_COR[nv])}` : ''}</div>
         <div style="padding:10px 8px;flex:1"><span style="display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:${PS_NIVEL_COR[nv]};border-radius:99px;padding:2px 9px">${PS_NIVEL_TXT[nv]}</span><div style="font-size:12px;margin-top:5px;line-height:1.45">${esc((rel.textos && rel.textos[k]) || psExplicaTxt(k, me[k]))}</div></div></div>`;
     });
   const fotos = imgs
@@ -2907,17 +2910,177 @@ function psRelatorioHTML(x, imgs, ant, m, logo, pares = []) {
     <div style="margin-top:20px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1d4ed8;font-weight:800">Análise biomecânica da corrida</div>
     <div style="font-size:26px;font-weight:800;margin-top:4px">${esc(m.nome || '')}</div>
     <div style="font-size:12.5px;color:#475569;margin-top:4px">Vídeo ${x.vista === 'lado' ? 'de lado' : 'por trás'} · ${esc(x.local === 'esteira' ? 'Esteira' : x.local === 'rua' ? 'Rua' : 'Vídeo enviado')} · gravado em ${psDataHora(x.criado_em)}${psRitmoTxt(x) ? ' · ' + esc(psRitmoTxt(x)) : ''}</div>
-    <div class="psr-l" style="margin-top:20px;background:#f1f5f9;border-left:4px solid #0b1f44;border-radius:8px;padding:14px 16px;">
+    ${psResumoPdf(x)}
+    <div class="psr-l" style="margin-top:16px;background:#f1f5f9;border-left:4px solid #0b1f44;border-radius:8px;padding:14px 16px;">
       <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0b1f44">O que o seu treinador viu</div>
       <div style="font-size:13.5px;line-height:1.55;margin-top:6px;white-space:pre-line">${esc(x.comentario || '')}</div>
       ${treinador ? `<div style="font-size:12px;color:#475569;margin-top:10px">${esc(treinador)}</div>` : ''}</div>
     ${passos.length ? `<div class="psr-l" style="margin-top:16px;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1d4ed8">Próximos passos</div><ol style="margin:8px 0 0;padding-left:20px;font-size:13px;line-height:1.55">${passos.map((l) => `<li style="margin-top:3px">${esc(l)}</li>`).join('')}</ol></div>` : ''}
-    <div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800;margin-bottom:6px">As medidas</div>${linhas[0] || ''}</div>${linhas.slice(1).join('')}
+    ${psTresPdf(ex2.tres, ex2.qr)}
+    <div class="psr-l psr-nova" style="margin-top:22px"><div style="font-size:15px;font-weight:800;margin-bottom:6px">As medidas</div>${linhas[0] || ''}</div>${linhas.slice(1).join('')}
+    ${psEvolucaoPdf(ex2.evol)}
     ${x.vista === 'tras' ? psRelLados(fin.lados) : psRelFases(x)}
     ${pares.length ? `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Antes e depois</div><div style="font-size:11px;color:#64748b;margin-top:2px">${fmtDia(ant.criado_em)} e ${fmtDia(x.criado_em)}</div>${pares.map((p) => `<div style="display:flex;gap:14px;margin-top:10px"><div style="width:220px"><img src="${p.a}" style="width:100%;border-radius:8px;display:block"><div style="font-size:11px;color:#475569;margin-top:4px">Antes · ${esc(p.legenda)}</div></div><div style="width:220px"><img src="${p.b}" style="width:100%;border-radius:8px;display:block"><div style="font-size:11px;color:#475569;margin-top:4px">Depois · ${esc(p.legenda)}</div></div></div>`).join('')}</div>` : ''}
     ${fotos ? `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Momentos marcados no vídeo</div><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px">${fotos}</div></div>` : ''}
     <div class="psr-l" style="margin-top:18px;font-size:10px;color:#64748b;line-height:1.5;">Medidas feitas pelo celular a partir do vídeo (2D), aproximadas e sensíveis ao ângulo da câmera. As faixas são referências gerais, e quem interpreta é o seu treinador. Referências: ${PS_REFS}</div>
   </div>`;
+}
+// régua do PDF: faixa esperada (média ± desvio) em verde claro e o ponto do aluno
+function psReguaPdf(v, e, cor) {
+  if (!e || v == null || !isFinite(v)) return '';
+  let lo = e.m - 3 * e.dp,
+    hi = e.m + 3 * e.dp;
+  lo = Math.min(lo, v - e.dp * 0.3);
+  hi = Math.max(hi, v + e.dp * 0.3);
+  const pc = (y) => Math.max(0, Math.min(100, ((y - lo) / (hi - lo)) * 100)).toFixed(1);
+  const dentro = Math.abs(v - e.m) <= e.dp;
+  return `<div style="position:relative;height:10px;margin-top:7px;width:118px;background:#e2e8f0;border-radius:99px">
+    <span style="position:absolute;top:0;bottom:0;left:${pc(e.m - e.dp)}%;width:${(pc(e.m + e.dp) - pc(e.m - e.dp)).toFixed(1)}%;background:#bbf7d0;border-radius:99px"></span>
+    <span style="position:absolute;top:-2px;bottom:-2px;left:${pc(e.m)}%;width:1.5px;background:#15803d"></span>
+    <span style="position:absolute;top:-3px;left:calc(${pc(v)}% - 8px);width:16px;height:16px;border-radius:50%;background:${cor || (dentro ? '#15803d' : '#b45309')};border:2.5px solid #fff;box-shadow:0 0 0 1px #94a3b8"></span></div>`;
+}
+// resumo da primeira página: o que está bom, o que ajustar e a prioridade (pela ordem de importância da vista)
+function psResumoListas(x) {
+  const { m } = psFinais(x);
+  const ks = (PS_ORDEM[x.vista] || []).filter((k) => m[k] != null);
+  const bom = ks.filter((k) => psNivel(k, m[k]) === 'ok');
+  const fora = ks.filter((k) => psNivel(k, m[k]) === 'fora');
+  const atencao = ks.filter((k) => psNivel(k, m[k]) === 'atencao');
+  return { bom, ajustar: [...fora, ...atencao], prioridade: fora[0] || atencao[0] || null, m };
+}
+function psResumoPdf(x) {
+  const { bom, ajustar, prioridade, m } = psResumoListas(x);
+  if (!bom.length && !ajustar.length) return '';
+  const lista = (ks, cor) =>
+    ks.length
+      ? `<ul style="margin:6px 0 0;padding-left:16px;font-size:12.5px;line-height:1.6">${ks
+          .slice(0, 5)
+          .map(
+            (k) =>
+              `<li><span style="color:${cor};font-weight:700">${PS_TITULO[k]}</span> ${psFmt(k, m[k])}${psUn(k) === '°' ? '' : ' '}${psUn(k)}</li>`,
+          )
+          .join('')}</ul>`
+      : '<div style="font-size:12.5px;color:#64748b;margin-top:6px">Nada por aqui.</div>';
+  const cx = (t, cor, corpo) =>
+    `<div style="flex:1;border:1px solid #e2e8f0;border-top:4px solid ${cor};border-radius:8px;padding:12px 14px"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${cor}">${t}</div>${corpo}</div>`;
+  return `<div class="psr-l" style="margin-top:20px"><div style="font-size:15px;font-weight:800">Em resumo</div><div style="display:flex;gap:10px;margin-top:8px">
+    ${cx('O que está bom', '#15803d', lista(bom, '#15803d'))}
+    ${cx('O que ajustar', '#b45309', lista(ajustar, '#b45309'))}
+    ${cx('Prioridade', '#1d4ed8', prioridade ? `<div style="font-size:14px;font-weight:800;margin-top:6px">${PS_TITULO[prioridade]}</div><div style="font-size:12px;line-height:1.5;margin-top:4px">${esc(psExplicaTxt(prioridade, m[prioridade]))}</div>` : '<div style="font-size:12.5px;margin-top:6px">Manter o que está bom e repetir a análise em 8 semanas.</div>')}
+  </div></div>`;
+}
+// bloco dos bonecos 3D (e o QR code do metrônomo quando a cadência deve subir)
+function psTresPdf(t, qr) {
+  if (!t || !t.img) return '';
+  const tab = t.linhas
+    .map(
+      ([a, b, c]) =>
+        `<div style="font-size:11.5px;padding:5px 0;border-bottom:1px solid #eef2f7"><div style="color:#475569">${a}</div><div style="margin-top:1px"><b style="color:#64748b">${b}</b> <span style="color:#94a3b8">›</span> <b style="color:#1d4ed8">${c}</b></div></div>`,
+    )
+    .join('');
+  return `<div class="psr-l" style="margin-top:16px;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px">
+    <div style="font-size:15px;font-weight:800">Na direção do ajuste</div><div style="font-size:11px;color:#64748b;margin-top:2px">Em cinza, o seu movimento hoje. Em azul, só o que vale ajustar, no mesmo ritmo. Não existe um jeito único de correr.</div>
+    <div style="display:flex;gap:14px;margin-top:8px;align-items:flex-start"><img src="${t.img}" style="width:60%;border-radius:8px;display:block">
+      <div style="flex:1">${tab}${qr ? `<div style="display:flex;gap:10px;align-items:center;margin-top:10px"><img src="${qr.img}" style="width:84px;height:84px;display:block;flex:none"><div><div style="font-size:12px;font-weight:800">Metrônomo ${qr.bpm}</div><div style="font-size:10.5px;color:#64748b;line-height:1.35;margin-top:2px">Aponte a câmera do celular e corra no compasso.</div></div></div>` : ''}</div></div></div>`;
+}
+// evolução: pequenos gráficos das medidas com 2 ou mais análises da mesma vista
+function psEvolucaoPdf(ev) {
+  if (!ev || !ev.length) return '';
+  return `<div class="psr-l" style="margin-top:22px"><div style="font-size:15px;font-weight:800">Sua evolução</div><div style="font-size:11px;color:#64748b;margin-top:2px">Cada ponto é uma análise. A faixa verde é o esperado.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px">${ev.map((g) => `<div style="width:calc(50% - 6px)"><div style="font-size:12px;font-weight:800">${g.t}</div><img src="${g.img}" style="width:100%;display:block;margin-top:4px"></div>`).join('')}</div></div>`;
+}
+function psGraficoPdf(pts, e, un) {
+  const W = 330,
+    H = 130,
+    k = 2;
+  const cv = document.createElement('canvas');
+  cv.width = W * k;
+  cv.height = H * k;
+  const g = cv.getContext('2d');
+  g.scale(k, k);
+  const vs = pts.map((p) => p.v).concat(e ? [e.m - e.dp, e.m + e.dp] : []);
+  let lo = Math.min(...vs),
+    hi = Math.max(...vs);
+  const pad = (hi - lo || 1) * 0.2;
+  lo -= pad;
+  hi += pad;
+  const X = (i) => 34 + (i * (W - 50)) / Math.max(1, pts.length - 1),
+    Y = (v) => 10 + (1 - (v - lo) / (hi - lo)) * (H - 34);
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, W, H);
+  if (e) {
+    g.fillStyle = '#dcfce7';
+    g.fillRect(30, Y(e.m + e.dp), W - 36, Y(e.m - e.dp) - Y(e.m + e.dp));
+  }
+  g.strokeStyle = '#e2e8f0';
+  g.beginPath();
+  g.moveTo(30, H - 24);
+  g.lineTo(W - 6, H - 24);
+  g.stroke();
+  g.strokeStyle = '#1d4ed8';
+  g.lineWidth = 2.2;
+  g.beginPath();
+  pts.forEach((p, i) => (i ? g.lineTo(X(i), Y(p.v)) : g.moveTo(X(i), Y(p.v))));
+  g.stroke();
+  g.font = '600 10px Manrope, sans-serif';
+  g.textAlign = 'center';
+  pts.forEach((p, i) => {
+    g.fillStyle = i === pts.length - 1 ? '#1d4ed8' : '#ffffff';
+    g.strokeStyle = '#1d4ed8';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(X(i), Y(p.v), 4, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    g.fillStyle = '#0f172a';
+    g.fillText(p.txt, X(i), Y(p.v) - 8);
+    g.fillStyle = '#64748b';
+    g.fillText(p.dia, X(i), H - 10);
+  });
+  g.textAlign = 'left';
+  g.fillStyle = '#94a3b8';
+  g.fillText(un, 2, 14);
+  return cv.toDataURL('image/png');
+}
+function psEvolucaoDados(x, hist) {
+  const lista = (hist || [])
+    .filter((y) => y.vista === x.vista && y.criado_em <= x.criado_em)
+    .sort((a, b) => a.criado_em.localeCompare(b.criado_em))
+    .slice(-6);
+  if (lista.length < 2) return [];
+  const kmh = psKmh(x);
+  const chaves =
+    x.vista === 'lado'
+      ? ['cadencia', 'frente', 'oscilacao', 'joelhoIC', 'tibia', 'tronco']
+      : ['queda', 'joelhoDentro', 'largura', 'cruza'];
+  const out = [];
+  for (const k of chaves) {
+    const pts = lista
+      .map((y) => ({ v: psFinais(y).m[k], dia: fmtDia(y.criado_em).replace(/( de)? \d{4}$/, '') }))
+      .filter((p) => p.v != null && isFinite(p.v))
+      .map((p) => ({ ...p, txt: psFmt(k, p.v) }));
+    if (pts.length < 2) continue;
+    out.push({ t: PS_TITULO[k], img: psGraficoPdf(pts, psEsperado(k, kmh), psUn(k)) });
+    if (out.length === 4) break;
+  }
+  return out;
+}
+async function psCarregaQR() {
+  if (window.qrcode) return;
+  await new Promise((ok, erro) => {
+    const sc = document.createElement('script');
+    sc.src = new URL('vendor/qrcode.js', document.baseURI).href;
+    sc.onload = ok;
+    sc.onerror = erro;
+    document.head.appendChild(sc);
+  });
+}
+async function psQR(texto) {
+  await psCarregaQR();
+  const q = window.qrcode(0, 'M');
+  q.addData(texto);
+  q.make();
+  return q.createDataURL(8, 2);
 }
 // direita e esquerda no PDF
 function psRelLados(lados) {
@@ -2963,8 +3126,25 @@ function psRelFases(x) {
       .join('')}
     <div class="psr-l" style="font-size:10.5px;color:#64748b;margin-top:6px">Esperado é a média ± desvio padrão de corredores sem lesão em estudos publicados. Em laranja, os valores fora dessa faixa.</div>`;
 }
-async function psRelatorioPdf(x, urls, ant, m) {
+async function psRelatorioPdf(x, urls, ant, m, hist = []) {
   await psCarregaPdfLib();
+  // extras: bonecos 3D, QR do metrônomo (quando a cadência deve subir) e evolução
+  const ex2 = {};
+  try {
+    ex2.tres = await cr3ImagemPdf(x);
+    if (ex2.tres && ex2.tres.mudou.includes('cadencia'))
+      ex2.qr = {
+        bpm: ex2.tres.q.cad,
+        img: await psQR(`https://nexosperformanceesaude.com.br/metronomo/?bpm=${ex2.tres.q.cad}`),
+      };
+  } catch (e) {
+    console.error(e);
+  }
+  try {
+    ex2.evol = psEvolucaoDados(x, hist);
+  } catch (e) {
+    console.error(e);
+  }
   const imgs = [];
   for (const q of x.quadros || []) {
     const src = urls[q.path] && (await psDataUrl(urls[q.path]));
@@ -2981,7 +3161,7 @@ async function psRelatorioPdf(x, urls, ant, m) {
   const logo = await psDataUrl(new URL('/img/nexos-logo-navy.png', location.origin).href);
   const caixa = document.createElement('div');
   caixa.style.cssText = 'position:fixed;left:0;top:0;width:760px;z-index:-1;pointer-events:none';
-  caixa.innerHTML = psRelatorioHTML(x, imgs, ant, m, logo && /^data:image/.test(logo) ? logo : null, pares);
+  caixa.innerHTML = psRelatorioHTML(x, imgs, ant, m, logo && /^data:image/.test(logo) ? logo : null, pares, ex2);
   document.body.appendChild(caixa);
   try {
     await Promise.all([...caixa.querySelectorAll('img')].map((im) => im.decode().catch(() => {})));
@@ -2990,11 +3170,20 @@ async function psRelatorioPdf(x, urls, ant, m) {
     const folha = caixa.firstElementChild;
     const pagH = Math.floor((281 * 760) / 210);
     const y0 = folha.getBoundingClientRect().top;
-    for (const el of [...folha.querySelectorAll('.psr-l')].filter((e) => !e.querySelector('.psr-l'))) {
+    for (const el of [...folha.querySelectorAll('.psr-l')].filter(
+      (e) => !e.querySelector('.psr-l') || e.classList.contains('psr-nova'),
+    )) {
       const r = el.getBoundingClientRect();
       const topo = r.top - y0,
         fim = r.bottom - y0;
       const fimPag = (Math.floor(topo / pagH) + 1) * pagH;
+      // "As medidas" sempre começa em página nova (a primeira fica só com o resumo)
+      if (el.classList.contains('psr-nova') && topo % pagH > 4) {
+        const esp = document.createElement('div');
+        esp.style.height = Math.ceil(fimPag - topo + 4) + 'px';
+        el.parentNode.insertBefore(esp, el);
+        continue;
+      }
       if (fim > fimPag && fim - topo < pagH) {
         const esp = document.createElement('div');
         esp.style.height = Math.ceil(fimPag - topo + 4) + 'px';
@@ -3626,7 +3815,7 @@ async function psTreinador(box, m, sub) {
       bt.disabled = true;
       bt.textContent = 'Gerando o PDF…';
       try {
-        const blob = await psRelatorioPdf({ ...x, comentario: t }, urls, ant, m);
+        const blob = await psRelatorioPdf({ ...x, comentario: t }, urls, ant, m, lista);
         bt.textContent = 'Enviando…';
         // arquivo novo a cada envio (o armazenamento não deixa substituir); o anterior é apagado depois
         const path = `${x.org_id}/${alunoId}/passada/${x.id}-relatorio-${Date.now().toString(36)}.pdf`;

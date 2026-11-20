@@ -368,6 +368,7 @@ function cr3HTML(x) {
     <p class="small muted" style="margin-top:2px">O boneco cinza corre com as suas medidas. O colorido mostra só o que vale ajustar, no mesmo ritmo.</p>
     <div class="cr3-vp" id="cr3-vp"><span class="cr3-rot h">Hoje</span><span class="cr3-rot d">Na direção de</span><div class="cr3-carga small muted">Carregando o 3D…</div></div>
     <div class="cr3-tab">${linhas.map(([a, b, c]) => `<div class="cr3-lin"><span>${a}</span><b class="h">${b}</b><i>›</i><b class="d">${c}</b></div>`).join('')}</div>
+    ${mudou.includes('cadencia') && !S.staff ? `<a class="btn block" href="#/metronomo/${q.cad}" style="margin-top:12px">Treinar com metrônomo (${q.cad})</a>` : ''}
     <p class="tiny dim" style="margin-top:8px">Não existe um jeito único de correr. O ajuste é pequeno e gradual, e quem orienta é o seu treinador.</p></div>`;
 }
 // liga o 3D do card (carrega só quando aparece na tela; para quando sai)
@@ -512,4 +513,102 @@ async function cr3Ligar(raiz, x) {
     { rootMargin: '200px' },
   );
   io0.observe(card);
+}
+
+// imagem parada dos dois bonecos para o PDF (fundo branco, cores fixas da Nexos para impressão)
+async function cr3ImagemPdf(x) {
+  const { m } = psFinais(x);
+  const nivel = {};
+  Object.keys(m).forEach((k) => (nivel[k] = psNivel(k, m[k])));
+  const pr = cr3Parametros(m, null, true);
+  const { q, mudou } = cr3Direcao(pr, nivel);
+  if (!mudou.length) return null;
+  const linhas = cr3Linhas(pr, q, mudou);
+  let img = null;
+  try {
+    const lib = await c3dLib();
+    const THREE = lib.THREE;
+    const p0 = cr3Parametros(m),
+      { q: p1 } = cr3Direcao(p0, nivel);
+    const W = 680,
+      H = 360,
+      esc = 2;
+    const r = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+    r.setPixelRatio(esc);
+    r.setSize(W, H);
+    r.setClearColor(0xf4f7fc, 1);
+    r.shadowMap.enabled = true;
+    const cena = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(30, W / H, 0.1, 50);
+    cena.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.15));
+    const sol = new THREE.DirectionalLight(0xffffff, 1.4);
+    sol.position.set(2, 5, 4);
+    sol.castShadow = true;
+    sol.shadow.mapSize.set(1024, 1024);
+    Object.assign(sol.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3 });
+    cena.add(sol);
+    const chao = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.22 }));
+    chao.rotation.x = -Math.PI / 2;
+    chao.receiveShadow = true;
+    cena.add(chao);
+    const A = cr3Boneco(THREE, p0, { corpo: new THREE.Color('#a3aec2'), op: 1 }),
+      B = cr3Boneco(THREE, p1, { corpo: new THREE.Color('#2563eb'), op: 1 });
+    A.grupo.position.x = -0.85;
+    B.grupo.position.x = 0.85;
+    cena.add(A.grupo, B.grupo);
+    for (const [xx, c] of [
+      [-0.85, '#cbd5e1'],
+      [0.85, '#bfdbfe'],
+    ]) {
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 0.03, 0.5),
+        new THREE.MeshStandardMaterial({ color: new THREE.Color(c), roughness: 0.9 }),
+      );
+      base.position.set(xx, -0.015, 0);
+      base.receiveShadow = true;
+      cena.add(base);
+    }
+    // pose do toque do pé no chão (onde ficam as diferenças de pé à frente e joelho)
+    A.quadro(0.004);
+    B.quadro(0.004);
+    const tras = x.vista !== 'lado';
+    const alvo = new THREE.Vector3(0, 0.82, 0);
+    cam.position.set(tras ? -5.2 : 0.9, 1.25, tras ? 0.6 : 5.3);
+    cam.lookAt(alvo);
+    r.render(cena, cam);
+    // rótulos por cima
+    const cv = document.createElement('canvas');
+    cv.width = W * esc;
+    cv.height = H * esc;
+    const g = cv.getContext('2d');
+    g.drawImage(r.domElement, 0, 0);
+    const rot = (o, txt, cor) => {
+      const v = new THREE.Vector3();
+      o.getWorldPosition(v);
+      v.y += 0.98 * (p0.H / 1.7);
+      v.project(cam);
+      const px = ((v.x + 1) / 2) * W * esc,
+        py = ((1 - v.y) / 2) * H * esc - 22 * esc;
+      g.font = `700 ${13 * esc}px Manrope, sans-serif`;
+      const w = g.measureText(txt).width + 22 * esc;
+      g.fillStyle = '#ffffff';
+      g.strokeStyle = '#cbd5e1';
+      g.lineWidth = esc;
+      g.beginPath();
+      g.roundRect(px - w / 2, py, w, 26 * esc, 13 * esc);
+      g.fill();
+      g.stroke();
+      g.fillStyle = cor;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(txt, px, py + 13 * esc);
+    };
+    rot(A.pelve, 'Hoje', '#64748b');
+    rot(B.pelve, 'Na direção de', '#1d4ed8');
+    img = cv.toDataURL('image/jpeg', 0.9);
+    r.dispose();
+  } catch (e) {
+    console.error(e);
+  }
+  return { img, linhas, q, mudou };
 }
