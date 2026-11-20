@@ -627,6 +627,42 @@ async function registrarCorrida(alunoId, onSalvo) {
     },
   );
 }
+/* distancia:puro:inicio — contas puras, testadas em scripts/testes/distancia.test.js */
+// distância corrigida pelo aluno: a série, os tiros e as voltas acompanham na mesma proporção
+function escalarAnalise(a, fator) {
+  const s = a.serie || null;
+  const serie = s
+    ? {
+        ...s,
+        ...(s.d ? { d: s.d.map((x) => Math.round(x * fator)) } : {}),
+        ...(s.vel ? { vel: s.vel.map((x) => +(x * fator).toFixed(2)) } : {}),
+      }
+    : null;
+  return {
+    ...a,
+    serie,
+    voltas: (a.voltas || []).map((v) => ({ ...v, d: Math.round(v.d * fator) })),
+    extras: { ...(a.extras || {}), distancia_corrigida: +fator.toFixed(3) },
+  };
+}
+// parciais por km tiradas da série (tempo em que cada km fechou)
+function parciaisDaSerie(s) {
+  if (!s || !s.t || !s.d || s.t.length < 2) return null;
+  const out = [];
+  let k = 1,
+    tAnt = 0;
+  for (let i = 1; i < s.d.length; i++) {
+    while (s.d[i] >= k * 1000 && s.d[i - 1] < k * 1000) {
+      const f = (k * 1000 - s.d[i - 1]) / (s.d[i] - s.d[i - 1] || 1);
+      const t = s.t[i - 1] + f * (s.t[i] - s.t[i - 1]);
+      out.push({ km: k, seg: Math.round(t - tAnt) });
+      tAnt = t;
+      k++;
+    }
+  }
+  return out.length ? out : null;
+}
+/* distancia:puro:fim */
 function formCorrida(alunoId, d, plano, onSalvo) {
   const dt = new Date(d.data);
   dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
@@ -699,6 +735,9 @@ function formCorrida(alunoId, d, plano, onSalvo) {
         // a distância aparece arredondada (2 casas): se a pessoa não mexeu nela, os dados do GPS/arquivo (etapas, parciais, gráficos) vão junto
         const reaproveitaArquivo =
           lido && (f.km.value === f.km.defaultValue || Math.abs(km * 1000 - d.distancia_m) <= 10);
+        // corrigiu a distância (GPS errou): os tiros, as parciais e os gráficos vão junto, na proporção da distância certa
+        const fator = lido && !reaproveitaArquivo && d.distancia_m > 0 ? (km * 1000) / d.distancia_m : 0;
+        const ajustada = fator >= 0.2 && fator <= 5 && d.analise ? escalarAnalise(d.analise, fator) : null;
         const row = {
           org_id: S.org.id,
           aluno_id: alunoId,
@@ -720,11 +759,15 @@ function formCorrida(alunoId, d, plano, onSalvo) {
           plano_id: f.plano ? f.plano.value || null : null,
           // escolheu "Corrida avulsa" (ou corrida livre no GPS): o app respeita e não liga a nenhum treino
           avulsa: f.plano ? !f.plano.value : !!d.livre,
-          parciais: reaproveitaArquivo ? d.parciais : null,
+          parciais: reaproveitaArquivo
+            ? d.parciais
+            : ajustada && d.parciais && d.parciais.length
+              ? parciaisDaSerie(ajustada.serie)
+              : null,
           rota: d.rota || null,
           fonte: d.fonte || 'manual',
           ext_id: d.ext_id || null,
-          analise: reaproveitaArquivo ? d.analise || null : null,
+          analise: reaproveitaArquivo ? d.analise || null : ajustada,
         };
         const { data: novo, error } = await sb.from('nx_corridas').insert(row).select('id').single();
         if (error) {
