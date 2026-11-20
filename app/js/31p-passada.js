@@ -2980,6 +2980,22 @@ async function psRelatorioPdf(x, urls, ant, m) {
   document.body.appendChild(caixa);
   try {
     await Promise.all([...caixa.querySelectorAll('img')].map((im) => im.decode().catch(() => {})));
+    // quebra de página feita aqui: cada bloco que cruzaria o fim da página desce inteiro para a próxima
+    // (o "avoid" do gerador calcula as posições de uma vez só e errava depois do primeiro bloco empurrado)
+    const folha = caixa.firstElementChild;
+    const pagH = Math.floor((281 * 760) / 210);
+    const y0 = folha.getBoundingClientRect().top;
+    for (const el of [...folha.querySelectorAll('.psr-l')].filter((e) => !e.querySelector('.psr-l'))) {
+      const r = el.getBoundingClientRect();
+      const topo = r.top - y0,
+        fim = r.bottom - y0;
+      const fimPag = (Math.floor(topo / pagH) + 1) * pagH;
+      if (fim > fimPag && fim - topo < pagH) {
+        const esp = document.createElement('div');
+        esp.style.height = Math.ceil(fimPag - topo + 4) + 'px';
+        el.parentNode.insertBefore(esp, el);
+      }
+    }
     const gera = (escala) =>
       window
         .html2pdf()
@@ -2995,7 +3011,7 @@ async function psRelatorioPdf(x, urls, ant, m) {
             scrollY: 0,
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          pagebreak: { mode: ['css'], avoid: '.psr-l' },
+          pagebreak: { mode: ['css'] },
         })
         .from(caixa.firstElementChild)
         .outputPdf('blob');
