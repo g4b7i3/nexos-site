@@ -312,6 +312,46 @@ ok(
 ok(psSugereFator(170) === 1 && psSugereFator(null) === 1, 'vídeo normal não muda');
 // poucos apoios achados: cadência baixa é falha da detecção, não câmera lenta (análise real de 19/11/2026: 3 apoios)
 ok(psSugereFator(40, 3) === 1 && psSugereFator(40, 6) === 4, 'com poucos apoios não inventa câmera lenta');
+// medidas impossíveis (pé atrás do quadril no toque, joelho quase reto no balanço) ficam de fora; as possíveis continuam
+{
+  const x = {
+    vista: 'lado',
+    metricas: {
+      frente: -37,
+      tibia: -27.6,
+      joelhoIC: 23.9,
+      coxaIC: -15.4,
+      pe: 11.8,
+      joelhoBal: 17,
+      coxaTO: -9.3,
+      joelhoMax: 23.9,
+      tronco: 2.2,
+      oscilacao: 16.1,
+    },
+    extra: {
+      ajustes: { joelhoIC: { auto: 23.9, valor: 9.2 } },
+      lados: { E: { frente: 7, tibia: 3, joelhoBal: 96, joelhoMax: 36 } },
+    },
+  };
+  const f = psFinais(x);
+  ok(
+    ['frente', 'tibia', 'joelhoIC', 'coxaIC', 'pe', 'joelhoBal', 'coxaTO', 'oscilacao'].every(
+      (k) => f.m[k] == null && f.fora.includes(k),
+    ),
+    'medidas impossíveis saem',
+  );
+  ok(f.m.joelhoMax == null && f.m.tronco === 2.2, 'o apoio sai junto com o toque errado; o tronco fica');
+  ok(
+    f.lados.E.frente === 7 && f.lados.E.joelhoBal === 96 && !f.fora.some((k) => k.startsWith('E.')),
+    'lado bom fica inteiro',
+  );
+  const b = psFinais({
+    vista: 'lado',
+    metricas: { frente: 18, tibia: 5, joelhoIC: 14, joelhoBal: 95, oscilacao: 8 },
+    extra: {},
+  });
+  ok(!b.fora.length && b.m.frente === 18, 'vídeo bom não perde nada');
+}
 // tempo de contato impossível na corrida fica sem valor (análise real: 75 ms)
 ok(
   psContatoOk(75) === null && psContatoOk(600) === null && psContatoOk(246) === 246,

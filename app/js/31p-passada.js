@@ -629,7 +629,41 @@ function psFinais(x) {
   // análises antigas, de antes da trava: tempo de contato impossível não aparece
   if (m.contato != null && psContatoOk(m.contato) == null) delete m.contato;
   Object.values(lados).forEach((L) => L && L.contato != null && psContatoOk(L.contato) == null && delete L.contato);
-  return { m, lados, conf };
+  // medida impossível na corrida é falha da detecção (perna escondida, pernas trocadas, momento errado): fica de fora
+  const fora = new Set();
+  const limpar = (o, pre) => {
+    if (!o) return;
+    // pé atrás do quadril no toque: o momento marcado não é o toque, então nada medido nessa perna vale (apoio e balanço)
+    if (o.frente != null && psPossivel('frente', o.frente) == null)
+      [...PS_GRUPO_IC, 'joelhoBal', 'coxaTO'].forEach((k) => o[k] != null && (fora.add(pre + k), delete o[k]));
+    // joelho quase reto no balanço não existe correndo: o balanço não foi achado
+    if (o.joelhoBal != null && psPossivel('joelhoBal', o.joelhoBal) == null)
+      ['joelhoBal', 'coxaTO'].forEach((k) => o[k] != null && (fora.add(pre + k), delete o[k]));
+    Object.keys(PS_POSSIVEL).forEach(
+      (k) => o[k] != null && psPossivel(k, o[k]) == null && (fora.add(pre + k), delete o[k]),
+    );
+  };
+  limpar(m, '');
+  Object.entries(lados).forEach(([L, o]) => limpar(o, L + '.'));
+  return { m, lados, conf, fora: [...fora] };
+}
+// o que é fisicamente possível correndo, bem além da variação normal (5 desvios padrão ou mais da referência)
+const PS_POSSIVEL = {
+  frente: [-5, 60],
+  tibia: [-10, 25],
+  joelhoIC: [-5, 45],
+  coxaIC: [-5, 50],
+  joelhoMax: [15, 75],
+  joelhoBal: [45, 160],
+  oscilacao: [2, 15],
+  tronco: [-10, 30],
+};
+// tudo o que depende de achar o apoio certo: o toque, o meio do apoio e o tempo no chão
+const PS_GRUPO_IC = ['frente', 'tibia', 'joelhoIC', 'coxaIC', 'pe', 'joelhoMax', 'contato'];
+function psPossivel(k, v) {
+  const f = PS_POSSIVEL[k];
+  if (v == null || !isFinite(v)) return null;
+  return !f || (v >= f[0] && v <= f[1]) ? v : null;
 }
 // diferença entre os lados: em graus para ângulos, em % para tempos
 function psAssimetria(k, a, b) {
@@ -2172,8 +2206,16 @@ function psLadosHTML(x, staff) {
         : ''
     }</div>`;
 }
-function psQuadrosHTML(x, urls) {
-  const qs = (x.quadros || []).filter((q) => urls[q.path]);
+// quadros que vão para o aluno: sem o do toque do pé quando o momento marcado não era o toque (medidas impossíveis)
+function psToqueFora(x) {
+  return x.vista === 'lado' && psFinais(x).fora.includes('frente');
+}
+function psQuadrosAluno(x) {
+  const qs = x.quadros || [];
+  return psToqueFora(x) ? qs.filter((q) => q.legenda !== 'Toque do pé no chão') : qs;
+}
+function psQuadrosHTML(x, urls, aluno) {
+  const qs = (aluno ? psQuadrosAluno(x) : x.quadros || []).filter((q) => urls[q.path]);
   if (!qs.length) return '';
   return `<div class="ps-quadros">${qs.map((q) => `<button type="button" class="ps-q" data-src="${esc(urls[q.path])}"><img src="${esc(urls[q.path])}" alt="${esc(q.legenda)}" loading="lazy"><span>${esc(q.legenda)}</span></button>`).join('')}</div>`;
 }
@@ -2285,6 +2327,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
   const rit = psRitmoTxt(x);
   return `<div class="card ps-topo-card"><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><div><span class="eyebrow">${x.vista === 'lado' ? 'De lado' : 'Por trás'} · ${esc(x.local === 'esteira' ? 'Esteira' : x.local === 'rua' ? 'Rua' : 'Vídeo')}</span><div class="h3" style="margin-top:2px">${psDataHora(x.criado_em)}</div>${rit ? `<div class="small muted" style="margin-top:2px">${esc(rit)}</div>` : ''}${staff && !previa && !((x.extra || {}).ritmo || {}).kmh ? '<button type="button" class="link-btn small" id="ps-rit-ed" style="margin-top:4px">Anotar o ritmo do vídeo</button>' : ''}</div><span class="ps-selo">${PS_IC}</span></div>
     ${(q.avisos || []).length ? `<div class="ps-avisos">${q.avisos.map((a) => `<p class="small">${esc(PS_AVISO_TXT[a] || '')}</p>`).join('')}</div>` : ''}</div>
+    ${staff && psFinais(x).fora.length ? `<div class="ps-avisos" style="margin-top:10px"><p class="small"><b>Algumas medidas ficaram de fora</b> (${esc([...new Set(psFinais(x).fora.map((k) => (PS_TITULO[k.split('.').pop()] || k).toLowerCase()))].join(', '))}). Saíram impossíveis para a corrida, sinal de que o app não achou as pernas direito: perna escondida atrás da esteira, pernas trocadas ou poucos passos. Elas não vão para o aluno nem para o PDF. Para ter essas medidas, peça outro vídeo com as pernas inteiras aparecendo.</p></div>` : ''}
     ${staff ? psLeituraHTML(x, ant) : ''}
     ${staff ? psRoteiroHTML(x) : ''}
     ${psQuadrosHTML(x, urls)}
@@ -2795,7 +2838,9 @@ function psRelEditor(raiz, x, m, urls, ant, voltar, gerar) {
       rel: { passos: raiz.querySelector('#re-pas').value.trim(), textos },
     };
   };
-  const imgs = (x.quadros || []).filter((q) => urls[q.path]).map((q) => ({ src: urls[q.path], legenda: q.legenda }));
+  const imgs = psQuadrosAluno(x)
+    .filter((q) => urls[q.path])
+    .map((q) => ({ src: urls[q.path], legenda: q.legenda }));
   let tm = null;
   const previa = () => {
     const d = ler();
@@ -3146,13 +3191,13 @@ async function psRelatorioPdf(x, urls, ant, m, hist = []) {
     console.error(e);
   }
   const imgs = [];
-  for (const q of x.quadros || []) {
+  for (const q of psQuadrosAluno(x)) {
     const src = urls[q.path] && (await psDataUrl(urls[q.path]));
     if (src) imgs.push({ src, legenda: q.legenda });
   }
   // antes e depois: só o primeiro momento (o toque do pé ou o apoio esquerdo), para o PDF não crescer demais
   const pares = [];
-  if (ant && (ant.quadros || [])[0] && imgs[0]) {
+  if (ant && (ant.quadros || [])[0] && imgs[0] && !psToqueFora(x) && !psToqueFora(ant)) {
     const ua = await psUrls([ant]);
     const a = ua[ant.quadros[0].path] && (await psDataUrl(ua[ant.quadros[0].path]));
     if (a) pares.push({ a, b: imgs[0].src, legenda: imgs[0].legenda });
@@ -3676,7 +3721,7 @@ async function viewPassada(sub) {
           <button class="btn block" id="ps-baixar" style="margin-top:14px">${PS_UP_IC.replace('M12 15V4', 'M12 4v11').replace('m7 9 5-5 5 5', 'm7 10 5 5 5-5')} Baixar o relatório (PDF)</button></div>
         ${cr3HTML(x)}
         ${ant ? `<button class="btn ghost block" id="ps-ad" style="margin-top:12px">Ver antes e depois (${fmtDia(ant.criado_em)})</button>` : ''}
-        ${psQuadrosHTML(x, urls)}
+        ${psQuadrosHTML(x, urls, true)}
         ${x.serie ? '<div class="card ps-replay"><span class="eyebrow">Sua corrida em movimento</span><canvas id="ps-rp"></canvas><p class="tiny dim">Esqueleto de duas passadas, em câmera lenta.</p></div>' : ''}
         <p class="eyebrow" style="margin-top:18px">As medidas</p>
         ${psFasesHTML(x, false)}
