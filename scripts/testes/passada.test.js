@@ -9,7 +9,7 @@ if (!m) throw new Error('Bloco da passada não encontrado no app (marcadores pas
 const ctx = {};
 vm.runInNewContext(
   m[1] +
-    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel, psMedidasQuadro, psFinais, psAssimetria, psCompara, psSugereFator, psRitmoKmh, psPaceTxt, psConfere, psEsperado, psPosEsperado, psAngPe, psAngVert, PS_ESPERADO });',
+    '\n;Object.assign(this, { PS_P, PS_LADO, psAng, psMediana, psApoios, psAnalisarLado, psAnalisarTras, psNivel, psCm, psDirecao, psLadoVisivel, psMedidasQuadro, psFinais, psAssimetria, psCompara, psSugereFator, psContatoOk, psRitmoKmh, psPaceTxt, psConfere, psEsperado, psPosEsperado, psAngPe, psAngVert, PS_ESPERADO });',
   ctx,
 );
 const {
@@ -26,6 +26,7 @@ const {
   psAssimetria,
   psCompara,
   psSugereFator,
+  psContatoOk,
   psRitmoKmh,
   psPaceTxt,
 } = ctx;
@@ -309,6 +310,13 @@ ok(
   `a 120 qps mede cadência e contato: ${anRap.m.cadencia}, ${anRap.m.contato}`,
 );
 ok(psSugereFator(170) === 1 && psSugereFator(null) === 1, 'vídeo normal não muda');
+// poucos apoios achados: cadência baixa é falha da detecção, não câmera lenta (análise real de 19/11/2026: 3 apoios)
+ok(psSugereFator(40, 3) === 1 && psSugereFator(40, 6) === 4, 'com poucos apoios não inventa câmera lenta');
+// tempo de contato impossível na corrida fica sem valor (análise real: 75 ms)
+ok(
+  psContatoOk(75) === null && psContatoOk(600) === null && psContatoOk(246) === 246,
+  'tempo de contato fora do possível',
+);
 
 // 9. ritmo
 ok(perto(psRitmoKmh('6:00'), 10, 0.01) && perto(psRitmoKmh('10,5'), 10.5, 0.01), 'pace e km/h');

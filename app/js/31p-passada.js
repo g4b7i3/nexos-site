@@ -335,7 +335,7 @@ function psAnalisarLado(fr, alturaCm) {
       [
         [lado, perto],
         [outro, longe],
-      ].map(([L, p]) => [L, { ...p.m, contato: fps >= 50 ? p.m.contato : null, apoios: p.apoios.length }]),
+      ].map(([L, p]) => [L, { ...p.m, contato: fps >= 50 ? psContatoOk(p.m.contato) : null, apoios: p.apoios.length }]),
     ),
     m: {
       cadencia: ciclo ? 120 / ciclo : null,
@@ -347,7 +347,7 @@ function psAnalisarLado(fr, alturaCm) {
       frente: perto.m.frente,
       tronco,
       oscilacao: psMediana(osc),
-      contato: fps >= 50 ? perto.m.contato : null,
+      contato: fps >= 50 ? psContatoOk(perto.m.contato) : null,
       coxaTO: perto.m.coxaTO,
       joelhoBal: perto.m.joelhoBal,
       cotovelo: psMediana(cotovelos),
@@ -741,9 +741,14 @@ function psCompara(k, antes, depois) {
   if (a === b) return { d, efeito: 'mudou' };
   return { d, efeito: b < a ? 'melhorou' : 'piorou' };
 }
-// vídeo em câmera lenta salvo como normal: a cadência sai baixa demais; acha o fator que deixa a cadência plausível
-function psSugereFator(cadencia) {
-  if (cadencia == null || !isFinite(cadencia) || cadencia >= 110) return 1;
+// tempo de contato fora do possível na corrida (menos de 120 ms ou mais de 450 ms) é erro da detecção: fica sem valor
+function psContatoOk(ms) {
+  return ms != null && isFinite(ms) && ms >= 120 && ms <= 450 ? ms : null;
+}
+// vídeo em câmera lenta salvo como normal: a cadência sai baixa demais; acha o fator que deixa a cadência plausível.
+// Só com apoios suficientes: com poucos passos achados, a cadência baixa é falha da detecção, não câmera lenta
+function psSugereFator(cadencia, nApoios = 99) {
+  if (cadencia == null || !isFinite(cadencia) || cadencia >= 110 || nApoios < 4) return 1;
   for (const f of [2, 4, 8]) if (cadencia * f >= 140 && cadencia * f <= 230) return f;
   return 1;
 }
@@ -3252,7 +3257,7 @@ async function psNova(alunoId, voltar, nomeAluno) {
     // vídeo em câmera lenta marcado como normal: a cadência sai baixa demais; o app corrige o tempo sozinho
     let fatorAuto = 1;
     if (st.fator === 1) {
-      fatorAuto = psSugereFator(an.cadBruta);
+      fatorAuto = psSugereFator(an.cadBruta, (an.apoios || []).length);
       if (fatorAuto > 1) {
         res.fr.forEach((f) => (f.t = +(f.t / fatorAuto).toFixed(5)));
         res.fps *= fatorAuto;
