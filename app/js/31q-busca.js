@@ -75,6 +75,13 @@ function buscaTelasAluno() {
       'avaliacao movimento agachamento bastao salto aterrissagem tornozelo mobilidade joelho video teste',
     ],
     [
+      '#/metronomo',
+      'Metrônomo',
+      'Cadência no fone, inclusive nas corridas pelo GPS',
+      'metronomo cadencia passos ritmo batida compasso fone',
+      fC,
+    ],
+    [
       '#/passada',
       'Análise biomecânica da corrida',
       'Filme a sua corrida e receba o relatório do seu treinador',

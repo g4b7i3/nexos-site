@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Metrônomo da Nexos</title>
+<meta name="description" content="Metrônomo de cadência da Nexos Performance e Saúde. Corra pisando no compasso.">
+<meta name="theme-color" content="#050c1c">
+<link rel="icon" href="/img/nexos-icon.png">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+:root{--bg:#050c1c;--s1:#0b1834;--s2:#10224a;--ink:#eef3ff;--mute:#8fa1c4;--line:rgba(140,180,255,.16);--acc:#3ec6e0;--acc2:#2f7cf6;--on:#04122b}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:radial-gradient(120% 70% at 50% 0%,#0d2353 0%,var(--bg) 60%) fixed,var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top) + 18px) 16px calc(env(safe-area-inset-bottom) + 22px);min-height:100%}
+.topo{width:100%;max-width:440px;display:flex;align-items:center;justify-content:space-between}
+.topo img{height:26px}
+.topo span{font-size:12px;color:var(--mute);font-weight:600}
+main{width:100%;max-width:440px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:26px 0}
+h1{font-family:Unbounded,sans-serif;font-weight:700;font-size:22px;text-align:center;line-height:1.2}
+.sub{color:var(--mute);text-align:center;font-size:15px;line-height:1.5;max-width:330px;margin-top:8px}
+.anel{--per:.35s;position:relative;width:min(70vw,260px);aspect-ratio:1;display:grid;place-items:center}
+.anel i{position:absolute;inset:0;border-radius:50%;border:2px solid var(--acc);opacity:.25;pointer-events:none}
+.anel.on i{animation:bate var(--per) linear infinite}
+.anel.on i:nth-child(2){animation-delay:calc(var(--per) / 2)}
+@keyframes bate{0%{transform:scale(.62);opacity:.95}100%{transform:scale(1);opacity:0}}
+.anel::after{content:"";pointer-events:none;position:absolute;inset:18%;border-radius:50%;background:radial-gradient(circle,rgba(62,198,224,.22),transparent 70%)}
+.play{position:relative;z-index:1;width:46%;aspect-ratio:1;border-radius:50%;border:0;background:linear-gradient(140deg,var(--acc),var(--acc2));color:var(--on);display:grid;place-items:center;cursor:pointer;box-shadow:0 16px 44px rgba(62,198,224,.35)}
+.play svg{width:40%;height:40%}
+.ctl{display:flex;align-items:center;gap:26px}
+.pm{width:58px;height:58px;border-radius:50%;border:1px solid var(--line);background:var(--s1);color:var(--ink);font-size:28px;cursor:pointer}
+.num{text-align:center;min-width:130px}
+.num b{display:block;font-family:Unbounded,sans-serif;font-size:56px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.num span{font-size:13px;color:var(--mute)}
+.cartao{width:100%;background:var(--s1);border:1px solid var(--line);border-radius:20px;padding:18px}
+.cartao b{font-size:16px}
+.cartao p{color:var(--mute);font-size:13.5px;line-height:1.5;margin-top:6px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:14px;padding:15px;border-radius:14px;border:0;background:var(--ink);color:var(--on);font:800 15px Manrope,sans-serif;text-decoration:none}
+.nota{color:var(--mute);font-size:12px;line-height:1.5;text-align:center;max-width:360px}
+@media (prefers-reduced-motion:reduce){.anel.on i{animation:none;opacity:.7}}
+</style>
+</head>
+<body>
+<div class="topo"><img src="/img/nexos-logo.png" alt="Nexos"><span>Performance e Saúde</span></div>
+<main>
+  <div><h1>Metrônomo de cadência</h1><p class="sub">Coloque o fone e corra pisando no compasso. Cada batida é um pé no chão.</p></div>
+  <div class="anel" id="anel"><i></i><i></i><button class="play" id="play" aria-label="Tocar"></button></div>
+  <div class="ctl"><button class="pm" id="menos" aria-label="Menos uma batida">−</button><div class="num"><b id="bpm">170</b><span>passos por minuto</span></div><button class="pm" id="mais" aria-label="Mais uma batida">+</button></div>
+  <div class="cartao"><b>Corre com o celular pelo app da Nexos?</b><p>Ligue o metrônomo nas suas corridas. Toda corrida que você abrir pelo GPS do app começa com ele tocando no fone, inclusive com a tela bloqueada.</p><a class="btn" id="usar" href="/app/#/metronomo">Usar nas minhas corridas</a></div>
+  <p class="nota">Suba a cadência aos poucos e mantenha o mesmo ritmo de corrida: o passo fica um pouco mais curto. Siga a orientação do seu treinador.</p>
+</main>
+<script>
+/* metronomo:puro:inicio (contas sem tela: testadas em scripts/testes/metronomo.test.js) */
+const METRO_MIN = 120,
+  METRO_MAX = 220;
+const metroLimite = (bpm) => Math.max(METRO_MIN, Math.min(METRO_MAX, Math.round(+bpm || 170)));
+// trecho que se repete: um número inteiro de batidas, perto de 30 s, para a emenda cair certinho no tempo
+function metroLaco(bpm, alvoSeg = 30) {
+  const per = 60 / bpm;
+  const n = Math.max(4, Math.round(alvoSeg / per));
+  return { n, seg: n * per, per };
+}
+// posição (em amostras) de cada batida no trecho
+function metroBatidas(bpm, taxa, alvoSeg = 30) {
+  const { n, per } = metroLaco(bpm, alvoSeg);
+  return Array.from({ length: n }, (_, i) => Math.round(i * per * taxa));
+}
+/* metronomo:puro:fim */
+
+// áudio WAV do trecho (mono, 16 bits): um "tic" curto e limpo em cada batida
+function metroWav(bpm) {
+  const taxa = 22050;
+  const { seg } = metroLaco(bpm);
+  const total = Math.round(seg * taxa);
+  const dados = new Int16Array(total);
+  const durTic = Math.round(0.03 * taxa);
+  const tic = new Float32Array(durTic);
+  for (let i = 0; i < durTic; i++) {
+    const t = i / taxa;
+    tic[i] = (Math.sin(2 * Math.PI * 1760 * t) * 0.7 + Math.sin(2 * Math.PI * 3520 * t) * 0.2) * Math.exp(-t * 140);
+  }
+  for (const ini of metroBatidas(bpm, taxa))
+    for (let i = 0; i < durTic && ini + i < total; i++) dados[ini + i] = Math.round(tic[i] * 0.9 * 32767);
+  const buf = new ArrayBuffer(44 + dados.length * 2),
+    dv = new DataView(buf);
+  const txt = (o, s) => [...s].forEach((c, i) => dv.setUint8(o + i, c.charCodeAt(0)));
+  txt(0, 'RIFF');
+  dv.setUint32(4, 36 + dados.length * 2, true);
+  txt(8, 'WAVE');
+  txt(12, 'fmt ');
+  dv.setUint32(16, 16, true);
+  dv.setUint16(20, 1, true);
+  dv.setUint16(22, 1, true);
+  dv.setUint32(24, taxa, true);
+  dv.setUint32(28, taxa * 2, true);
+  dv.setUint16(32, 2, true);
+  dv.setUint16(34, 16, true);
+  txt(36, 'data');
+  dv.setUint32(40, dados.length * 2, true);
+  new Int16Array(buf, 44).set(dados);
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
+const PAUSA = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>';
+const q = new URLSearchParams(location.search);
+let bpm = metroLimite(q.get('bpm') || 170);
+const el = new Audio();
+el.loop = true;
+let url = null, bpmAudio = 0, trava = null;
+const $ = (i) => document.getElementById(i);
+const tocando = () => !el.paused;
+function preparar() {
+  if (bpmAudio === bpm) return;
+  if (url) URL.revokeObjectURL(url);
+  url = URL.createObjectURL(metroWav(bpm));
+  bpmAudio = bpm;
+  const t = tocando();
+  el.src = url;
+  if (t) el.play().catch(() => {});
+}
+async function telaAcesa(on) {
+  try {
+    if (on && 'wakeLock' in navigator && !trava) trava = await navigator.wakeLock.request('screen');
+    if (!on && trava) { await trava.release(); trava = null; }
+  } catch {}
+}
+function desenhar() {
+  $('bpm').textContent = bpm;
+  $('anel').style.setProperty('--per', 60 / bpm + 's');
+  $('anel').classList.toggle('on', tocando());
+  $('play').innerHTML = tocando() ? PAUSA : PLAY;
+  $('play').setAttribute('aria-label', tocando() ? 'Pausar' : 'Tocar');
+  $('usar').href = '/app/#/metronomo/' + bpm;
+  try { history.replaceState(null, '', '?bpm=' + bpm); } catch {}
+  try { if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: 'Metrônomo · ' + bpm + ' passos/min', artist: 'Nexos' }); } catch {}
+}
+$('play').onclick = async () => {
+  if (tocando()) { el.pause(); telaAcesa(false); }
+  else { preparar(); try { await el.play(); telaAcesa(true); } catch {} }
+  desenhar();
+};
+const mudar = (d) => { bpm = metroLimite(bpm + d); preparar(); desenhar(); };
+$('menos').onclick = () => mudar(-1);
+$('mais').onclick = () => mudar(1);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && tocando()) telaAcesa(true); });
+desenhar();
+</script>
+</body>
+</html>

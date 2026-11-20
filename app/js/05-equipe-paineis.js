@@ -888,6 +888,7 @@ function alunoMais() {
       ${fC ? it('#/eventos', I.flag, 'Eventos e provas', 'Treinões da Nexos e suas provas') : ''}
       ${fC ? it('#/recordes', TROFEU_IC, 'Meus recordes', 'Melhores tempos em 1 km, 5 km, 10 km e meia') : ''}
       ${fC ? it('#/tenis', TENIS_IC, 'Meus tênis', 'Quilometragem de cada par e quando trocar') : ''}
+      ${fC ? it('#/metronomo', METRO_IC, 'Metrônomo', S.me.metronomo && S.me.metronomo.ativo ? `${S.me.metronomo.bpm} passos/min, ligado nas suas corridas` : 'Cadência no fone, inclusive durante a corrida pelo GPS') : ''}
       ${it('#/historico/avaliacoes', I.ficha, 'Avaliações físicas', 'Medidas, composição corporal e relatórios')}
       ${it('#/historico/fotos', I.cam, 'Fotos de evolução', 'Antes e depois, avaliação postural')}
       ${fC ? it('#/historico/previsoes', I.hist, 'Testes e previsões', 'Tempos estimados e zonas de treino') : ''}

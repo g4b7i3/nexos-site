@@ -201,7 +201,12 @@ async function viewGps(id, modo) {
       ${est ? '' : `<div class="g2-lado"><button class="g2-rd" id="g-3d" aria-label="Mudar a visão do mapa">3D</button><button class="g2-rd" id="g-centro" aria-label="Centralizar em você">${GPS_IC.alvo}</button></div>`}
       <div class="gps-passo" id="g-passo" hidden></div>
       <div class="g2-stats">
-        <div class="g2-st-h"><b>${est ? 'Esteira' : 'Corrida'}</b><button class="g2-exp" id="g-exp" aria-label="Mais números">${GPS_IC.expandir}</button></div>
+        <div class="g2-st-h"><b>${est ? 'Esteira' : 'Corrida'}</b>${(() => {
+          const c = typeof metroConfig === 'function' ? metroConfig() : null;
+          return c && c.ativo
+            ? `<button class="g2-metro ${st.metro === false ? '' : 'on'}" id="g-metro" aria-label="Ligar ou desligar o metrônomo">${GPS_IC.som}<span>${c.bpm}</span></button>`
+            : '';
+        })()}<button class="g2-exp" id="g-exp" aria-label="Mais números">${GPS_IC.expandir}</button></div>
         <div class="g2-tres"><div><b id="g-tempo">0:00</b><span>Tempo</span></div><div><b id="g-pace">–</b><span>Pace agora (/km)</span></div><div><b id="g-dist">0,00</b><span>Distância (km)</span></div></div>
         <div class="g2-extra" id="g-extra" ${est ? '' : 'hidden'}><div><b id="g-pm">–</b><span>Pace médio</span></div>${est ? '<div><b id="g-cad">–</b><span>Cadência</span></div><div><b id="g-np">0</b><span>Passos</span></div>' : '<div><b id="g-volta">1</b><span>Volta</span></div><div><b id="g-vkm">0,00</b><span>Km na volta</span></div>'}</div>
         <div class="gps-prox" id="g-prox"></div>
@@ -322,6 +327,16 @@ async function viewGps(id, modo) {
         el.play().catch(() => {});
       }
     } catch {}
+  };
+  // metrônomo ligado pelo aluno (Mais › Metrônomo › Usar nas minhas corridas): toca enquanto ele corre
+  const metroBotao = () => {
+    const b = document.getElementById('g-metro');
+    if (b) b.classList.toggle('on', st.metro !== false);
+  };
+  const metroGps = () => {
+    const c = typeof metroConfig === 'function' ? metroConfig() : null;
+    if (!c || !c.ativo || st.metro === false || st.estado !== 'correndo') return metroParar();
+    metroTocar(c.bpm).catch(() => {});
   };
   const paceFala = (s) => {
     const x = Math.round(s);
@@ -573,6 +588,18 @@ async function viewGps(id, modo) {
       ${linhaOpc('o-voz', GPS_IC.som, 'Avisos de voz', passos.length ? 'Cada parte do treino e o seu pace' : 'Cada quilômetro e o seu pace', st.voz)}
       ${est ? '' : linhaOpc('o-auto', GPS_IC.autop, 'Pausa automática', 'Pausa quando você para e volta sozinho', pref.autopausa)}
       ${passos.length ? '' : linhaOpc('o-vlt', GPS_IC.volta, 'Contar voltas', 'Botão para marcar as voltas (pista, quarteirão)', pref.voltas)}
+      ${(() => {
+        const c = typeof metroConfig === 'function' ? metroConfig() : null;
+        return c && c.ativo
+          ? linhaOpc(
+              'o-metro',
+              GPS_IC.som,
+              `Metrônomo · ${c.bpm} passos/min`,
+              'Toca no fone enquanto você corre',
+              st.metro !== false,
+            )
+          : '';
+      })()}
       <div class="g2-li"><span class="g2-li-ic">${I.raio}</span><div class="grow"><b>Tela acesa</b><small>Fica ligada sozinha durante o treino</small></div></div>
     </div>`;
   const ligaOpc = () => {
@@ -584,6 +611,12 @@ async function viewGps(id, modo) {
       if (c.id === 'o-voz') {
         st.voz = c.checked;
         salvar();
+      }
+      if (c.id === 'o-metro') {
+        st.metro = c.checked;
+        salvar();
+        metroGps();
+        metroBotao();
       }
       if (c.id === 'o-auto') {
         pref.autopausa = c.checked;
@@ -611,6 +644,12 @@ async function viewGps(id, modo) {
       $('g-trava').hidden = false;
     });
     b('g-vlt', () => marcarVolta());
+    b('g-metro', () => {
+      st.metro = st.metro === false;
+      salvar();
+      metroGps();
+      metroBotao();
+    });
     b('g-treino', abrirTreinos);
     b('g-tipo', abrirTipo);
     document.querySelectorAll('#g-onde [data-onde]').forEach(
@@ -940,6 +979,7 @@ async function viewGps(id, modo) {
     beep(1);
     vibrar(200);
     liberarSom();
+    metroGps();
     const s = passoAtual();
     if (s) anunciar(s, true);
     else dizer([{ c: 'inicio' }], 'Corrida iniciada.');
@@ -952,6 +992,7 @@ async function viewGps(id, modo) {
     st.estado = 'pausado';
     st.auto = false;
     ultimo = null;
+    metroParar();
     salvar();
     falar('Pausado.');
     desenha();
@@ -967,6 +1008,7 @@ async function viewGps(id, modo) {
     ultimo = null;
     pedirTela();
     liberarSom();
+    metroGps();
     // a frase gravada toca em toda volta de pausa; sem ela, a voz do celular só fala quando o treino foi recuperado
     dizer([{ c: 'retomando' }], recuperado ? 'Continuando.' : '');
     salvar();
@@ -981,6 +1023,7 @@ async function viewGps(id, modo) {
     st.auto = true;
     autoBase = eu;
     ultimo = null;
+    metroParar();
     vibrar(150);
     falar('Pausa automática.');
     salvar();
@@ -1013,6 +1056,7 @@ async function viewGps(id, modo) {
     desligarGPS();
     desligarSensor();
     soltarTela();
+    metroParar();
     document.removeEventListener('visibilitychange', onVis);
     try {
       speechSynthesis.cancel();
