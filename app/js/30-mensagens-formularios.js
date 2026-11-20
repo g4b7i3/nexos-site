@@ -1721,6 +1721,8 @@ async function abrirSalaVideo(
       'vs-palco ' +
       (tela ? 'tela' : !outros.length ? 'so-eu' : outros.length === 1 ? 'dupla' + (troca ? ' troca' : '') : 'grade');
     esp.hidden = !!outros.length;
+    // o aluno entrou: o botão de mandar o link não serve mais e só aperta o título
+    box.querySelectorAll('.vs-wa').forEach((a) => (a.hidden = !!outros.length));
     if (outros.length && !c.ini) c.ini = Date.now();
     st.textContent =
       outros.length && c.ini ? `Ao vivo · ${vsTempo(Math.round((Date.now() - c.ini) / 1000))}` : 'Na sala';
@@ -1853,7 +1855,7 @@ async function iniciarVideochamada(m, btn) {
     const tel = String(m.telefone || '').replace(/\D/g, '');
     const txt = `Oi, ${firstName(m.nome)}! Estou te esperando na videochamada da Nexos. Toque para entrar: ${link}`;
     const wa = tel
-      ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="https://wa.me/${tel.length <= 11 ? '55' + tel : tel}?text=${encodeURIComponent(txt)}">Mandar link no WhatsApp</a>`
+      ? `<a class="btn sm ghost vs-wa" target="_blank" rel="noopener" href="https://wa.me/${tel.length <= 11 ? '55' + tel : tel}?text=${encodeURIComponent(txt)}">Mandar link no WhatsApp</a>`
       : '';
     if (!d.avisados)
       toast(
@@ -1991,7 +1993,7 @@ async function ligarProfessor(m, btn) {
     const tel = String(m.telefone || '').replace(/\D/g, '');
     const link = `${location.origin}/treinador/#/chamada/${d.id}`;
     const wa = tel
-      ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="https://wa.me/${tel.length <= 11 ? '55' + tel : tel}?text=${encodeURIComponent(`${firstName(m.nome)}, estou te esperando na videochamada: ${link}`)}">Mandar link no WhatsApp</a>`
+      ? `<a class="btn sm ghost vs-wa" target="_blank" rel="noopener" href="https://wa.me/${tel.length <= 11 ? '55' + tel : tel}?text=${encodeURIComponent(`${firstName(m.nome)}, estou te esperando na videochamada: ${link}`)}">Mandar link no WhatsApp</a>`
       : '';
     toast(
       d.avisados

@@ -3378,7 +3378,7 @@ details.guia-niv:not([open]){padding-top:12px;padding-bottom:12px}
 body.em-video{overflow:hidden}
 .video-sala{position:fixed;inset:0;z-index:10000;background:#040c1e;display:flex;flex-direction:column}
 .video-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;color:#fff;background:linear-gradient(180deg,#0b2352,#071733);border-bottom:1px solid rgba(70,214,255,.18)}
-.video-top .btn.ghost{color:#fff;border-color:rgba(255,255,255,.25)}
+.video-top .btn.ghost,html[data-tema="claro"] .video-top .btn.ghost{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.25)}
 .vs-simb{width:30px;height:30px;flex:none}
 .vs-tit{display:flex;flex-direction:column;line-height:1.2;min-width:0}
 .vs-tit b{font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
