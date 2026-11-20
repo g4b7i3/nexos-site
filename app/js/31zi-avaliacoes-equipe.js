@@ -16,12 +16,13 @@ async function viewAvaliacoesEquipe(filtro) {
   const st = S.cache.ave || (S.cache.ave = { f: 'todas', busca: '' });
   if (filtro) st.f = filtro;
   const org = S.org.id;
-  const [mem, pa, mv, av, po] = await Promise.all([
+  const [mem, eq, pa, mv, av, po] = await Promise.all([
     sb
       .from('nx_membros')
       .select('user_id,nome,foto_url,ativo,treinador_id,treinador_forca_id,treinador_corrida_id')
       .eq('org_id', org)
       .eq('papel', 'aluno'),
+    sb.from('nx_membros').select('user_id,nome').eq('org_id', org).neq('papel', 'aluno'),
     sb
       .from('nx_passadas')
       .select('id,aluno_id,criado_em,vista,relatorio_path,visto_em')
@@ -49,6 +50,12 @@ async function viewAvaliacoesEquipe(filtro) {
   ]);
   // só os alunos deste treinador (responsável, força ou corrida)
   const meus = new Map((mem.data || []).filter(ehMeuAluno).map((m) => [m.user_id, m]));
+  // quem analisa: a corrida fica com o treinador de corrida e o movimento com o de força (sem eles, o responsável)
+  const nomeEq = new Map((eq.data || []).map((x) => [x.user_id, firstName(x.nome || '')]));
+  const quemCorrida = (id) => (meus.get(id) || {}).treinador_corrida_id || (meus.get(id) || {}).treinador_id || '';
+  const quemForca = (id) => (meus.get(id) || {}).treinador_forca_id || (meus.get(id) || {}).treinador_id || '';
+  const esperando = (q) => `Esperando ${nomeEq.get(q) || 'o treinador'}`;
+  const ehMinha = (x) => x.pend && (!x.quem || x.quem === S.user.id);
   const itens = [];
   for (const x of pa.data || [])
     if (meus.has(x.aluno_id))
@@ -58,7 +65,12 @@ async function viewAvaliacoesEquipe(filtro) {
         quando: x.criado_em,
         sub: x.vista === 'lado' ? 'de lado' : 'por trás',
         pend: !x.relatorio_path,
-        st: x.relatorio_path ? (x.visto_em ? 'Visto pelo aluno' : 'Relatório enviado') : 'Esperando o seu relatório',
+        quem: quemCorrida(x.aluno_id),
+        st: x.relatorio_path
+          ? x.visto_em
+            ? 'Visto pelo aluno'
+            : 'Relatório enviado'
+          : esperando(quemCorrida(x.aluno_id)),
         href: `#/aluno/${x.aluno_id}/passada/${x.id}`,
       });
   for (const x of mv.data || [])
@@ -71,7 +83,8 @@ async function viewAvaliacoesEquipe(filtro) {
           ((MV_TESTES[x.teste] || {}).curto || x.teste) +
           (x.lado ? ` · ${x.lado === 'E' ? 'esquerdo' : 'direito'}` : ''),
         pend: !x.enviado_em,
-        st: x.enviado_em ? (x.visto_em ? 'Visto pelo aluno' : 'Enviado ao aluno') : 'Esperando a sua análise',
+        quem: quemForca(x.aluno_id),
+        st: x.enviado_em ? (x.visto_em ? 'Visto pelo aluno' : 'Enviado ao aluno') : esperando(quemForca(x.aluno_id)),
         href: `#/aluno/${x.aluno_id}/movimento/${x.id}`,
       });
   for (const x of av.data || [])
@@ -103,11 +116,14 @@ async function viewAvaliacoesEquipe(filtro) {
         href: `#/postural/${x.id}`,
       });
   itens.sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
-  const nPend = itens.filter((x) => x.pend).length;
+  const nPend = itens.filter(ehMinha).length;
+  // pendências dos colegas que dividem os alunos com você (ex.: Esperando Orlando)
+  const outros = [...new Set(itens.filter((x) => x.pend && !ehMinha(x)).map((x) => x.quem))];
   const conta = (t) => itens.filter((x) => x.tipo === t).length;
   const chips = [
     ['todas', 'Todas', itens.length],
     ['pendentes', 'Esperando você', nPend],
+    ...outros.map((q) => ['q:' + q, esperando(q), itens.filter((x) => x.pend && x.quem === q).length]),
     ['passada', 'Corrida', conta('passada')],
     ['movimento', 'Movimento', conta('movimento')],
     ['fisica', 'Física', conta('fisica')],
@@ -117,7 +133,12 @@ async function viewAvaliacoesEquipe(filtro) {
     const q = aveNorm(st.busca || '');
     const lista = itens.filter(
       (x) =>
-        (st.f === 'todas' || (st.f === 'pendentes' ? x.pend : x.tipo === st.f)) &&
+        (st.f === 'todas' ||
+          (st.f === 'pendentes'
+            ? ehMinha(x)
+            : st.f.startsWith('q:')
+              ? x.pend && x.quem === st.f.slice(2)
+              : x.tipo === st.f)) &&
         (!q || aveNorm((meus.get(x.aluno) || {}).nome || '').includes(q)),
     );
     let mesAnt = '';
@@ -127,7 +148,7 @@ async function viewAvaliacoesEquipe(filtro) {
         const mes = String(x.quando).slice(0, 7);
         const cab = mes !== mesAnt ? `<p class="eyebrow" style="margin:18px 0 8px">${esc(nomeMes(mes))}</p>` : '';
         mesAnt = mes;
-        return `${cab}<a class="list-item" href="${x.href}" style="color:inherit"><span class="ativ-ic">${AVE_TIPOS[x.tipo].ic()}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome || 'Aluno')}</b><div class="small muted ellip">${AVE_TIPOS[x.tipo].t} · ${esc(x.sub)}</div><div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center"><span class="tag ${x.pend ? 'warn' : ''}">${esc(x.st)}</span><span class="tiny dim">${fmtDia(String(x.quando).length > 10 ? x.quando : x.quando + 'T12:00:00')}</span></div></div>${I.chev}</a>`;
+        return `${cab}<a class="list-item" href="${x.href}" style="color:inherit"><span class="ativ-ic">${AVE_TIPOS[x.tipo].ic()}</span><div class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(m.nome || 'Aluno')}</b><div class="small muted ellip">${AVE_TIPOS[x.tipo].t} · ${esc(x.sub)}</div><div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center"><span class="tag ${ehMinha(x) ? 'warn' : x.pend ? 'acc' : ''}">${esc(x.st)}</span><span class="tiny dim">${fmtDia(String(x.quando).length > 10 ? x.quando : x.quando + 'T12:00:00')}</span></div></div>${I.chev}</a>`;
       })
       .join('');
     document.getElementById('ave-lista').innerHTML =
