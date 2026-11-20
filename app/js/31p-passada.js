@@ -2347,7 +2347,7 @@ function psDetalheHTML(x, urls, ant, staff, previa, outras = []) {
         ? ''
         : `<div class="card ps-coment"><span class="eyebrow">${staff ? 'Relatório para o aluno' : 'Comentário do treinador'}</span>${
             staff
-              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea><button class="btn block" id="ps-salvar" style="margin-top:10px">${x.relatorio_path ? 'Revisar e reenviar o relatório' : 'Revisar e gerar o relatório'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)} às ${fmtHora(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise biomecânica da corrida dele, com o PDF para baixar.</p>'}`
+              ? `<div id="ps-sug"></div><textarea class="textarea" id="ps-txt" rows="6" placeholder="Escreva o que você viu e o que o aluno deve ajustar. Vai no relatório em PDF, junto com as imagens e as medidas.">${esc(x.comentario || '')}</textarea>${psToqueFora(x) && !x.relatorio_path ? `<div class="ps-avisos" id="ps-trava" style="margin-top:10px"><p class="small"><b>Peça outro vídeo antes de mandar.</b> O app não achou as pernas neste vídeo e as medidas principais ficaram de fora. O relatório sairia quase vazio.</p><button type="button" class="btn block" id="ps-regravar" style="margin-top:10px">Pedir outro vídeo, com a mensagem pronta</button><a href="#" class="small" id="ps-mesmo" style="display:inline-block;margin-top:8px">Gerar mesmo assim, só com o que ficou</a></div>` : ''}<button class="btn block" id="ps-salvar" style="margin-top:10px${psToqueFora(x) && !x.relatorio_path ? ';display:none' : ''}">${x.relatorio_path ? 'Revisar e reenviar o relatório' : 'Revisar e gerar o relatório'}</button>${x.relatorio_path ? `<p class="tiny dim" style="margin-top:8px">Relatório enviado em ${fmtDia(x.relatorio_em)} às ${fmtHora(x.relatorio_em)}. <a href="#" id="ps-ver-rel">Abrir o PDF enviado</a></p>` : '<p class="tiny dim" style="margin-top:8px">O aluno só vê as medidas depois que você enviar. O relatório fica na aba Análise biomecânica da corrida dele, com o PDF para baixar.</p>'}`
               : `<p style="margin-top:6px;white-space:pre-line">${x.comentario ? esc(x.comentario) : 'Seu treinador vai olhar o vídeo e deixar o comentário aqui. Você recebe uma notificação.'}</p>`
           }</div>`
     }
@@ -3791,6 +3791,49 @@ function psListaHTML(lista, base) {
 }
 
 // ficha do aluno no app do treinador: lista, nova análise e detalhe com comentário
+// mensagem pronta para pedir o vídeo de novo, no nome do treinador: ele revisa e manda pelo app ou pelo WhatsApp
+function psMsgRegravar(x, nome) {
+  const n = firstName(nome || '');
+  const esteira = x.local === 'esteira';
+  if (x.vista === 'lado')
+    return `${n}, o vídeo de lado não pegou suas pernas direito${esteira ? ' porque a lateral da esteira cobriu elas' : ''}. Consegue gravar de novo? Põe o celular deitado, na altura do quadril${esteira ? ' e um pouco acima da lateral da esteira' : ''}, a uns 2 a 3 metros de você, bem de lado. Precisa aparecer da cabeça aos pés o tempo todo. Se o seu celular tiver câmera lenta, usa ela. Corre uns 20 segundos no seu ritmo leve.`;
+  return `${n}, o vídeo por trás não pegou suas pernas direito. Consegue gravar de novo? Põe o celular na altura do quadril, a uns 2 a 3 metros, bem no meio das suas costas. Precisa aparecer da cabeça aos pés o tempo todo. Se o seu celular tiver câmera lenta, usa ela. Corre uns 20 segundos no seu ritmo leve.`;
+}
+function psPedirOutroVideo(x, m) {
+  const tel = telWa(m.telefone);
+  openSheet(
+    `<p class="eyebrow">Análise biomecânica da corrida</p><div class="h2" style="margin-top:4px">Pedir outro vídeo</div>
+    <p class="small muted" style="margin-top:4px">Mensagem pronta no seu nome. Ajuste se quiser antes de enviar.</p>
+    <textarea class="textarea" id="pr-txt" rows="8" style="margin-top:12px">${esc(psMsgRegravar(x, m.nome))}</textarea>
+    <button class="btn block" id="pr-app" style="margin-top:12px">${I.feed} Enviar pelo app</button>
+    ${tel ? `<button class="btn ghost block" id="pr-wa" style="margin-top:8px">${I.wa} Abrir no WhatsApp</button>` : '<p class="tiny dim" style="margin-top:8px">Sem telefone no cadastro para enviar pelo WhatsApp.</p>'}`,
+    (r) => {
+      const txt = () => r.querySelector('#pr-txt').value.trim();
+      r.querySelector('#pr-app').onclick = async (e) => {
+        if (!txt()) return toast('Escreva a mensagem.', true);
+        e.currentTarget.disabled = true;
+        const { data, error } = await sb
+          .from('nx_mensagens')
+          .insert({ org_id: S.org.id, aluno_id: x.aluno_id, autor_id: S.user.id, texto: txt() })
+          .select('id')
+          .single();
+        if (error) {
+          e.currentTarget.disabled = false;
+          return toast('Não foi possível enviar.', true);
+        }
+        if (data) notificar('mensagem', data.id);
+        closeSheet();
+        toast(`Mensagem enviada. ${firstName(m.nome || '')} recebe a notificação.`);
+      };
+      const wa = r.querySelector('#pr-wa');
+      if (wa)
+        wa.onclick = () => {
+          window.open(`https://wa.me/${tel}?text=${encodeURIComponent(txt())}`, '_blank', 'noopener');
+          closeSheet();
+        };
+    },
+  );
+}
 async function psTreinador(box, m, sub) {
   const alunoId = m.user_id;
   const base = `#/aluno/${alunoId}/passada`;
@@ -3927,6 +3970,15 @@ async function psTreinador(box, m, sub) {
         return false;
       }
     };
+    const regravar = document.getElementById('ps-regravar');
+    if (regravar) regravar.onclick = () => psPedirOutroVideo(x, m);
+    const mesmo = document.getElementById('ps-mesmo');
+    if (mesmo)
+      mesmo.onclick = (e) => {
+        e.preventDefault();
+        document.getElementById('ps-trava').remove();
+        document.getElementById('ps-salvar').style.display = '';
+      };
     document.getElementById('ps-salvar').onclick = () => {
       const t = ta.value.trim();
       if (t) x.comentario = t;
