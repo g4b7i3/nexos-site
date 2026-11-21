@@ -1263,6 +1263,13 @@ async function psProcessar(v, ini, fim, prog, fator = 1) {
   const passo = 1 / fpsUso;
   const W = v.videoWidth,
     H = v.videoHeight;
+  // foto de cada quadro tirada na mesma hora em que os pontos são medidos: o esqueleto cai sempre em cima do corpo
+  // (buscar o quadro de novo depois pode trazer o quadro vizinho, e com a pessoa passando rápido o desenho fica torto)
+  psImgs = new Map();
+  const cap = document.createElement('canvas');
+  cap.width = Math.min(720, W);
+  cap.height = Math.round((H * cap.width) / W);
+  const capCtx = cap.getContext('2d');
   let ts = Math.floor(performance.now());
   const detectar = (t) => {
     ts = Math.max(ts + 1, Math.floor(performance.now()));
@@ -1272,14 +1279,19 @@ async function psProcessar(v, ini, fim, prog, fator = 1) {
       const lm = r && r.landmarks && r.landmarks[0];
       if (lm) p = lm.map((q) => [q.x * W, q.y * H, q.visibility ?? 1]);
     } catch {}
+    try {
+      capCtx.drawImage(v, 0, 0, cap.width, cap.height);
+      const tv = +t.toFixed(4);
+      psImgs.set(tv, new Promise((ok) => cap.toBlob(ok, 'image/jpeg', 0.85)));
+    } catch {}
     if (prog) prog(Math.min(1, (t - ini) / (fim - ini || 1)), p, W, H);
     return { t: +((t - ini) / fator).toFixed(5), tv: +t.toFixed(4), p };
   };
   // jeito principal: toca o vídeo devagar, sem som, e para em cada quadro para medir.
   // Pular de quadro em quadro (busca) é muito lento em vídeo de celular em alta resolução e às vezes trava.
   if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-    // vídeo comum (30 quadros) toca na velocidade normal; 60 a meia; 120 a um quarto (sem perder quadro)
-    const vel = Math.max(0.25, Math.min(1, 30 / fpsV));
+    // vídeo comum (30 quadros) toca a meia velocidade; 60 e 120 a um quarto (assim não pula quadro)
+    const vel = Math.max(0.25, Math.min(0.5, 15 / fpsV));
     const fr = await psTocarQuadros(v, ini, fim, passo, detectar, vel);
     if (fr && fr.length > 5) return { fr, W, H, fps };
   }
@@ -1418,7 +1430,25 @@ function psLinha(ctx, a, b, cor, larg = 3, trac = null) {
   ctx.restore();
 }
 // desenha um quadro do vídeo com o esqueleto e as medidas daquele momento
+let psImgs = new Map();
+// foto guardada daquele quadro (a mesma imagem em que os pontos foram medidos)
+async function psImgDe(f) {
+  const b = psImgs.get(f.tv);
+  if (!b) return null;
+  try {
+    const blob = await b;
+    return blob ? await createImageBitmap(blob) : null;
+  } catch {
+    return null;
+  }
+}
 async function psQuadro(v, f, tipo, an) {
+  const im = await psImgDe(f);
+  if (im) {
+    const k = im.width / v.videoWidth;
+    const p = f.p && f.p.map((q) => (q ? [q[0] * k, q[1] * k, q[2]] : q));
+    return psDesenhaQuadro(im, 0, 0, im.width, im.height, p, tipo, { ...an, perna: an.perna && an.perna * k });
+  }
   await psBuscar(v, f.tv ?? f.t);
   return psDesenhaQuadro(v, 0, 0, v.videoWidth, v.videoHeight, f.p, tipo, an);
 }
@@ -3277,8 +3307,12 @@ async function psTira(v, fr, ids) {
     tempos = [];
   for (let k = 0; k < ids.length; k++) {
     const f = fr[ids[k]];
-    await psBuscar(v, f.tv ?? f.t);
-    ctx.drawImage(v, 0, k * h, w, h);
+    const im = await psImgDe(f);
+    if (im) ctx.drawImage(im, 0, k * h, w, h);
+    else {
+      await psBuscar(v, f.tv ?? f.t);
+      ctx.drawImage(v, 0, k * h, w, h);
+    }
     const P = {};
     if (f.p)
       Object.values(PS_P).forEach((i) => {
