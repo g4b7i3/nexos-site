@@ -2670,7 +2670,8 @@ async function cortarVideo(src, ini, fim, aoProgresso, opts = {}) {
         throw new Error('sem áudio');
       }
     }
-    const rec = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: 2500000 });
+    // 1 Mbps basta para demonstração sem som em 720p e deixa o vídeo 2,5 vezes menor (menos armazenamento e tráfego)
+    const rec = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: 1000000 });
     const partes = [];
     rec.ondataavailable = (e) => {
       if (e.data && e.data.size) partes.push(e.data);
