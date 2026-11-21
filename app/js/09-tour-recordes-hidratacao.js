@@ -757,6 +757,48 @@ function ligarRelogio() {
     els.forEach((el) => (el.textContent = h));
   }, 1000);
 }
+/* dayoff:puro:inicio */
+// Dicas do Day off do aluno. Mudam conforme a distância até a prova; fora da semana de prova, giram pelo dia.
+const DAYOFF_VESPERA = [
+  [
+    'Coma o que você já conhece',
+    'Priorize carboidratos de fácil digestão, como arroz, massa, pão e frutas. Evite comida nova, muita fibra e muita gordura.',
+  ],
+  ['Beba água ao longo do dia', 'Aos poucos, sem exagerar à noite. Urina clara é um bom sinal.'],
+  ['Deixe tudo separado', 'Número, chip, roupa e tênis já usados em treino, e o que vai comer antes da largada.'],
+  [
+    'Deite cedo',
+    'Ansiedade na véspera é normal. Uma noite mais curta hoje pesa pouco, o sono dos dias anteriores é o que mais conta.',
+  ],
+];
+const DAYOFF_PROVA = [
+  [
+    'Capriche no carboidrato',
+    'Aumente um pouco arroz, massa, batata, pão e frutas nas refeições. É a energia que vai para o músculo no dia da prova.',
+  ],
+  ['Beba água ao longo do dia', 'Aos poucos, com a garrafa por perto.'],
+  ['Durma bem', 'As noites antes da véspera são as que mais contam para a prova.'],
+  ['Pernas descansadas', 'Nada de treino extra nem caminhada longa. Guarde para a prova.'],
+];
+const DAYOFF_GERAL = [
+  ['Descanso também é treino', 'É no descanso que o corpo se adapta ao que você treinou.'],
+  ['Durma bem', 'De 7 a 9 horas de sono. É quando o corpo mais se recupera.'],
+  ['Proteína nas refeições', 'Ovo, carne, frango, peixe, feijão ou iogurte ajudam a reparar o músculo.'],
+  ['Beba água ao longo do dia', 'Aos poucos, com a garrafa por perto.'],
+  [
+    'Repõe a energia',
+    'Carboidrato nas refeições, como arroz, massa, batata e frutas, repõe o que os treinos gastaram.',
+  ],
+  ['Se quiser se mexer, bem leve', 'Uma caminhada tranquila ou alongamento, sem cansar.'],
+];
+function dicasDayOff(diasProva, n) {
+  if (diasProva === 1) return DAYOFF_VESPERA.slice();
+  if (diasProva === 2 || diasProva === 3) return DAYOFF_PROVA.slice();
+  const k = Math.abs(Math.floor(n || 0));
+  return [0, 1, 2].map((i) => DAYOFF_GERAL[(k + i * 2) % DAYOFF_GERAL.length]);
+}
+/* dayoff:puro:fim */
+
 async function alunoHoje() {
   loading();
   const hoje = isoDia(new Date());
@@ -906,6 +948,17 @@ async function alunoHoje() {
       : `<a class="card tap wcard" href="#/treino/${prox.id}" style="display:flex"><div class="wletter">${esc(letraTreino(prox, ativos.indexOf(prox)))}</div><div class="grow"><span class="eyebrow">Musculação · ${fixoHoje ? 'treino de hoje' : 'próximo da sequência'}</span><div class="h3" style="margin-top:2px">${esc(prox.titulo)}</div>${prox.foco ? `<div class="small muted">${esc(prox.foco)}</div>` : ''}<div class="meta"><span class="tag">${prox.nx_treino_itens.length} exercícios</span></div></div><span class="go">${I.play}</span></a>`
     : '';
   const descanso = !corrDoDia.length && !cardMusc && !forcaHoje && !extraHoje.length;
+  // dias até a próxima prova (marcada nos eventos ou na planilha), para as dicas do Day off
+  const provaPlan = fC ? planoSem.find((p) => p.tipo === 'prova' && p.data > hoje) : null;
+  const diasProvaHoje = [provaProx && provaProx.data, provaPlan && provaPlan.data]
+    .filter((d) => d && d > hoje)
+    .map((d) => Math.round((dia(d) - dia(hoje)) / 864e5))
+    .sort((a, b) => a - b)[0];
+  const offPlano = fC ? planoSem.find((p) => p.data === hoje && p.tipo === 'folga') : null;
+  const offObs = offPlano && offPlano.descricao ? offPlano.descricao : '';
+  const dicasOffHTML = `<ol class="dayoff-l">${dicasDayOff(diasProvaHoje, Math.round(dia(hoje) / 864e5))
+    .map(([t, x]) => `<li><b>${esc(t)}</b><span>${esc(x)}</span></li>`)
+    .join('')}</ol>`;
   const resumoDia = (() => {
     if (descanso) return 'Dia de descanso.';
     const itens = [
@@ -982,7 +1035,11 @@ async function alunoHoje() {
         .join('')}
       ${corrDoDia.map(cardCorr).join('')}
       ${cardMusc}
-      ${descanso ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">Hoje é dia de descanso</div><div class="small muted">Recuperar também é treino. Hidrate-se, coma bem e durma bem.</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div></div>` : ''}
+      ${
+        descanso
+          ? `<div class="card wcard dayoff" style="display:flex"><div class="wletter off">${OFF_IC}</div><div class="grow"><span class="eyebrow">Day off${offCorr || offForca ? ' · definido pelo treinador' : ''}</span><div class="h3" style="margin-top:2px">${diasProvaHoje === 1 ? 'Descanso na véspera da prova' : 'Hoje é dia de descanso'}</div>${proxCorr ? `<div class="meta"><span class="tag">Próximo: ${esc(proxCorr.titulo || nomeTipo(proxCorr.tipo))}</span></div>` : ''}</div>${offObs ? `<p class="obs-t dayoff-obs"><b>Obs. do treinador:</b> ${esc(offObs)}</p>` : ''}${dicasOffHTML}</div>`
+          : ''
+      }
     </div>
     <div id="rec-box"></div>
     <div id="agua-slot-m" class="agua-slot-m"></div>

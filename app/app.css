@@ -1124,7 +1124,13 @@ html.trava-scroll .biblio-l,html.trava-scroll .sheet,html.trava-scroll .subtabs{
 .ftr.folga{border-left-color:#1b2c55;background:repeating-linear-gradient(135deg,var(--s1) 0 8px,var(--bg2) 8px 16px)}
 .wletter.off{background:linear-gradient(135deg,#1b2c55,#0b1630);color:#fff;border:0;height:74px;-webkit-text-stroke:0}
 .wletter.off svg{width:42px;height:42px}
-.wcard.dayoff{align-items:center}
+.wcard.dayoff{align-items:center;flex-wrap:wrap}
+.dayoff-obs{flex-basis:100%;margin:4px 0 0}
+.dayoff-l{flex-basis:100%;list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:9px;counter-reset:dl}
+.dayoff-l li{position:relative;padding-left:30px;font-size:.86rem;line-height:1.4;counter-increment:dl}
+.dayoff-l li::before{content:counter(dl);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:var(--s1);color:var(--acc);font-size:.72rem;font-weight:700;display:grid;place-items:center}
+.dayoff-l li b{display:block;font-weight:700}
+.dayoff-l li span{color:var(--mute)}
 /* zonas editáveis */
 .pz-ed{background:var(--s1);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .pz-ed>span{font-size:.74rem;color:var(--mute)}
