@@ -138,8 +138,11 @@ function viewCorpo3d(reg, lado, sel) {
 async function viewCorpo3dRegiao(reg, lado, sel) {
   layout(S.staff ? 'wide' : '');
   const R = C3D_REG[reg];
+  // vindo do check-in, o título é a região que o aluno marcou (ex.: Costas), e não a região inteira do modelo
+  const dorK = sel && sel.startsWith('dor-') ? sel.slice(4).replace(/_[de]$/, '') : null;
+  const dorNome = dorK && typeof REG_DOR !== 'undefined' && C3D_DOR[sel.slice(4)] ? REG_DOR[dorK] : null;
   $app.innerHTML = `<a class="back" href="#/corpo3d">${I.back} Corpo 3D</a>
-    <div class="row between" style="align-items:flex-end;gap:10px"><div><p class="eyebrow">Corpo 3D</p><h1 class="h1">${R.t}</h1></div>
+    <div class="row between" style="align-items:flex-end;gap:10px"><div><p class="eyebrow">${dorNome ? 'Corpo 3D · região marcada no check-in' : 'Corpo 3D'}</p><h1 class="h1">${dorNome ? esc(dorNome) : R.t}</h1></div>
       ${R.bi ? '' : `<div class="c3d-lado" role="group" aria-label="Lado"><button type="button" data-lado="d" class="${lado === 'd' ? 'on' : ''}">Direito</button><button type="button" data-lado="e" class="${lado === 'e' ? 'on' : ''}">Esquerdo</button></div>`}</div>
     <div class="c3d-vp" id="c3d-vp"><div class="c3d-carga" id="c3d-carga"><span class="c3d-spin"></span><span class="small muted">Carregando o modelo 3D</span></div>
       <div class="c3d-rot" id="c3d-rot" hidden></div>
@@ -159,7 +162,7 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
     );
   let cena;
   try {
-    cena = await c3dCena(vp, reg, lado);
+    cena = await c3dCena(vp, reg, lado, dorK && C3D_DOR_ATRAS.includes(dorK));
   } catch (e) {
     console.error(e);
     vp.querySelector('#c3d-carga').innerHTML =
@@ -316,7 +319,7 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
     cena.condicao(alvo);
     const conds = R.cond.filter((c) => c.alvo.some((n) => alvo.includes(n)));
     painel.innerHTML = `<div class="card"><p class="eyebrow" style="color:var(--err)">Região da dor marcada</p><h3 class="c3d-tit">${alvo.map((n) => esc(c3dNome(n))).join(', ')}</h3>
-      <p class="small" style="margin-top:6px">As estruturas em vermelho ficam na região marcada no check-in. Isso não diz qual delas está doendo. As condições abaixo são as mais comuns nessa região em quem corre.</p></div>
+      <p class="small" style="margin-top:6px">As estruturas em vermelho ficam na região marcada no check-in. Isso não diz qual delas está doendo.${conds.length ? ' As condições abaixo são as mais comuns nessa região em quem corre.' : ''}</p></div>
       ${conds.length ? `<div class="stack" style="margin-top:10px">${conds.map((x) => `<button type="button" class="list-item" data-cond="${x.id}"><div class="grow"><b>${x.t}</b></div>${I.chev}</button>`).join('')}</div>` : ''}`;
     painel.querySelectorAll('[data-cond]').forEach(
       (b) =>
@@ -332,7 +335,7 @@ async function viewCorpo3dRegiao(reg, lado, sel) {
 }
 
 /* ---------- cena 3D ---------- */
-async function c3dCena(vp, reg, lado) {
+async function c3dCena(vp, reg, lado, atras = false) {
   const tem = (() => {
     try {
       const c = document.createElement('canvas');
@@ -473,7 +476,9 @@ async function c3dCena(vp, reg, lado) {
   // distância da câmera pela altura que a região deve ocupar na tela (alt, em metros)
   const centro = caixa.getCenter(new THREE.Vector3()),
     tam = Math.max(caixa.getSize(new THREE.Vector3()).length() * 0.9, C3D_REG[reg].alt || 0.4);
-  const v = C3D_REG[reg].vista || [0, 0, 1];
+  const v0 = C3D_REG[reg].vista || [0, 0, 1];
+  // dor marcada atrás (costas, lombar...): a câmera começa olhando por trás
+  const v = atras && v0[2] > 0 ? [v0[0], v0[1], -v0[2]] : v0;
   const dir = new THREE.Vector3(lado === 'e' ? -v[0] : v[0], v[1], v[2]).normalize();
   ctr.minDistance = tam * 0.3;
   // dá para se afastar até ver o modelo inteiro (nos vasos e nervos, o corpo todo)

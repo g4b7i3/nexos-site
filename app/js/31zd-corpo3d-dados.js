@@ -1004,6 +1004,8 @@ const C3D_EX = {
     ],
   },
 };
+// regiões do mapa de dor que ficam atrás do corpo: o 3D abre olhando por trás
+const C3D_DOR_ATRAS = ['costas', 'lombar', 'gluteo', 'coxa_t', 'panturrilha', 'triceps'];
 // mapa de dor do check-in (mapaCorpoHTML) → região e estruturas no 3D. Lado "_e" mostra o modelo espelhado (lado esquerdo)
 const C3D_DOR = {
   joelho: ['joelho', ['Patella', 'Patellar ligament', 'Medial meniscus', 'Lateral meniscus']],
