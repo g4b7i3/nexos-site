@@ -2499,11 +2499,16 @@ function exItemBib(e, fav, acao) {
     .filter(Boolean)
     .map((t) => `<span class="pill">${esc(t)}</span>`)
     .join('');
+  // quem da equipe criou (a biblioteca é a mesma para todos os treinadores)
+  const autor = e.criado_por && (S.cache.equipe || []).find((m) => m.user_id === e.criado_por);
+  const porQuem = autor
+    ? `<span class="pill">por ${e.criado_por === S.user.id ? 'você' : esc(String(autor.nome || '').split(' ')[0])}</span>`
+    : '';
   return `<div class="bib-it" data-ex="${e.id}">${exFig(e, 'thumb')}
-    <div class="grow" style="min-width:0"><b class="ellip2">${esc(e.nome)}</b><div class="bib-tags">${tags}${md === 'video' || md === 'youtube' ? `<span class="pill acc">${I.play} vídeo</span>` : ''}</div></div>
+    <div class="grow" style="min-width:0"><b class="ellip2">${esc(e.nome)}</b><div class="bib-tags">${tags}${porQuem}${md === 'video' || md === 'youtube' ? `<span class="pill acc">${I.play} vídeo</span>` : ''}</div></div>
     <button type="button" class="bib-star ${fav.has(e.id) ? 'on' : ''}" data-fav="${e.id}" aria-label="${fav.has(e.id) ? 'Tirar dos favoritos' : 'Adicionar aos favoritos'}">${STAR(fav.has(e.id))}</button>${acao}</div>`;
 }
-/** lista com abas (Todos, Favoritos, Meus), busca, grupo muscular e categoria. Usada na biblioteca e na hora de prescrever. */
+/** lista com abas (Todos, Favoritos, Da equipe), busca, grupo muscular e categoria. Usada na biblioteca e na hora de prescrever. */
 function bibliotecaUI(box, exs, fav, { aoTocar, aoCriar, acao = '' }) {
   const st = S.cache.bibSt || (S.cache.bibSt = { aba: 'todos', g: '', c: '', q: '' });
   let n = LIM;
@@ -2514,7 +2519,7 @@ function bibliotecaUI(box, exs, fav, { aoTocar, aoCriar, acao = '' }) {
     <div class="bib-abas">${[
       ['todos', 'Todos'],
       ['fav', 'Favoritos'],
-      ['meus', 'Meus exercícios'],
+      ['meus', 'Da equipe'],
     ]
       .map(([k, l]) => `<button type="button" data-aba="${k}" class="${st.aba === k ? 'on' : ''}">${l}</button>`)
       .join('')}</div>
@@ -2526,13 +2531,13 @@ function bibliotecaUI(box, exs, fav, { aoTocar, aoCriar, acao = '' }) {
     let l = filtrarEx(exs, st.g || 'Todos', st.q);
     if (st.c) l = l.filter((e) => e.categoria === st.c);
     if (st.aba === 'fav') l = l.filter((e) => fav.has(e.id));
-    else if (st.aba === 'meus') l = l.filter((e) => e.criado_por === S.user.id);
+    else if (st.aba === 'meus') l = l.filter((e) => e.criado_por); // criados por qualquer treinador da equipe
     box.querySelector('[data-n]').textContent = `${l.length} exercício${l.length === 1 ? '' : 's'}`;
     const vazio =
       st.aba === 'fav'
         ? 'Toque na estrela de um exercício para ele aparecer aqui.'
         : st.aba === 'meus'
-          ? 'Os exercícios que você criar aparecem aqui.'
+          ? 'Os exercícios que você ou outro treinador criar aparecem aqui, para toda a equipe.'
           : 'Nada encontrado. Tente outro termo ou crie o exercício.';
     box.querySelector('[data-l]').innerHTML =
       (l
@@ -2591,6 +2596,8 @@ function bibliotecaUI(box, exs, fav, { aoTocar, aoCriar, acao = '' }) {
     const it = e.target.closest('[data-ex]');
     if (it) aoTocar(exs.find((x) => x.id === it.dataset.ex));
   };
+  // nomes da equipe para mostrar quem criou cada exercício
+  if (!S.cache.equipe) carregarEquipe().then(() => box.isConnected && draw());
 }
 async function escolherExercicio(exs, onPick) {
   const fav = await carregarFavoritos();
