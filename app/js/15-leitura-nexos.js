@@ -714,6 +714,12 @@ async function viewCorrida(id) {
       ${c.cadencia ? `<div class="metric"><span>Cadência</span><b>${c.cadencia}<small>ppm</small></b></div>` : ''}
       ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
     </div>
+    ${(() => {
+      const of = ehCorr(c) ? tempoOficial(c, ehProvaC(c, plano)) : null;
+      return of
+        ? `<div class="card oficial-card"><span class="eyebrow">Tempo na distância oficial</span><div class="row between" style="align-items:baseline;margin-top:6px"><b class="h2">${fmtDurLongo(of.t)}</b><span class="tag">${of.nome} · ${fmtPace(of.pace)}</span></div><p class="small muted" style="margin-top:8px">O relógio marcou ${fmtKm(c.distancia_m)} no total. O GPS costuma marcar um pouco a mais por causa das curvas e dos desvios no percurso. Na distância oficial da prova, ${of.nome}, ${S.staff ? 'a passagem foi' : 'você passou'} com ${fmtDurLongo(of.t)}.</p></div>`
+        : '';
+    })()}
     ${ehCorr(c) ? nexosIntHTML(niR) : ''}
     <div id="tn-corr"></div>
     ${S.staff && !c.comentario_treinador ? '<div id="sug-corr"></div>' : ''}

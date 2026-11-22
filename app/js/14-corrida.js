@@ -662,6 +662,34 @@ function parciaisDaSerie(s) {
   }
   return out.length ? out : null;
 }
+// Tempo na distância oficial da prova: o GPS quase sempre marca um pouco a mais (curvas, desvios), então numa prova
+// o tempo oficial é o momento em que o relógio passou pela distância da prova, e não o tempo total.
+const DIST_OFICIAIS = [
+  [5000, '5 km'],
+  [10000, '10 km'],
+  [15000, '15 km'],
+  [21097.5, '21,1 km'],
+  [42195, '42,2 km'],
+];
+const ehProvaC = (c, plano) =>
+  !!((plano && plano.tipo === 'prova') || /\bprova\b|maratona|\bmeia\b/i.test((c && c.titulo) || ''));
+function tempoOficial(c, ehProva) {
+  const s = c && c.analise && c.analise.serie;
+  if (!ehProva || !s || !s.d || !s.t || !c.distancia_m || s.d.length !== s.t.length) return null;
+  // GPS entre a distância oficial e 5% acima dela (mais que isso não é a mesma prova)
+  const alvo = DIST_OFICIAIS.find(([m]) => c.distancia_m >= m + 20 && c.distancia_m <= m * 1.05);
+  if (!alvo) return null;
+  const [m, nome] = alvo;
+  for (let i = 1; i < s.d.length; i++) {
+    if (s.d[i] < m) continue;
+    const d0 = s.d[i - 1],
+      d1 = s.d[i];
+    if (!(d1 > d0) || s.d[i - 1] > m) return null;
+    const t = s.t[i - 1] + ((s.t[i] - s.t[i - 1]) * (m - d0)) / (d1 - d0);
+    return { m, nome, t: Math.round(t), pace: t / (m / 1000) };
+  }
+  return null;
+}
 /* distancia:puro:fim */
 function formCorrida(alunoId, d, plano, onSalvo) {
   const dt = new Date(d.data);
@@ -796,6 +824,7 @@ const CARD_STATS = [
   ['dist', 'Distância'],
   ['pace', 'Pace'],
   ['tempo', 'Tempo'],
+  ['oficial', 'Tempo na distância oficial'],
   ['fc', 'FC média'],
   ['elev', 'Subida'],
   ['cad', 'Cadência'],
@@ -950,6 +979,10 @@ function cardValores(c) {
     dist: c.distancia_m ? { l: 'Distância', v: (c.distancia_m / 1000).toFixed(2).replace('.', ','), u: 'km' } : null,
     pace: pace ? { l: 'Pace', v: fmtPace(pace).replace('/km', ''), u: '/km' } : null,
     tempo: c.duracao_s ? { l: 'Tempo', v: fmtDurLongo(c.duracao_s), u: '' } : null,
+    oficial: (() => {
+      const o = tempoOficial(c, c._prova != null ? c._prova : ehProvaC(c));
+      return o ? { l: `Tempo nos ${o.nome}`, v: fmtDurLongo(o.t), u: '' } : null;
+    })(),
     fc: c.fc_media ? { l: 'FC média', v: String(c.fc_media), u: 'bpm' } : null,
     elev: c.elevacao_m ? { l: 'Subida', v: String(Math.round(c.elevacao_m)), u: 'm' } : null,
     cad: c.cadencia ? { l: 'Cadência', v: String(c.cadencia), u: 'ppm' } : null,
@@ -1200,7 +1233,7 @@ async function desenharCard(cv, c, o) {
     return w;
   };
   const V = cardValores(c);
-  const sel = ['dist', 'pace', 'tempo', 'fc', 'elev', 'cad', 'kcal', 'passos']
+  const sel = ['dist', 'pace', 'tempo', 'oficial', 'fc', 'elev', 'cad', 'kcal', 'passos']
     .filter((k) => o.stats[k] && V[k])
     .map((k) => V[k]);
   const VAL = (px) => `700 ${Math.round(px * 0.84)}px ${FH}`,
@@ -1564,7 +1597,7 @@ async function desenharCard(cv, c, o) {
       kcal: 'M12 21c-4 0-6.5-2.6-6.5-6 0-4 3.5-5.5 4-10 2.5 1.5 4 4 4 6 1-1 1.5-2 1.5-3 2 1.7 3.5 4.4 3.5 7 0 3.4-2.5 6-6.5 6z',
     };
     // usa o que estiver marcado e completa com os outros números da corrida até 6
-    const ordem = ['dist', 'tempo', 'pace', 'elev', 'fc', 'passos', 'cad', 'kcal'];
+    const ordem = ['dist', 'tempo', 'oficial', 'pace', 'elev', 'fc', 'passos', 'cad', 'kcal'];
     const chaves = [...ordem.filter((k) => o.stats[k] && V[k]), ...ordem.filter((k) => !o.stats[k] && V[k])]
       .slice(0, 6)
       .sort((a, b) => ordem.indexOf(a) - ordem.indexOf(b));
@@ -3302,6 +3335,7 @@ async function abrirCardForca(sessaoId) {
 }
 async function abrirCardCorrida(c, plano) {
   c._serie = serieDe(c, plano);
+  c._prova = ehProvaC(c, plano);
   try {
     await Promise.all(
       ["800 100px 'Unbounded'", "400 100px 'Unbounded'", "700 40px 'Manrope'", "500 40px 'Manrope'"].map((f) =>
@@ -3325,6 +3359,7 @@ async function abrirCardCorrida(c, plano) {
         dist: true,
         pace: true,
         tempo: true,
+        oficial: true,
         fc: false,
         elev: false,
         cad: false,
