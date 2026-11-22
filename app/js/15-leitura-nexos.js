@@ -715,9 +715,9 @@ async function viewCorrida(id) {
       ${c.rpe != null ? `<div class="metric"><span>Esforço</span><b>${c.rpe}<small>/10</small></b><em>${rpeTxt(c.rpe)}</em></div>` : ''}
     </div>
     ${(() => {
-      const of = ehCorr(c) ? tempoOficial(c, ehProvaC(c, plano)) : null;
+      const of = ehCorr(c) ? ritmoOficial(c, ehProvaC(c, plano)) : null;
       return of
-        ? `<div class="card oficial-card"><span class="eyebrow">Tempo na distância oficial</span><div class="row between" style="align-items:baseline;margin-top:6px"><b class="h2">${fmtDurLongo(of.t)}</b><span class="tag">${of.nome} · ${fmtPace(of.pace)}</span></div><p class="small muted" style="margin-top:8px">O relógio marcou ${fmtKm(c.distancia_m)} no total. O GPS costuma marcar um pouco a mais por causa das curvas e dos desvios no percurso. Na distância oficial da prova, ${of.nome}, ${S.staff ? 'a passagem foi' : 'você passou'} com ${fmtDurLongo(of.t)}.</p></div>`
+        ? `<div class="card oficial-card"><span class="eyebrow">Prova de ${of.nome}</span><div class="row between" style="align-items:baseline;margin-top:6px"><b class="h2">${fmtDurLongo(of.t)}</b><span class="tag">${fmtPace(of.pace)} nos ${of.nome}</span></div><p class="small muted" style="margin-top:8px">O relógio marcou ${fmtKm(c.distancia_m)}, ${Math.round(of.sobra)} m a mais que a prova. Isso acontece em quase toda prova: as curvas, o zigue-zague entre os corredores e o próprio GPS somam metros. O tempo da prova é o tempo até a chegada, ${fmtDurLongo(of.t)}, e o ritmo certo é o da distância oficial, ${fmtPace(of.pace)}.</p></div>`
         : '';
     })()}
     ${ehCorr(c) ? nexosIntHTML(niR) : ''}
