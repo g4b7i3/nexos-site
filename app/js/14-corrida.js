@@ -662,9 +662,8 @@ function parciaisDaSerie(s) {
   }
   return out.length ? out : null;
 }
-// Ritmo na distância oficial da prova: o GPS quase sempre marca um pouco a mais (curvas, zigue-zague entre os
-// corredores, erro do sinal). O tempo da prova é o tempo até a linha de chegada (o total); o que muda é o ritmo,
-// que deve ser calculado sobre a distância oficial e não sobre a do GPS.
+// Tempo na distância oficial da prova: o GPS quase sempre marca um pouco a mais (curvas, desvios), então numa prova
+// o tempo oficial é o momento em que o relógio passou pela distância da prova, e não o tempo total.
 const DIST_OFICIAIS = [
   [5000, '5 km'],
   [10000, '10 km'],
@@ -674,13 +673,22 @@ const DIST_OFICIAIS = [
 ];
 const ehProvaC = (c, plano) =>
   !!((plano && plano.tipo === 'prova') || /\bprova\b|maratona|\bmeia\b/i.test((c && c.titulo) || ''));
-function ritmoOficial(c, ehProva) {
-  if (!ehProva || !c || !c.distancia_m || !c.duracao_s) return null;
+function tempoOficial(c, ehProva) {
+  const s = c && c.analise && c.analise.serie;
+  if (!ehProva || !s || !s.d || !s.t || !c.distancia_m || s.d.length !== s.t.length) return null;
   // GPS entre a distância oficial e 5% acima dela (mais que isso não é a mesma prova)
   const alvo = DIST_OFICIAIS.find(([m]) => c.distancia_m >= m + 20 && c.distancia_m <= m * 1.05);
   if (!alvo) return null;
   const [m, nome] = alvo;
-  return { m, nome, t: c.duracao_s, pace: c.duracao_s / (m / 1000), sobra: c.distancia_m - m };
+  for (let i = 1; i < s.d.length; i++) {
+    if (s.d[i] < m) continue;
+    const d0 = s.d[i - 1],
+      d1 = s.d[i];
+    if (!(d1 > d0) || s.d[i - 1] > m) return null;
+    const t = s.t[i - 1] + ((s.t[i] - s.t[i - 1]) * (m - d0)) / (d1 - d0);
+    return { m, nome, t: Math.round(t), pace: t / (m / 1000) };
+  }
+  return null;
 }
 /* distancia:puro:fim */
 function formCorrida(alunoId, d, plano, onSalvo) {
@@ -816,7 +824,7 @@ const CARD_STATS = [
   ['dist', 'Distância'],
   ['pace', 'Pace'],
   ['tempo', 'Tempo'],
-  ['oficial', 'Pace na distância oficial'],
+  ['oficial', 'Tempo na distância oficial'],
   ['fc', 'FC média'],
   ['elev', 'Subida'],
   ['cad', 'Cadência'],
@@ -972,8 +980,8 @@ function cardValores(c) {
     pace: pace ? { l: 'Pace', v: fmtPace(pace).replace('/km', ''), u: '/km' } : null,
     tempo: c.duracao_s ? { l: 'Tempo', v: fmtDurLongo(c.duracao_s), u: '' } : null,
     oficial: (() => {
-      const o = ritmoOficial(c, c._prova != null ? c._prova : ehProvaC(c));
-      return o ? { l: `Pace nos ${o.nome}`, v: fmtPace(o.pace).replace('/km', ''), u: '/km' } : null;
+      const o = tempoOficial(c, c._prova != null ? c._prova : ehProvaC(c));
+      return o ? { l: `Tempo nos ${o.nome}`, v: fmtDurLongo(o.t), u: '' } : null;
     })(),
     fc: c.fc_media ? { l: 'FC média', v: String(c.fc_media), u: 'bpm' } : null,
     elev: c.elevacao_m ? { l: 'Subida', v: String(Math.round(c.elevacao_m)), u: 'm' } : null,
