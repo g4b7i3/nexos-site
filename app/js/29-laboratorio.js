@@ -2087,7 +2087,8 @@ async function staffBiblioteca(aba) {
   $app.innerHTML = `
     <p class="eyebrow">Montagem de treino</p><h1 class="h1">Treinos</h1>${treinosAbas('exercicios')}
     <p class="muted small" style="margin-top:6px">${exs.length} exercícios · ${comMidia} com foto ou vídeo. Toque em um para ver como fazer, editar ou trocar a mídia.</p>
-    <div id="bib-box" style="margin-top:14px"></div>`;
+    <div id="capas-box" style="margin-top:12px"></div><div id="bib-box" style="margin-top:14px"></div>`;
+  exvBotaoCapas(document.getElementById('capas-box'), exs, () => staffBiblioteca());
   bibliotecaUI(document.getElementById('bib-box'), exs, fav, {
     acao: I.chev,
     aoTocar: (ex) => formExercicio(ex),

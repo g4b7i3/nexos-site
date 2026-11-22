@@ -113,7 +113,8 @@ async function exvCapaDe(url) {
     .play()
     .then(() => v.pause())
     .catch(() => {});
-  const alvo = Math.min(0.5, (v.duration || 1) / 2);
+  // um quadro do meio do movimento (perto do início a pessoa costuma estar parada se preparando)
+  const alvo = (isFinite(v.duration) && v.duration > 0 ? v.duration : 1) * 0.4;
   if (Math.abs(v.currentTime - alvo) > 0.05) {
     v.currentTime = alvo;
     await espera('seeked', 8000);
@@ -135,39 +136,108 @@ async function exvCapaDe(url) {
   return await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', 0.8));
 }
 
-let exvCapasRodou = false;
-async function exvGerarCapas() {
-  if (exvCapasRodou || !S.staff || !S.org) return;
-  exvCapasRodou = true;
-  const { data } = await sb
-    .from('nx_exercicios')
-    .select('id,video_url')
-    .eq('org_id', S.org.id)
-    .is('capa_url', null)
-    .like('video_url', '%/storage/v1/object/%')
-    .limit(12);
-  for (const ex of data || []) {
-    try {
-      const jpg = await exvCapaDe(ex.video_url.split('#')[0]);
-      if (!jpg) continue;
-      const path = `${S.org.id}/capa-${ex.id}-${Date.now().toString(36)}.jpg`;
-      // sem upsert: substituir arquivo pede permissão de leitura no armazenamento, que a equipe não tem
-      const up = await sb.storage
-        .from('nx-exvideos')
-        .upload(path, jpg, { cacheControl: '31536000', contentType: 'image/jpeg' });
-      if (up.error) continue;
-      const capa = sb.storage.from('nx-exvideos').getPublicUrl(path).data.publicUrl;
-      await sb.from('nx_exercicios').update({ capa_url: capa }).eq('id', ex.id);
-      const c = S.cache && S.cache.ex && S.cache.ex.find && S.cache.ex.find((e) => e.id === ex.id);
-      if (c) c.capa_url = capa;
-    } catch {
-      /* tenta de novo na próxima vez que o app abrir */
+let exvCapasRodou = false,
+  exvCapasRodando = false;
+// exercícios com vídeo próprio e ainda sem capa
+const exvSemCapa = (exs) =>
+  (exs || []).filter((e) => !e.capa_url && e.video_url && /\/storage\/v1\/object\//.test(e.video_url));
+async function exvGerarCapas({ limite = 30, aoProgresso } = {}) {
+  if (exvCapasRodando || !S.staff || !S.org) return null;
+  exvCapasRodando = true;
+  const res = { feitas: 0, falhas: 0, total: 0 };
+  try {
+    const { data } = await sb
+      .from('nx_exercicios')
+      .select('id,video_url')
+      .eq('org_id', S.org.id)
+      .is('capa_url', null)
+      .like('video_url', '%/storage/v1/object/%')
+      .limit(limite);
+    // o mesmo vídeo pode servir a mais de um exercício: tira a capa uma vez só
+    const porVideo = new Map();
+    const lista = exvSemCapa(data);
+    for (const ex of lista) {
+      const u = ex.video_url.split('#')[0];
+      if (!porVideo.has(u)) porVideo.set(u, []);
+      porVideo.get(u).push(ex.id);
     }
+    res.total = lista.length;
+    let k = 0;
+    for (const [u, ids] of porVideo) {
+      if (aoProgresso) aoProgresso(k, porVideo.size);
+      k++;
+      try {
+        const jpg = await exvCapaDe(u);
+        if (!jpg) {
+          res.falhas += ids.length;
+          continue;
+        }
+        const path = `${S.org.id}/capa-${ids[0]}-${Date.now().toString(36)}.jpg`;
+        // sem upsert: substituir arquivo pede permissão de leitura no armazenamento, que a equipe não tem
+        const up = await sb.storage
+          .from('nx-exvideos')
+          .upload(path, jpg, { cacheControl: '31536000', contentType: 'image/jpeg' });
+        if (up.error) {
+          res.falhas += ids.length;
+          continue;
+        }
+        const capa = sb.storage.from('nx-exvideos').getPublicUrl(path).data.publicUrl;
+        const { error } = await sb.from('nx_exercicios').update({ capa_url: capa }).in('id', ids);
+        if (error) {
+          res.falhas += ids.length;
+          continue;
+        }
+        res.feitas += ids.length;
+        ids.forEach((id) => {
+          const c = S.cache && S.cache.ex && S.cache.ex.find && S.cache.ex.find((e) => e.id === id);
+          if (c) c.capa_url = capa;
+        });
+      } catch {
+        res.falhas += ids.length; // tenta de novo na próxima vez
+      }
+    }
+    if (aoProgresso) aoProgresso(porVideo.size, porVideo.size);
+  } finally {
+    exvCapasRodando = false;
   }
+  return res;
+}
+// botão da biblioteca: gera todas as capas que faltam, mostrando o andamento
+function exvBotaoCapas(box, exs, aoTerminar) {
+  const falta = exvSemCapa(exs).length;
+  if (!box || !falta || !S.staff) return;
+  box.innerHTML = `<div class="card exv-capas"><div class="grow"><b>${falta} ${falta === 1 ? 'vídeo sem capa' : 'vídeos sem capa'}</b><p class="small muted">A capa é um quadro do próprio vídeo e aparece na lista e para o aluno. Use o Wi-Fi: o app baixa cada vídeo uma vez.</p><p class="small" data-capas-st hidden></p></div><button type="button" class="btn sm" data-capas>Gerar capas</button></div>`;
+  const bt = box.querySelector('[data-capas]'),
+    st = box.querySelector('[data-capas-st]');
+  bt.onclick = async () => {
+    bt.disabled = true;
+    st.hidden = false;
+    st.textContent = 'Começando…';
+    const r = await exvGerarCapas({
+      limite: 500,
+      aoProgresso: (k, n) => (st.textContent = `Gerando ${Math.min(k + 1, n)} de ${n}… deixe esta tela aberta.`),
+    });
+    if (!r) {
+      st.textContent = 'As capas já estão sendo geradas. Tente de novo em instantes.';
+      bt.disabled = false;
+      return;
+    }
+    const prontas = `${r.feitas} ${r.feitas === 1 ? 'capa pronta' : 'capas prontas'}.`;
+    toast(
+      r.falhas
+        ? `${prontas} ${r.falhas} ${r.falhas === 1 ? 'vídeo não abriu' : 'vídeos não abriram'} neste celular; envie de novo em Editar.`
+        : prontas,
+      !!r.falhas,
+    );
+    if (aoTerminar) aoTerminar();
+  };
 }
 // começa um tempo depois de abrir o app, para não disputar a internet com a tela inicial
 setTimeout(function tentarCapas() {
   if (typeof S !== 'undefined' && S.org) {
-    if (S.staff) exvGerarCapas();
+    if (S.staff && !exvCapasRodou) {
+      exvCapasRodou = true;
+      exvGerarCapas();
+    }
   } else setTimeout(tentarCapas, 30000);
 }, 45000);

@@ -1822,6 +1822,8 @@ html{touch-action:manipulation}
 .ex-vid video{display:block;width:100%;max-height:360px;border-radius:14px;background:#000;object-fit:contain}
 .ex-vid p{margin-top:4px}
 .exv-erro{display:flex;flex-direction:column;gap:4px;padding:22px 18px;border-radius:14px;background:var(--s1);border:1px dashed var(--line2);text-align:center;font-size:.86rem;color:var(--mute)}
+.exv-capas{display:flex;gap:12px;align-items:center}
+.exv-capas .btn{flex:none}
 .exv-erro b{color:var(--txt,inherit);font-size:.95rem}
 /* seta para ocultar/mostrar uma seção (Atividade da semana) */
 .ocultar-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);background:var(--s1);color:var(--ink);cursor:pointer;flex:none}
