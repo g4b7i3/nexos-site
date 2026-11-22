@@ -4,9 +4,11 @@
 
 /* ================= APRIMORAMENTO INTELECTUAL (só treinadores) ================= */
 // banco de questões em app/aprimoramento/*.json (cada questão com explicação e fonte); respostas em nx_quiz_respostas
+// módulos de trilha podem ter figuras (estudo.figuras: [{ img, legenda }]), em app/aprimoramento/img/<img>.svg
 const APR_AREAS = [
   'especializacao',
   'preparacao',
+  'primeiros-socorros',
   'corrida',
   'triatlo',
   'forca',
@@ -399,6 +401,7 @@ function aprEstudo(ar, t, ult) {
     <p class="eyebrow">Módulo ${k + 1} de ${ar.temas.length}</p><h1 class="h1">${esc(t.titulo)}</h1>
     <div class="apr-objetivo"><span class="eyebrow">Objetivo</span><p>${esc(e.objetivo)}</p></div>
     <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Resumo</p>${e.resumo.map((x) => `<p>${esc(x)}</p>`).join('')}</div>
+    ${(e.figuras || []).map((f) => `<figure class="apr-fig"><img src="aprimoramento/img/${encodeURIComponent(f.img)}.svg" alt="${esc(f.legenda)}" loading="lazy" decoding="async"><figcaption>${esc(f.legenda)}</figcaption></figure>`).join('')}
     <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Pontos-chave</p>${lista(e.pontos, 'chave')}</div>
     <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Para ler</p>${lista(e.leituras, 'refs')}</div>
     <div class="card apr-estudo"><p class="sec-lbl" style="margin-top:0">Aplicar na Nexos</p>${lista(e.pratica, 'pratica')}</div>

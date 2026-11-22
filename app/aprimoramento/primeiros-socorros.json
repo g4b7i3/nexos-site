@@ -1,0 +1,952 @@
+{
+ "id": "primeiros-socorros",
+ "titulo": "Primeiros socorros no treino",
+ "trilha": true,
+ "desc": "Trilha de estudo em 6 módulos, com figuras, para o treino presencial: primeiro atendimento, RCP e DEA, engasgo, calor, mal súbito e lesões. Segue as diretrizes de 2025 da American Heart Association.",
+ "plano": "Sugestão: um módulo por semana, com as figuras e as questões até passar de 80%. Este conteúdo não substitui um curso prático com manequim, que toda a equipe deve fazer e renovar a cada 2 anos.",
+ "temas": [
+  {
+   "id": "base",
+   "titulo": "O primeiro atendimento no treino presencial",
+   "estudo": {
+    "objetivo": "Saber o que fazer nos primeiros minutos de qualquer emergência no treino e deixar a equipe preparada antes que ela aconteça.",
+    "figuras": [
+     {
+      "img": "ps-avaliacao",
+      "legenda": "A sequência dos primeiros segundos. Quem respira normal vai para a posição de recuperação; quem não respira, ou só puxa o ar de vez em quando, recebe RCP."
+     },
+     {
+      "img": "ps-recuperacao",
+      "legenda": "Posição de recuperação para quem não responde mas respira normal. A boca fica para baixo para a saliva e o vômito escorrerem."
+     }
+    ],
+    "resumo": [
+     "No treino presencial, o treinador costuma ser a pessoa mais preparada no local. O que ele faz nos primeiros minutos, antes de qualquer ambulância, pesa muito no desfecho.",
+     "A ordem é sempre a mesma. Primeiro, a segurança do local: trânsito, risco de queda, fios, calor do asfalto. Depois, ver se a pessoa responde, tocando nos ombros e chamando em voz alta. Em seguida, olhar se ela respira normal, por até 10 segundos.",
+     "Quem não responde e não respira normal está em parada cardíaca até prova em contrário. Respiração agônica (suspiros lentos, irregulares, que parecem ronco) aparece em boa parte das paradas e não é respiração normal. Leigo não precisa procurar pulso.",
+     "Ligue 192 (SAMU) no viva-voz e deixe o celular ao lado. O atendente orienta o que fazer e conta as compressões com você. Bombeiros atendem no 193.",
+     "Quem não responde mas respira normal vai para a posição de recuperação, de lado, e é observado até a ajuda chegar. Se houver suspeita de lesão na coluna (queda de altura, batida forte na cabeça ou no pescoço), não mexa sem necessidade.",
+     "Preparação vale tanto quanto a técnica. Antes de cada treino presencial, a equipe precisa saber o endereço exato do local, onde fica o desfibrilador (DEA) mais próximo, quem liga para o 192 e quem busca o DEA, e ter um kit básico à mão.",
+     "Deixar de prestar socorro, ou de pedir ajuda às autoridades quando possível fazê-lo sem risco pessoal, é crime de omissão de socorro no Brasil (art. 135 do Código Penal). Ligar para o 192 já é prestar socorro."
+    ],
+    "pontos": [
+     "Segurança, resposta e respiração, nessa ordem.",
+     "Não responde e não respira normal: parada cardíaca. Comece a RCP.",
+     "Respiração agônica não é respiração.",
+     "Ligue 192 no viva-voz e mande alguém buscar o DEA.",
+     "Respira normal e não responde: posição de recuperação.",
+     "Plano de emergência pronto antes do treino."
+    ],
+    "leituras": [
+     "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025.",
+     "Singletary EM et al. 2020 International Consensus on First Aid Science with Treatment Recommendations. Circulation, 2020.",
+     "Drezner JA et al. Inter-association task force recommendations on emergency preparedness and management of sudden cardiac arrest in high school and college athletic programs. J Athl Train, 2007.",
+     "Brasil. Código Penal, art. 135 (omissão de socorro)."
+    ],
+    "pratica": [
+     "Monte o plano de emergência de cada local de treino presencial: endereço completo, ponto de referência, DEA mais próximo e hospital mais perto.",
+     "Combine os papéis da equipe: quem atende, quem liga para o 192, quem busca o DEA e quem recebe a ambulância.",
+     "Revise o kit do treino: luvas, gaze, atadura, soro fisiológico, saco de gelo, manta térmica, açúcar ou gel, e o telefone de emergência de cada aluno.",
+     "Confira na ficha do aluno se há doença cardíaca, asma, diabetes, convulsão ou alergia grave, e o contato de emergência."
+    ]
+   },
+   "q": [
+    {
+     "id": "ps-base-01",
+     "n": 1,
+     "p": "Ao chegar perto de um aluno caído no treino, qual é o primeiro passo?",
+     "a": [
+      "Ver se o local é seguro para você e para ele",
+      "Levantar o aluno",
+      "Dar água",
+      "Procurar o pulso no pescoço"
+     ],
+     "c": 0,
+     "e": "O socorrista que se machuca vira mais uma vítima. A segurança do local vem antes de tudo.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    },
+    {
+     "id": "ps-base-02",
+     "n": 2,
+     "p": "O aluno não responde e faz suspiros lentos e irregulares, como um ronco. O que isso indica?",
+     "a": [
+      "Provável parada cardíaca; comece a RCP",
+      "Que está dormindo e deve ser deixado em paz",
+      "Que respira bem e basta observar",
+      "Que está com hipoglicemia leve"
+     ],
+     "c": 0,
+     "e": "A respiração agônica aparece em boa parte das paradas cardíacas fora do hospital e não deve atrasar a RCP.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-base-03",
+     "n": 1,
+     "p": "Por quanto tempo, no máximo, se deve olhar a respiração antes de decidir?",
+     "a": [
+      "10 segundos",
+      "30 segundos",
+      "1 minuto",
+      "Até a ambulância chegar"
+     ],
+     "c": 0,
+     "e": "A checagem deve ser rápida. Passou de 10 segundos sem respiração normal, comece as compressões.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-base-04",
+     "n": 2,
+     "p": "O leigo treinado precisa sentir o pulso para iniciar a RCP?",
+     "a": [
+      "Não, basta não responder e não respirar normal",
+      "Sim, sempre",
+      "Só se a vítima for idosa",
+      "Só depois de 2 minutos"
+     ],
+     "c": 0,
+     "e": "A diretriz não pede que leigos chequem pulso. A decisão se baseia em resposta e respiração.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-base-05",
+     "n": 1,
+     "p": "Qual é o telefone do SAMU?",
+     "a": [
+      "192",
+      "190",
+      "193",
+      "199"
+     ],
+     "c": 0,
+     "e": "192 é o SAMU. 193 são os Bombeiros, 190 a Polícia Militar e 199 a Defesa Civil.",
+     "f": "Ministério da Saúde. Serviço de Atendimento Móvel de Urgência (SAMU 192)."
+    },
+    {
+     "id": "ps-base-06",
+     "n": 1,
+     "p": "O aluno não responde, mas respira normal e não há suspeita de lesão na coluna. O que fazer?",
+     "a": [
+      "Colocá-lo na posição de recuperação e observar a respiração",
+      "Sentá-lo e dar água",
+      "Começar a RCP",
+      "Deixá-lo de barriga para cima e sair para buscar ajuda"
+     ],
+     "c": 0,
+     "e": "De lado, a via aérea fica livre e saliva ou vômito escorrem. A respiração deve ser conferida o tempo todo.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    },
+    {
+     "id": "ps-base-07",
+     "n": 1,
+     "p": "Qual destas atitudes conta como prestar socorro, mesmo sem saber técnica nenhuma?",
+     "a": [
+      "Ligar para o 192 e seguir a orientação do atendente",
+      "Filmar para mostrar ao médico",
+      "Esperar alguém da família chegar",
+      "Levar a pessoa no carro sem avisar ninguém"
+     ],
+     "c": 0,
+     "e": "O Código Penal considera omissão deixar de prestar assistência ou de pedir socorro à autoridade pública. Pedir socorro já cumpre esse dever.",
+     "f": "Brasil. Código Penal, art. 135."
+    },
+    {
+     "id": "ps-base-08",
+     "n": 2,
+     "p": "O que mais aumenta a chance de um bom atendimento no treino presencial?",
+     "a": [
+      "Plano combinado antes: endereço, DEA mais próximo e papéis definidos",
+      "Ter um médico entre os alunos",
+      "Treinar só em academia",
+      "Levar remédios para qualquer situação"
+     ],
+     "c": 0,
+     "e": "Planos de emergência ensaiados encurtam o tempo até a RCP e o choque, que é o que mais muda a sobrevivência.",
+     "f": "Drezner JA et al. J Athl Train, 2007."
+    }
+   ]
+  },
+  {
+   "id": "rcp",
+   "titulo": "Parada cardíaca, RCP e desfibrilador",
+   "estudo": {
+    "objetivo": "Fazer compressões de qualidade e usar o DEA sem perder tempo.",
+    "figuras": [
+     {
+      "img": "ps-rcp",
+      "legenda": "Mãos sobrepostas na metade de baixo do esterno, braços esticados, ombros em cima das mãos."
+     },
+     {
+      "img": "ps-dea",
+      "legenda": "Posição das pás do desfibrilador. O aparelho fala cada passo; basta ligar e seguir."
+     }
+    ],
+    "resumo": [
+     "Na parada cardíaca, cada minuto sem compressão e sem choque reduz a chance de sobreviver. A RCP feita por quem está perto pode dobrar ou triplicar essa chance.",
+     "A vítima fica de barriga para cima, numa superfície firme. Coloque a base de uma mão na metade de baixo do esterno, a outra por cima, braços esticados e ombros sobre as mãos.",
+     "Empurre forte e rápido: de 100 a 120 compressões por minuto, com 5 a 6 cm de profundidade, deixando o peito voltar todo entre uma e outra. Ajoelhe ao lado da vítima, o que melhora a qualidade.",
+     "Quem é treinado faz 30 compressões e 2 ventilações, cada uma de cerca de 1 segundo, só até o peito subir. Quem não é treinado ou não quer ventilar faz só compressões, sem parar.",
+     "O DEA deve ser usado assim que chegar. Ligue e siga a voz. Tire a roupa do peito, seque se estiver molhado de suor ou chuva, cole as pás como no desenho e afaste todos na análise e no choque. Depois do choque, volte às compressões na hora, sem esperar.",
+     "Pausas devem ser curtíssimas. Com mais de uma pessoa, troque quem comprime a cada 2 minutos, porque a qualidade cai com o cansaço sem que a pessoa perceba.",
+     "Em quem treina, a parada costuma vir de doença cardíaca não diagnosticada. Desmaio durante o esforço (e não depois de parar), dor no peito, falta de ar desproporcional e palpitação no treino são sinais para suspender e encaminhar ao médico."
+    ],
+    "pontos": [
+     "100 a 120 por minuto, 5 a 6 cm, retorno total.",
+     "Metade de baixo do esterno, braços esticados.",
+     "30:2 para quem é treinado; só compressões para quem não é.",
+     "DEA assim que chegar; volte às compressões logo após o choque.",
+     "Troque quem comprime a cada 2 minutos.",
+     "Desmaio durante o esforço é sinal de alerta cardíaco."
+    ],
+    "leituras": [
+     "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025.",
+     "Hazinski MF et al. Major changes in the 2020 AHA guidelines for CPR and ECC. Circulation, 2020.",
+     "Kim JH et al. Cardiac arrest during long-distance running races. N Engl J Med, 2012.",
+     "Drezner JA et al. Effectiveness of emergency response planning for sudden cardiac arrest in United States high schools with automated external defibrillators. Circulation, 2009."
+    ],
+    "pratica": [
+     "Faça um curso presencial de suporte básico de vida com manequim e renove a cada 2 anos.",
+     "Descubra onde fica o DEA mais próximo de cada local de treino e o horário em que o lugar fica aberto.",
+     "Treine com a equipe a troca de quem comprime e a chegada do DEA, cronometrando.",
+     "Inclua na anamnese perguntas sobre desmaio no esforço, dor no peito, palpitação e morte súbita na família antes dos 50 anos."
+    ]
+   },
+   "q": [
+    {
+     "id": "ps-rcp-01",
+     "n": 1,
+     "p": "Qual é a frequência recomendada das compressões torácicas no adulto?",
+     "a": [
+      "100 a 120 por minuto",
+      "60 a 80 por minuto",
+      "140 a 160 por minuto",
+      "O mais rápido possível, sem limite"
+     ],
+     "c": 0,
+     "e": "A faixa de 100 a 120 por minuto equilibra fluxo e tempo de enchimento do coração.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-rcp-02",
+     "n": 1,
+     "p": "Qual é a profundidade recomendada das compressões no adulto?",
+     "a": [
+      "De 5 a 6 cm",
+      "De 2 a 3 cm",
+      "Mais de 8 cm",
+      "Só o suficiente para mexer o peito"
+     ],
+     "c": 0,
+     "e": "Pelo menos 5 cm, sem passar de 6 cm.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-rcp-03",
+     "n": 1,
+     "p": "Onde as mãos ficam durante as compressões?",
+     "a": [
+      "Na metade de baixo do esterno, no centro do peito",
+      "Sobre o estômago",
+      "No lado esquerdo do peito, em cima do coração",
+      "Na parte de cima do esterno, perto do pescoço"
+     ],
+     "c": 0,
+     "e": "A base da mão vai na metade de baixo do esterno, com a outra mão por cima.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-rcp-04",
+     "n": 1,
+     "p": "Um aluno que nunca fez curso precisa ajudar na RCP. O que ele deve fazer?",
+     "a": [
+      "Compressões contínuas, sem ventilação",
+      "Só ventilação boca a boca",
+      "Nada, até chegar alguém treinado",
+      "Massagem leve no peito"
+     ],
+     "c": 0,
+     "e": "A RCP só com as mãos é a indicada para quem não é treinado ou não quer ventilar.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-rcp-05",
+     "n": 2,
+     "p": "O DEA deu o choque. Qual é o próximo passo?",
+     "a": [
+      "Voltar às compressões imediatamente",
+      "Checar o pulso por 30 segundos",
+      "Retirar as pás",
+      "Esperar o aparelho analisar de novo antes de tocar na vítima"
+     ],
+     "c": 0,
+     "e": "Depois do choque, as compressões recomeçam na hora. O aparelho volta a analisar depois de 2 minutos.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-rcp-06",
+     "n": 2,
+     "p": "O aluno caiu na chuva e está com o peito molhado. Antes de colar as pás do DEA, o que fazer?",
+     "a": [
+      "Secar rapidamente o peito",
+      "Esperar a chuva parar",
+      "Colar as pás por cima da camiseta",
+      "Desistir do DEA"
+     ],
+     "c": 0,
+     "e": "As pás precisam de contato direto com a pele seca para o choque funcionar bem.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-rcp-07",
+     "n": 2,
+     "p": "Por que trocar quem faz as compressões a cada 2 minutos?",
+     "a": [
+      "Porque a qualidade cai com o cansaço, mesmo sem a pessoa perceber",
+      "Porque a diretriz exige 2 pessoas",
+      "Para checar o pulso nesse tempo",
+      "Porque depois de 2 minutos a RCP não funciona mais"
+     ],
+     "c": 0,
+     "e": "A profundidade e a frequência caem com a fadiga. A troca deve ser rápida.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-rcp-08",
+     "n": 3,
+     "p": "Qual destes sinais durante o treino pede suspensão e avaliação cardiológica?",
+     "a": [
+      "Desmaio durante o esforço",
+      "Cansaço no fim de um treino longo",
+      "Dor muscular no dia seguinte",
+      "Suor intenso no calor"
+     ],
+     "c": 0,
+     "e": "Desmaio durante o exercício, diferente do mal-estar ao parar, pode ter causa cardíaca e precisa ser investigado.",
+     "f": "Kim JH et al. N Engl J Med, 2012."
+    }
+   ]
+  },
+  {
+   "id": "engasgo",
+   "titulo": "Engasgo",
+   "estudo": {
+    "objetivo": "Reconhecer o engasgo grave e desobstruir a via aérea com a sequência atual.",
+    "figuras": [
+     {
+      "img": "ps-engasgo",
+      "legenda": "Sequência da diretriz de 2025 para adultos conscientes: cinco tapas nas costas e cinco compressões abdominais, alternando."
+     }
+    ],
+    "resumo": [
+     "Engasgo leve: a pessoa tosse com força, consegue falar ou respirar. Deixe tossir, não bata nas costas e fique observando. A tosse é o mecanismo mais eficiente.",
+     "Engasgo grave: não consegue tossir, falar nem respirar, às vezes leva as mãos ao pescoço e fica roxa. Peça para alguém ligar 192 e aja na hora.",
+     "A diretriz de 2025 da American Heart Association mudou a sequência para adultos e crianças conscientes. Alterne 5 tapas nas costas com 5 compressões abdominais, até o objeto sair ou a pessoa desmaiar.",
+     "Tapas nas costas: incline a pessoa para a frente e bata firme com a base da mão entre as escápulas. Compressões abdominais: por trás, punho fechado logo acima do umbigo, a outra mão por cima, puxando para dentro e para cima.",
+     "Gestante no fim da gravidez, ou pessoa que você não consegue abraçar pela cintura: troque as compressões abdominais por compressões no peito.",
+     "Se a pessoa desmaiar, deite no chão, ligue 192 se ninguém ligou e comece a RCP. Ao abrir a boca para ventilar, retire o objeto só se estiver visível. Não faça varredura às cegas com o dedo.",
+     "Depois de compressões abdominais, a pessoa deve ser avaliada por um médico, mesmo que esteja bem, porque a manobra pode lesionar órgãos."
+    ],
+    "pontos": [
+     "Tosse forte: deixe tossir e observe.",
+     "Não tosse, não fala: engasgo grave, aja na hora.",
+     "5 tapas nas costas, 5 compressões abdominais, alternando.",
+     "Gestante ou pessoa grande: compressões no peito.",
+     "Desmaiou: RCP e 192.",
+     "Nada de dedo às cegas na boca."
+    ],
+    "leituras": [
+     "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025.",
+     "Couper K et al. Removal of foreign body airway obstruction: a systematic review of interventions. Resuscitation, 2020.",
+     "Singletary EM et al. 2020 International Consensus on First Aid Science with Treatment Recommendations. Circulation, 2020."
+    ],
+    "pratica": [
+     "Treine a sequência em dupla, sem força, só para fixar a posição das mãos.",
+     "Combine que, no treino, gel e alimentos são consumidos parado ou caminhando, e não correndo forte.",
+     "Inclua o engasgo no plano de emergência do treino presencial."
+    ]
+   },
+   "q": [
+    {
+     "id": "ps-engasgo-01",
+     "n": 1,
+     "p": "O aluno engasgou com o gel e tosse com força. O que fazer?",
+     "a": [
+      "Deixar tossir e observar",
+      "Dar tapas nas costas na hora",
+      "Fazer compressões abdominais",
+      "Dar água"
+     ],
+     "c": 0,
+     "e": "Tosse forte é sinal de obstrução leve. A tosse é o melhor mecanismo; intervir pode atrapalhar.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-engasgo-02",
+     "n": 1,
+     "p": "Qual sinal indica engasgo grave?",
+     "a": [
+      "Não consegue tossir, falar nem respirar",
+      "Tosse forte e olhos lacrimejando",
+      "Pigarro depois de beber água",
+      "Soluço"
+     ],
+     "c": 0,
+     "e": "Sem tosse eficaz, sem voz e sem ar, a obstrução é grave e exige ação imediata.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-engasgo-03",
+     "n": 2,
+     "p": "Pela diretriz de 2025 da AHA, qual é a sequência para um adulto consciente com engasgo grave?",
+     "a": [
+      "Alternar 5 tapas nas costas e 5 compressões abdominais",
+      "Só compressões abdominais até sair",
+      "Só tapas nas costas",
+      "Deitar e começar a RCP"
+     ],
+     "c": 0,
+     "e": "A diretriz de 2025 passou a recomendar ciclos de 5 tapas nas costas seguidos de 5 compressões abdominais.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-engasgo-04",
+     "n": 2,
+     "p": "Onde fica o punho nas compressões abdominais?",
+     "a": [
+      "Logo acima do umbigo, abaixo do esterno",
+      "Sobre o esterno",
+      "Abaixo do umbigo",
+      "Na lateral das costelas"
+     ],
+     "c": 0,
+     "e": "O punho fica entre o umbigo e o esterno, e o movimento é para dentro e para cima.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-engasgo-05",
+     "n": 2,
+     "p": "A aluna engasgada está grávida, no fim da gestação. O que muda?",
+     "a": [
+      "Compressões no peito no lugar das abdominais",
+      "Nada muda",
+      "Só tapas nas costas, sem nenhuma compressão",
+      "Esperar o SAMU sem fazer nada"
+     ],
+     "c": 0,
+     "e": "No fim da gravidez, ou quando não dá para abraçar a cintura, as compressões passam a ser no peito.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-engasgo-06",
+     "n": 2,
+     "p": "Durante a manobra, a pessoa desmaia. O que fazer?",
+     "a": [
+      "Deitar, ligar 192 e começar a RCP",
+      "Continuar as compressões abdominais em pé",
+      "Colocar na posição de recuperação",
+      "Procurar o objeto com o dedo"
+     ],
+     "c": 0,
+     "e": "Na vítima inconsciente, as compressões torácicas da RCP também ajudam a deslocar o objeto.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-engasgo-07",
+     "n": 3,
+     "p": "Ao abrir a boca da vítima inconsciente, você não vê nada. O que fazer?",
+     "a": [
+      "Seguir a RCP sem colocar o dedo",
+      "Fazer varredura com o dedo até achar",
+      "Virar de cabeça para baixo",
+      "Dar água"
+     ],
+     "c": 0,
+     "e": "A varredura às cegas pode empurrar o objeto mais fundo. Só retire o que estiver visível.",
+     "f": "American Heart Association. 2025 Guidelines for CPR and Emergency Cardiovascular Care, Part 7: Adult Basic Life Support. Circulation, 2025."
+    },
+    {
+     "id": "ps-engasgo-08",
+     "n": 3,
+     "p": "O objeto saiu depois das compressões abdominais e o aluno diz que está bem. E agora?",
+     "a": [
+      "Recomendar avaliação médica",
+      "Voltar ao treino normalmente",
+      "Não é preciso nada",
+      "Dar um remédio para dor"
+     ],
+     "c": 0,
+     "e": "As compressões abdominais podem causar lesões internas. A avaliação médica é recomendada mesmo sem sintomas.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    }
+   ]
+  },
+  {
+   "id": "calor",
+   "titulo": "Calor: exaustão e intermação",
+   "estudo": {
+    "objetivo": "Diferenciar exaustão pelo calor de intermação e resfriar na hora quem precisa.",
+    "figuras": [
+     {
+      "img": "ps-calor",
+      "legenda": "O sinal que separa as duas é a mudança no comportamento. Na intermação, resfriar vem antes do transporte."
+     }
+    ],
+    "resumo": [
+     "No calor do Maranhão, a doença do calor é um risco real no treino presencial, principalmente em dias abafados, em treinos intensos e em alunos pouco adaptados, doentes ou que dormiram mal.",
+     "Exaustão pelo calor: cansaço forte, tontura, dor de cabeça, enjoo, pele molhada, às vezes cãibra. A pessoa está lúcida. Pare o treino, leve para a sombra, deite com as pernas para cima, afrouxe a roupa e ofereça água ou isotônico se ela aceitar. Melhora em minutos.",
+     "Intermação (golpe de calor por esforço): temperatura do corpo acima de 40 °C com alteração do sistema nervoso. O sinal-chave é o comportamento: confusão, fala enrolada, agressividade, cambalear, desmaiar ou convulsionar. A pele pode continuar suando. É emergência com risco de morte.",
+     "Na intermação, o tempo em temperatura alta é o que causa dano. A regra é resfriar primeiro e transportar depois. Ligue 192 e comece a resfriar ali mesmo.",
+     "O melhor método é a imersão do corpo em água com gelo, até o pescoço, mexendo a água. Sem banheira, use uma lona segurada pelas pontas com água e gelo, ou toalhas encharcadas em água gelada trocadas a cada um ou dois minutos sobre o corpo todo, e gelo no pescoço, axilas e virilha.",
+     "Com resfriamento rápido e logo no início, a sobrevivência da intermação é muito alta. A volta ao treino só acontece com liberação médica e de forma gradual.",
+     "Prevenção: horários mais frescos, aclimatação de 10 a 14 dias para quem chega ao calor, água disponível, pausas, e atenção a quem está com febre, diarreia ou sem dormir."
+    ],
+    "pontos": [
+     "Comportamento alterado no calor é intermação até prova em contrário.",
+     "Resfrie primeiro, transporte depois.",
+     "Água com gelo é o melhor método.",
+     "Sem banheira: lona ou toalhas geladas trocadas sempre.",
+     "Exaustão: sombra, deitado, pernas para cima, líquidos.",
+     "Volta ao treino só com liberação médica."
+    ],
+    "leituras": [
+     "Casa DJ et al. National Athletic Trainers’ Association position statement: exertional heat illnesses. J Athl Train, 2015.",
+     "Roberts WO et al. ACSM Expert Consensus Statement on Exertional Heat Illness: recognition, management, and return to activity. Curr Sports Med Rep, 2021.",
+     "Douma MJ et al. First aid cooling techniques for heat stroke and exertional hyperthermia: a systematic review and meta-analysis. Resuscitation, 2020.",
+     "Racinais S et al. Consensus recommendations on training and competing in the heat. Br J Sports Med, 2015."
+    ],
+    "pratica": [
+     "Em dias de calor, leve gelo, toalhas e uma lona ou bacia grande para o treino presencial.",
+     "Marque os treinos intensos para os horários mais frescos.",
+     "Observe o comportamento dos alunos no fim dos tiros: quem está confuso ou cambaleando para na hora.",
+     "Use a Leitura do tempo do app para ajustar a intensidade nos dias quentes."
+    ]
+   },
+   "q": [
+    {
+     "id": "ps-calor-01",
+     "n": 1,
+     "p": "Qual sinal separa a intermação da exaustão pelo calor?",
+     "a": [
+      "Alteração do comportamento, como confusão ou fala enrolada",
+      "Suor intenso",
+      "Cansaço",
+      "Sede"
+     ],
+     "c": 0,
+     "e": "Na intermação há disfunção do sistema nervoso. Na exaustão, a pessoa segue lúcida.",
+     "f": "Casa DJ et al. J Athl Train, 2015."
+    },
+    {
+     "id": "ps-calor-02",
+     "n": 3,
+     "p": "O aluno com suspeita de intermação ainda está suando. Isso descarta a intermação?",
+     "a": [
+      "Não, quem tem intermação por esforço pode continuar suando",
+      "Sim, quem sua não tem intermação",
+      "Sim, se ele estiver bebendo água",
+      "Só se a pele estiver fria"
+     ],
+     "c": 0,
+     "e": "A pele seca é mais típica da intermação clássica. No esforço, muitos continuam suando.",
+     "f": "Roberts WO et al. Curr Sports Med Rep, 2021."
+    },
+    {
+     "id": "ps-calor-03",
+     "n": 2,
+     "p": "Qual é a conduta central na intermação?",
+     "a": [
+      "Resfriar imediatamente no local e ligar 192",
+      "Levar de carro para o hospital antes de qualquer coisa",
+      "Dar água e esperar melhorar",
+      "Dar antitérmico"
+     ],
+     "c": 0,
+     "e": "O dano depende do tempo em temperatura alta. Resfriar primeiro, transportar depois.",
+     "f": "Casa DJ et al. J Athl Train, 2015."
+    },
+    {
+     "id": "ps-calor-04",
+     "n": 2,
+     "p": "Qual é o método de resfriamento mais eficaz?",
+     "a": [
+      "Imersão do corpo em água com gelo",
+      "Ventilador",
+      "Compressa fria só na testa",
+      "Tomar banho morno"
+     ],
+     "c": 0,
+     "e": "A imersão em água gelada tem a maior taxa de resfriamento nas revisões.",
+     "f": "Douma MJ et al. Resuscitation, 2020."
+    },
+    {
+     "id": "ps-calor-05",
+     "n": 2,
+     "p": "Não há banheira no local. O que usar?",
+     "a": [
+      "Lona com água e gelo ou toalhas geladas trocadas o tempo todo",
+      "Só sombra",
+      "Só ventilador de mão",
+      "Nada, esperar a ambulância"
+     ],
+     "c": 0,
+     "e": "Lona com água e gelo e toalhas geladas em rodízio são alternativas melhores do que esperar.",
+     "f": "Roberts WO et al. Curr Sports Med Rep, 2021."
+    },
+    {
+     "id": "ps-calor-06",
+     "n": 3,
+     "p": "Antitérmico (dipirona, paracetamol) ajuda na intermação?",
+     "a": [
+      "Não, a febre não é a causa; o calor vem do esforço",
+      "Sim, é a primeira medida",
+      "Sim, junto com água",
+      "Só se tiver mais de 41 °C"
+     ],
+     "c": 0,
+     "e": "Antitérmicos agem no termostato do cérebro, o que não resolve o calor produzido pelo músculo. A conduta é resfriar.",
+     "f": "Casa DJ et al. J Athl Train, 2015."
+    },
+    {
+     "id": "ps-calor-07",
+     "n": 1,
+     "p": "O aluno está tonto, enjoado e suado, mas conversa bem. O que fazer?",
+     "a": [
+      "Parar, sombra, deitar com pernas elevadas e oferecer líquido",
+      "Mandar terminar o treino devagar",
+      "Imersão em gelo imediata",
+      "Dar um café"
+     ],
+     "c": 0,
+     "e": "Lúcido, com sintomas de exaustão, melhora com repouso, sombra e líquidos. Se o comportamento mudar, trate como intermação.",
+     "f": "Casa DJ et al. J Athl Train, 2015."
+    },
+    {
+     "id": "ps-calor-08",
+     "n": 2,
+     "p": "Quanto tempo leva a aclimatação ao calor?",
+     "a": [
+      "Cerca de 10 a 14 dias de exposição",
+      "1 dia",
+      "3 meses",
+      "Não existe aclimatação"
+     ],
+     "c": 0,
+     "e": "A maior parte das adaptações aparece entre 10 e 14 dias de treino no calor.",
+     "f": "Racinais S et al. Br J Sports Med, 2015."
+    }
+   ]
+  },
+  {
+   "id": "mal-subito",
+   "titulo": "Mal súbito no treino",
+   "estudo": {
+    "objetivo": "Reconhecer e conduzir desmaio ao parar, hipoglicemia, hiponatremia, asma, convulsão e dor no peito.",
+    "figuras": [
+     {
+      "img": "ps-pernas",
+      "legenda": "Mal-estar logo depois de parar costuma ser queda de pressão. Deitar com as pernas elevadas resolve na maioria das vezes."
+     }
+    ],
+    "resumo": [
+     "Desmaio ou tontura logo depois de parar, na chegada ou ao fim de um tiro, é o mais comum. Com a parada brusca, o sangue fica nas pernas e a pressão cai. Deite com as pernas elevadas; melhora em poucos minutos. Desmaio durante o esforço é outra história e pede avaliação cardíaca.",
+     "Hipoglicemia: tremor, suor frio, fome, fraqueza, confusão. Mais comum em quem usa insulina ou treina em jejum longo. Se está consciente e consegue engolir, dê açúcar rápido (suco, refrigerante comum, sachê de açúcar, gel) e espere 15 minutos. Se não melhorar, repita e ligue 192. Inconsciente, nada pela boca.",
+     "Hiponatremia associada ao exercício: sódio baixo no sangue, geralmente por beber água demais em prova ou treino longo. Dá enjoo, dor de cabeça, inchaço, confusão e pode levar a convulsão. A pista é a pessoa que bebeu muito e piora. Não ofereça mais água; ligue 192.",
+     "Crise de asma: falta de ar, chiado, tosse, dificuldade para falar. Pare a atividade, sente com o tronco reto e ajude a usar a bombinha de resgate da própria pessoa. Se não melhora ou piora, 192.",
+     "Convulsão: afaste objetos, proteja a cabeça, não segure a pessoa e não coloque nada na boca. Marque o tempo. Quando parar, posição de recuperação. Ligue 192 se passar de 5 minutos, se for a primeira, se houver outra em seguida ou se ela não acordar.",
+     "Dor no peito no treino: pare na hora, deixe a pessoa sentada em repouso e ligue 192. O atendente do SAMU orienta sobre o uso de AAS. Se ela desmaiar e não respirar normal, comece a RCP."
+    ],
+    "pontos": [
+     "Mal-estar ao parar: deitar com pernas elevadas.",
+     "Desmaio durante o esforço: suspeita cardíaca.",
+     "Hipoglicemia consciente: açúcar rápido e reavaliar em 15 minutos.",
+     "Bebeu muito e piorou: pense em hiponatremia, sem mais água.",
+     "Asma: bombinha da própria pessoa.",
+     "Convulsão: proteger, cronometrar, nada na boca.",
+     "Dor no peito: parar e ligar 192."
+    ],
+    "leituras": [
+     "Asplund CA, O’Connor FG, Noakes TD. Exercise-associated collapse: an evidence-based review and primer for clinicians. Br J Sports Med, 2011.",
+     "Hew-Butler T et al. Statement of the Third International Exercise-Associated Hyponatremia Consensus Development Conference. Clin J Sport Med, 2015.",
+     "American Diabetes Association. Standards of Care in Diabetes, Hypoglycemia. Diabetes Care, 2025.",
+     "Global Initiative for Asthma. Global Strategy for Asthma Management and Prevention, 2024.",
+     "Singletary EM et al. 2020 International Consensus on First Aid Science with Treatment Recommendations. Circulation, 2020."
+    ],
+    "pratica": [
+     "Na ficha de cada aluno, marque quem tem diabetes, asma ou convulsão e peça que leve a própria medicação ao treino.",
+     "Tenha açúcar ou gel no kit de todo treino presencial.",
+     "Oriente os alunos de provas longas a beber pela sede, e não em excesso.",
+     "Ensine os alunos a não parar de uma vez depois de um tiro forte: caminhar alguns minutos ajuda."
+    ]
+   },
+   "q": [
+    {
+     "id": "ps-mal-subito-01",
+     "n": 2,
+     "p": "O aluno passou mal logo depois de cruzar a chegada, pálido e tonto, mas lúcido. Qual a conduta mais indicada?",
+     "a": [
+      "Deitar com as pernas elevadas",
+      "Fazê-lo caminhar rápido",
+      "Sentá-lo com a cabeça entre as pernas e dar café",
+      "Iniciar RCP"
+     ],
+     "c": 0,
+     "e": "O colapso depois de parar costuma ser queda de pressão por acúmulo de sangue nas pernas. Deitar com pernas elevadas resolve na maioria.",
+     "f": "Asplund CA et al. Br J Sports Med, 2011."
+    },
+    {
+     "id": "ps-mal-subito-02",
+     "n": 3,
+     "p": "Qual situação mais sugere problema cardíaco?",
+     "a": [
+      "Desmaio durante o esforço",
+      "Tontura ao parar de correr",
+      "Cãibra no fim do longão",
+      "Cansaço no calor"
+     ],
+     "c": 0,
+     "e": "Desmaio no meio do esforço, diferente do que ocorre ao parar, é sinal de alerta para causa cardíaca.",
+     "f": "Asplund CA et al. Br J Sports Med, 2011."
+    },
+    {
+     "id": "ps-mal-subito-03",
+     "n": 2,
+     "p": "Aluno diabético está trêmulo, suando frio e confuso, mas consegue engolir. O que fazer?",
+     "a": [
+      "Dar açúcar rápido e reavaliar em 15 minutos",
+      "Dar insulina",
+      "Mandar continuar o treino mais leve",
+      "Dar só água"
+     ],
+     "c": 0,
+     "e": "Na hipoglicemia, 15 a 20 g de carboidrato rápido e nova avaliação em 15 minutos.",
+     "f": "American Diabetes Association. Diabetes Care, 2025."
+    },
+    {
+     "id": "ps-mal-subito-04",
+     "n": 1,
+     "p": "A pessoa com hipoglicemia está inconsciente. O que não fazer?",
+     "a": [
+      "Colocar comida ou bebida na boca",
+      "Ligar 192",
+      "Colocar na posição de recuperação",
+      "Verificar a respiração"
+     ],
+     "c": 0,
+     "e": "Inconsciente pode se engasgar. Nada pela boca; posição de recuperação e 192.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    },
+    {
+     "id": "ps-mal-subito-05",
+     "n": 3,
+     "p": "Depois de um treino longo, a aluna conta que bebeu muita água, está enjoada, com dor de cabeça e ficando confusa. Em que pensar?",
+     "a": [
+      "Hiponatremia associada ao exercício",
+      "Desidratação simples",
+      "Hipoglicemia leve",
+      "Cansaço normal"
+     ],
+     "c": 0,
+     "e": "Beber além da necessidade dilui o sódio do sangue. Dar mais água piora. É caso de 192.",
+     "f": "Hew-Butler T et al. Clin J Sport Med, 2015."
+    },
+    {
+     "id": "ps-mal-subito-06",
+     "n": 1,
+     "p": "Durante a convulsão, o que fazer?",
+     "a": [
+      "Proteger a cabeça, afastar objetos e marcar o tempo",
+      "Segurar braços e pernas",
+      "Colocar um pano na boca para não morder a língua",
+      "Jogar água no rosto"
+     ],
+     "c": 0,
+     "e": "Não se segura nem se coloca nada na boca. Proteger, cronometrar e, ao terminar, posição de recuperação.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    },
+    {
+     "id": "ps-mal-subito-07",
+     "n": 2,
+     "p": "Quando ligar 192 numa convulsão?",
+     "a": [
+      "Se durar mais de 5 minutos, se repetir ou se a pessoa não acordar",
+      "Nunca, convulsão passa sozinha",
+      "Só se a pessoa pedir",
+      "Só se ela for idosa"
+     ],
+     "c": 0,
+     "e": "Crise acima de 5 minutos, crises seguidas ou falta de recuperação da consciência são emergência.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    },
+    {
+     "id": "ps-mal-subito-08",
+     "n": 1,
+     "p": "O aluno sente dor no peito no meio do treino. Qual é a primeira atitude?",
+     "a": [
+      "Parar a atividade, deixá-lo em repouso e ligar 192",
+      "Diminuir o ritmo e terminar o treino",
+      "Alongar o peito",
+      "Mandar para casa sozinho"
+     ],
+     "c": 0,
+     "e": "Dor no peito no esforço pode ser infarto ou arritmia. Repouso e acionamento imediato do SAMU.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    }
+   ]
+  },
+  {
+   "id": "lesoes",
+   "titulo": "Entorse, sangramento e batida na cabeça",
+   "estudo": {
+    "objetivo": "Conduzir as lesões mais comuns do treino presencial e saber quando encaminhar.",
+    "figuras": [
+     {
+      "img": "ps-peace-love",
+      "legenda": "PEACE & LOVE: o que fazer nos primeiros dias e o que vem depois numa entorse ou lesão de músculo e ligamento."
+     }
+    ],
+    "resumo": [
+     "Entorse de tornozelo é a lesão aguda mais comum no treino. Pare a atividade e avalie: a pessoa consegue apoiar o pé e dar quatro passos? Há dor ao apertar o osso na parte de trás dos maléolos ou na base do quinto dedo? Se não apoia ou dói no osso, precisa de raio-x (regras de Ottawa).",
+     "Nos primeiros dias, o modelo PEACE & LOVE orienta: proteger, elevar, evitar anti-inflamatório, comprimir e educar. Depois, carga progressiva, otimismo, exercício aeróbico sem dor e exercício específico. Gelo pode ser usado para aliviar a dor, mas não acelera a cura.",
+     "Sangramento: com luva, faça pressão direta e firme sobre o ferimento com gaze ou pano limpo, sem ficar levantando para olhar. Se encharcar, coloque mais por cima. Sangramento de membro que não para com pressão e ameaça a vida pede torniquete acima da lesão e 192.",
+     "Ralado e corte pequeno: lave com água corrente ou soro, cubra com curativo. Corte profundo, com bordas abertas, ou objeto cravado vai para o pronto-socorro; o objeto não deve ser retirado.",
+     "Batida na cabeça: qualquer suspeita de concussão tira o aluno do treino no mesmo dia. Sinais: dor de cabeça, tontura, confusão, visão turva, enjoo, olhar perdido, desequilíbrio. Ele não volta naquele dia e precisa de avaliação.",
+     "Sinais de alarme após batida na cabeça ou queda: dor no pescoço, fraqueza ou formigamento nos braços ou pernas, convulsão, vômitos repetidos, piora da dor de cabeça, sonolência crescente, perda de consciência. Ligue 192 e, se houver dor no pescoço, não mexa na pessoa.",
+     "Fratura ou luxação: não tente colocar no lugar. Imobilize na posição encontrada, com o que tiver, e encaminhe."
+    ],
+    "pontos": [
+     "Não apoia o pé ou dói no osso: raio-x.",
+     "PEACE & LOVE no lugar de repouso total.",
+     "Sangramento: pressão direta firme, sem soltar.",
+     "Torniquete para sangramento de membro que ameaça a vida.",
+     "Suspeita de concussão: fora do treino no mesmo dia.",
+     "Dor no pescoço após queda: não mexer e ligar 192."
+    ],
+    "leituras": [
+     "Dubois B, Esculier JF. Soft-tissue injuries simply need PEACE and LOVE. Br J Sports Med, 2020.",
+     "Stiell IG et al. Decision rules for the use of radiography in acute ankle injuries (Ottawa ankle rules). JAMA, 1993.",
+     "Patricios JS et al. Consensus statement on concussion in sport: the 6th International Conference on Concussion in Sport, Amsterdam 2022. Br J Sports Med, 2023.",
+     "Singletary EM et al. 2020 International Consensus on First Aid Science with Treatment Recommendations. Circulation, 2020."
+    ],
+    "pratica": [
+     "Confira se o kit tem luvas, gaze, atadura elástica, soro e saco de gelo.",
+     "Pratique em dupla as perguntas das regras de Ottawa.",
+     "Combine com a equipe que batida na cabeça encerra o treino daquele aluno no dia, sem exceção.",
+     "Registre no app qualquer lesão do treino presencial para acompanhar a volta."
+    ]
+   },
+   "q": [
+    {
+     "id": "ps-lesoes-01",
+     "n": 2,
+     "p": "Depois de torcer o tornozelo, o aluno não consegue dar quatro passos. O que indicar?",
+     "a": [
+      "Avaliação com raio-x",
+      "Voltar a treinar no dia seguinte",
+      "Só gelo e esperar",
+      "Alongar o tornozelo"
+     ],
+     "c": 0,
+     "e": "Pelas regras de Ottawa, não conseguir apoiar e dar quatro passos indica raio-x.",
+     "f": "Stiell IG et al. JAMA, 1993."
+    },
+    {
+     "id": "ps-lesoes-02",
+     "n": 2,
+     "p": "No modelo PEACE & LOVE, o que se recomenda evitar nos primeiros dias?",
+     "a": [
+      "Anti-inflamatórios",
+      "Elevar o membro",
+      "Comprimir com faixa",
+      "Explicar a recuperação ao aluno"
+     ],
+     "c": 0,
+     "e": "O \"A\" de PEACE pede evitar anti-inflamatórios, que podem atrapalhar o reparo do tecido.",
+     "f": "Dubois B, Esculier JF. Br J Sports Med, 2020."
+    },
+    {
+     "id": "ps-lesoes-03",
+     "n": 3,
+     "p": "Na fase LOVE, o que significa a carga?",
+     "a": [
+      "Voltar a usar a região aos poucos, guiado pela dor",
+      "Repouso total por semanas",
+      "Imobilizar com gesso",
+      "Treinar o outro lado só"
+     ],
+     "c": 0,
+     "e": "A carga progressiva estimula a recuperação do tecido, respeitando a dor.",
+     "f": "Dubois B, Esculier JF. Br J Sports Med, 2020."
+    },
+    {
+     "id": "ps-lesoes-04",
+     "n": 1,
+     "p": "Qual é a primeira medida para um corte que sangra bastante?",
+     "a": [
+      "Pressão direta e firme sobre o ferimento",
+      "Lavar com álcool",
+      "Fazer torniquete em qualquer sangramento",
+      "Levantar a gaze a cada minuto para olhar"
+     ],
+     "c": 0,
+     "e": "Pressão direta contínua é a medida inicial. Levantar para olhar desfaz o coágulo.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    },
+    {
+     "id": "ps-lesoes-05",
+     "n": 3,
+     "p": "Quando usar torniquete?",
+     "a": [
+      "Sangramento grave de braço ou perna que ameaça a vida e não para com pressão",
+      "Em qualquer ralado",
+      "Em entorse",
+      "Em sangramento no nariz"
+     ],
+     "c": 0,
+     "e": "O torniquete é para hemorragia grave de membro, colocado acima da lesão, com 192 acionado.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    },
+    {
+     "id": "ps-lesoes-06",
+     "n": 2,
+     "p": "O aluno bateu a cabeça, ficou tonto e com dor de cabeça, mas diz que está bem. O que fazer?",
+     "a": [
+      "Tirar do treino naquele dia e orientar avaliação",
+      "Deixar continuar se ele quiser",
+      "Mandar descansar 10 minutos e voltar",
+      "Dar analgésico e seguir"
+     ],
+     "c": 0,
+     "e": "Suspeita de concussão tira o atleta da atividade no mesmo dia. Não há volta no dia.",
+     "f": "Patricios JS et al. Br J Sports Med, 2023."
+    },
+    {
+     "id": "ps-lesoes-07",
+     "n": 2,
+     "p": "Depois de uma queda, o aluno sente dor no pescoço e formigamento nos braços. O que fazer?",
+     "a": [
+      "Não mexer, manter a cabeça parada e ligar 192",
+      "Sentá-lo para ver se melhora",
+      "Levantar e levar de carro ao hospital",
+      "Alongar o pescoço"
+     ],
+     "c": 0,
+     "e": "Dor no pescoço com sintomas neurológicos sugere lesão da coluna. Imobilizar e acionar o SAMU.",
+     "f": "Patricios JS et al. Br J Sports Med, 2023."
+    },
+    {
+     "id": "ps-lesoes-08",
+     "n": 1,
+     "p": "O dedo do aluno parece deslocado depois de uma bolada. O que fazer?",
+     "a": [
+      "Imobilizar na posição em que está e encaminhar",
+      "Puxar para colocar no lugar",
+      "Mandar continuar o treino",
+      "Massagear"
+     ],
+     "c": 0,
+     "e": "Tentar reduzir fratura ou luxação sem avaliação pode piorar a lesão. Imobilize e encaminhe.",
+     "f": "Singletary EM et al. Circulation, 2020."
+    }
+   ]
+  }
+ ]
+}

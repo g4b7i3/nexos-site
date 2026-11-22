@@ -140,6 +140,12 @@ function buscaTelasEquipe() {
     ['#/laboratorio', 'Laboratório', 'Relatórios e estudos da equipe', 'laboratorio relatorios'],
     ['#/aprimoramento', 'Aprimorar', 'Trilhas de estudo para a equipe', 'estudo curso trilha aprimoramento'],
     [
+      '#/aprimoramento/primeiros-socorros',
+      'Primeiros socorros no treino',
+      'RCP, DEA, engasgo, calor, mal súbito e lesões',
+      'primeiros socorros rcp dea desfibrilador engasgo calor intermação desmaio convulsão entorse sangramento emergência samu',
+    ],
+    [
       '#/prontidao-equipe',
       'Prontidão da equipe',
       'Check-in da manhã de todos e alerta de carga',

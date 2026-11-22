@@ -4861,3 +4861,8 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .mt-usar{display:flex;gap:14px;align-items:center;cursor:pointer}
 .g2-metro{position:absolute;left:0;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--mute);font-weight:700;font-size:12.5px;cursor:pointer}
 .g2-metro svg{width:15px;height:15px}.g2-metro.on{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+
+/* figuras das trilhas do Aprimoramento */
+.apr-fig{margin:12px 0 0;background:var(--s1);border-radius:18px;padding:10px;border:1px solid var(--line,rgba(127,127,127,.18))}
+.apr-fig img{display:block;width:100%;height:auto;border-radius:12px;background:#fff}
+.apr-fig figcaption{font-size:.84rem;line-height:1.45;color:var(--mute);padding:10px 4px 2px}
