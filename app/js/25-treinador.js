@@ -2710,15 +2710,38 @@ async function cortarVideo(src, ini, fim, aoProgresso, opts = {}) {
     rec.stop();
     await fimRec;
     const mime = tipo.split(';')[0];
-    return new File([new Blob(partes, { type: mime })], `trecho.${mime === 'video/mp4' ? 'mp4' : 'webm'}`, {
+    const saida = new File([new Blob(partes, { type: mime })], `trecho.${mime === 'video/mp4' ? 'mp4' : 'webm'}`, {
       type: mime,
     });
+    // celular que grava em branco: não deixa um arquivo vazio virar o vídeo do exercício
+    if (saida.size < 20000 || !(await videoAbre(saida))) throw new Error('vídeo vazio');
+    return saida;
   } finally {
     if (src instanceof Blob) URL.revokeObjectURL(url);
     v.remove();
     if (ac) ac.close().catch(() => {});
   }
 }
+// confere se o arquivo abre e tem imagem antes de enviar
+const videoAbre = (file) =>
+  new Promise((ok) => {
+    const v = document.createElement('video'),
+      url = URL.createObjectURL(file);
+    let t = null;
+    const fim = (r) => {
+      clearTimeout(t);
+      URL.revokeObjectURL(url);
+      v.removeAttribute('src');
+      ok(r);
+    };
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'auto';
+    v.onloadeddata = () => fim(!!v.videoWidth);
+    v.onerror = () => fim(false);
+    t = setTimeout(() => fim(false), 10000);
+    v.src = url;
+  });
 // duração de um vídeo escolhido (sem tocar)
 const duracaoVideo = (file) =>
   new Promise((ok) => {
@@ -2979,7 +3002,7 @@ async function formExercicio(exLista, opts = {}) {
               );
             }
             btn.textContent = 'Enviando a mídia…';
-          } else if (midia === 'video' && arq && arq.size > 4 * 1024 * 1024) {
+          } else if (midia === 'video' && arq && (arq.size > 4 * 1024 * 1024 || !/mp4/i.test(arq.type || ''))) {
             // vídeo inteiro: converte no celular para MP4 leve (720p) antes de enviar.
             // Fica bem menor (envio rápido) e toca em qualquer celular (o .mov do iPhone não abre em muitos Android).
             const dur = await duracaoVideo(arq);
@@ -3000,6 +3023,15 @@ async function formExercicio(exLista, opts = {}) {
               }
             }
             btn.textContent = 'Enviando a mídia…';
+          }
+          if (midia === 'video' && arqFinal) {
+            if (!arqFinal.size) {
+              btn.disabled = false;
+              btn.textContent = 'Salvar';
+              return toast('O vídeo saiu vazio. Escolha o vídeo de novo.', true);
+            }
+            if (!/mp4/i.test(arqFinal.type || ''))
+              toast('Este vídeo ficou em um formato que alguns celulares não abrem. Se puder, envie em MP4.', true);
           }
           const linhas = f.instrucoes.value
             .split('\n')

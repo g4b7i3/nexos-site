@@ -22,6 +22,7 @@ function exvLocal(url) {
       r = rede;
     }
     const b = await r.blob();
+    if (!b.size) throw new Error('vídeo vazio');
     return URL.createObjectURL(b.type && b.type.startsWith('video/') ? b : new Blob([b], { type: 'video/mp4' }));
   })();
   exvMemo.set(url, p);
@@ -35,12 +36,28 @@ function exvLocal(url) {
   return p;
 }
 
+// vídeo que não abre (arquivo vazio ou formato que o celular não lê): troca a tela preta por um aviso
+function exvQuebrado(v) {
+  if (!v.isConnected || v.dataset.exvErro) return;
+  v.dataset.exvErro = '1';
+  const d = document.createElement('div');
+  d.className = 'exv-erro';
+  d.innerHTML = `<b>Vídeo indisponível</b><span>${
+    typeof S !== 'undefined' && S.staff
+      ? 'O arquivo deste vídeo não abre neste celular. Envie o vídeo de novo em Editar.'
+      : 'Siga as instruções abaixo enquanto o vídeo não volta.'
+  }</span>`;
+  v.replaceWith(d);
+}
+
 async function exvLigar(v) {
   if (v.dataset.exvOk) return;
   v.dataset.exvOk = '1';
   const url = v.dataset.exv;
+  v.addEventListener('error', () => exvQuebrado(v));
   try {
     v.src = await exvLocal(url);
+    v.preload = 'auto'; // já está no aparelho: mostra o primeiro quadro sem gastar internet
   } catch {
     v.src = url; // sem armazenamento no aparelho: toca direto, sem repetir em loop
     v.loop = false;
@@ -106,9 +123,15 @@ async function exvCapaDe(url) {
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
-  cv.getContext('2d').drawImage(v, 0, 0, w, h);
+  const cx = cv.getContext('2d');
+  cx.drawImage(v, 0, 0, w, h);
   v.removeAttribute('src');
   v.load();
+  // quadro todo preto (alguns celulares não desenham o vídeo): não vira capa
+  const px = cx.getImageData(0, 0, w, h).data;
+  let soma = 0;
+  for (let i = 0; i < px.length; i += 400) soma += px[i] + px[i + 1] + px[i + 2];
+  if (soma / (px.length / 400) / 3 < 10) return null;
   return await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', 0.8));
 }
 
@@ -127,12 +150,13 @@ async function exvGerarCapas() {
     try {
       const jpg = await exvCapaDe(ex.video_url.split('#')[0]);
       if (!jpg) continue;
-      const path = `${S.org.id}/capa-${ex.id}.jpg`;
+      const path = `${S.org.id}/capa-${ex.id}-${Date.now().toString(36)}.jpg`;
+      // sem upsert: substituir arquivo pede permissão de leitura no armazenamento, que a equipe não tem
       const up = await sb.storage
         .from('nx-exvideos')
-        .upload(path, jpg, { upsert: true, cacheControl: '31536000', contentType: 'image/jpeg' });
+        .upload(path, jpg, { cacheControl: '31536000', contentType: 'image/jpeg' });
       if (up.error) continue;
-      const capa = sb.storage.from('nx-exvideos').getPublicUrl(path).data.publicUrl + '?v=' + Date.now();
+      const capa = sb.storage.from('nx-exvideos').getPublicUrl(path).data.publicUrl;
       await sb.from('nx_exercicios').update({ capa_url: capa }).eq('id', ex.id);
       const c = S.cache && S.cache.ex && S.cache.ex.find && S.cache.ex.find((e) => e.id === ex.id);
       if (c) c.capa_url = capa;
