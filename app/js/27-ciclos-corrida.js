@@ -1481,6 +1481,8 @@ function reduzZona(t, z, f) {
   let mudou = false;
   const est = t.estrutura.map((p) => {
     if (p.k === 'rep' && (p.passos || []).some((x) => x.z === z)) {
+      // acelerações curtas (passadas soltas de 100 m) não contam como treino forte: ficam como estão
+      if (p.passos.every((x) => (x.med === 'm' && x.v <= 200) || x.z === 'rec')) return p;
       const n = Math.max(2, Math.floor(p.n * f));
       if (n !== p.n) {
         mudou = true;
@@ -1495,11 +1497,12 @@ function reduzZona(t, z, f) {
         passos: p.passos.map((x) =>
           x.z !== z
             ? x
-            : x.med === 'min'
-              ? { ...x, v: Math.max(3, Math.round(x.v * f2)) }
+            : // reduzir nunca aumenta o trecho (antes, 1 min virava 3 min e 100 m viravam 400 m)
+              x.med === 'min'
+              ? { ...x, v: Math.min(x.v, Math.max(3, Math.round(x.v * f2))) }
               : x.med === 'm'
-                ? { ...x, v: Math.max(400, Math.round((x.v * f2) / 100) * 100) }
-                : { ...x, v: Math.max(1, Math.round(x.v * f2 * 2) / 2) },
+                ? { ...x, v: Math.min(x.v, Math.max(400, Math.round((x.v * f2) / 100) * 100)) }
+                : { ...x, v: Math.min(x.v, Math.max(1, Math.round(x.v * f2 * 2) / 2)) },
         ),
       };
     }
