@@ -1606,6 +1606,37 @@ function linhasCiclo(c, alunoId, perfil, ini, dL) {
   );
   return rows;
 }
+// trilha: os ciclos viram uma sequência só, e o limite de 10% vale também na passagem de um ciclo para o outro
+// (sem isso, o primeiro longão do ciclo seguinte podia saltar bem acima do último do anterior; Frandsen et al. 2025)
+function linhasTrilha(cs, alunoId, perfil, ini, dL) {
+  const proprio = perfil && perfil.paces && !perfil.pse,
+    pf = proprio ? perfil : perfilNiv(cs[0].niv);
+  const W = cs.flatMap((c) => ciclParaAluno(c, perfil, dL));
+  limitarSaltos(W, pf);
+  const rows = [];
+  W.forEach((s, i) =>
+    s.sess.forEach(([dd, t]) => {
+      const data = new Date(ini);
+      data.setDate(data.getDate() + i * 7 + dd);
+      const rs = resumoEstrutura(t.estrutura, perfil);
+      rows.push({
+        org_id: S.org.id,
+        aluno_id: alunoId,
+        data: isoDia(data),
+        tipo: t.tipo,
+        titulo: t.titulo,
+        estrutura: t.estrutura,
+        distancia_km: Math.round(rs.km * 10) / 10,
+        duracao_min: Math.round(rs.seg / 60),
+        zona: null,
+        descricao: t.obs || null,
+        liberado: false,
+        criado_por: S.user.id,
+      });
+    }),
+  );
+  return rows;
+}
 function viewTrilha(id, forca) {
   const t = (forca ? TRILHAS_FORCA : TRILHAS_CORR).find((x) => x.id === id);
   if (!t) {
@@ -1702,9 +1733,8 @@ async function aplicarTrilha(t, cs, forca, tot) {
             extraF = await garantirTreinosForca(alunoId, ntf && ntf.valor(), isoDia(ini0));
           } else {
             const perfil = perfilCorrida(m || {}),
-              rows = [];
+              rows = linhasTrilha(cs, alunoId, perfil, ini, f.longao.value);
             cs.forEach((c) => {
-              rows.push(...linhasCiclo(c, alunoId, perfil, ini, f.longao.value));
               registrarCiclo(alunoId, 'corrida', c, ini, cicSem(c), t.id);
               ini.setDate(ini.getDate() + 7 * cicSem(c));
             });
@@ -3083,7 +3113,79 @@ CICLOS_CORR.push(
     desc: 'Mais de 2 meses parado ou fratura por estresse, só com liberação médica. Progressão mais lenta, sempre em dias alternados.',
   },
 );
+// retorno depois de uma pausa longa sem lesão (3 a 6 meses quase parado), para quem já corria:
+// 6 semanas só de corrida leve, acelerações a partir da 2ª e subidas curtas a partir da 5ª (força e técnica com pouco impacto),
+// volume crescendo aos poucos e semana mais leve na 4ª. O destreino tira mais da capacidade aeróbica que da estrutura,
+// mas tendões e ossos se readaptam mais devagar que o fôlego (Mujika & Padilla 2000; Warden et al. 2014; Frandsen et al. 2025).
+function gerarRetorno() {
+  const lon = (min) => cT('longao', `Longão ${min} min leve`, [_C(min, 'min', 'leve')], OBS.lon);
+  const acel = (min) =>
+    cT(
+      'rodagem',
+      `Contínuo ${min} min + 6 acelerações`,
+      [_C(min, 'min', 'leve'), serie(6, [_C(100, 'm', 'tiros'), _R(100, 'm', 'rec')])],
+      'Leve (Z2) e, no fim, 6 acelerações de 100 m rápidas e soltas, sem forçar, voltando trotando.',
+    );
+  const S6 = [
+    [
+      [1, sCont(25)],
+      [3, sCont(30)],
+      [5, sCont(35)],
+    ],
+    [
+      [1, sCont(30)],
+      [3, acel(30)],
+      [5, lon(40)],
+    ],
+    [
+      [1, sCont(35)],
+      [3, acel(30)],
+      [5, lon(50)],
+      [6, sReg(25)],
+    ],
+    [
+      [1, sCont(30)],
+      [3, acel(30)],
+      [5, lon(40)],
+    ],
+    [
+      [1, sCont(40)],
+      [3, sSub(6, 80)],
+      [5, lon(60)],
+      [6, sReg(30)],
+    ],
+    [
+      [1, acel(40)],
+      [3, sSub(8, 80)],
+      [5, lon(70)],
+      [6, sReg(30)],
+    ],
+  ];
+  return S6.map((sess, i) => ({ fase: i < 2 ? 'Adaptação' : 'Base', rec: i === 3, sess }));
+}
+CICLOS_CORR.push({
+  id: 'vl-pausa',
+  obj: 'volta',
+  niv: 'int',
+  sem: 6,
+  nome: 'Retorno após pausa longa (3 a 6 meses)',
+  modo: 'retorno',
+  gen: gerarRetorno,
+  dias: 4,
+  desc: 'Para quem já corria e ficou meses quase parado, sem lesão. Seis semanas de corrida leve, com acelerações e subidas curtas, até o longão de 70 min. Faça força 2 vezes por semana desde a primeira semana.',
+});
+TRILHAS_CORR.push({
+  id: 't-ultra-volta',
+  nome: 'Do retorno à ultra de 50 km',
+  niv: 'int',
+  seq: ['vl-pausa', 'bl-pre', 'ul-int', 'bl-pos'],
+  desc: 'Para quem já correu longo, ficou meses parado e quer voltar mirando uma ultra: retorno de 6 semanas, pré-temporada de base com teste de 30 min, o ciclo de 16 semanas da ultra de 50 km e a recuperação. Se não houver prova marcada, a ultra pode ser feita em treino.',
+});
 Object.assign(SEQ_CORR, {
+  'vl-pausa': [
+    ['bl-pre', 'base'],
+    ['bl-base-int', 'base'],
+  ],
   'tr-ini': [
     ['tr-int21', 'dist'],
     ['tr-ini', 'repete'],
