@@ -3870,8 +3870,11 @@ async function abrirCardCorrida(c, plano) {
             // o ClipboardItem precisa nascer na hora do toque (exigência do iPhone); a imagem fica pronta logo depois
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobCopia() })]);
             marcar();
+            // no Android o Instagram não oferece “Colar” ao tocar na tela: o caminho é o teclado ou a figurinha Foto
             toast(
-              'Card copiado! No story do Instagram, toque na tela e escolha “Colar”. Depois volte aqui para copiar outro.',
+              /Android/i.test(navigator.userAgent)
+                ? 'Card copiado! No Android, abra o texto (Aa) no story e cole pela área de transferência do teclado. Se não aparecer, use “Baixar” e adicione pela figurinha Foto do story.'
+                : 'Card copiado! No story do Instagram, toque na tela e escolha “Colar”. Depois volte aqui para copiar outro.',
             );
           } catch (e) {
             toast('Não foi possível copiar. Use “Compartilhar” ou “Baixar”.', true);
