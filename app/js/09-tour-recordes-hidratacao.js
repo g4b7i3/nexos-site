@@ -1617,7 +1617,9 @@ const CALOR_FRASE = {
 // prev: horas de amanhã [{ h, temp, w }] na hora local da cidade; cat: categoria do clima (categoriaCalor)
 function avisoVespera({ apelido, treino, prova, prev, cat, hora }) {
   if (!treino && !prova) return null;
-  const forte = !!prova || !!(treino && TIPOS_FORTES.includes(treino.tipo));
+  // corre e caminha é treino de iniciante, mesmo quando vem como intervalado: não conta como forte
+  const forte =
+    !!prova || !!(treino && TIPOS_FORTES.includes(treino.tipo) && !/corre e caminha/i.test(treino.titulo || ''));
   const idx = (w) => CALOR_NIVEIS.indexOf(nivelCalor(w, cat));
   const validas = (prev || []).filter((x) => x && x.w != null && x.temp != null);
   const naHora = validas.find((x) => x.h === hora);

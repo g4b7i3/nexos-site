@@ -55,6 +55,14 @@ ok(
 const longe = avisoVespera({ ...base, hora: 17, treino: leve, prev: prev(L[2] + 0.5, { 5: L[0] - 1 }) });
 ok(longe && !/mais fresco/.test(longe.body), 'não sugere horário a mais de 3 h do habitual');
 
+ok(
+  avisoVespera({
+    ...base,
+    treino: { titulo: 'Corre e caminha 8 × 1 min', tipo: 'intervalado' },
+    prev: prev(L[0] - 1),
+  }) === null,
+  'corre e caminha não é treino forte',
+);
 ok(avisoVespera({ ...base, treino: leve, prev: [] }) === null, 'sem previsão e treino leve, nada');
 const fsp = avisoVespera({ ...base, treino: forte, prev: [] });
 ok(fsp && /7 a 9 horas/.test(fsp.body) && !/°C/.test(fsp.body), 'sem previsão, forte ainda lembra do sono');
