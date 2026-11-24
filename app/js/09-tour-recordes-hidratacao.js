@@ -1600,6 +1600,53 @@ function condicaoHora(h, i) {
 // valor de agora entre duas horas (a previsão é de hora em hora)
 const entreHoras = (a, b, frac) => (a == null ? b : b == null ? a : a + (b - a) * frac);
 /* calor:puro:fim */
+/* vespera:puro:inicio (aviso da véspera, enviado pelo servidor às 20h30 pela função nx-vespera; conferido por scripts/testes/vespera.test.js) */
+// hora em que o aluno costuma correr: a mediana das últimas corridas (6h se ainda não há histórico)
+function horaHabitual(horas) {
+  const h = (horas || []).filter((x) => Number.isFinite(x) && x >= 0 && x <= 23).sort((a, b) => a - b);
+  return h.length ? h[Math.floor((h.length - 1) / 2)] : 6;
+}
+const CALOR_FRASE = {
+  atencao: 'um pouco mais quente que o ideal',
+  moderado: 'calor moderado',
+  alto: 'calor alto',
+  extremo: 'calor muito alto',
+};
+// aviso da noite anterior: só sai quando amanhã tem treino forte ou prova (lembra do sono) ou quando o calor na hora
+// em que o aluno costuma correr pede cuidado (moderado ou mais; atenção já conta em treino forte). Senão, nada.
+// prev: horas de amanhã [{ h, temp, w }] na hora local da cidade; cat: categoria do clima (categoriaCalor)
+function avisoVespera({ apelido, treino, prova, prev, cat, hora }) {
+  if (!treino && !prova) return null;
+  const forte = !!prova || !!(treino && TIPOS_FORTES.includes(treino.tipo));
+  const idx = (w) => CALOR_NIVEIS.indexOf(nivelCalor(w, cat));
+  const validas = (prev || []).filter((x) => x && x.w != null && x.temp != null);
+  const naHora = validas.find((x) => x.h === hora);
+  let calor = '';
+  if (naHora) {
+    const n = idx(naHora.w);
+    if (n >= 2 || (forte && n >= 1)) {
+      const jan = validas.filter((x) => x.h >= 5 && x.h <= 20 && Math.abs(x.h - hora) <= 3);
+      const melhor = jan.reduce(
+        (a, b) => (idx(b.w) < idx(a.w) || (idx(b.w) === idx(a.w) && b.w < a.w) ? b : a),
+        naHora,
+      );
+      calor =
+        `Às ${hora}h a previsão é de ${Math.round(naHora.temp)} °C, ${CALOR_FRASE[CALOR_NIVEIS[n].k]}.` +
+        (idx(melhor.w) < n ? ` O horário mais fresco perto disso é ${melhor.h}h.` : '') +
+        ' Leve água e respeite o esforço combinado, mesmo que o ritmo saia mais lento.';
+    }
+  }
+  if (!forte && !calor) return null;
+  const qual = prova ? `Amanhã é dia de ${prova}.` : `Amanhã tem ${treino.titulo || 'treino'}.`;
+  const sono = forte ? ' Tente dormir de 7 a 9 horas hoje, o sono é o que mais ajuda na recuperação.' : '';
+  const title = prova
+    ? `${apelido}, amanhã é dia de prova`
+    : forte
+      ? `${apelido}, amanhã tem treino forte`
+      : `${apelido}, atenção ao calor amanhã`;
+  return { title, body: `${qual}${calor ? ' ' + calor : ''}${sono}` };
+}
+/* vespera:puro:fim */
 // posição do celular (só para achar a cidade da previsão; fica no próprio celular, arredondada a ~100 m, por até 12 h).
 // Ao abrir o app nunca aparece o pedido de localização: o iPhone não guarda a permissão de app da tela inicial e
 // perguntava toda vez. Sem permissão já dada, usa a última posição guardada (ou a última cidade, no servidor).
