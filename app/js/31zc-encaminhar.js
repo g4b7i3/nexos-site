@@ -425,31 +425,48 @@ async function staffFichaEntrevista(alunoId) {
     <p class="small muted" style="margin-top:6px">Tudo o que o aluno respondeu na ficha de entrada e já fez no app, com o roteiro da conversa de início. Baixe o PDF antes da chamada.</p>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin:14px 0"><button class="btn" id="fe-pdf">${icT(BAIXAR_IC)}Baixar PDF</button>${D.m.telefone ? `<a class="btn ghost" href="https://wa.me/${telWa(D.m.telefone)}" target="_blank" rel="noopener">WhatsApp do aluno</a>` : ''}</div>
     <div class="fe-tela">${fichaEntrevistaHTML(D, enc)}</div>`;
+  // o PDF leva alguns segundos para ficar pronto. No celular, o compartilhar só abre se vier de um toque recente,
+  // por isso o primeiro toque gera o arquivo e o segundo (no botão que aparece) salva ou compartilha.
+  let arqPronto = null;
+  const salvar = async (arq) => {
+    if (navigator.canShare && navigator.canShare({ files: [arq] })) {
+      try {
+        await navigator.share({ files: [arq], title: arq.name });
+        return;
+      } catch (er) {
+        if (er && er.name === 'AbortError') return;
+      }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(arq);
+    a.download = arq.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
   document.getElementById('fe-pdf').onclick = async (e) => {
     const b = e.currentTarget,
       h0 = b.innerHTML;
+    if (arqPronto) return salvar(arqPronto);
     b.disabled = true;
     b.textContent = 'Gerando…';
     try {
-      const arq = await fichaEntrevistaPdf($app.querySelector('.fe-folha'), nomeArq);
-      if (navigator.canShare && navigator.canShare({ files: [arq] })) {
-        try {
-          await navigator.share({ files: [arq], title: arq.name });
-          return;
-        } catch (er) {
-          if (er && er.name === 'AbortError') return;
-        }
-      }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(arq);
-      a.download = arq.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      arqPronto = await fichaEntrevistaPdf($app.querySelector('.fe-folha'), nomeArq);
+      b.disabled = false;
+      b.innerHTML = `${icT(BAIXAR_IC)}Salvar o PDF`;
+      // link direto como reserva, caso o compartilhar não abra
+      const link = document.createElement('a');
+      link.className = 'btn ghost';
+      link.href = URL.createObjectURL(arqPronto);
+      link.download = arqPronto.name;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Abrir o PDF';
+      b.after(link);
+      toast('PDF pronto. Toque em Salvar o PDF.');
     } catch (er) {
       console.error(er);
       toast('Não foi possível gerar o PDF.', true);
-    } finally {
       b.disabled = false;
       b.innerHTML = h0;
     }
