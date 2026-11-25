@@ -151,20 +151,83 @@ const RELAX_OUVIR = [
   ['mar', 'Mar a noite inteira', 'Som para dormir'],
   ['floresta', 'Floresta viva', 'Som para dormir'],
 ];
+// tempo escolhido por ela (fica guardado) e o cronômetro, que continua valendo enquanto ela ouve a meditação
+const RELAX_MIN = [5, 10, 15, 20, 25, 30];
+const relaxMin = () => {
+  try {
+    const n = +localStorage.getItem('nx-relax-min');
+    return RELAX_MIN.includes(n) ? n : 10;
+  } catch {
+    return 10;
+  }
+};
+let relaxFim = 0,
+  relaxT = null,
+  relaxTick = null;
+function relaxParar() {
+  clearTimeout(relaxT);
+  relaxFim = 0;
+}
+function relaxComecar(min) {
+  relaxParar();
+  relaxFim = Date.now() + min * 60000;
+  relaxT = setTimeout(() => {
+    relaxFim = 0;
+    try {
+      navigator.vibrate && navigator.vibrate([300, 200, 300]);
+    } catch {}
+    toast('Pronto. Desça as pernas devagar e boa noite.');
+    const r = document.getElementById('rx-ir');
+    if (r) viewRelaxar();
+  }, min * 60000);
+}
 function viewRelaxar() {
+  clearInterval(relaxTick);
   $app.innerHTML = `<a class="back" href="#/">${I.back} Início</a><p class="eyebrow">Antes de dormir</p><h1 class="h1">Pernas para cima</h1>
-    <p class="muted" style="margin-top:6px">Na cama, com as pernas apoiadas na parede ou na cabeceira, por 5 a 10 minutos. Ajuda o sangue a voltar das pernas depois de um dia sentado e prepara o corpo para dormir.</p>
+    <p class="muted" style="margin-top:6px">Na cama, com as pernas apoiadas na parede ou na cabeceira, pelo tempo que você escolher, de 5 a 30 minutos. Ajuda o sangue a voltar das pernas depois de um dia sentado e prepara o corpo para dormir.</p>
     <video src="media/pernas-para-cima.mp4" poster="media/pernas-para-cima.jpg" autoplay muted loop playsinline style="width:100%;border-radius:16px;margin-top:14px;background:#000;aspect-ratio:16/9;object-fit:cover"></video>
     <ol class="steps" style="margin-top:14px">
       <li>Deite de barriga para cima, com o quadril perto da parede ou da cabeceira.</li>
       <li>Suba as pernas e apoie na parede, com os joelhos soltos, sem travar.</li>
       <li>Braços largados ao lado do corpo, ombros relaxados.</li>
       <li>Respire devagar pelo nariz e solte o ar com calma.</li>
-      <li>Fique de 5 a 10 minutos. Se formigar, dobre os joelhos ou desça as pernas.</li>
+      <li>Fique o tempo que você escolheu. Se formigar, dobre os joelhos ou desça as pernas.</li>
     </ol>
+    <div class="h2" style="margin-top:22px">Quanto tempo</div>
+    <div class="chips wrap" id="rx-min" style="margin-top:10px">${RELAX_MIN.map((n) => `<button type="button" class="chip${n === relaxMin() ? ' on' : ''}" data-m="${n}">${n} min</button>`).join('')}</div>
+    <button class="btn block" id="rx-ir" style="margin-top:12px"></button>
+    <p class="small muted" id="rx-resta" style="margin-top:8px;text-align:center"></p>
     <div class="h2" style="margin-top:22px">O que ouvir enquanto relaxa</div>
     <div style="display:grid;gap:8px;margin-top:10px">${RELAX_OUVIR.map(
       ([id, n, t]) =>
         `<a class="btn ghost block" href="#/meditacao/${id}" style="justify-content:space-between;text-align:left"><span>${esc(n)}</span><span class="tiny dim">${t}</span></a>`,
     ).join('')}</div>`;
+  const ir = document.getElementById('rx-ir'),
+    resta = document.getElementById('rx-resta');
+  const pinta = () => {
+    if (!document.getElementById('rx-ir')) return clearInterval(relaxTick);
+    const s = Math.max(0, Math.round((relaxFim - Date.now()) / 1000));
+    ir.textContent = relaxFim ? 'Parar' : `Começar ${relaxMin()} minutos`;
+    ir.className = relaxFim ? 'btn ghost block' : 'btn block';
+    resta.textContent = relaxFim
+      ? `Faltam ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}. Pode escolher o que ouvir, o tempo continua contando.`
+      : '';
+  };
+  document.getElementById('rx-min').onclick = (e) => {
+    const c = e.target.closest('[data-m]');
+    if (!c) return;
+    try {
+      localStorage.setItem('nx-relax-min', c.dataset.m);
+    } catch {}
+    document.querySelectorAll('#rx-min [data-m]').forEach((x) => x.classList.toggle('on', x === c));
+    if (relaxFim) relaxComecar(+c.dataset.m);
+    pinta();
+  };
+  ir.onclick = () => {
+    if (relaxFim) relaxParar();
+    else relaxComecar(relaxMin());
+    pinta();
+  };
+  pinta();
+  relaxTick = setInterval(pinta, 1000);
 }
