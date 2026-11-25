@@ -144,13 +144,6 @@ async function viewPausa(b) {
 /* ---------- pernas para cima antes de dormir ----------
    O aviso das 21h (função nx-alongar, campo "relaxar" da ficha) abre #/relaxar: o vídeo da posição,
    o passo a passo e o que ouvir enquanto fica na posição (meditação guiada ou som da noite). */
-const RELAX_OUVIR = [
-  ['dormir', 'Relaxar para dormir', 'Meditação guiada'],
-  ['corpo', 'Escaneamento do corpo', 'Meditação guiada'],
-  ['chuva', 'Chuva a noite inteira', 'Som para dormir'],
-  ['mar', 'Mar a noite inteira', 'Som para dormir'],
-  ['floresta', 'Floresta viva', 'Som para dormir'],
-];
 // tempo escolhido por ela (fica guardado) e o cronômetro, que continua valendo enquanto ela ouve a meditação
 const RELAX_MIN = [5, 10, 15, 20, 25, 30];
 const relaxMin = () => {
@@ -183,25 +176,26 @@ function relaxComecar(min) {
 }
 function viewRelaxar() {
   clearInterval(relaxTick);
+  const dormir = MEDIT_SESSOES.find((x) => x.id === 'dormir');
   $app.innerHTML = `<a class="back" href="#/">${I.back} Início</a><p class="eyebrow">Antes de dormir</p><h1 class="h1">Pernas para cima</h1>
-    <p class="muted" style="margin-top:6px">Na cama, com as pernas apoiadas na parede ou na cabeceira, pelo tempo que você escolher, de 5 a 30 minutos. Ajuda o sangue a voltar das pernas depois de um dia sentado e prepara o corpo para dormir.</p>
+    <p class="muted" style="margin-top:6px">Na cama, com as pernas apoiadas na parede, ouvindo uma meditação ou um som. Ajuda o sangue a voltar das pernas depois do dia e prepara o corpo para dormir.</p>
     <video src="media/pernas-para-cima.mp4" poster="media/pernas-para-cima.jpg" autoplay muted loop playsinline style="width:100%;border-radius:16px;margin-top:14px;background:#000;aspect-ratio:16/9;object-fit:cover"></video>
-    <ol class="steps" style="margin-top:14px">
+    <p class="sec-lbl">1 · A posição</p>
+    <ol class="steps">
       <li>Deite de barriga para cima, com o quadril perto da parede ou da cabeceira.</li>
       <li>Suba as pernas e apoie na parede, com os joelhos soltos, sem travar.</li>
-      <li>Braços largados ao lado do corpo, ombros relaxados.</li>
-      <li>Respire devagar pelo nariz e solte o ar com calma.</li>
-      <li>Fique o tempo que você escolheu. Se formigar, dobre os joelhos ou desça as pernas.</li>
+      <li>Braços largados ao lado do corpo. Respire devagar pelo nariz.</li>
+      <li>Se formigar, dobre os joelhos ou desça as pernas.</li>
     </ol>
-    <div class="h2" style="margin-top:22px">Quanto tempo</div>
-    <div class="chips wrap" id="rx-min" style="margin-top:10px">${RELAX_MIN.map((n) => `<button type="button" class="chip${n === relaxMin() ? ' on' : ''}" data-m="${n}">${n} min</button>`).join('')}</div>
+    <p class="sec-lbl">2 · Quanto tempo</p>
+    <div class="med-chips" id="rx-min">${RELAX_MIN.map((n) => `<button type="button" class="med-chip${n === relaxMin() ? ' on' : ''}" data-m="${n}">${n} min</button>`).join('')}</div>
     <button class="btn block" id="rx-ir" style="margin-top:12px"></button>
     <p class="small muted" id="rx-resta" style="margin-top:8px;text-align:center"></p>
-    <div class="h2" style="margin-top:22px">O que ouvir enquanto relaxa</div>
-    <div style="display:grid;gap:8px;margin-top:10px">${RELAX_OUVIR.map(
-      ([id, n, t]) =>
-        `<a class="btn ghost block" href="#/meditacao/${id}" style="justify-content:space-between;text-align:left"><span>${esc(n)}</span><span class="tiny dim">${t}</span></a>`,
-    ).join('')}</div>`;
+    <p class="sec-lbl">3 · O que ouvir</p>
+    <p class="tiny dim" style="margin:-4px 0 10px">Comece o tempo, escolha abaixo e fique na posição ouvindo. O tempo continua contando e o celular vibra no fim.</p>
+    ${dormir ? `<a class="med-sug" href="#/meditacao/${dormir.id}"><span class="med-sug-play">${I.play}</span><span><small>PARA ESTA NOITE</small><b>${esc(dormir.nome)}</b><em>${dormir.min} min · guiada por voz</em></span></a>` : ''}
+    ${medOpcoesHTML()}
+    <p class="tiny dim" style="margin-top:18px">Use fone de ouvido se tiver alguém dormindo perto. Se sentir tontura ou desconforto, desça as pernas devagar.</p>`;
   const ir = document.getElementById('rx-ir'),
     resta = document.getElementById('rx-resta');
   const pinta = () => {

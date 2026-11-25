@@ -1057,56 +1057,11 @@ const medCard = (href, titulo, sub, extra = '', cls = '') =>
   `<a class="med-card ${cls}" href="${href}"><span class="med-card-ic">${MEDIT_IC}</span><span class="med-card-tx"><b>${esc(titulo)}</b><small>${sub}</small>${extra}</span>${I.chev}</a>`;
 
 /** #/meditacao (início), #/meditacao/<id> (sessão ou respiração) e #/meditacao/livre */
-async function viewMeditacao(id) {
-  if (id === 'mix') return medPaisagem(null);
-  if (id && id.startsWith('i-')) {
-    const inf = MED_INFINITAS.find((x) => 'i-' + x.id === id);
-    const b = inf && MED_PAISAGENS.find((x) => x.id === inf.base);
-    if (inf) return medPaisagem({ ...inf, id: 'i-' + inf.id, cor: b.cor, foto: b.foto, infinita: true });
-  }
-  if (id && id.startsWith('p-')) {
-    const pz = MED_PAISAGENS.find((x) => 'p-' + x.id === id);
-    if (pz) return medPaisagem(pz);
-  }
-  if (id && id.startsWith('som-') && MED_GRAVADOS[id.slice(4)])
-    return medPaisagem({
-      id,
-      nome: medNomeSom(id.slice(4)),
-      som: true,
-      cor: ['#151a2e', '#3b4a7a'],
-      foto: medPzDoGrupo(id.slice(4)).foto,
-      autor: medPzDoGrupo(id.slice(4)).autor,
-      camadas: [[id.slice(4), 0.85]],
-    });
-  if (id === 'livre')
-    return meditSessao({ id: 'livre', grupo: 'Meditação livre', nome: 'Meditação livre', livre: true });
-  const r = id && MEDIT_RESP.find((x) => x.id === id);
-  if (r) return meditSessao({ ...r, grupo: 'Respiração', tipoResp: true });
-  const s = id && MEDIT_SESSOES.find((x) => x.id === id);
-  if (s) return meditSessao(s);
-  const R = meditResumo();
-  const h = new Date().getHours();
-  const sug = h < 11 ? 'manha' : h >= 21 || h < 4 ? 'dormir' : h >= 17 ? 'recuperar' : 'acalmar';
-  const sugS = MEDIT_SESSOES.find((x) => x.id === sug);
-  const maxS = Math.max(10, ...R.semana.map((x) => x.m));
+// todas as opções da meditação (respiração, sessões guiadas, sons sem fim, sons da natureza, personalizar e livre);
+// usada na tela da Meditação e na de Pernas para cima, antes de dormir
+function medOpcoesHTML() {
   const grupos = [...new Set(MEDIT_SESSOES.map((x) => x.grupo))];
-  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a>
-    <div class="med-topo">
-      <div class="med-topo-cab"><span class="med-logo">${MEDIT_IC}</span><div><p class="med-eyebrow">Bem-estar</p><h1>Meditação</h1></div></div>
-      <div class="med-stats">
-        <div><b>${R.seq}</b><span>${R.seq === 1 ? 'dia seguido' : 'dias seguidos'}</span></div>
-        <div><b>${R.min7}</b><span>min nesta semana</span></div>
-        <div><b>${R.total}</b><span>min no total</span></div>
-      </div>
-      <div class="med-semana-g">${R.semana
-        .map(
-          (x) =>
-            `<div class="${x.m ? 'on' : ''}"><i style="height:${Math.max(6, (x.m / maxS) * 100)}%"></i><span>${DSEM[x.dia.getDay()].slice(0, 1)}</span></div>`,
-        )
-        .join('')}</div>
-    </div>
-    <a class="med-sug" href="#/meditacao/${sugS.id}"><span class="med-sug-play">${I.play}</span><span><small>${h < 11 ? 'PARA COMEÇAR O DIA' : h >= 21 || h < 4 ? 'PARA ESTA NOITE' : h >= 17 ? 'DEPOIS DO TREINO' : 'PARA AGORA'}</small><b>${esc(sugS.nome)}</b><em>${sugS.min} min · guiada por voz</em></span></a>
-    <p class="sec-lbl">Respiração guiada</p>
+  return `    <p class="sec-lbl">Respiração guiada</p>
     <div class="med-resp">${MEDIT_RESP.map(
       (x) =>
         `<a href="#/meditacao/${x.id}" class="med-resp-c"><span class="med-resp-anel"><i></i></span><b>${esc(x.nome)}</b><small>${esc(x.resumo)}</small></a>`,
@@ -1143,7 +1098,57 @@ async function viewMeditacao(id) {
             .join('')}</div>`,
       )
       .join('')}</details>
-    <p class="sec-lbl">No seu tempo</p><div class="stack">${medCard('#/meditacao/livre', 'Meditação livre', 'Escolha o tempo, o som de fundo e o sino de intervalo. Sem voz.')}</div>
+    <p class="sec-lbl">No seu tempo</p><div class="stack">${medCard('#/meditacao/livre', 'Meditação livre', 'Escolha o tempo, o som de fundo e o sino de intervalo. Sem voz.')}</div>`;
+}
+async function viewMeditacao(id) {
+  if (id === 'mix') return medPaisagem(null);
+  if (id && id.startsWith('i-')) {
+    const inf = MED_INFINITAS.find((x) => 'i-' + x.id === id);
+    const b = inf && MED_PAISAGENS.find((x) => x.id === inf.base);
+    if (inf) return medPaisagem({ ...inf, id: 'i-' + inf.id, cor: b.cor, foto: b.foto, infinita: true });
+  }
+  if (id && id.startsWith('p-')) {
+    const pz = MED_PAISAGENS.find((x) => 'p-' + x.id === id);
+    if (pz) return medPaisagem(pz);
+  }
+  if (id && id.startsWith('som-') && MED_GRAVADOS[id.slice(4)])
+    return medPaisagem({
+      id,
+      nome: medNomeSom(id.slice(4)),
+      som: true,
+      cor: ['#151a2e', '#3b4a7a'],
+      foto: medPzDoGrupo(id.slice(4)).foto,
+      autor: medPzDoGrupo(id.slice(4)).autor,
+      camadas: [[id.slice(4), 0.85]],
+    });
+  if (id === 'livre')
+    return meditSessao({ id: 'livre', grupo: 'Meditação livre', nome: 'Meditação livre', livre: true });
+  const r = id && MEDIT_RESP.find((x) => x.id === id);
+  if (r) return meditSessao({ ...r, grupo: 'Respiração', tipoResp: true });
+  const s = id && MEDIT_SESSOES.find((x) => x.id === id);
+  if (s) return meditSessao(s);
+  const R = meditResumo();
+  const h = new Date().getHours();
+  const sug = h < 11 ? 'manha' : h >= 21 || h < 4 ? 'dormir' : h >= 17 ? 'recuperar' : 'acalmar';
+  const sugS = MEDIT_SESSOES.find((x) => x.id === sug);
+  const maxS = Math.max(10, ...R.semana.map((x) => x.m));
+  $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a>
+    <div class="med-topo">
+      <div class="med-topo-cab"><span class="med-logo">${MEDIT_IC}</span><div><p class="med-eyebrow">Bem-estar</p><h1>Meditação</h1></div></div>
+      <div class="med-stats">
+        <div><b>${R.seq}</b><span>${R.seq === 1 ? 'dia seguido' : 'dias seguidos'}</span></div>
+        <div><b>${R.min7}</b><span>min nesta semana</span></div>
+        <div><b>${R.total}</b><span>min no total</span></div>
+      </div>
+      <div class="med-semana-g">${R.semana
+        .map(
+          (x) =>
+            `<div class="${x.m ? 'on' : ''}"><i style="height:${Math.max(6, (x.m / maxS) * 100)}%"></i><span>${DSEM[x.dia.getDay()].slice(0, 1)}</span></div>`,
+        )
+        .join('')}</div>
+    </div>
+    <a class="med-sug" href="#/meditacao/${sugS.id}"><span class="med-sug-play">${I.play}</span><span><small>${h < 11 ? 'PARA COMEÇAR O DIA' : h >= 21 || h < 4 ? 'PARA ESTA NOITE' : h >= 17 ? 'DEPOIS DO TREINO' : 'PARA AGORA'}</small><b>${esc(sugS.nome)}</b><em>${sugS.min} min · guiada por voz</em></span></a>
+    ${medOpcoesHTML()}
     <p class="tiny dim" style="margin-top:18px">Use fone de ouvido para a melhor experiência. A meditação ajuda no bem-estar e não substitui acompanhamento de saúde. Se sentir tontura, volte a respirar no seu ritmo natural.</p>`;
 }
 
