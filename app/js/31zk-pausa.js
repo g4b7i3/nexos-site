@@ -140,3 +140,31 @@ async function viewPausa(b) {
   prox.onclick = avanca;
   pinta();
 }
+
+/* ---------- pernas para cima antes de dormir ----------
+   O aviso das 21h (função nx-alongar, campo "relaxar" da ficha) abre #/relaxar: o vídeo da posição,
+   o passo a passo e o que ouvir enquanto fica na posição (meditação guiada ou som da noite). */
+const RELAX_OUVIR = [
+  ['dormir', 'Relaxar para dormir', 'Meditação guiada'],
+  ['corpo', 'Escaneamento do corpo', 'Meditação guiada'],
+  ['chuva', 'Chuva a noite inteira', 'Som para dormir'],
+  ['mar', 'Mar a noite inteira', 'Som para dormir'],
+  ['floresta', 'Floresta viva', 'Som para dormir'],
+];
+function viewRelaxar() {
+  $app.innerHTML = `<a class="back" href="#/">${I.back} Início</a><p class="eyebrow">Antes de dormir</p><h1 class="h1">Pernas para cima</h1>
+    <p class="muted" style="margin-top:6px">Na cama, com as pernas apoiadas na parede ou na cabeceira, por 5 a 10 minutos. Ajuda o sangue a voltar das pernas depois de um dia sentado e prepara o corpo para dormir.</p>
+    <video src="media/pernas-para-cima.mp4" poster="media/pernas-para-cima.jpg" autoplay muted loop playsinline style="width:100%;border-radius:16px;margin-top:14px;background:#000;aspect-ratio:16/9;object-fit:cover"></video>
+    <ol class="steps" style="margin-top:14px">
+      <li>Deite de barriga para cima, com o quadril perto da parede ou da cabeceira.</li>
+      <li>Suba as pernas e apoie na parede, com os joelhos soltos, sem travar.</li>
+      <li>Braços largados ao lado do corpo, ombros relaxados.</li>
+      <li>Respire devagar pelo nariz e solte o ar com calma.</li>
+      <li>Fique de 5 a 10 minutos. Se formigar, dobre os joelhos ou desça as pernas.</li>
+    </ol>
+    <div class="h2" style="margin-top:22px">O que ouvir enquanto relaxa</div>
+    <div style="display:grid;gap:8px;margin-top:10px">${RELAX_OUVIR.map(
+      ([id, n, t]) =>
+        `<a class="btn ghost block" href="#/meditacao/${id}" style="justify-content:space-between;text-align:left"><span>${esc(n)}</span><span class="tiny dim">${t}</span></a>`,
+    ).join('')}</div>`;
+}
