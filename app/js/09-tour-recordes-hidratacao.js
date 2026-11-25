@@ -939,6 +939,7 @@ async function alunoHoje() {
           : ''
       }
       ${p.descricao ? `<p class="obs-t"><b>Obs. do treinador:</b> ${esc(p.descricao)}</p>` : ''}
+      <div data-sugcalor="${p.id}" data-est="${esc(JSON.stringify(est))}"></div>
       </div>
       <div class="row corr-acoes" style="gap:8px;margin-top:12px;flex-wrap:wrap">${ctBotaoHTML('plano:' + p.id, S.user.id, p.titulo || nomeTipo(p.tipo))}${feito ? `<a class="btn ghost sm" href="#/corrida/${feito.id}">Ver minha corrida</a>` : `<a class="btn sm gps-pri" href="#/gps/${p.id}">${I.play} Treinar pelo celular</a><button class="btn ghost sm" data-reg="${p.id}">${I.plus} Registrar</button>`}<button class="btn ghost sm" data-ver="${p.id}">Ver passos</button></div></div>`;
   };
@@ -1147,6 +1148,10 @@ async function alunoHoje() {
   if (fC) {
     const corrPend = corrDoDia.filter((p) => !corrSem.find((c) => c.plano_id === p.id));
     calorHoje(document.getElementById('calor-hoje'), corrPend[0], corrDoDia.length > 0 && !corrPend.length);
+    calorSugAluno(
+      corrPend.map((p) => p.id),
+      perfC,
+    ).catch((e) => console.error(e));
   }
   convidarTour();
   if (fC)
@@ -1649,6 +1654,70 @@ function avisoVespera({ apelido, treino, prova, prev, cat, hora }) {
   return { title, body: `${qual}${calor ? ' ' + calor : ''}${sono}` };
 }
 /* vespera:puro:fim */
+/* ritmocalor:puro:inicio (sugestão de ritmo no calor para o treinador aplicar ou dispensar; gerada pelo servidor na véspera
+   pela função nx-vespera; conferida por scripts/testes/ritmocalor.test.js). A planilha nunca muda: é só sugestão. */
+// zonas fortes: nelas o ritmo do tiro se mantém e a pausa aumenta (no calor, a recuperação demora mais)
+const ZONAS_FORTES_CALOR = ['limiar', 'intervalado', 'tiros'];
+// quanto mais lento no contínuo, por nível de calor (fração do ritmo). Base: Ely e col., Med Sci Sports Exerc 2007
+// (o tempo de prova piora conforme o WBGT sobe, mais nos corredores não elite) e o consenso de calor de Racinais e col.,
+// Br J Sports Med 2015 (no calor, reduzir a intensidade ou alongar a recuperação)
+const CALOR_PCT = { 1: [0.02, 0.04], 2: [0.04, 0.06], 3: [0.06, 0.09] };
+// quanto a recuperação entre os tiros aumenta, por nível (0,25 = 25% a mais)
+const CALOR_PAUSA = { 1: 0.25, 2: 0.5, 3: 1 };
+function temTirosFortes(estrutura) {
+  return (estrutura || []).some(
+    (s) => s && s.k === 'rep' && (s.passos || []).some((x) => x && x.k === 'co' && ZONAS_FORTES_CALOR.includes(x.z)),
+  );
+}
+// treino: { tipo, titulo, estrutura }; prev: horas do dia [{ h, temp, w }]; cat: categoriaCalor; hora: hora habitual
+function sugestaoCalor({ treino, prev, cat, hora }) {
+  if (!treino) return null;
+  const validas = (prev || []).filter((x) => x && x.w != null && x.temp != null);
+  const naHora = validas.find((x) => x.h === hora);
+  if (!naHora) return null;
+  const idx = (w) => CALOR_NIVEIS.indexOf(nivelCalor(w, cat));
+  const n = idx(naHora.w);
+  if (n < 1) return null;
+  const jan = validas.filter((x) => x.h >= 5 && x.h <= 20 && Math.abs(x.h - hora) <= 3);
+  const melhor = jan.reduce((a, b) => (idx(b.w) < idx(a.w) || (idx(b.w) === idx(a.w) && b.w < a.w) ? b : a), naHora);
+  const base = {
+    nivel: CALOR_NIVEIS[n].k,
+    hora,
+    temp: Math.round(naHora.temp),
+    w: Math.round(naHora.w * 10) / 10,
+    melhor: idx(melhor.w) < n ? melhor.h : null,
+  };
+  const abre = `Às ${hora}h a previsão é de ${base.temp} °C, ${CALOR_FRASE[base.nivel]}.`;
+  const mais = base.melhor != null ? ` O horário mais fresco perto disso é ${base.melhor}h.` : '';
+  if (n >= 4)
+    return {
+      ...base,
+      modo: 'mover',
+      texto: `${abre}${mais} Sugestão: fazer o treino num horário mais fresco ou em outro dia. Se mantiver, que seja leve e curto.`,
+    };
+  const tiros =
+    !/corre e caminha/i.test(treino.titulo || '') &&
+    ['intervalado', 'tiros', 'fartlek', 'ritmo'].includes(treino.tipo) &&
+    temTirosFortes(treino.estrutura);
+  if (tiros) {
+    const p = CALOR_PAUSA[n];
+    return {
+      ...base,
+      modo: 'pausa',
+      pausa: p,
+      pct: CALOR_PCT[n],
+      texto: `${abre}${mais} Sugestão: manter o ritmo dos tiros e aumentar a recuperação entre eles em ${Math.round(p * 100)}%. Aquecimento e desaquecimento mais leves.`,
+    };
+  }
+  const [lo, hi] = CALOR_PCT[n];
+  return {
+    ...base,
+    modo: 'ritmo',
+    pct: [lo, hi],
+    texto: `${abre}${mais} Sugestão: correr de ${Math.round(lo * 100)}% a ${Math.round(hi * 100)}% mais lento que o ritmo da planilha, ou pela frequência cardíaca da zona.`,
+  };
+}
+/* ritmocalor:puro:fim */
 // posição do celular (só para achar a cidade da previsão; fica no próprio celular, arredondada a ~100 m, por até 12 h).
 // Ao abrir o app nunca aparece o pedido de localização: o iPhone não guarda a permissão de app da tela inicial e
 // perguntava toda vez. Sem permissão já dada, usa a última posição guardada (ou a última cidade, no servidor).

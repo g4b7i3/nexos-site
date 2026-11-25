@@ -4872,3 +4872,6 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 .apr-fig{margin:12px 0 0;background:var(--s1);border-radius:18px;padding:10px;border:1px solid var(--line,rgba(127,127,127,.18))}
 .apr-fig img{display:block;width:100%;height:auto;border-radius:12px;background:#fff}
 .apr-fig figcaption{font-size:.84rem;line-height:1.45;color:var(--mute);padding:10px 4px 2px}
+/* orientação do treinador para o calor (sugestão de ritmo aplicada) */
+.sug-calor-box{margin-top:10px;padding:12px 14px;border-radius:14px;background:rgba(255,159,67,.1);border:1px solid rgba(255,159,67,.35)}
+.sug-calor-box b{color:#ffb36b}

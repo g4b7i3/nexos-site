@@ -788,6 +788,7 @@ async function staffHoje() {
     <div id="testes-eq"></div>
     <div id="energia-eq"></div>
     <div id="faltas-eq"></div>
+    <div id="calor-sug"></div>
     ${
       pendentes.length
         ? `<div class="section"><div class="section-h"><h2 class="h2">Novos alunos para aprovar</h2><span class="tag acc">${pendentes.length}</span></div><div class="stack">${pendentes
@@ -895,6 +896,7 @@ async function staffHoje() {
     () => {},
   );
   faltasEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m])));
+  calorSugEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m]))).catch((e) => console.error(e));
   energiaEquipe([...vis], Object.fromEntries(membros.map((m) => [m.user_id, m]))).catch((e) => console.error(e));
   testesPendentesEquipe([...vis])
     .then((ts) => {
