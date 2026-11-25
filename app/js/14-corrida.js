@@ -897,6 +897,41 @@ const cardSvgGrande = async (src) => {
 const cardImg = async (src) =>
   CARD_IMGS[src] ||
   (CARD_IMGS[src] = (/\.svg$/.test(src) && (await cardSvgGrande(src))) || (await cardCarregarImg(src)));
+// card dos outros treinos (força, funcional, pedal...): músculos que a pessoa marca no bonequinho (o mesmo corpo do mapa de dor)
+const MUSC_NOME = {
+  pescoco: 'Trapézio',
+  ombro: 'Ombros',
+  peito: 'Peito',
+  braco: 'Bíceps',
+  triceps: 'Tríceps',
+  antebraco: 'Antebraço',
+  abdomen: 'Abdômen',
+  costas: 'Costas',
+  lombar: 'Lombar',
+  gluteo: 'Glúteos',
+  quadril: 'Adutores',
+  coxa_f: 'Quadríceps',
+  coxa_t: 'Posteriores da coxa',
+  panturrilha: 'Panturrilha',
+  canela: 'Tibial',
+};
+const muscBase = (k) => String(k || '').replace(/_(d|e)$/, '');
+const NOMES_CARD_ATIV = ['Treino de força', 'Funcional', 'Musculação', 'Cardio', 'Pedal', 'Natação', 'Treino'];
+const nomeCardAtiv = (c) =>
+  ({ forca: 'Treino de força', bike: 'Pedal', natacao: 'Natação', caminhada: 'Caminhada' })[c && c.tipo] || 'Treino';
+/** o corpo (frente ou costas) como imagem para o card: corpo translúcido e os músculos marcados na cor da marca */
+function corpoCardImg(sexo, vista, musc, branco, ac) {
+  const k = ['corpo', sexo, vista, branco ? 'b' : 'p', ac, [...musc].sort().join('.')].join('|');
+  if (CARD_IMGS[k]) return CARD_IMGS[k];
+  const base = branco ? 'rgba(255,255,255,.26)' : 'rgba(11,24,52,.16)',
+    linha = branco ? 'rgba(255,255,255,.34)' : 'rgba(11,24,52,.22)';
+  const css = `.cp-base path{fill:${base};stroke:none}.cp-reg [data-r]{fill:${base};stroke:${linha};stroke-width:.7;stroke-linejoin:round}.cp-reg .on{fill:${ac};stroke:${ac}}.cp-deco{fill:${base};stroke:${linha};stroke-width:.7}.cp-cab{fill:${base}}.cp-lin{fill:none;stroke:${linha};stroke-width:.55}`;
+  const svg = corpoSVG(sexo, vista)
+    .replace(/data-r="([a-z_]+)"/g, (m, r) => (musc.has(muscBase(r)) ? `${m} class="on"` : m))
+    .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="344" height="904" ')
+    .replace(/(<svg[^>]*>)/, `$1<style>${css}</style>`);
+  return (CARD_IMGS[k] = cardCarregarImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)));
+}
 /* card:puro:inicio — contas dos cards do relógio (testadas em scripts/testes/cards.test.js) */
 // efeito do treino na escala da Garmin (0 a 5)
 const TE_NOMES = ['Sem benefício', 'Benefício menor', 'Mantendo', 'Impactando', 'Muito impactante', 'Sobrecarga'];
@@ -2799,6 +2834,47 @@ async function desenharCard(cv, c, o) {
       linhaS = [nome, V.tempo && V.tempo.v, !nome && V.pace ? V.pace.v + ' /KM' : ''].filter(Boolean).join('  ·  ');
     txt(linhaS, W / 2, yb + 100, `800 36px ${FB}`, tx, 'center', 4);
     logo(W / 2, yb + 170, 180);
+  } else if (L === 'atividade') {
+    // força, funcional, pedal e outros treinos do relógio: nome, números e o bonequinho com os músculos trabalhados
+    const musc = new Set(o.musc || []),
+      F = post ? 0.82 : 1;
+    let y = yTopo(post ? 150 : 330);
+    txt((o.nomeAtiv || nomeCardAtiv(c)).toUpperCase(), 100, y, `800 ${Math.round(34 * F)}px ${FB}`, AC, 'left', 5);
+    if (dataTxt) txt(dataTxt, W - 100, y, `700 ${Math.round(26 * F)}px ${FB}`, sub, 'right', 2);
+    y += 60 * F;
+    const ns = sel.filter((s) => s).slice(0, 3);
+    if (ns.length) y = grade(ns, y, Math.round(76 * F), 100, W - 100, 3, 'left') - 30 * F;
+    if (musc.size) {
+      const sexo = (S.me && S.me.sexo) || 'M',
+        [fr, co] = await Promise.all([
+          corpoCardImg(sexo, 'frente', musc, branco, AC),
+          corpoCardImg(sexo, 'costas', musc, branco, AC),
+        ]);
+      const bw = post ? 250 : 300,
+        bh = (bw * 452) / 172,
+        gap = post ? 70 : 90;
+      y += post ? 30 : 60;
+      desenha(fr, 452 / 172, W / 2 - gap / 2 - bw, y, bw, 'left', true);
+      desenha(co, 452 / 172, W / 2 + gap / 2, y, bw, 'left', true);
+      y += bh + (post ? 50 : 70);
+      const nomes = [...musc].map((k) => MUSC_NOME[k]).filter(Boolean);
+      const fL = `700 ${Math.round(32 * F)}px ${FB}`;
+      let linha = '',
+        linhas = [];
+      nomes.forEach((n) => {
+        const t = linha ? linha + '  ·  ' + n : n;
+        if (larg(t, fL) > W - 200 && linha) {
+          linhas.push(linha);
+          linha = n;
+        } else linha = t;
+      });
+      if (linha) linhas.push(linha);
+      linhas.slice(0, 2).forEach((l) => {
+        txt(l, W / 2, y, fL, sub, 'center');
+        y += 48 * F;
+      });
+    }
+    logo(W / 2, H - (post ? 110 : 230), 220);
   } else if (L === 'forca' && c._forca) {
     // treino de força: carga total levantada, números do treino e os exercícios
     const T = c._forca,
@@ -3334,6 +3410,8 @@ async function abrirCardForca(sessaoId) {
   );
 }
 async function abrirCardCorrida(c, plano) {
+  // força, funcional, pedal e outros treinos do relógio (não corrida): card com o bonequinho dos músculos
+  c._ativ = !c._forca && !ehCorr(c);
   c._serie = serieDe(c, plano);
   c._prova = ehProvaC(c, plano);
   try {
@@ -3372,52 +3450,77 @@ async function abrirCardCorrida(c, plano) {
     ),
   };
   if (!CARD_LAYOUTS.some(([k]) => k === o.layout)) o.layout = 'classico';
+  if (c._ativ) {
+    // nos treinos sem corrida, começa com tempo, FC e calorias (a escolha não mexe no card das corridas)
+    o.stats = { ...o.stats, dist: false, pace: false, oficial: false, tempo: true, fc: true, kcal: true };
+    o.layout = 'atividade';
+    o.nomeAtiv = nomeCardAtiv(c);
+    o.musc = [];
+    try {
+      const m = JSON.parse(localStorage.getItem('nx-card-musc-' + c.id) || 'null');
+      if (m) {
+        o.musc = (m.musc || []).filter((k) => MUSC_NOME[k]);
+        if (m.nome) o.nomeAtiv = m.nome;
+      }
+    } catch {}
+  }
   try {
     o.local = localStorage.getItem('nx-card-loc-' + c.id) || '';
   } catch {
     o.local = '';
   }
   // dados de outras atividades para os modelos de recorde, mesmo percurso, semana e constância (no máximo 5 s de espera)
-  c._x = c._forca
-    ? {}
-    : await Promise.race([cardContexto(c).catch(() => ({})), new Promise((res) => setTimeout(() => res({}), 5000))]);
+  c._x =
+    c._forca || c._ativ
+      ? {}
+      : await Promise.race([cardContexto(c).catch(() => ({})), new Promise((res) => setTimeout(() => res({}), 5000))]);
   // corrida com recorde abre direto no card do recorde
   if (c._x.recorde) o.layout = 'recorde';
   const temParc = (c.parciais || []).length >= 2;
   const temTiros = tirosDe(c).length >= (c._serie.qual ? 1 : 2),
     temClima = !!((c.rota && c.rota.length) || (c.analise && c.analise.extras && c.analise.extras.temp_med != null));
-  const modelos = c._forca
-    ? [['forca', 'Treino de força']]
-    : CARD_LAYOUTS.map(([k, l]) => [k, k === 'tiros' ? c._serie.titulo : k === 'nome' ? c._serie.nome : l]).filter(
-        ([k]) =>
-          ((k !== 'parciais' && k !== 'parciais_total') || temParc) &&
-          (k !== 'tiros' || temTiros) &&
-          (k !== 'nome' || !!c._serie.nome) &&
-          (!k.startsWith('clima') || temClima) &&
-          (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso', 'mesmo'].includes(k) ||
-            (c.rota && c.rota.length > 1)) &&
-          (k !== 'recorde' || !!c._x.recorde) &&
-          (k !== 'mesmo' || !!c._x.igual) &&
-          (k !== 'semana' || !!c._x.semana) &&
-          (k !== 'constancia' || !!c._x.const) &&
-          (k !== 'pace_km' || parcKm(c).length >= 3) &&
-          (k !== 'altimetria' || !!altDe(c)) &&
-          (k !== 'zonas_fc' || !!cardZonasFC(c)) &&
-          (k !== 'zonas_pot' || !!cardZonasPot(c)) &&
-          (k !== 'efeito' || !!cardTE(c)) &&
-          (k !== 'vo2' || !!c._x.vo2) &&
-          (k !== 'velocidade' || !!cardVel(c)) &&
-          (k !== 'gigante' || !!V.dist),
-      );
+  const modelos = c._ativ
+    ? [['atividade', 'Treino']]
+    : c._forca
+      ? [['forca', 'Treino de força']]
+      : CARD_LAYOUTS.map(([k, l]) => [k, k === 'tiros' ? c._serie.titulo : k === 'nome' ? c._serie.nome : l]).filter(
+          ([k]) =>
+            ((k !== 'parciais' && k !== 'parciais_total') || temParc) &&
+            (k !== 'tiros' || temTiros) &&
+            (k !== 'nome' || !!c._serie.nome) &&
+            (!k.startsWith('clima') || temClima) &&
+            (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso', 'mesmo'].includes(k) ||
+              (c.rota && c.rota.length > 1)) &&
+            (k !== 'recorde' || !!c._x.recorde) &&
+            (k !== 'mesmo' || !!c._x.igual) &&
+            (k !== 'semana' || !!c._x.semana) &&
+            (k !== 'constancia' || !!c._x.const) &&
+            (k !== 'pace_km' || parcKm(c).length >= 3) &&
+            (k !== 'altimetria' || !!altDe(c)) &&
+            (k !== 'zonas_fc' || !!cardZonasFC(c)) &&
+            (k !== 'zonas_pot' || !!cardZonasPot(c)) &&
+            (k !== 'efeito' || !!cardTE(c)) &&
+            (k !== 'vo2' || !!c._x.vo2) &&
+            (k !== 'velocidade' || !!cardVel(c)) &&
+            (k !== 'gigante' || !!V.dist),
+        );
   if (!c._x.recorde && temTiros && c._serie.rep) o.layout = 'tiros';
   if (!modelos.some(([k]) => k === o.layout))
     o.layout = modelos.some(([k]) => k === 'classico') ? 'classico' : modelos[0][0];
   const seg = (k, ops, val) =>
     `<div class="seg card-seg" data-o="${k}">${ops.map(([v, l]) => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const disponivel0 = (k) =>
-    c._forca ? k === 'logo' : k === 'rota' ? c.rota && c.rota.length > 1 : k === 'data' || k === 'logo' ? true : !!V[k];
+    c._ativ
+      ? ['dist', 'tempo', 'fc', 'kcal', 'data', 'logo'].includes(k) && (k === 'data' || k === 'logo' || !!V[k])
+      : c._forca
+        ? k === 'logo'
+        : k === 'rota'
+          ? c.rota && c.rota.length > 1
+          : k === 'data' || k === 'logo'
+            ? true
+            : !!V[k];
   openSheet(
-    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">${c._forca ? 'Card do treino' : 'Card da corrida'}</div>
+    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">${c._forca || c._ativ ? 'Card do treino' : 'Card da corrida'}</div>
     <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
     <div class="cd-zoom"><button type="button" class="icon-btn sm" data-z="-1" aria-label="Diminuir">−</button><span class="tiny dim">Pince com 2 dedos para aumentar ou diminuir e arraste para mover</span><button type="button" class="icon-btn sm" data-z="1" aria-label="Aumentar">+</button><button type="button" class="link-btn tiny" id="cd-reset">Centralizar</button></div>
     <div class="field"><span>Fundo</span>${seg(
@@ -3430,7 +3533,13 @@ async function abrirCardCorrida(c, plano) {
       o.fundo,
     )}</div>
     <input type="file" accept="image/*" id="cd-foto" hidden>
-    <div class="field"><span>Modelo</span><div class="card-gal" id="cd-gal">${modelos.map(([k, l]) => `<button type="button" class="cg-it ${k === o.layout ? 'on' : ''}" data-lay="${k}"><span class="cg-cv"><canvas></canvas></span><small>${l}</small></button>`).join('')}</div></div>
+    ${
+      c._ativ
+        ? `<div class="field"><span>Músculos trabalhados</span><p class="tiny dim" style="margin:2px 0 6px">Toque nos músculos que você treinou hoje. Eles aparecem em destaque no card.</p><div class="corpo-map corpo-musc" id="cd-musc"><div class="corpo-v"><span>Frente</span>${corpoSVG((S.me && S.me.sexo) || 'M', 'frente')}</div><div class="corpo-v"><span>Costas</span>${corpoSVG((S.me && S.me.sexo) || 'M', 'costas')}</div></div><div class="small muted" id="cd-musc-sel" style="margin-top:6px"></div></div>
+    <div class="field"><span>Nome no card</span><div class="chips wrap" id="cd-nome">${NOMES_CARD_ATIV.map((n) => `<button type="button" class="chip${n === o.nomeAtiv ? ' on' : ''}" data-n="${n}">${n}</button>`).join('')}</div></div>`
+        : ''
+    }
+    <div class="field"${c._ativ ? ' hidden' : ''}><span>Modelo</span><div class="card-gal" id="cd-gal">${modelos.map(([k, l]) => `<button type="button" class="cg-it ${k === o.layout ? 'on' : ''}" data-lay="${k}"><span class="cg-cv"><canvas></canvas></span><small>${l}</small></button>`).join('')}</div></div>
     <div class="grid2"><div class="field"><span>Formato</span>${seg(
       'formato',
       [
@@ -3468,11 +3577,11 @@ async function abrirCardCorrida(c, plano) {
           localStorage.setItem(
             'nx-card',
             JSON.stringify({
-              layout: c._forca ? st.layout : o.layout,
+              layout: c._forca || c._ativ ? st.layout : o.layout,
               fundo: o.fundo === 'foto' ? 'transparente' : o.fundo,
               cor: o.cor,
               formato: o.formato,
-              stats: o.stats,
+              stats: c._ativ ? st.stats : o.stats,
             }),
           );
         } catch {}
@@ -3780,13 +3889,52 @@ async function abrirCardCorrida(c, plano) {
         salvar();
         pinta();
       };
+      // músculos trabalhados: toca num lado e marca o músculo dos dois lados (fica guardado neste treino)
+      const mBox = r.querySelector('#cd-musc');
+      if (mBox) {
+        const guarda = () => {
+          try {
+            localStorage.setItem('nx-card-musc-' + c.id, JSON.stringify({ musc: o.musc, nome: o.nomeAtiv }));
+          } catch {}
+        };
+        const marca = () => {
+          const m = new Set(o.musc);
+          mBox.querySelectorAll('.cp-reg [data-r]').forEach((e) => {
+            const b = muscBase(e.dataset.r);
+            e.classList.toggle('on', m.has(b));
+            e.classList.toggle('fora', !MUSC_NOME[b]);
+          });
+          r.querySelector('#cd-musc-sel').innerHTML = o.musc.length
+            ? o.musc.map((k) => `<span class="tag ok">${esc(MUSC_NOME[k])}</span>`).join(' ')
+            : 'Nenhum músculo marcado ainda.';
+        };
+        marca();
+        mBox.onclick = (e) => {
+          const p = e.target.closest('[data-r]');
+          if (!p) return;
+          const b = muscBase(p.dataset.r);
+          if (!MUSC_NOME[b]) return;
+          o.musc = o.musc.includes(b) ? o.musc.filter((x) => x !== b) : [...o.musc, b];
+          marca();
+          guarda();
+          pinta();
+        };
+        r.querySelector('#cd-nome').onclick = (e) => {
+          const b = e.target.closest('[data-n]');
+          if (!b) return;
+          o.nomeAtiv = b.dataset.n;
+          r.querySelectorAll('#cd-nome [data-n]').forEach((x) => x.classList.toggle('on', x === b));
+          guarda();
+          pinta();
+        };
+      }
       // a imagem salva sai em alta definição (2160 × 3840 no story), mesmo a prévia sendo menor
       const blob = async () => {
         const hd = document.createElement('canvas');
         await desenharCard(hd, c, { ...o, escala: 2 });
         return await new Promise((res) => hd.toBlob(res, 'image/png'));
       };
-      const nomeArq = `nexos-${c._forca ? 'treino' : 'corrida'}-${isoDia(c.data)}.png`;
+      const nomeArq = `nexos-${c._forca || c._ativ ? 'treino' : 'corrida'}-${isoDia(c.data)}.png`;
       const marcar = () => {
         try {
           localStorage.setItem('nx-card-' + c.id, '1');

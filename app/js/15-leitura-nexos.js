@@ -704,7 +704,7 @@ async function viewCorrida(id) {
     <h1 class="h1">${esc(c.titulo && !/^\d/.test(c.titulo) ? c.titulo : comDist(c) ? fmtKm(c.distancia_m) : nomeAtiv(c))}</h1>
     ${c.rota && c.rota.length > 10 ? `<button class="card-cta replay-cta" id="replay"><span class="card-cta-ic">${I.play}</span><div class="grow" style="text-align:left"><b>Replay do percurso</b><span class="small">Vídeo do trajeto sendo desenhado, pronto para o story</span></div>${I.chev}</button>` : ''}
     <div id="vcv"></div>
-    ${!S.staff && comDist(c) ? `<button class="card-cta" id="gerar-card"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Gerar card para o story</b><span class="small">Com foto de fundo ou sem fundo, com a marca da Nexos</span></div>${I.chev}</button>` : ''}
+    ${!S.staff && (comDist(c) || !ehCorr(c)) ? `<button class="card-cta" id="gerar-card"><span class="card-cta-ic">${I.cam}</span><div class="grow" style="text-align:left"><b>Gerar card para o story</b><span class="small">${ehCorr(c) ? 'Com foto de fundo ou sem fundo, com a marca da Nexos' : 'Com os músculos que você treinou, com a marca da Nexos'}</span></div>${I.chev}</button>` : ''}
     <div class="metrics">
       ${comDist(c) ? `<div class="metric"><span>Distância</span><b>${fmtKm(c.distancia_m).replace(' km', '')}<small>km</small></b></div>` : ''}
       <div class="metric"><span>${comDist(c) ? 'Tempo' : 'Duração'}</span><b>${fmtDurLongo(c.duracao_s)}</b></div>
