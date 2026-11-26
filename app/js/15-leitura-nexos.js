@@ -22,8 +22,135 @@ const fmtSeg = (s) => {
   s = Math.round(Math.abs(s));
   return s < 60 ? `${s} s` : `${Math.floor(s / 60)}min${s % 60 ? ' ' + String(s % 60).padStart(2, '0') + 's' : ''}`;
 };
+/** junta as voltas que o relógio partiu (volta automática a cada km no meio de um tiro de 8 min, por exemplo) nas
+    etapas da planilha: o que vem antes das séries (aquecimento), cada passo de cada repetição (tiro, recuperação,
+    caminhada) e o que vem depois (desaquecimento). Cada passo das séries precisa bater com a duração ou a distância
+    pedida; se não bater (o aluno não usou o treino no relógio, parou antes), devolve null e vale a separação pelo pace. */
+function etapasDasVoltas(voltas, repPl) {
+  const passos = (repPl && repPl.passos) || [];
+  const n = (repPl && repPl.n) || 0;
+  if (!n || !passos.length || !passos.some((p) => p.k === 'co')) return null;
+  const L = (voltas || []).filter((v) => v && v.seg > 0);
+  if (L.length < 2) return null;
+  const alvo = (p) =>
+    p.med === 'min'
+      ? { k: 'seg', v: p.v * 60, tol: Math.max(4, p.v * 60 * 0.03) }
+      : p.med === 'km' || p.med === 'm'
+        ? {
+            k: 'd',
+            v: p.med === 'km' ? p.v * 1000 : p.v,
+            tol: Math.max(20, (p.med === 'km' ? p.v * 1000 : p.v) * 0.04),
+          }
+        : null;
+  const alvos = passos.map(alvo);
+  if (alvos.some((a) => !a)) return null;
+  // um passo: soma voltas seguidas até chegar na duração (ou distância) pedida
+  const casa = (i, a) => {
+    let soma = 0;
+    for (let j = i; j < L.length; j++) {
+      soma += L[j][a.k] || 0;
+      // dentro da tolerância: ainda junta a próxima volta se ela deixar mais perto (o pedacinho de 10 s do fim do tiro)
+      if (Math.abs(soma - a.v) <= a.tol) {
+        while (j + 1 < L.length && Math.abs(soma + (L[j + 1][a.k] || 0) - a.v) < Math.abs(soma - a.v))
+          soma += L[++j][a.k] || 0;
+        return j + 1;
+      }
+      if (soma > a.v + a.tol) return -1;
+    }
+    return -1;
+  };
+  // as séries a partir da volta i; a última recuperação pode faltar (o aluno parou o relógio ou já emendou)
+  // parcial: o aluno parou antes de completar as séries (vale com pelo menos metade e no mínimo 2 completas)
+  const series = (i, parcial) => {
+    const out = [];
+    for (let r = 0; r < n; r++)
+      for (let q = 0; q < passos.length; q++) {
+        const fim = casa(i, alvos[q]);
+        if (fim < 0) {
+          const ultimo = r === n - 1 && q > 0 && passos.slice(q).every((p) => p.k !== 'co');
+          if (ultimo) return { out, i };
+          if (!parcial || r < Math.max(2, Math.ceil(n / 2))) return null;
+          const fimRep = out.length - q;
+          return { out: out.slice(0, fimRep), i: fimRep ? out[fimRep - 1].b : i };
+        }
+        out.push({ k: passos[q].k, rep: r + 1, a: i, b: fim });
+        i = fim;
+      }
+    return { out, i };
+  };
+  // uma volta por passo (relógio ou celular seguindo o treino): vale mesmo com um passo fora do tempo (o celular
+  // pausou numa caminhada), desde que quase todos batam com a planilha
+  const umaPorPasso = (i) => {
+    const tot = n * passos.length;
+    for (const falta of [0, passos.length - 1]) {
+      const m = tot - falta;
+      if (!m || i + m > L.length) continue;
+      let bons = 0;
+      const out = [];
+      for (let x = 0; x < m; x++) {
+        const q = x % passos.length,
+          a = alvos[q],
+          v = L[i + x];
+        const dif = Math.abs((v[a.k] || 0) - a.v);
+        if (dif <= a.tol) bons++;
+        else if (passos[q].k === 'co' && dif > a.v * 0.25) return null;
+        out.push({ k: passos[q].k, rep: Math.floor(x / passos.length) + 1, a: i + x, b: i + x + 1 });
+      }
+      if (bons >= m * 0.85) return { out, i: i + m };
+    }
+    return null;
+  };
+  let achou = null;
+  for (const modo of ['exato', 'uma', 'parcial'])
+    for (let k = 0; k < L.length && !achou; k++) {
+      const r = modo === 'uma' ? umaPorPasso(k) : series(k, modo === 'parcial');
+      if (r) achou = { pre: k, ...r };
+    }
+  if (!achou) return null;
+  const junta = (a, b, k, rep) => {
+    const vs = L.slice(a, b);
+    const seg = vs.reduce((x, v) => x + v.seg, 0),
+      d = vs.reduce((x, v) => x + (v.d || 0), 0);
+    const pond = (c) => {
+      const ok = vs.filter((v) => v[c] > 0);
+      const t = ok.reduce((x, v) => x + v.seg, 0);
+      return t ? Math.round(ok.reduce((x, v) => x + v[c] * v.seg, 0) / t) : null;
+    };
+    const fm = Math.max(0, ...vs.map((v) => v.fcmax || 0));
+    return {
+      k,
+      rep,
+      i: a,
+      d,
+      seg,
+      pace: d > 30 ? seg / (d / 1000) : null,
+      fc: pond('fc'),
+      fcmax: fm || null,
+      cad: pond('cad'),
+      pot: pond('pot'),
+    };
+  };
+  const etapas = [];
+  if (achou.pre > 0) etapas.push(junta(0, achou.pre, 'aq', null));
+  achou.out.forEach((x) => etapas.push(junta(x.a, x.b, x.k, x.rep)));
+  // sobra no fim: desaquecimento; um pedacinho (até 30 s) é só o tempo de parar o relógio
+  if (achou.i < L.length) {
+    const resto = junta(achou.i, L.length, 'dq', null);
+    if (resto.seg > 30) etapas.push(resto);
+    else if (etapas.length) {
+      const u = etapas[etapas.length - 1];
+      if (u.k === 'aq' || u.k === 'dq') Object.assign(u, junta(u.i, L.length, u.k, null));
+    }
+  }
+  const esf = etapas.filter((e) => e.k === 'co' && e.rep);
+  if (esf.length < Math.min(2, n) || esf.some((e) => !e.pace)) return null;
+  return { etapas, esf, rec: etapas.filter((e) => e.rep && e.k !== 'co') };
+}
 /** separa as voltas do relógio em esforço x recuperação (2 grupos pelo pace) */
 function tirosDasVoltas(voltas, comAqDq, repPl) {
+  // com a planilha, primeiro junta as voltas que o relógio partiu nas etapas do treino
+  const et = repPl ? etapasDasVoltas(voltas, repPl) : null;
+  if (et && et.rec.length) return et;
   const L = (voltas || [])
     .map((v, i) => ({ ...v, i, pace: v.d > 30 && v.seg > 8 ? v.seg / (v.d / 1000) : null }))
     .filter((v) => v.pace && v.pace > 120 && v.pace < 1200);
@@ -95,6 +222,73 @@ function zonasDaAnalise(pc, fm) {
   return Object.assign(zonasFC(fm, pc.fcRep), {
     base: `FC máxima ${Math.round(fm)} bpm${pc.fcRep ? ` e de repouso ${pc.fcRep} bpm (reserva de FC)` : ''}`,
   });
+}
+/** treino por etapas: aquecimento, cada tiro com a sua recuperação e desaquecimento, juntando as voltas que o
+    relógio partiu. Aparece na corrida quando o treino da planilha tem séries e as voltas batem com elas. */
+function etapasDaCorrida(c, plano) {
+  if (!plano || !c.analise || !Array.isArray(c.analise.voltas)) return null;
+  const est = estruturaDe(plano);
+  const repPl = est.find((x) => x.k === 'rep');
+  if (!repPl) return null;
+  const et = etapasDasVoltas(c.analise.voltas, repPl);
+  if (!et) return null;
+  return { ...et, est, repPl };
+}
+function etapasHTML(r, paces) {
+  if (!r) return '';
+  const { etapas, esf, est, repPl } = r;
+  const caminha = (repPl.passos || []).some((p) => p.k === 'ca');
+  const nomeCo = caminha ? 'Corrida' : 'Tiro';
+  const ini = est[0] && est[0].k;
+  const nome = (e) =>
+    e.k === 'co' && e.rep
+      ? `${nomeCo} ${e.rep}`
+      : e.k === 'ca' && e.rep
+        ? `Caminhada ${e.rep}`
+        : e.rep
+          ? `Recuperação ${e.rep}`
+          : e.k === 'aq'
+            ? ini === 'ca'
+              ? 'Caminhada inicial'
+              : ini === 'co'
+                ? 'Corrida contínua'
+                : 'Aquecimento'
+            : 'Desaquecimento';
+  const co = (repPl.passos || []).find((p) => p.k === 'co');
+  const fx = co && paces && paces[co.z];
+  const zonaDe = (e) => {
+    if (!fx || !e.pace) return '';
+    const rap = Math.min(...fx),
+      len = Math.max(...fx);
+    return e.pace < rap - 4
+      ? '<em class="et-z rap">rápido</em>'
+      : e.pace > len + 4
+        ? '<em class="et-z len">lento</em>'
+        : '<em class="et-z ok">na zona</em>';
+  };
+  const pEsf = esf.map((e) => e.pace);
+  const pMin = Math.min(...pEsf),
+    pMax = Math.max(...pEsf);
+  const tempo = (s) => (s >= 60 ? fmtDur(Math.round(s)) : Math.round(s) + ' s');
+  const dist = (d) => (d >= 1000 ? (d / 1000).toFixed(2).replace('.', ',') + ' km' : Math.round(d) + ' m');
+  const pm = media(pEsf),
+    fcm = media(esf.filter((e) => e.fc).map((e) => e.fc));
+  const alvoTxt = co ? `${co.v}${co.med === 'min' ? ' min' : co.med === 'km' ? ' km' : ' m'}` : '';
+  return `<div class="section"><div class="section-h"><h2 class="h2">Treino por etapas</h2>${slashes}</div>
+    <div class="card etapas-c">
+      <div class="et-res"><div><span>${esf.length} de ${repPl.n} ${nomeCo.toLowerCase()}s${alvoTxt ? ' de ' + alvoTxt : ''}</span><b>${fmtPace(pm)}</b><small>pace médio</small></div>
+        ${fcm ? `<div><span>FC média</span><b>${Math.round(fcm)}<small> bpm</small></b><small>nos ${nomeCo.toLowerCase()}s</small></div>` : ''}
+        ${esf.length > 1 ? `<div><span>Diferença</span><b>${fmtSeg(pMax - pMin)}</b><small>do mais rápido ao mais lento, por km</small></div>` : ''}</div>
+      ${fx ? `<p class="tiny dim" style="margin:2px 0 8px">Zona pedida para os ${nomeCo.toLowerCase()}s: ${ZONAS_INFO[co.z] ? ZONAS_INFO[co.z].n + ', ' : ''}${faixaPace(fx)}</p>` : ''}
+      <div class="et-lista">${etapas
+        .map((e) => {
+          const forte = e.k === 'co' && e.rep;
+          const w = forte && pMax > pMin ? 30 + (70 * (pMax - e.pace)) / (pMax - pMin) : forte ? 100 : 0;
+          return `<div class="et-l${forte ? ' forte' : e.rep ? ' rec' : ' borda'}"><span class="et-n">${nome(e)}${forte ? zonaDe(e) : ''}</span><span class="et-t">${tempo(e.seg)}</span><span class="et-d">${dist(e.d)}</span><span class="et-p">${forte ? `<i style="width:${w.toFixed(0)}%"></i>` : ''}<b>${e.pace ? fmtPace(e.pace).replace('/km', '') : '–'}</b></span><span class="et-fc">${e.fc ? e.fc : '–'}</span></div>`;
+        })
+        .join('')}</div>
+      <p class="tiny dim" style="margin-top:8px">Montado com as voltas do ${'relógio'} juntadas nas etapas da planilha. Pace em min/km e FC média em bpm.</p>
+    </div></div>`;
 }
 function nexosInteligencia(c, { plano = null, perfil = {}, hist = [] } = {}) {
   if (!c || !comDist(c) || !c.duracao_s) return null;
@@ -681,6 +875,8 @@ async function viewCorrida(id) {
       : pc.fcMax
         ? 'estimada pela idade'
         : '';
+  const etR = etapasDaCorrida(c, plano);
+  c._etapas = !!etR;
   const analiseBlocos = c.analise
     ? analiseCorridaHTML(
         c,
@@ -740,6 +936,7 @@ async function viewCorrida(id) {
           ? `<div class="card avulsa-card"><div class="grow"><span class="eyebrow">Corrida por fora</span><p class="small muted" style="margin-top:4px">Não conta como treino da planilha.</p></div><button type="button" class="btn sm ghost" id="trocar-plano">Era um treino da planilha</button></div>`
           : ''
     }
+    ${etapasHTML(etR, pc.paces)}
     ${
       c.rota
         ? (() => {

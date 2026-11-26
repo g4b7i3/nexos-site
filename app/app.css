@@ -4969,3 +4969,25 @@ html[data-tema="claro"] .ta-av i{border-color:#fff}
 .ta-rapidas{display:flex;flex-wrap:wrap;gap:6px}
 .ta-resp-ok{display:flex;align-items:flex-start;gap:6px;font-size:.82rem;color:var(--mute);margin-top:4px}
 .ta-resp-ok svg{flex:none;width:15px;height:15px;color:var(--ok);margin-top:2px}
+/* treino por etapas (voltas juntadas nas etapas da planilha) */
+.etapas-c{padding:14px 12px}
+.et-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px;margin-bottom:10px}
+.et-res>div{display:flex;flex-direction:column;gap:2px}
+.et-res span{font-size:.7rem;color:var(--mute);font-weight:700}
+.et-res b{font-size:1.25rem;font-family:var(--f-m)}
+.et-res small{font-size:.68rem;color:var(--dim)}
+.et-lista{display:flex;flex-direction:column}
+.et-l{display:grid;grid-template-columns:minmax(0,1.5fr) 50px 58px minmax(60px,1fr) 30px;gap:6px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line);font-size:.82rem}
+.et-l:last-child{border-bottom:0}
+.et-l>span:not(.et-n){font-family:var(--f-m);text-align:right}
+.et-n{display:flex;flex-direction:column;font-weight:700}
+.et-l.rec .et-n,.et-l.borda .et-n{font-weight:600;color:var(--mute)}
+.et-l.rec{font-size:.78rem;color:var(--mute)}
+.et-l.forte{background:rgba(var(--p2r),.07);border-radius:10px}
+.et-p{position:relative;display:flex;align-items:center;justify-content:flex-end;height:22px}
+.et-p i{position:absolute;left:0;top:4px;bottom:4px;border-radius:6px;background:rgba(var(--p2r),.22)}
+.et-p b{position:relative}
+.et-z{font-style:normal;font-size:.66rem;font-weight:800;margin-top:1px}
+.et-z.ok{color:var(--ok)}.et-z.rap{color:var(--warn)}.et-z.len{color:var(--p2)}
+details.voltas-sec>summary{list-style:none;cursor:pointer}
+details.voltas-sec>summary::-webkit-details-marker{display:none}

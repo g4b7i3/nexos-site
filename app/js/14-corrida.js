@@ -4268,14 +4268,15 @@ function analiseCorridaHTML(c, fcMax, fcMaxFonte, paces, zonasAluno) {
     const pMin = Math.min(...ok),
       pMax = Math.max(...ok);
     const temPot = V.some((v) => v.pot);
-    blocos.push(`<div class="section"><div class="section-h"><h2 class="h2">Voltas</h2><span class="small muted">${V.length} voltas</span></div><div class="card voltas-c"><div class="voltas-t${temPot ? ' pot' : ''}">
+    // com o treino por etapas na tela, as voltas cruas do relógio ficam recolhidas (abrem num toque)
+    blocos.push(`<${c._etapas ? 'details' : 'div'} class="section voltas-sec">${c._etapas ? `<summary class="section-h"><h2 class="h2">Voltas do relógio</h2><span class="small muted">${V.length} voltas · toque para ver</span></summary>` : `<div class="section-h"><h2 class="h2">Voltas</h2><span class="small muted">${V.length} voltas</span></div>`}<div class="card voltas-c"><div class="voltas-t${temPot ? ' pot' : ''}">
       <div class="vt-h"><span>#</span><span>Dist.</span><span>Tempo</span><span>Pace</span><span>FC</span><span>Máx</span><span>Cad.</span>${temPot ? '<span>Pot.</span>' : ''}</div>
       ${V.map((v, i) => {
         const p = pv[i];
         const w = p && pMax > pMin ? 25 + (75 * (pMax - p)) / (pMax - pMin) : 60;
         return `<div class="vt-l"><span>${i + 1}</span><span>${v.d >= 1000 ? f1(v.d / 1000, 2) + ' km' : Math.round(v.d) + ' m'}</span><span>${fmtDur(v.seg)}</span><span class="vt-p"><i style="width:${w.toFixed(0)}%"></i><b>${p ? fmtPace(p).replace('/km', '') : '–'}</b></span><span>${v.fc || '–'}</span><span>${v.fcmax || '–'}</span><span>${v.cad || '–'}</span>${temPot ? `<span>${v.pot || '–'}</span>` : ''}</div>`;
       }).join('')}
-    </div></div></div>`);
+    </div></div></${c._etapas ? 'details' : 'div'}>`);
   }
   // ---- metades da corrida (split e deriva cardíaca) ----
   if (n > 20 && S.d[n - 1] > 1500) {
