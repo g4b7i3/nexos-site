@@ -1624,6 +1624,8 @@ const CALOR_FRASE = {
 // em que o aluno costuma correr pede cuidado (moderado ou mais; atenção já conta em treino forte). Senão, nada.
 // prev: horas de amanhã [{ h, temp, w }] na hora local da cidade; cat: categoria do clima (categoriaCalor)
 function avisoVespera({ apelido, treino, prova, prev, cat, hora }) {
+  // dia de alongamento não é treino de corrida: não gera aviso de véspera
+  if (treino && treino.tipo === 'alongamento') treino = null;
   if (!treino && !prova) return null;
   // corre e caminha é treino de iniciante, mesmo quando vem como intervalado: não conta como forte
   const forte =
@@ -1674,7 +1676,7 @@ function temTirosFortes(estrutura) {
 }
 // treino: { tipo, titulo, estrutura }; prev: horas do dia [{ h, temp, w }]; cat: categoriaCalor; hora: hora habitual
 function sugestaoCalor({ treino, prev, cat, hora }) {
-  if (!treino) return null;
+  if (!treino || treino.tipo === 'alongamento') return null;
   const validas = (prev || []).filter((x) => x && x.w != null && x.temp != null);
   const naHora = validas.find((x) => x.h === hora);
   if (!naHora) return null;

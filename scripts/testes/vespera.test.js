@@ -67,6 +67,16 @@ ok(avisoVespera({ ...base, treino: leve, prev: [] }) === null, 'sem previsão e 
 const fsp = avisoVespera({ ...base, treino: forte, prev: [] });
 ok(fsp && /7 a 9 horas/.test(fsp.body) && !/°C/.test(fsp.body), 'sem previsão, forte ainda lembra do sono');
 ok(!/:/.test((f || {}).body || 'x:'), 'texto sem dois-pontos');
+// dia de alongamento não é corrida: nem com calor forte gera aviso
+ok(
+  avisoVespera({
+    ...base,
+    treino: { titulo: 'Alongamento · panturrilha e pernas', tipo: 'alongamento' },
+    prova: null,
+    prev: prev(L[3] + 1),
+  }) === null,
+  'alongamento amanhã, nada',
+);
 
 if (falhas) {
   console.error(`vespera.test.js: ${falhas} falha(s)`);
