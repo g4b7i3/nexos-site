@@ -4991,9 +4991,11 @@ html[data-tema="claro"] .ta-av i{border-color:#fff}
 .et-z.ok{color:var(--ok)}.et-z.rap{color:var(--warn)}.et-z.len{color:var(--p2)}
 details.voltas-sec>summary{list-style:none;cursor:pointer}
 details.voltas-sec>summary::-webkit-details-marker{display:none}
-.ta-tr{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(var(--p2r),.06);border:1px solid var(--line)}
-.ta-tr-txt{font-size:.86rem;line-height:1.45;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ta-tr-txt.aberto{-webkit-line-clamp:unset;display:block}
-.ta-tr-bt{margin-top:4px}
-.ta-tr.pend{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--mute)}
-.ta-tr-ponto{width:8px;height:8px;border-radius:50%;background:var(--p2);animation:ta-pulsa 1.2s ease-in-out infinite}
+.ta-tr-area{margin-top:10px}
+.ta-tr-bt{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--ink);font-size:.8rem;font-weight:700;cursor:pointer}
+.ta-tr-bt svg{width:15px;height:15px;color:var(--acc)}
+.ta-tr-bt:disabled{opacity:.7}
+.ta-tr{padding:10px 12px;border-radius:12px;background:rgba(var(--p2r),.06);border:1px solid var(--line)}
+.ta-tr[hidden]{display:none}
+.ta-tr-txt{font-size:.88rem;line-height:1.5;color:var(--ink);white-space:pre-line}
+.ta-tr-x{margin-top:6px}

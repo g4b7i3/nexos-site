@@ -2,7 +2,7 @@
    O treinador grava um áudio de feedback logo abaixo da Conversa do treino (corrida, treino da planilha ou treino de
    força). O aluno recebe uma notificação (função nx-audio-treino, que também marca o treino como visto) e ouve no
    próprio treino, com a onda da voz, avanço tocando na onda e velocidade 1x, 1,5x e 2x. O treinador vê se o aluno já
-   ouviu. Até 3 minutos por áudio, gravado em AAC (toca em Android e iPhone) quando o celular permite. A gravação
+   ouviu. Quem quiser ler toca em Transcrever áudio (como no WhatsApp). Até 3 minutos por áudio, gravado em AAC (toca em Android e iPhone) quando o celular permite. A gravação
    fica numa barra flutuante: a tela continua livre para rolar e ver os números enquanto o treinador fala. */
 'use strict';
 
@@ -68,44 +68,43 @@ function taPlayerHTML(a, url, equipe) {
   </div>`;
 }
 
-/** transcrição do áudio (feita no servidor): prévia de duas linhas, toque para ler tudo */
+/** transcrição sob pedido, como no WhatsApp: o botão Transcrever áudio mostra o texto (feito no servidor na primeira
+    vez e guardado; da segunda em diante aparece na hora) */
 function taTranscricaoHTML(a) {
   if (!a || a.id === 'previa') return '';
-  if (a.transcricao)
-    return `<div class="ta-tr"><p class="ta-tr-txt">${esc(a.transcricao)}</p><button type="button" class="link-btn tiny ta-tr-bt">Ler a transcrição toda</button></div>`;
-  if ((a.transcricao_tentativas || 0) >= 3)
-    return S.staff
-      ? `<div class="ta-tr pend">Não deu para transcrever este áudio. <button type="button" class="link-btn tiny ta-tr-de-novo">Tentar de novo</button></div>`
-      : '';
-  return '<div class="ta-tr pend"><span class="ta-tr-ponto"></span>Transcrição em preparo</div>';
+  return `<div class="ta-tr-area"><button type="button" class="ta-tr-bt">${TA_TR_IC}<span>Transcrever áudio</span></button><div class="ta-tr" hidden><p class="ta-tr-txt"></p><button type="button" class="link-btn tiny ta-tr-x">Esconder transcrição</button></div></div>`;
 }
+const TA_TR_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 11h16M4 16h10"/></svg>';
 function taBindTranscricao(card, a) {
   const bt = card.querySelector('.ta-tr-bt'),
+    box = card.querySelector('.ta-tr'),
     txt = card.querySelector('.ta-tr-txt');
-  if (bt && txt) {
-    // texto curto cabe nas duas linhas: some o botão
-    requestAnimationFrame(() => {
-      if (txt.scrollHeight <= txt.clientHeight + 2) bt.remove();
-    });
-    bt.onclick = () => {
-      const aberto = txt.classList.toggle('aberto');
-      bt.textContent = aberto ? 'Mostrar menos' : 'Ler a transcrição toda';
-    };
-  }
-  const dn = card.querySelector('.ta-tr-de-novo');
-  if (dn)
-    dn.onclick = async () => {
-      dn.disabled = true;
-      dn.textContent = 'Transcrevendo…';
-      const { data } = await sb.functions
-        .invoke('nx-transcrever', { body: { id: a.id } })
-        .catch(() => ({ data: null }));
-      const r = data && data.res && data.res[0];
-      if (!r || !r.ok) toast('Ainda não deu para transcrever. Tente mais tarde.', true);
-      const box = card.closest('[data-ta]');
-      if (box) box.removeAttribute('data-ta-ok');
-      taCarregar(document);
-    };
+  if (!bt || !box) return;
+  const mostrar = (t) => {
+    txt.textContent = t;
+    box.hidden = false;
+    bt.hidden = true;
+  };
+  bt.onclick = async () => {
+    if (a.transcricao) return mostrar(a.transcricao);
+    bt.disabled = true;
+    bt.querySelector('span').textContent = 'Transcrevendo…';
+    let r = null;
+    try {
+      const { data } = await sb.functions.invoke('nx-transcrever', { body: { id: a.id } });
+      r = data && data.res && data.res[0];
+    } catch {}
+    bt.disabled = false;
+    bt.querySelector('span').textContent = 'Transcrever áudio';
+    if (!r || !r.ok || !r.texto) return toast('Não deu para transcrever agora. Tente de novo daqui a pouco.', true);
+    a.transcricao = r.texto;
+    mostrar(r.texto);
+  };
+  card.querySelector('.ta-tr-x').onclick = () => {
+    box.hidden = true;
+    bt.hidden = false;
+  };
 }
 
 function taBindPlayer(card, a) {
@@ -591,14 +590,6 @@ function taGravar(ref, alunoId, titulo) {
     }
     try {
       await sb.functions.invoke('nx-audio-treino', { body: { id: data.id } });
-      // transcreve logo em seguida; quando terminar, a tela mostra o texto
-      sb.functions
-        .invoke('nx-transcrever', { body: { id: data.id } })
-        .then(() => {
-          document.querySelectorAll(`[data-ta="${ref}"]`).forEach((b) => b.removeAttribute('data-ta-ok'));
-          taCarregar(document);
-        })
-        .catch(() => {});
     } catch {}
     fechar();
     toast('Áudio enviado! O aluno recebe o aviso e ouve no treino.');
