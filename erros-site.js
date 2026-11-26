@@ -7,8 +7,11 @@
   var ORG = '937c7734-5b23-4cda-ba74-31c0171ed582';
   var enviados = {},
     n = 0;
+  // robôs de busca (Google, Bing…) às vezes não baixam fontes e arquivos: não é defeito do site
+  var ROBO = /bot|crawler|spider|slurp|lighthouse|headless/i.test(navigator.userAgent || '');
   function reportar(err, onde) {
     try {
+      if (ROBO) return;
       var msg = String((err && (err.message || (typeof err.reason === 'string' && err.reason))) || err || '').slice(
         0,
         500,

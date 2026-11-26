@@ -1567,7 +1567,9 @@ function saudeStatus(d) {
     res: [
       sp.length
         ? `${sp.length} de ${d.alunos_ativos} aluno${d.alunos_ativos > 1 ? 's' : ''} sem notificações ativas`
-        : `Todos os ${d.alunos_ativos} alunos recebem notificações`,
+        : d.alunos_ativos
+          ? `Todos os ${d.alunos_ativos} alunos recebem notificações`
+          : 'Nenhum aluno sem notificações',
       pf.length ? `${pf.length} falha${pf.length > 1 ? 's' : ''} de envio na semana` : '',
     ]
       .filter(Boolean)
@@ -1700,7 +1702,7 @@ async function staffSaudeSistema(dadoPronto) {
       ? `<a class="${cls}" href="${v}">${l}</a>`
       : `<button type="button" class="${cls}" data-ss="${a}" data-v="${esc(v)}">${l}</button>`;
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Sistema</p><h1 class="h1">Saúde do sistema</h1>
-    <div class="ss-resumo ${S.cache.saudeVerm ? 'err' : prob.length ? 'warn' : 'ok'}"><i></i><div><b>${prob.length ? `${prob.length} ponto${prob.length > 1 ? 's' : ''} de atenção` : 'Tudo funcionando'}</b><span>Checado agora, ${fmtDH(data.agora)}</span></div><button class="btn ghost sm" id="ss-atual">Atualizar</button></div>
+    <div class="ss-resumo ${S.cache.saudeVerm ? 'err' : prob.length ? 'warn' : 'ok'}"><i></i><div><b>${prob.length ? `${prob.length} ponto${prob.length > 1 ? 's' : ''} de atenção` : 'Tudo funcionando'}</b><span>Checado agora, ${fmtDH(data.agora || new Date().toISOString())}</span></div><button class="btn ghost sm" id="ss-atual">Atualizar</button></div>
     <div class="stack" style="margin-top:14px">${st
       .map(
         (
