@@ -1010,9 +1010,16 @@ const cardTE = (c) => {
 function cardValores(c) {
   const pace = paceDe(c);
   const E = { ...(c.resumo_rel || {}), ...((c.analise && c.analise.extras) || {}) };
+  const bike = c && c.tipo === 'bike';
   return {
     dist: c.distancia_m ? { l: 'Distância', v: (c.distancia_m / 1000).toFixed(2).replace('.', ','), u: 'km' } : null,
-    pace: pace ? { l: 'Pace', v: fmtPace(pace).replace('/km', ''), u: '/km' } : null,
+    // no pedal, velocidade média em km/h no lugar do pace
+    pace:
+      bike && c.distancia_m && c.duracao_s
+        ? { l: 'Velocidade', v: fmtNum(c.distancia_m / 1000 / (c.duracao_s / 3600), 1), u: 'km/h' }
+        : pace
+          ? { l: 'Pace', v: fmtPace(pace).replace('/km', ''), u: '/km' }
+          : null,
     tempo: c.duracao_s ? { l: 'Tempo', v: fmtDurLongo(c.duracao_s), u: '' } : null,
     oficial: (() => {
       const o = tempoOficial(c, c._prova != null ? c._prova : ehProvaC(c));
@@ -1020,7 +1027,7 @@ function cardValores(c) {
     })(),
     fc: c.fc_media ? { l: 'FC média', v: String(c.fc_media), u: 'bpm' } : null,
     elev: c.elevacao_m ? { l: 'Subida', v: String(Math.round(c.elevacao_m)), u: 'm' } : null,
-    cad: c.cadencia ? { l: 'Cadência', v: String(c.cadencia), u: 'ppm' } : null,
+    cad: c.cadencia ? { l: 'Cadência', v: String(c.cadencia), u: bike ? 'rpm' : 'ppm' } : null,
     kcal: E.kcal ? { l: 'Calorias', v: Math.round(E.kcal).toLocaleString('pt-BR'), u: 'kcal' } : null,
     passos: E.passos ? { l: 'Passos', v: Math.round(E.passos).toLocaleString('pt-BR'), u: '' } : null,
   };
@@ -1366,6 +1373,27 @@ async function desenharCard(cv, c, o) {
     const bx = W - 70,
       by = post ? 66 : 96,
       hh = 54;
+    // pedal: a bicicleta logo antes das faixas
+    if (c.tipo === 'bike' && window.Path2D) {
+      const k = 3.4;
+      ctx.save();
+      ctx.translate(bx - 150 - 24 - 24 * k, by + hh / 2 - 12.5 * k);
+      ctx.scale(k, k);
+      ctx.strokeStyle = AC;
+      ctx.lineWidth = 1.7;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (sombra) {
+        ctx.shadowColor = 'rgba(0,0,0,.3)';
+        ctx.shadowBlur = 3;
+      }
+      ctx.stroke(
+        new Path2D(
+          'M5 18.5a3.8 3.8 0 1 0 0-.01M19 18.5a3.8 3.8 0 1 0 0-.01M5 18.5 9.2 10.5h7.3M19 18.5 14.6 8.5M9.2 10.5l3.6 8h0L16.5 10.5M8 7.5h3M13.5 8.5h3',
+        ),
+      );
+      ctx.restore();
+    }
     [0, 1, 2].forEach((k) => {
       ctx.globalAlpha = 1 - k * 0.32;
       ctx.fillStyle = AC;
@@ -2831,7 +2859,9 @@ async function desenharCard(cv, c, o) {
     txt(num, x0, yb, fn, tx, 'left', -14);
     txt('km', x0 + wn + 16, yb, fk, tx, 'left');
     const nome = cardNomeDist(km) || (c._serie && c._serie.nome ? c._serie.nome.toUpperCase() : ''),
-      linhaS = [nome, V.tempo && V.tempo.v, !nome && V.pace ? V.pace.v + ' /KM' : ''].filter(Boolean).join('  ·  ');
+      linhaS = [nome, V.tempo && V.tempo.v, !nome && V.pace ? V.pace.v + ' ' + V.pace.u.toUpperCase() : '']
+        .filter(Boolean)
+        .join('  ·  ');
     txt(linhaS, W / 2, yb + 100, `800 36px ${FB}`, tx, 'center', 4);
     logo(W / 2, yb + 170, 180);
   } else if (L === 'atividade') {
@@ -3530,7 +3560,9 @@ async function abrirCardForca(sessaoId) {
 }
 async function abrirCardCorrida(c, plano) {
   // força, funcional, pedal e outros treinos do relógio (não corrida): card com o bonequinho dos músculos
-  c._ativ = !c._forca && !ehCorr(c);
+  // pedal usa os cards da corrida (com velocidade em km/h e a bicicleta no canto); os outros treinos, o do bonequinho
+  c._bike = !c._forca && c.tipo === 'bike';
+  c._ativ = !c._forca && !ehCorr(c) && !c._bike;
   c._serie = serieDe(c, plano);
   c._prova = ehProvaC(c, plano);
   try {
@@ -3590,7 +3622,7 @@ async function abrirCardCorrida(c, plano) {
   }
   // dados de outras atividades para os modelos de recorde, mesmo percurso, semana e constância (no máximo 5 s de espera)
   c._x =
-    c._forca || c._ativ
+    c._forca || c._ativ || c._bike
       ? {}
       : await Promise.race([cardContexto(c).catch(() => ({})), new Promise((res) => setTimeout(() => res({}), 5000))]);
   // corrida com recorde abre direto no card do recorde
@@ -3606,6 +3638,20 @@ async function abrirCardCorrida(c, plano) {
           ([k]) =>
             ((k !== 'parciais' && k !== 'parciais_total') || temParc) &&
             (k !== 'tiros' || temTiros) &&
+            (!c._bike ||
+              ![
+                'recorde',
+                'mesmo',
+                'semana',
+                'constancia',
+                'pace_km',
+                'vo2',
+                'tiros',
+                'nome',
+                'parciais',
+                'parciais_total',
+                'velocidade',
+              ].includes(k)) &&
             (k !== 'nome' || !!c._serie.nome) &&
             (!k.startsWith('clima') || temClima) &&
             (!['mapa', 'sobre', 'ficha_mapa', 'lado', 'percurso', 'mesmo'].includes(k) ||
@@ -3639,7 +3685,7 @@ async function abrirCardCorrida(c, plano) {
             ? true
             : !!V[k];
   openSheet(
-    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">${c._forca || c._ativ ? 'Card do treino' : 'Card da corrida'}</div>
+    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">${c._forca || c._ativ ? 'Card do treino' : c._bike ? 'Card do pedal' : 'Card da corrida'}</div>
     <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
     <div class="cd-zoom"><button type="button" class="icon-btn sm" data-z="-1" aria-label="Diminuir">−</button><span class="tiny dim">Pince com 2 dedos para aumentar ou diminuir e arraste para mover</span><button type="button" class="icon-btn sm" data-z="1" aria-label="Aumentar">+</button><button type="button" class="link-btn tiny" id="cd-reset">Centralizar</button></div>
     <div class="field"><span>Fundo</span>${seg(
@@ -4053,7 +4099,7 @@ async function abrirCardCorrida(c, plano) {
         await desenharCard(hd, c, { ...o, escala: 2 });
         return await new Promise((res) => hd.toBlob(res, 'image/png'));
       };
-      const nomeArq = `nexos-${c._forca || c._ativ ? 'treino' : 'corrida'}-${isoDia(c.data)}.png`;
+      const nomeArq = `nexos-${c._forca || c._ativ ? 'treino' : c._bike ? 'pedal' : 'corrida'}-${isoDia(c.data)}.png`;
       const marcar = () => {
         try {
           localStorage.setItem('nx-card-' + c.id, '1');
