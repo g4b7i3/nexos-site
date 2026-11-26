@@ -50,7 +50,37 @@ function exvQuebrado(v) {
   v.replaceWith(d);
 }
 
+// botão de play por cima do vídeo: aparece sempre que o vídeo está parado (o celular às vezes não toca sozinho,
+// e ninguém sabe que precisa tocar no vídeo); some enquanto o vídeo roda
+function exvBotaoPlay(v) {
+  if (v.dataset.exvBt || !v.parentNode) return;
+  v.dataset.exvBt = '1';
+  const caixa = document.createElement('div');
+  caixa.className = 'exv-caixa';
+  v.parentNode.insertBefore(caixa, v);
+  caixa.appendChild(v);
+  const bt = document.createElement('button');
+  bt.type = 'button';
+  bt.className = 'exv-play';
+  bt.setAttribute('aria-label', 'Tocar o vídeo');
+  bt.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></svg>';
+  caixa.appendChild(bt);
+  const mostra = () => bt.classList.toggle('on', v.paused);
+  bt.onclick = (e) => {
+    e.stopPropagation();
+    exvLigar(v)
+      .then(() => v.play())
+      .catch(() => {});
+  };
+  // vídeo em loop sem controles: tocar nele pausa e retoma
+  if (!v.controls) v.addEventListener('click', () => (v.paused ? v.play().catch(() => {}) : v.pause()));
+  ['play', 'playing', 'pause', 'ended', 'loadeddata'].forEach((ev) => v.addEventListener(ev, mostra));
+  mostra();
+}
+
 async function exvLigar(v) {
+  exvBotaoPlay(v);
   if (v.dataset.exvOk) return;
   v.dataset.exvOk = '1';
   const url = v.dataset.exv;
@@ -84,6 +114,7 @@ function exvProcurar(raiz) {
   vs.forEach((v) => {
     if (v.dataset.exvOk || v.dataset.exvVisto) return;
     v.dataset.exvVisto = '1';
+    exvBotaoPlay(v);
     if (exvVisto) exvVisto.observe(v);
     else exvLigar(v);
   });

@@ -5026,3 +5026,9 @@ details.voltas-sec>summary::-webkit-details-marker{display:none}
 .al-lista li.atual .al-n{background:var(--acc);color:#fff}
 .al-lista li.ok{opacity:.6}.al-lista li.ok .al-n{background:var(--ok);color:#fff}
 .al-fim{text-align:center;padding:18px 6px}
+/* botão de play por cima dos vídeos dos exercícios */
+.exv-caixa{position:relative}
+.exv-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);width:68px;height:68px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;background:rgba(11,24,52,.62);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(6px);cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.exv-play svg{width:30px;height:30px;margin-left:4px}
+.exv-play.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+@media (prefers-reduced-motion:reduce){.exv-play{transition:none}}
