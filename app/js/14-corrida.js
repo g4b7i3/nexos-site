@@ -2835,46 +2835,165 @@ async function desenharCard(cv, c, o) {
     txt(linhaS, W / 2, yb + 100, `800 36px ${FB}`, tx, 'center', 4);
     logo(W / 2, yb + 170, 180);
   } else if (L === 'atividade') {
-    // força, funcional, pedal e outros treinos do relógio: nome, números e o bonequinho com os músculos trabalhados
+    // força, funcional, pedal e outros treinos do relógio: painel de vidro (a foto aparece borrada atrás), números
+    // grandes e separados, o corpo inteiro com os músculos trabalhados e um rodapé com a marca e a data
     const musc = new Set(o.musc || []),
-      F = post ? 0.82 : 1;
-    let y = yTopo(post ? 150 : 330);
-    txt((o.nomeAtiv || nomeCardAtiv(c)).toUpperCase(), 100, y, `800 ${Math.round(34 * F)}px ${FB}`, AC, 'left', 5);
-    if (dataTxt) txt(dataTxt, W - 100, y, `700 ${Math.round(26 * F)}px ${FB}`, sub, 'right', 2);
-    y += 60 * F;
-    const ns = sel.filter((s) => s).slice(0, 3);
-    if (ns.length) y = grade(ns, y, Math.round(76 * F), 100, W - 100, 3, 'left') - 30 * F;
-    if (musc.size) {
-      const sexo = (S.me && S.me.sexo) || 'M',
-        [fr, co] = await Promise.all([
-          corpoCardImg(sexo, 'frente', musc, branco, AC),
-          corpoCardImg(sexo, 'costas', musc, branco, AC),
-        ]);
-      const bw = post ? 250 : 300,
-        bh = (bw * 452) / 172,
-        gap = post ? 70 : 90;
-      y += post ? 30 : 60;
-      desenha(fr, 452 / 172, W / 2 - gap / 2 - bw, y, bw, 'left', true);
-      desenha(co, 452 / 172, W / 2 + gap / 2, y, bw, 'left', true);
-      y += bh + (post ? 50 : 70);
-      const nomes = [...musc].map((k) => MUSC_NOME[k]).filter(Boolean);
-      const fL = `700 ${Math.round(32 * F)}px ${FB}`;
-      let linha = '',
-        linhas = [];
+      F = post ? 0.8 : 1,
+      x0 = 90,
+      x1 = W - 90,
+      pw = x1 - x0,
+      pad = 56 * F,
+      R = 56 * F;
+    // tempo do jeito curto (1 h 8 min), sem dois-pontos colados no número do lado
+    const durCurta = (sg) => {
+      const h = Math.floor(sg / 3600),
+        m = Math.round((sg % 3600) / 60);
+      return h ? `${h} h${m ? ' ' + m + ' min' : ''}` : m ? `${m} min` : `${Math.round(sg)} s`;
+    };
+    const ns = ['tempo', 'fc', 'kcal', 'dist', 'elev', 'cad', 'passos', 'pace']
+      .filter((k) => o.stats[k] && V[k])
+      .slice(0, 3)
+      .map((k) =>
+        k === 'tempo' && c.duracao_s
+          ? { l: 'Tempo', v: durCurta(c.duracao_s), u: '' }
+          : k === 'fc'
+            ? { ...V[k], l: 'FC média' }
+            : V[k],
+      );
+    const sexo = (S.me && S.me.sexo) || 'M';
+    const [fr, co] = await Promise.all([
+      corpoCardImg(sexo, 'frente', musc, branco, AC),
+      corpoCardImg(sexo, 'costas', musc, branco, AC),
+    ]);
+    const nomes = [...musc].map((k) => MUSC_NOME[k]).filter(Boolean);
+    // medidas para saber a altura do painel antes de desenhar
+    const bh = post ? 420 : 560,
+      bw = (bh * 172) / 452;
+    const hCab = 70 * F,
+      hNum = ns.length ? 150 * F : 0,
+      hCorpo = bh + 40 * F,
+      fL = `700 ${Math.round(28 * F)}px ${FB}`;
+    let linhas = [];
+    if (nomes.length) {
+      let linha = '';
       nomes.forEach((n) => {
         const t = linha ? linha + '  ·  ' + n : n;
-        if (larg(t, fL) > W - 200 && linha) {
+        if (larg(t, fL) > pw - pad * 2 && linha) {
           linhas.push(linha);
           linha = n;
         } else linha = t;
       });
       if (linha) linhas.push(linha);
-      linhas.slice(0, 2).forEach((l) => {
-        txt(l, W / 2, y, fL, sub, 'center');
-        y += 48 * F;
-      });
+      linhas = linhas.slice(0, 2);
     }
-    logo(W / 2, H - (post ? 110 : 230), 220);
+    const hMusc = linhas.length ? linhas.length * 40 * F + 16 * F : 0,
+      hRod = 120 * F;
+    const ph = pad + hCab + hNum + hCorpo + hMusc + hRod;
+    let y0 = Math.max(yTopo(post ? 110 : 260), (H - ph) / 2 - (post ? 0 : 40));
+    // o painel: vidro escuro (texto branco) ou claro (texto escuro), com a foto borrada atrás quando há foto
+    const caminho = () => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x0, y0, pw, ph, R);
+      else ctx.rect(x0, y0, pw, ph);
+    };
+    ctx.save();
+    caminho();
+    ctx.clip();
+    if (o.fundo === 'foto' && o.img && 'filter' in ctx) {
+      const im = o.img,
+        sc = Math.max(W / im.width, H / im.height),
+        m0 = ctx.getTransform();
+      ctx.setTransform(esc, 0, 0, esc, 0, 0);
+      ctx.filter = 'blur(26px) saturate(1.1)';
+      ctx.drawImage(im, (W - im.width * sc) / 2, (H - im.height * sc) / 2, im.width * sc, im.height * sc);
+      ctx.filter = 'none';
+      ctx.setTransform(m0);
+    }
+    ctx.fillStyle = branco ? 'rgba(16,22,34,.52)' : 'rgba(255,255,255,.72)';
+    ctx.fillRect(x0, y0, pw, ph);
+    // brilho suave no alto, como vidro
+    const gv = ctx.createLinearGradient(0, y0, 0, y0 + ph * 0.5);
+    gv.addColorStop(0, branco ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.4)');
+    gv.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gv;
+    ctx.fillRect(x0, y0, pw, ph);
+    ctx.restore();
+    ctx.save();
+    caminho();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = branco ? 'rgba(255,255,255,.16)' : 'rgba(11,24,52,.1)';
+    ctx.stroke();
+    ctx.restore();
+    // cabeçalho: nome do treino e o ícone (halter na força)
+    let y = y0 + pad + 30 * F;
+    txt(o.nomeAtiv || nomeCardAtiv(c), x0 + pad, y, `800 ${Math.round(40 * F)}px ${FH}`, tx, 'left', -0.5);
+    const ic = 52 * F;
+    if (window.Path2D) {
+      ctx.save();
+      ctx.translate(x1 - pad - ic, y - ic * 0.78);
+      ctx.scale(ic / 24, ic / 24);
+      ctx.strokeStyle = AC;
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      ctx.stroke(
+        new Path2D(
+          /forç|muscul/i.test(o.nomeAtiv || nomeCardAtiv(c))
+            ? 'M6.5 6.5v11M17.5 6.5v11M3.5 9.5v5M20.5 9.5v5M6.5 12h11'
+            : 'M13 2 4 14h7l-1 8 9-12h-7l1-8z',
+        ),
+      );
+      ctx.restore();
+    }
+    y += hCab - 30 * F + 26 * F;
+    // números: rótulo pequeno e valor grande, cada um na sua coluna, sem encostar no vizinho
+    if (ns.length) {
+      const cw = (pw - pad * 2) / ns.length;
+      let px = 56 * F;
+      const cabeTodos = () =>
+        ns.every((sv) => {
+          const fv = `800 ${Math.round(px)}px ${FB}`,
+            fu = `700 ${Math.round(px * 0.5)}px ${FB}`;
+          return larg(sv.v, fv) + (sv.u ? larg(sv.u, fu) + px * 0.18 : 0) <= cw - 24;
+        });
+      while (px > 30 && !cabeTodos()) px -= 2;
+      ns.forEach((sv, k) => {
+        const xx = x0 + pad + cw * k;
+        txt(sv.l, xx, y, `600 ${Math.round(28 * F)}px ${FB}`, sub, 'left');
+        const fv = `800 ${Math.round(px)}px ${FB}`;
+        txt(sv.v, xx, y + 22 * F + px, fv, tx, 'left', -0.5);
+        if (sv.u)
+          txt(
+            sv.u,
+            xx + larg(sv.v, fv, -0.5) + px * 0.18,
+            y + 22 * F + px,
+            `700 ${Math.round(px * 0.5)}px ${FB}`,
+            sub,
+            'left',
+          );
+      });
+      y += hNum;
+    }
+    // o corpo inteiro, frente e costas
+    const gap = 70 * F;
+    desenha(fr, 452 / 172, W / 2 - gap / 2 - bw, y, bw, 'left', true);
+    desenha(co, 452 / 172, W / 2 + gap / 2, y, bw, 'left', true);
+    y += hCorpo;
+    linhas.forEach((l) => {
+      y += 40 * F;
+      txt(l, W / 2, y - 10 * F, fL, sub, 'center');
+    });
+    if (linhas.length) y += 16 * F;
+    // rodapé: linha fina, a marca à esquerda e a data à direita
+    ctx.save();
+    ctx.fillStyle = branco ? 'rgba(255,255,255,.14)' : 'rgba(11,24,52,.1)';
+    ctx.fillRect(x0 + pad, y + 8 * F, pw - pad * 2, 2);
+    ctx.restore();
+    const yr = y + 8 * F + (hRod - 8 * F) / 2;
+    if (comLogo) {
+      simbolo(x0 + pad, yr - 21 * F, 44 * F, 'left');
+      logoTexto(x0 + pad + 58 * F, yr - 13 * F, 150 * F, 'left');
+    }
+    if (dataTxt) txt(dataTxt, x1 - pad, yr + 9 * F, `600 ${Math.round(24 * F)}px ${FB}`, sub, 'right', 1);
   } else if (L === 'forca' && c._forca) {
     // treino de força: carga total levantada, números do treino e os exercícios
     const T = c._forca,
