@@ -4940,17 +4940,25 @@ em.suor-ok,em.suor-atencao,em.suor-alto,em.suor-ganhou{color:var(--sc);font-styl
 .ta-gravar{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:16px;border:1.5px dashed color-mix(in srgb,var(--acc) 55%,transparent);background:transparent;color:var(--ink);text-align:left;cursor:pointer}
 .ta-gravar>svg{flex:none;width:38px;height:38px;padding:9px;border-radius:50%;background:linear-gradient(135deg,var(--p2),var(--p3));color:#fff}
 .ta-gravar b{display:block;font-size:.92rem}.ta-gravar small{display:block;font-size:.76rem;color:var(--mute);margin-top:1px}
-.ta-rec{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:18px}
-.ta-viz{width:100%;height:70px}
-.ta-relogio{font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums}
-.ta-relogio small{font-size:.9rem;color:var(--mute);font-weight:600}
-.ta-mic{width:84px;height:84px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--p2),var(--p3));box-shadow:0 10px 28px rgba(var(--p2r),.4);cursor:pointer}
-.ta-mic svg{width:34px;height:34px}
-.ta-mic.gravando{background:#e5484d;box-shadow:0 0 0 0 rgba(229,72,77,.5);animation:ta-onda-mic 1.4s ease-out infinite}
-.ta-mic.gravando svg{width:28px;height:28px}
-.ta-rev{margin-top:16px}
+.ta-flut{position:fixed;left:12px;right:12px;bottom:calc(92px + var(--safe-b));z-index:45;max-width:520px;margin:0 auto;padding:10px 10px 10px 14px;border-radius:22px;background:var(--s2);border:1px solid color-mix(in srgb,var(--p2) 45%,var(--line2));box-shadow:0 16px 40px rgba(0,0,0,.35);animation:ta-sobe .22s ease-out}
+.ta-flut.saindo{opacity:0;transform:translateY(12px);transition:.2s}
+.ta-f-rec{display:flex;align-items:center;gap:10px}
+.ta-f-ponto{flex:none;width:12px;height:12px;border-radius:50%;background:#e5484d;animation:ta-pulsa 1s ease-in-out infinite}
+.ta-f-rel{display:block;font-variant-numeric:tabular-nums;font-size:1.02rem}
+.ta-f-t{display:block;font-size:.72rem;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ta-f-viz{flex:none;width:96px;height:28px}
+.ta-f-x{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--mute);display:grid;place-items:center;cursor:pointer}
+.ta-f-x svg{width:16px;height:16px}
+.ta-f-parar{flex:none;width:48px;height:48px;border-radius:50%;border:0;background:#e5484d;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 0 rgba(229,72,77,.5);animation:ta-onda-mic 1.4s ease-out infinite}
+.ta-f-parar svg{width:20px;height:20px}
+.ta-f-prev .ta-card{padding:0;border:0;background:none;box-shadow:none}
+.ta-f-prev .ta-player{margin-top:0}
+.ta-f-acoes{display:flex;gap:8px;margin-top:10px}.ta-f-acoes .ta-f-enviar{flex:1}
+body.com-ta-flut #app{padding-bottom:calc(200px + var(--safe-b))}
+html[data-tema="claro"] .ta-flut{background:#fff}
+@keyframes ta-sobe{from{opacity:0;transform:translateY(16px)}}
 html[data-tema="claro"] .ta-card{background:linear-gradient(135deg,rgba(var(--p2r),.07),#fff 70%)}
 html[data-tema="claro"] .ta-av i{border-color:#fff}
 @keyframes ta-pulsa{50%{opacity:.6}}
 @keyframes ta-onda-mic{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}100%{box-shadow:0 0 0 22px rgba(229,72,77,0)}}
-@media (prefers-reduced-motion:reduce){.ta-novo,.ta-mic.gravando{animation:none}}
+@media (prefers-reduced-motion:reduce){.ta-novo,.ta-f-ponto,.ta-f-parar,.ta-flut{animation:none}}
