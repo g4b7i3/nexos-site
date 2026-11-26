@@ -54,6 +54,7 @@ function taPlayerHTML(a, url, equipe) {
       <span class="ta-tempo">${taDur(a.seg)}</span>
       <button type="button" class="ta-vel" aria-label="Velocidade">1x</button>
     </div>
+    ${taTranscricaoHTML(a)}
     ${meu && a.autor_id === S.user.id ? '<button type="button" class="link-btn tiny ta-apagar">Apagar áudio</button>' : ''}
     ${
       !S.staff
@@ -65,6 +66,46 @@ function taPlayerHTML(a, url, equipe) {
     }
     <audio preload="metadata" ${url ? `src="${esc(url)}"` : ''}></audio>
   </div>`;
+}
+
+/** transcrição do áudio (feita no servidor): prévia de duas linhas, toque para ler tudo */
+function taTranscricaoHTML(a) {
+  if (!a || a.id === 'previa') return '';
+  if (a.transcricao)
+    return `<div class="ta-tr"><p class="ta-tr-txt">${esc(a.transcricao)}</p><button type="button" class="link-btn tiny ta-tr-bt">Ler a transcrição toda</button></div>`;
+  if ((a.transcricao_tentativas || 0) >= 3)
+    return S.staff
+      ? `<div class="ta-tr pend">Não deu para transcrever este áudio. <button type="button" class="link-btn tiny ta-tr-de-novo">Tentar de novo</button></div>`
+      : '';
+  return '<div class="ta-tr pend"><span class="ta-tr-ponto"></span>Transcrição em preparo</div>';
+}
+function taBindTranscricao(card, a) {
+  const bt = card.querySelector('.ta-tr-bt'),
+    txt = card.querySelector('.ta-tr-txt');
+  if (bt && txt) {
+    // texto curto cabe nas duas linhas: some o botão
+    requestAnimationFrame(() => {
+      if (txt.scrollHeight <= txt.clientHeight + 2) bt.remove();
+    });
+    bt.onclick = () => {
+      const aberto = txt.classList.toggle('aberto');
+      bt.textContent = aberto ? 'Mostrar menos' : 'Ler a transcrição toda';
+    };
+  }
+  const dn = card.querySelector('.ta-tr-de-novo');
+  if (dn)
+    dn.onclick = async () => {
+      dn.disabled = true;
+      dn.textContent = 'Transcrevendo…';
+      const { data } = await sb.functions
+        .invoke('nx-transcrever', { body: { id: a.id } })
+        .catch(() => ({ data: null }));
+      const r = data && data.res && data.res[0];
+      if (!r || !r.ok) toast('Ainda não deu para transcrever. Tente mais tarde.', true);
+      const box = card.closest('[data-ta]');
+      if (box) box.removeAttribute('data-ta-ok');
+      taCarregar(document);
+    };
 }
 
 function taBindPlayer(card, a) {
@@ -245,6 +286,7 @@ async function taCarregar(raiz) {
         const c = box.querySelector(`[data-ta-id="${a.id}"]`);
         if (c) {
           taBindPlayer(c, a);
+          taBindTranscricao(c, a);
           if (!S.staff) taBindResposta(c, a, box);
         }
       });
@@ -549,6 +591,14 @@ function taGravar(ref, alunoId, titulo) {
     }
     try {
       await sb.functions.invoke('nx-audio-treino', { body: { id: data.id } });
+      // transcreve logo em seguida; quando terminar, a tela mostra o texto
+      sb.functions
+        .invoke('nx-transcrever', { body: { id: data.id } })
+        .then(() => {
+          document.querySelectorAll(`[data-ta="${ref}"]`).forEach((b) => b.removeAttribute('data-ta-ok'));
+          taCarregar(document);
+        })
+        .catch(() => {});
     } catch {}
     fechar();
     toast('Áudio enviado! O aluno recebe o aviso e ouve no treino.');
