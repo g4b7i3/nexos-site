@@ -942,7 +942,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
         .map(([k, l]) => `<option value="${k}" ${s.k === k ? 'selected' : ''}>${l}</option>`)
         .join('')}</select>
       <input class="input vin" data-cam="${cam}" data-f="v" data-mask="dec" data-int="4" inputmode="decimal" value="${esc(String(s.v).replace('.', ','))}">
-      ${medSel(s.med, cam)}${alvoLivre(s) ? '<span></span>' : zonaSel(s.z, cam)}
+      ${s.k === 'dp' ? '<select class="input" disabled><option>min</option></select>' : medSel(s.med, cam)}${alvoLivre(s) ? '<span></span>' : zonaSel(s.z, cam)}
       <em class="pace-dica">${alvoLivre(s) ? alvoLivre(s) : perfil.pse ? pseTxt(s.z, true) + ' <span>(modo adaptação)</span>' : `pace ${paceZonaTxt(s.z, perfil)}${perfil.paces && (perfil.paces[s.z] || s.z === 'rec') ? '' : ' <span>(média, sem teste)</span>'} · ${s.med === 'min' ? 'dist.' : 'tempo'} est. ≈ ${estimaPasso(s, perfil).txt}`}</em>
       <button type="button" class="x-passo" data-del="${cam}" aria-label="Remover">${I.x}</button></div>`;
   const desenhar = (r) => {
@@ -1011,6 +1011,8 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
         const f = el.dataset.f;
         lista[i][f] = f === 'v' ? num(el.value) || 0 : el.value;
         if (f === 'k' && el.value === 'rc' && lista[i].z !== 'rec') lista[i].z = 'rec';
+        if (f === 'k' && el.value === 'dp')
+          Object.assign(lista[i], { z: 'rec', med: 'min', v: lista[i].med === 'min' ? lista[i].v : 1 });
         if (f === 'k' && (el.value === 'aq' || el.value === 'dq')) lista[i].z = 'leve';
         desenhar(r);
       });
@@ -1042,9 +1044,11 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
                   ? passo('rc', 2, 'min', 'rec')
                   : k === 'ca'
                     ? passo('ca', 2, 'min', 'rec')
-                    : k === 'lv'
-                      ? passo('lv', 10, 'min', 'leve')
-                      : passo('co', 2, 'km', 'leve');
+                    : k === 'dp'
+                      ? passo('dp', 1, 'min', 'rec')
+                      : k === 'lv'
+                        ? passo('lv', 10, 'min', 'leve')
+                        : passo('co', 2, 'km', 'leve');
         const iDq = t.estrutura.findIndex((s) => s.k === 'dq');
         if (k === 'aq') t.estrutura.unshift(novo);
         else if (k !== 'dq' && iDq >= 0) t.estrutura.splice(iDq, 0, novo);
@@ -2258,7 +2262,11 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       staff && !perfil.vdot && !perfil.auto && !perfil.manual
         ? `<div class="card" style="margin-bottom:12px"><div class="row between" style="gap:10px"><div class="grow" style="min-width:0"><b>Modo adaptação por esforço</b><p class="small muted" style="margin-top:2px">${perfil.pse ? 'Ligado: o aluno vê esforço de 0 a 10, sem pace e sem FC.' : 'Para iniciantes sem teste: troca pace e FC estimados por esforço de 0 a 10.'}</p></div><button class="btn sm ${perfil.pse ? 'ghost' : ''}" id="pse-tg">${perfil.pse ? 'Desligar' : 'Ligar'}</button></div></div>`
         : '';
-    corpo = `${pseBtn}${perfil.pse ? pseCard : ''}${
+    const soDist = !!(m.corrida && m.corrida.so_distancia);
+    const distBtn = staff
+      ? `<div class="card" style="margin-bottom:12px"><div class="row between" style="gap:10px"><div class="grow" style="min-width:0"><b>Treinos só por distância</b><p class="small muted" style="margin-top:2px">${soDist ? 'Ligado. Todo passo por tempo vira distância pelo pace do aluno ao salvar, inclusive nos ciclos aplicados. O descanso parado e os testes continuam por tempo.' : 'Para quem tem relógio simples ou ruim de seguir por minutos. Converte os treinos de hoje em diante e os próximos.'}</p></div><button class="btn sm ${soDist ? 'ghost' : ''}" id="dist-tg">${soDist ? 'Desligar' : 'Ligar'}</button></div></div>`
+      : '';
+    corpo = `${pseBtn}${distBtn}${perfil.pse ? pseCard : ''}${
       perfil.paces || staff
         ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.auto && !perfil.manual ? `Base: ${esc(TESTE_NOME[perfil.auto.tipo] || 'teste de campo')}${perfil.auto.data ? ' · ' + fmtDia(perfil.auto.data) : ''} · ${esc(perfil.auto.resumo || '')}` : perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.auto ? '<span class="tag ok">atualizado pelo teste</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
         ${staff ? '<p class="tiny dim" style="margin-top:8px">Edite o pace de cada zona (minutos:segundos por km) e toque em “Salvar zonas”. É o que o aluno vê nos treinos.</p>' : ''}
@@ -2445,6 +2453,35 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       toast(corrida.modo_pse ? 'Modo adaptação ligado: o aluno vê esforço, sem pace.' : 'Modo adaptação desligado.');
       recarregar();
     };
+  if (q('#dist-tg')) {
+    const ligado = !!(m.corrida && m.corrida.so_distancia);
+    // mantém os paces usados na conversão iguais aos de hoje (depois de um teste novo ou de ajuste manual)
+    if (ligado && perfil.paces && JSON.stringify(perfil.paces) !== JSON.stringify(m.corrida.paces_dist || null))
+      sb.rpc('nx_so_distancia', { p_aluno: alunoId, p_org: S.org.id, p_ligar: true, p_paces: perfil.paces }).then(
+        () => (m.corrida = { ...m.corrida, paces_dist: perfil.paces }),
+        () => {},
+      );
+    q('#dist-tg').onclick = async () => {
+      const { data: n, error } = await sb.rpc('nx_so_distancia', {
+        p_aluno: alunoId,
+        p_org: S.org.id,
+        p_ligar: !ligado,
+        p_paces: perfil.paces || null,
+      });
+      if (error) return toast('Não foi possível salvar.', true);
+      m.corrida = {
+        ...(m.corrida || {}),
+        so_distancia: !ligado,
+        ...(perfil.paces ? { paces_dist: perfil.paces } : {}),
+      };
+      toast(
+        ligado
+          ? 'Desligado. Os treinos já convertidos continuam por distância.'
+          : `Ligado. ${n || 0} treino${n === 1 ? '' : 's'} de hoje em diante conferido${n === 1 ? '' : 's'} e passado${n === 1 ? '' : 's'} para distância.`,
+      );
+      recarregar();
+    };
+  }
   if (q('#pz-salvar'))
     q('#pz-salvar').onclick = async () => {
       const lerS = (v) => {

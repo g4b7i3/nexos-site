@@ -311,7 +311,7 @@ function vozChavePasso(s, anterior) {
   if (!s) return null;
   if (s.k === 'aq') return 'aquece';
   if (s.k === 'dq') return 'desaquece';
-  if (s.nrep && (s.k === 'rc' || s.k === 'ca')) return 'recupera';
+  if (s.nrep && (s.k === 'rc' || s.k === 'ca' || s.k === 'dp')) return 'recupera';
   if (s.k === 'co' && s.nrep) return s.rep === s.nrep && s.nrep > 1 ? 'ultimo' : 'tiro';
   if (s.k === 'co' && anterior && anterior.k === 'aq') return 'principal';
   return null;

@@ -96,7 +96,15 @@ const RELOGIO_IC =
 function garminItem(p, perfil) {
   const est = estruturaDe(p);
   if (!est.length) return null;
-  const INT = { aq: 'WARMUP', dq: 'COOLDOWN', rc: 'RECOVERY', co: 'INTERVAL', ca: 'RECOVERY', lv: 'ACTIVE' };
+  const INT = {
+    aq: 'WARMUP',
+    dq: 'COOLDOWN',
+    rc: 'RECOVERY',
+    co: 'INTERVAL',
+    ca: 'RECOVERY',
+    dp: 'REST',
+    lv: 'ACTIVE',
+  };
   const conv = (s, emSerie) => {
     const zi = ZONAS_INFO[s.z] || ZONAS_INFO.leve;
     const [pmin, pmax] = (perfil && perfil.pse) || alvoLivre(s) ? [null, null] : faixaZona(s.z, perfil); // todo passo leva a faixa de pace como alvo (no modo adaptação, sem alvo)
@@ -120,6 +128,7 @@ function garminItem(p, perfil) {
     co: 'Corrida',
     rc: 'Recuperação',
     ca: 'Caminhada',
+    dp: 'Descanso parado',
     lv: 'Livre',
     dq: 'Desaquecimento',
   };

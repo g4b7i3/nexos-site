@@ -1497,7 +1497,9 @@ function encurtar(t, f) {
   const rd = f > 1 ? Math.round : Math.floor;
   const est = t.estrutura.map((p) => {
     // as acelerações curtas (passadas soltas de 100 m) não entram na conta: ficam as 6
-    const acel = (p.passos || []).every((x) => (x.med === 'm' && x.v <= 200) || x.k === 'ca' || x.z === 'rec');
+    const acel = (p.passos || []).every(
+      (x) => (x.med === 'm' && x.v <= 200) || x.k === 'ca' || x.k === 'dp' || x.z === 'rec',
+    );
     if (p.k === 'rep') return prova || acel ? p : { ...p, n: Math.max(2, rd(p.n * f)) };
     if (prova && p.k === 'co') return p;
     if (p.med === 'km') return { ...p, v: Math.max(1, rd(p.v * f * 2) / 2) };

@@ -245,15 +245,17 @@ function etapasHTML(r, paces) {
       ? `${nomeCo} ${e.rep}`
       : e.k === 'ca' && e.rep
         ? `Caminhada ${e.rep}`
-        : e.rep
-          ? `Recuperação ${e.rep}`
-          : e.k === 'aq'
-            ? ini === 'ca'
-              ? 'Caminhada inicial'
-              : ini === 'co'
-                ? 'Corrida contínua'
-                : 'Aquecimento'
-            : 'Desaquecimento';
+        : e.k === 'dp' && e.rep
+          ? `Descanso ${e.rep}`
+          : e.rep
+            ? `Recuperação ${e.rep}`
+            : e.k === 'aq'
+              ? ini === 'ca'
+                ? 'Caminhada inicial'
+                : ini === 'co'
+                  ? 'Corrida contínua'
+                  : 'Aquecimento'
+              : 'Desaquecimento';
   const co = (repPl.passos || []).find((p) => p.k === 'co');
   const fx = co && paces && paces[co.z];
   const zonaDe = (e) => {

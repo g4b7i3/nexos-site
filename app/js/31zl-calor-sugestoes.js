@@ -18,7 +18,7 @@ function sugCalorLinhas(sg, estrutura, perfil) {
     // partes contínuas (fora dos tiros), cada zona uma vez
     const zs = [];
     est.forEach((s) => {
-      if (s && s.k !== 'rep' && s.k !== 'ca' && s.z && !zs.includes(s.z)) zs.push(s.z);
+      if (s && s.k !== 'rep' && s.k !== 'ca' && s.k !== 'dp' && s.z && !zs.includes(s.z)) zs.push(s.z);
     });
     zs.forEach((z) => {
       const [a, b] = faixaZona(z, perfil);
@@ -32,7 +32,7 @@ function sugCalorLinhas(sg, estrutura, perfil) {
       .filter((s) => s && s.k === 'rep')
       .forEach((r) =>
         (r.passos || [])
-          .filter((p) => (p.k === 'rc' || p.k === 'ca') && p.med === 'min')
+          .filter((p) => (p.k === 'rc' || p.k === 'ca' || p.k === 'dp') && p.med === 'min')
           .forEach((p) =>
             linhas.push(
               `Recuperação entre os tiros: ${durCurta(p.v * 60)} → <b>${durCurta(p.v * 60 * (1 + sg.pausa))}</b>`,

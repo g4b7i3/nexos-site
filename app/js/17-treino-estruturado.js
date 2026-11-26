@@ -36,11 +36,16 @@ const PASSOS = {
   co: 'Corrida',
   rc: 'Recuperação',
   ca: 'Caminhada',
+  dp: 'Descanso parado',
   lv: 'Livre',
   dq: 'Desaquecimento',
 };
 // caminhada e livre não têm ritmo-alvo: o aluno segue a orientação escrita
-const PASSO_LIVRE = { ca: 'caminhada em passo firme e confortável', lv: 'livre: no ritmo que quiser, pela sensação' };
+const PASSO_LIVRE = {
+  ca: 'caminhada em passo firme e confortável',
+  dp: 'sem correr nem caminhar',
+  lv: 'livre: no ritmo que quiser, pela sensação',
+};
 const alvoLivre = (s) => PASSO_LIVRE[s && s.k] || null;
 const passo = (k, v, med, z) => ({ k, v, med, z });
 const serie = (n, passos) => ({ k: 'rep', n, passos });
@@ -775,6 +780,8 @@ function paceZona(z, perfil) {
 function achatar(estrutura, perfil) {
   const out = [];
   const add = (s, rep) => {
+    // descanso parado: só tempo, sem distância
+    if (s.k === 'dp') return out.push({ ...s, metros: 0, seg: s.med === 'min' ? s.v * 60 : 0, rep });
     const pace = s.k === 'ca' ? 600 : paceZona(s.z, perfil);
     const m = s.med === 'km' ? s.v * 1000 : s.med === 'm' ? s.v : ((s.v * 60) / pace) * 1000;
     const seg = s.med === 'min' ? s.v * 60 : (m / 1000) * pace;
@@ -920,8 +927,8 @@ function resumoEstrutura(estrutura, perfil) {
   const r = { km: l.reduce((a, s) => a + s.metros, 0) / 1000, seg: l.reduce((a, s) => a + s.seg, 0) };
   // no modo adaptação não há estimativa: só mostra km se o treino é todo por distância, e tempo se é todo por tempo
   if (perfil && perfil.pse) {
-    const porT = l.some((s) => s.med === 'min'),
-      porD = l.some((s) => s.med !== 'min');
+    const porT = l.some((s) => s.med === 'min' && s.k !== 'dp'),
+      porD = l.some((s) => s.med !== 'min' && s.k !== 'dp');
     r.mostraKm = !porT;
     r.mostraSeg = !porD;
   } else {
@@ -942,12 +949,13 @@ function descreverEstrutura(estrutura, perfil) {
     const z = ZONAS_INFO[p.z] || ZONAS_INFO.leve;
     return `${z.z}${perfil ? ' (' + paceZonaTxt(p.z, perfil).replace('/km', '') + ')' : ''}`;
   };
-  const est = (p) => (perfil && !perfil.pse && p.med === 'min' ? ` ≈${estimaPasso(p, perfil).txt}` : '');
+  const est = (p) =>
+    perfil && !perfil.pse && p.med === 'min' && !alvoLivre(p) ? ` ≈${estimaPasso(p, perfil).txt}` : '';
   return (estrutura || [])
     .map((s) =>
       s.k === 'rep'
-        ? `${s.n}× (${(s.passos || []).map((p) => `${medTxt(p)} ${zt(p)}${est(p)}`).join(' + ')})`
-        : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : s.k === 'ca' ? 'Caminhada ' : s.k === 'lv' ? 'Livre ' : ''}${medTxt(s)} ${zt(s)}${est(s)}`,
+        ? `${s.n}× (${(s.passos || []).map((p) => `${p.k === 'dp' ? 'descanso parado ' : ''}${medTxt(p)} ${zt(p)}${est(p)}`).join(' + ')})`
+        : `${s.k === 'aq' ? 'Aquecimento ' : s.k === 'dq' ? 'Desaquecimento ' : s.k === 'ca' ? 'Caminhada ' : s.k === 'dp' ? 'Descanso parado ' : s.k === 'lv' ? 'Livre ' : ''}${medTxt(s)} ${zt(s)}${est(s)}`,
     )
     .join(' · ');
 }
