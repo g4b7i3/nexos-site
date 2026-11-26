@@ -40,7 +40,12 @@ const NOMES_ATIV = {
   outro: 'Atividade',
 };
 const ehCorr = (c) => !c || !c.tipo || ['corrida', 'trail', 'esteira', 'caminhada'].includes(c.tipo);
-const nomeAtiv = (c) => NOMES_ATIV[c && c.tipo] || 'Corrida';
+// bike indoor (ergométrica, spinning, rolo): o relógio manda como pedal; sem percurso no mapa ou com o nome dizendo
+const ehBikeIndoor = (c) =>
+  !!c &&
+  c.tipo === 'bike' &&
+  (/indoor|ergom|spin|rolo|virtual|est[aá]tica|academia/i.test(c.titulo || '') || !(c.rota && c.rota.length > 1));
+const nomeAtiv = (c) => (ehBikeIndoor(c) ? 'Bike indoor' : NOMES_ATIV[c && c.tipo] || 'Corrida');
 const ARTIGO_ATIV = {
   caminhada: 'a caminhada',
   forca: 'o treino de força',
@@ -830,6 +835,7 @@ const CARD_STATS = [
   ['cad', 'Cadência'],
   ['kcal', 'Calorias'],
   ['passos', 'Passos'],
+  ['pot', 'Potência'],
   ['rota', 'Percurso'],
   ['data', 'Data'],
   ['logo', 'Logo Nexos'],
@@ -1030,6 +1036,10 @@ function cardValores(c) {
     cad: c.cadencia ? { l: 'Cadência', v: String(c.cadencia), u: bike ? 'rpm' : 'ppm' } : null,
     kcal: E.kcal ? { l: 'Calorias', v: Math.round(E.kcal).toLocaleString('pt-BR'), u: 'kcal' } : null,
     passos: E.passos ? { l: 'Passos', v: Math.round(E.passos).toLocaleString('pt-BR'), u: '' } : null,
+    pot:
+      (E.pot_med || E.pot_med_rel) > 0
+        ? { l: 'Potência', v: String(Math.round(E.pot_med || E.pot_med_rel)), u: 'W' }
+        : null,
   };
 }
 /* serie:puro:inicio — tipo do treino e tiros do card (testados em scripts/testes/series.test.js) */
@@ -1275,7 +1285,7 @@ async function desenharCard(cv, c, o) {
     return w;
   };
   const V = cardValores(c);
-  const sel = ['dist', 'pace', 'tempo', 'oficial', 'fc', 'elev', 'cad', 'kcal', 'passos']
+  const sel = ['dist', 'pace', 'tempo', 'oficial', 'fc', 'elev', 'cad', 'kcal', 'passos', 'pot']
     .filter((k) => o.stats[k] && V[k])
     .map((k) => V[k]);
   const VAL = (px) => `700 ${Math.round(px * 0.84)}px ${FH}`,
@@ -1373,39 +1383,40 @@ async function desenharCard(cv, c, o) {
     const bx = W - 70,
       by = post ? 66 : 96,
       hh = 54;
-    // pedal: a bicicleta logo antes das faixas
+    // pedal: só a bicicleta no canto (de rua ou a ergométrica), no lugar das três faixas
     if (c.tipo === 'bike' && window.Path2D) {
-      const k = 3.4;
+      const k = post ? 3.4 : 4,
+        indoor = ehBikeIndoor(c);
       ctx.save();
-      ctx.translate(bx - 150 - 24 - 24 * k, by + hh / 2 - 12.5 * k);
+      ctx.translate(bx - 48 * k, by + hh / 2 - 17 * k);
       ctx.scale(k, k);
       ctx.strokeStyle = AC;
-      ctx.lineWidth = 1.7;
+      ctx.lineWidth = 2.4;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       if (sombra) {
         ctx.shadowColor = 'rgba(0,0,0,.3)';
-        ctx.shadowBlur = 3;
+        ctx.shadowBlur = 2;
       }
-      ctx.stroke(
-        new Path2D(
-          'M5 18.5a3.8 3.8 0 1 0 0-.01M19 18.5a3.8 3.8 0 1 0 0-.01M5 18.5 9.2 10.5h7.3M19 18.5 14.6 8.5M9.2 10.5l3.6 8h0L16.5 10.5M8 7.5h3M13.5 8.5h3',
-        ),
-      );
+      const P = indoor
+        ? 'M7 28h34M12.5 28 17.5 8.5M13.5 7.5h8M16.4 13 33.4 10.5M30.5 28 34.6 5.5M32 5h6.5M15 19.5h6M37.3 21a5.8 5.8 0 1 1 0-.01M23.2 19.5a2.2 2.2 0 1 1 0-.01'
+        : 'M18 20a8 8 0 1 1 0-.01M46 20a8 8 0 1 1 0-.01M10 20 18.5 9.5h13.5L38 20M18.5 9.5 22 20h-12M22 20 32 9.5M18.5 9.5 17.6 6.2M14.6 6.2h6M32 9.5 30.8 5.5h4.4';
+      ctx.stroke(new Path2D(P));
       ctx.restore();
     }
-    [0, 1, 2].forEach((k) => {
-      ctx.globalAlpha = 1 - k * 0.32;
-      ctx.fillStyle = AC;
-      ctx.beginPath();
-      const x0 = bx - 150 + k * 46;
-      ctx.moveTo(x0, by + hh);
-      ctx.lineTo(x0 + 30, by + hh);
-      ctx.lineTo(x0 + 58, by);
-      ctx.lineTo(x0 + 28, by);
-      ctx.closePath();
-      ctx.fill();
-    });
+    if (c.tipo !== 'bike')
+      [0, 1, 2].forEach((k) => {
+        ctx.globalAlpha = 1 - k * 0.32;
+        ctx.fillStyle = AC;
+        ctx.beginPath();
+        const x0 = bx - 150 + k * 46;
+        ctx.moveTo(x0, by + hh);
+        ctx.lineTo(x0 + 30, by + hh);
+        ctx.lineTo(x0 + 58, by);
+        ctx.lineTo(x0 + 28, by);
+        ctx.closePath();
+        ctx.fill();
+      });
     ctx.restore();
     // selo da marca na base
     if (L === 'icones')
@@ -3601,6 +3612,25 @@ async function abrirCardCorrida(c, plano) {
     ),
   };
   if (!CARD_LAYOUTS.some(([k]) => k === o.layout)) o.layout = 'classico';
+  if (c._bike) {
+    // pedal: começa com distância, velocidade e tempo; a bike indoor (sem mapa) com tempo, FC, calorias, cadência e potência
+    const Vb = cardValores(c),
+      ind = ehBikeIndoor(c);
+    o.stats = {
+      ...o.stats,
+      dist: !!Vb.dist,
+      pace: !ind && !!Vb.pace,
+      tempo: true,
+      oficial: false,
+      fc: ind && !!Vb.fc,
+      elev: !ind && !!Vb.elev,
+      cad: ind && !!Vb.cad,
+      kcal: ind && !!Vb.kcal,
+      passos: false,
+      pot: ind && !!Vb.pot,
+      rota: !ind,
+    };
+  }
   if (c._ativ) {
     // nos treinos sem corrida, começa com tempo, FC e calorias (a escolha não mexe no card das corridas)
     o.stats = { ...o.stats, dist: false, pace: false, oficial: false, tempo: true, fc: true, kcal: true };
@@ -3638,6 +3668,7 @@ async function abrirCardCorrida(c, plano) {
           ([k]) =>
             ((k !== 'parciais' && k !== 'parciais_total') || temParc) &&
             (k !== 'tiros' || temTiros) &&
+            (!ehBikeIndoor(c) || !['gigante', 'altimetria'].includes(k)) &&
             (!c._bike ||
               ![
                 'recorde',
@@ -3685,7 +3716,7 @@ async function abrirCardCorrida(c, plano) {
             ? true
             : !!V[k];
   openSheet(
-    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">${c._forca || c._ativ ? 'Card do treino' : c._bike ? 'Card do pedal' : 'Card da corrida'}</div>
+    `<p class="eyebrow">Compartilhar</p><div class="h2" style="margin-top:4px">${c._forca || c._ativ ? 'Card do treino' : c._bike ? (ehBikeIndoor(c) ? 'Card da bike indoor' : 'Card do pedal') : 'Card da corrida'}</div>
     <div class="card-prev ${o.fundo === 'transparente' ? 'xadrez' : ''}" id="cd-prev"><canvas id="cd-cv"></canvas></div>
     <div class="cd-zoom"><button type="button" class="icon-btn sm" data-z="-1" aria-label="Diminuir">−</button><span class="tiny dim">Pince com 2 dedos para aumentar ou diminuir e arraste para mover</span><button type="button" class="icon-btn sm" data-z="1" aria-label="Aumentar">+</button><button type="button" class="link-btn tiny" id="cd-reset">Centralizar</button></div>
     <div class="field"><span>Fundo</span>${seg(
@@ -3725,7 +3756,7 @@ async function abrirCardCorrida(c, plano) {
     )
       .map(
         ([k, l]) =>
-          `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${l}</span></label>`,
+          `<label class="chipc"><input type="checkbox" value="${k}" ${o.stats[k] ? 'checked' : ''}><span>${c._bike && k === 'pace' ? 'Velocidade' : l}</span></label>`,
       )
       .join('')}</div></div>
     <div class="field"><span>Localização</span><div id="cd-loc"></div></div>
@@ -3742,11 +3773,11 @@ async function abrirCardCorrida(c, plano) {
           localStorage.setItem(
             'nx-card',
             JSON.stringify({
-              layout: c._forca || c._ativ ? st.layout : o.layout,
+              layout: c._forca || c._ativ || c._bike ? st.layout : o.layout,
               fundo: o.fundo === 'foto' ? 'transparente' : o.fundo,
               cor: o.cor,
               formato: o.formato,
-              stats: c._ativ ? st.stats : o.stats,
+              stats: c._ativ || c._bike ? st.stats : o.stats,
             }),
           );
         } catch {}
