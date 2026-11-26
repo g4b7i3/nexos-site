@@ -1589,7 +1589,56 @@ async function ckForm(alunoId, fase, ciclo) {
    Nível pelo VDOT do teste (Daniels), limitado pelo volume das últimas 4 semanas, que mostra o que tendões e ossos
    já toleram (Nielsen et al. 2014). Objetivo: a próxima prova do aluno; sem prova, o que ele marcou na ficha; sem nada,
    um bloco de base. Pré-requisitos de distância iguais aos da ficha de entrada. */
-function sugerirCicloTeste({ vdot, corridas, prova, alvoFicha }) {
+/* ---------- estilo do ciclo de prova: padrão ou Treinamento Nexos ----------
+   Nenhum estilo é comprovadamente melhor que o outro (Rosenblat et al. 2022); o que dá resultado é o aluno conseguir
+   cumprir. O Treinamento Nexos tem duas qualidades por semana, então pede base: fora do iniciante, umas 4 corridas por
+   semana nas últimas 4 semanas (3,5 em média), uns 20 km por semana e sem dor repetida. Depois de um ciclo Nexos, ele
+   só se repete se o aluno fez pelo menos 70% dos treinos de qualidade e não marcou dor 2 vezes ou mais. */
+const QUALIDADE_TIPOS = ['intervalado', 'tiros', 'ritmo', 'fartlek'];
+function estiloDoCiclo(ciclo, { corridas, ultNexos } = {}) {
+  if (!ciclo || ciclo.modo !== 'prova') return { ciclo, motivo: '' };
+  const idBase = ciclo.id.replace(/-tn$/, '');
+  const pad = CICLOS_CORR.find((c) => c.id === idBase) || ciclo;
+  const tn = CICLOS_CORR.find((c) => c.id === idBase + '-tn');
+  if (!tn) return { ciclo: pad, motivo: '' };
+  const agora = Date.now();
+  const rec = (corridas || []).filter((c) => ehCorrHist(c) && agora - Date.parse(c.data) < 28 * 864e5);
+  const porSem = rec.length / 4;
+  const km = Math.round(rec.reduce((s, c) => s + (c.distancia_m || 0), 0) / 1000 / 4);
+  const dores = rec.filter((c) => c.dor).length;
+  const padrao = (m) => ({ ciclo: pad, motivo: m }),
+    nexos = (m) => ({ ciclo: tn, motivo: m });
+  const ult = ultNexos && ultNexos.total >= 4 ? ultNexos : null;
+  const pct = ult ? Math.round((ult.feitas / ult.total) * 100) : 0;
+  if (ult && (pct < 70 || ult.dores >= 2))
+    return padrao(
+      `No último Treinamento Nexos fez ${pct}% dos treinos de qualidade${ult.dores >= 2 ? ` e marcou dor ${ult.dores} vezes` : ''}. Este ciclo volta para o estilo padrão, com menos treino forte, até ele cumprir bem.`,
+    );
+  if (ciclo.niv === 'ini')
+    return padrao(
+      'Estilo padrão. No iniciante, o que mais faz evoluir é volume leve com constância, e o Treinamento Nexos tem duas qualidades por semana.',
+    );
+  if (dores >= 2)
+    return padrao(
+      `Estilo padrão. Marcou dor ${dores} vezes nas últimas 4 semanas, e o Treinamento Nexos tem duas qualidades por semana.`,
+    );
+  if (porSem < 3.5)
+    return padrao(
+      `Estilo padrão. ${rec.length ? `Correu ${rec.length} vezes nas últimas 4 semanas, cerca de ${Math.round(porSem)} por semana` : 'Não tem corridas registradas nas últimas 4 semanas'}, e o Treinamento Nexos pede umas 4 por semana, para as duas qualidades terem dias leves entre elas.`,
+    );
+  if (km < 20)
+    return padrao(
+      `Estilo padrão. Correu ${km} km por semana nas últimas 4 semanas, e o Treinamento Nexos pede uns 20 km de base.`,
+    );
+  if (ult)
+    return nexos(
+      `Treinamento Nexos de novo. Fez ${pct}% das qualidades do último ciclo nesse estilo, sem dor repetida.`,
+    );
+  return nexos(
+    `Treinamento Nexos. Corre umas ${Math.round(porSem)} vezes e ${km} km por semana, sem dor repetida, e tem base para duas qualidades por semana (fecho forte e sublimiar).`,
+  );
+}
+function sugerirCicloTeste({ vdot, corridas, prova, alvoFicha, ultNexos }) {
   if (!vdot) return null;
   const agora = Date.now();
   const rec = (corridas || []).filter((c) => ehCorrHist(c) && agora - Date.parse(c.data) < 28 * 864e5);
@@ -1664,8 +1713,11 @@ function sugerirCicloTeste({ vdot, corridas, prova, alvoFicha }) {
     }
     id = MAC_CIC[a] && MAC_CIC[a][niv];
   }
-  const ciclo = CICLOS_CORR.find((c) => c.id === id);
+  let ciclo = CICLOS_CORR.find((c) => c.id === id);
   if (!ciclo) return null;
+  const est = estiloDoCiclo(ciclo, { corridas, ultNexos });
+  ciclo = est.ciclo;
+  if (est.motivo) motivos.push(est.motivo);
   const sem = cicSem(ciclo);
   if (semProva != null && alvo && alvo !== 'trail' && semProva < sem)
     motivos.push(

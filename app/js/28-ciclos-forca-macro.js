@@ -1439,7 +1439,7 @@ const seqModelo = (c) => {
   return out;
 };
 const proximosCorr = (c) =>
-  (c.mod ? seqModelo(c) : SEQ_CORR[c.id] || [])
+  (c.mod ? seqModelo(c) : SEQ_CORR[c.id] || SEQ_CORR[c.id.replace(/-tn$/, '')] || [])
     .map(([id, k]) => [CICLOS_CORR.find((x) => x.id === id), k])
     .filter((x) => x[0]);
 // se o ciclo já termina com semana leve, não sugere outra

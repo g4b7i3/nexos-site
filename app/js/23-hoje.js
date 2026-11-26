@@ -1057,15 +1057,15 @@ async function cicloSugeridoDe(alunoId) {
     sb.from('nx_membros').select('*').eq('org_id', S.org.id).eq('user_id', alunoId).maybeSingle(),
     sb
       .from('nx_ciclos_aplicados')
-      .select('ciclo_id,nome,fim')
+      .select('ciclo_id,nome,inicio,fim')
       .eq('aluno_id', alunoId)
       .eq('tipo', 'corrida')
       .order('fim', { ascending: false })
-      .limit(1)
+      .limit(6)
       .then(vazio, () => []),
     sb
       .from('nx_corridas')
-      .select('data,distancia_m,duracao_s,tipo,titulo')
+      .select('data,distancia_m,duracao_s,tipo,titulo,dor')
       .eq('aluno_id', alunoId)
       .gte('data', somaDias(hojeISO(), -60))
       .then(vazio, () => []),
@@ -1092,6 +1092,7 @@ async function cicloSugeridoDe(alunoId) {
     origem = '';
   const ult = ults[0];
   const cUlt = ult && CICLOS_CORR.find((c) => c.id === ult.ciclo_id);
+  const ultNexos = await resultadoUltNexos(alunoId, ults);
   if (cUlt) {
     const nx = proximosCorr(cUlt)[0];
     if (nx) {
@@ -1109,7 +1110,13 @@ async function cicloSugeridoDe(alunoId) {
       perfil.vdot && perfil.teste_data && Date.now() - Date.parse(perfil.teste_data + 'T12:00:00') < 45 * 864e5;
     const ds = fichas[0] && fichas[0].dados && fichas[0].dados.desemp;
     if (recente) {
-      const s = sugerirCicloTeste({ vdot: perfil.vdot, corridas, prova: provas[0], alvoFicha: ds && ds.alvo });
+      const s = sugerirCicloTeste({
+        vdot: perfil.vdot,
+        corridas,
+        prova: provas[0],
+        alvoFicha: ds && ds.alvo,
+        ultNexos,
+      });
       if (s) {
         ciclo = s.ciclo;
         motivos = s.motivos;
@@ -1125,7 +1132,36 @@ async function cicloSugeridoDe(alunoId) {
       }
     }
   }
+  if (ciclo && origem !== 'pelo teste') {
+    const est = estiloDoCiclo(ciclo, { corridas, ultNexos });
+    ciclo = est.ciclo;
+    if (est.motivo) motivos.push(est.motivo);
+  }
   return { m, nome, ciclo, motivos, ini, origem };
+}
+// como foi o último ciclo de prova, se foi Treinamento Nexos: treinos de qualidade feitos (com corrida ligada) e dores
+async function resultadoUltNexos(alunoId, ults) {
+  const u = (ults || []).find((x) => {
+    const c = CICLOS_CORR.find((y) => y.id === x.ciclo_id);
+    return c && c.modo === 'prova';
+  });
+  if (!u || !/-tn$/.test(u.ciclo_id) || !u.inicio || !u.fim) return null;
+  try {
+    const { data: pls } = await sb
+      .from('nx_plano_corrida')
+      .select('id,data')
+      .eq('aluno_id', alunoId)
+      .gte('data', u.inicio)
+      .lte('data', u.fim < hojeISO() ? u.fim : hojeISO())
+      .in('tipo', QUALIDADE_TIPOS);
+    const ids = (pls || []).map((p) => p.id);
+    if (!ids.length) return null;
+    const { data: cs } = await sb.from('nx_corridas').select('plano_id,dor').in('plano_id', ids);
+    const feitos = new Set((cs || []).map((c) => c.plano_id));
+    return { total: ids.length, feitas: feitos.size, dores: (cs || []).filter((c) => c.dor).length };
+  } catch {
+    return null;
+  }
 }
 async function sugestaoCicloSheet(alunoId) {
   openSheet('<div class="sk-wrap">' + skLinha(3) + '</div>');
