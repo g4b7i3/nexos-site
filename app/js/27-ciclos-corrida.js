@@ -412,6 +412,16 @@ const CICLOS_CORR = [
     desc: 'Descanso ativo entre o fim de uma temporada e a pré-temporada. Pouco volume, sem compromisso de ritmo.',
   },
 ];
+// Treinamento Nexos: cada ciclo de prova de 5, 10, 21 e 42 km ganha a versão no estilo (mesmas semanas, volume e polimento)
+CICLOS_CORR.filter((c) => c.modo === 'prova' && ['5k', '10k', '21k', '42k'].includes(c.obj) && !c.estilo).forEach((c) =>
+  CICLOS_CORR.push({
+    ...c,
+    id: c.id + '-tn',
+    estilo: 'nexos',
+    nome: 'Treinamento Nexos · ' + c.nome.replace(/^Melhorar os /, '').replace(/^Primeira /, ''),
+    desc: `Mesmo ciclo, no estilo Treinamento Nexos: duas qualidades por semana (uma forte com fecho forte de 200 a 400 m e uma moderada-forte no sublimiar) e longão progressivo, que vira leve se o atleta acordar cansado. ${c.desc || ''}`.trim(),
+  }),
+);
 const CIC_REFS =
   'Haugen et al. 2022 (Sports Med Open); Oliveira et al. 2024 (Sports Med); Casado et al. 2022 (Int J Sports Physiol Perform); Mølmen et al. 2019 (Open Access J Sports Med); Wang et al. 2023 (PLoS One); Frandsen et al. 2025 (Br J Sports Med); Wen et al. 2019 (J Sci Med Sport); Seiler 2010 (Int J Sports Physiol Perform); Bosquet et al. 2007 (Med Sci Sports Exerc); Helgerud et al. 2007 (Med Sci Sports Exerc).';
 const CIC_MACRO = [
@@ -444,6 +454,75 @@ const sRod = (km, str) =>
     str
       ? 'Rodagem leve e, no fim, 6 acelerações de 100 m (rápidas e soltas, sem forçar), voltando trotando.'
       : OBS.leve,
+  );
+/* ---------- Treinamento Nexos: estilo do ciclo da prova ----------
+   Duas qualidades por semana: uma forte com fecho forte (treino misto, ou multi-ritmo: a parte principal no limiar ou no
+   VO2 e, no fim, 200 a 400 m rápidos, com a técnica ainda no lugar) e uma moderada-forte (sublimiar), com 48 h entre elas.
+   Longão progressivo (os últimos ~20% no ritmo de maratona), que vira leve se o atleta acordar cansado.
+   Base: ritmos T, I e R de Daniels; treino multi-ritmo de Canova; 80/20 contado pelo tempo (Seiler 2010; Muñoz et al. 2014). */
+const OBS_TN = {
+  forte:
+    'Treinamento Nexos. Parte principal firme e igual do começo ao fim; no fecho, rápido e solto, com a técnica no lugar. Recupere bem entre as do fecho.',
+  lon: 'Longão progressivo: comece leve e faça o final no ritmo indicado. Se acordar cansado, faça tudo leve.',
+};
+const _fecho = (k) =>
+  k === 'acel'
+    ? [serie(4, [_C(100, 'm', 'tiros'), _R(100, 'm', 'rec')])]
+    : k === '400'
+      ? [serie(2, [_C(400, 'm', 'tiros'), _R(2, 'min')]), serie(2, [_C(200, 'm', 'tiros'), _R(200, 'm', 'rec')])]
+      : [serie(4, [_C(200, 'm', 'tiros'), _R(200, 'm', 'rec')])];
+const _fechoTxt = (k) =>
+  k === 'acel' ? ' + 4 acelerações' : k === '400' ? ' + 2 × 400 m + 2 × 200 m' : ' + 4 × 200 m';
+const _kmTxt = (v) => (v >= 1 ? String(v).replace('.', ',') + ' km' : Math.round(v * 1000) + ' m');
+/** treino forte da semana, pela distância da prova e pelo progresso na fase (p de 0 a 1); a = reps a mais (nível) */
+function sTN(obj, p, a = 0, red = 1) {
+  const n = (x, y) => Math.max(2, Math.round(nRep(x, y, p) * red) + a);
+  let reps, dist, z, pausa, fecho;
+  if (obj === '5k') {
+    [reps, dist, z, pausa, fecho] =
+      p < 0.45 ? [n(5, 6), 0.8, 'intervalado', 2, '200'] : [n(4, 5), 1, 'intervalado', 2.5, '400'];
+  } else if (obj === '10k') {
+    [reps, dist, z, pausa, fecho] =
+      p < 0.4
+        ? [n(5, 6), 1, 'limiar', 1, '200']
+        : p < 0.8
+          ? [n(4, 5), 1, 'limiar', 2, '400']
+          : [Math.max(2, 3 + Math.min(a, 1)), 2, 'limiar', 2, '200'];
+  } else if (obj === '21k') {
+    [reps, dist, z, pausa, fecho] =
+      p < 0.4
+        ? [n(4, 5), 2, 'limiar', 1.5, '200']
+        : p < 0.75
+          ? [n(3, 3), 3, 'maratona', 2, 'acel']
+          : [2, 5, 'maratona', 3, 'acel'];
+  } else {
+    [reps, dist, z, pausa, fecho] =
+      p < 0.35
+        ? [3, n(3, 4), 'maratona', 2, '200']
+        : p < 0.7
+          ? [2, 6, 'maratona', 3, 'acel']
+          : [2, 8, 'maratona', 3, 'acel'];
+  }
+  return cT(
+    z === 'maratona' ? 'ritmo' : 'intervalado',
+    `Fecho Forte · ${reps} × ${_kmTxt(dist)}${_fechoTxt(fecho)}`,
+    [_A(2), serie(reps, [_C(dist, 'km', z), _R(pausa, 'min')]), ..._fecho(fecho), _D(obj === '42k' ? 2 : 1)],
+    OBS_TN.forte,
+  );
+}
+/** treino moderado-forte da semana (sublimiar), mais longo perto da prova */
+function sTNmod(obj, p, red = 1) {
+  const longa = obj === '21k' || obj === '42k';
+  const min = Math.round(lerp(longa ? 10 : 8, longa ? 20 : 15, p));
+  const n = Math.max(2, Math.round((min >= 15 ? 2 : 3) * red));
+  return sBlo(n, min);
+}
+const sLonProg = (km, fimKm) =>
+  cT(
+    'longao',
+    `Longão ${String(r05(km)).replace('.', ',')} km progressivo`,
+    [_C(r05(km - fimKm), 'km', 'leve'), _C(r05(fimKm), 'km', 'maratona')],
+    OBS_TN.lon,
   );
 const sReg = (min) =>
   cT(
@@ -738,6 +817,8 @@ function gerarCiclo(c) {
               [5, 'x'],
               [6, 'l'],
             ];
+  // Treinamento Nexos: iniciante com 3 dias faz forte, moderado-forte e longão leve (terça, quinta e sábado)
+  if (c.estilo === 'nexos' && c.niv === 'ini') SLOT.splice(0, SLOT.length, [1, 'q1'], [3, 'q2'], [5, 'l']);
   const minE = { ini: 3, int: 5, ava: 7, pro: 8 }[c.niv];
   const [k0, k1] = c.km,
     [l0, l1] = c.lon;
@@ -776,6 +857,13 @@ function gerarCiclo(c) {
             ? sFar(4, true)
             : sKm(3, 1, zProva === 'maratona' ? 'maratona' : 'limiar')
           : sRod(N === 'ini' ? 4 : 6, true);
+      // Treinamento Nexos: fora da base, do polimento e da prova, forte com fecho forte e moderado-forte (sublimiar)
+      if (c.estilo === 'nexos' && N === 'ini' && F === 'Base' && slot === 'q2') return sRod(minE);
+      if (c.estilo === 'nexos' && !pol && F !== 'Base' && (slot === 'q1' || slot === 'q2')) {
+        const pp = F === 'Específica' ? lerp(0.35, 1, p) : lerp(0, 0.35, p);
+        if (N === 'ini') return slot === 'q1' ? sTN(c.obj, pp, -2, red) : sBlo(2, Math.round(lerp(6, 10, pp)));
+        return slot === 'q1' ? sTN(c.obj, pp, { int: 0, ava: 1, pro: 1 }[N], red) : sTNmod(c.obj, pp, red);
+      }
       if (pol)
         return slot === 'q1'
           ? c.obj === '5k'
@@ -890,6 +978,9 @@ function gerarCiclo(c) {
       sess.push([6, sLon(lon * 0.45, 0)]);
     } else if (c.teste && (i === 0 || i === n - 1)) {
       sess.push([dL, sTeste30()]);
+    } else if (c.estilo === 'nexos' && !w.rec && !pol && N !== 'ini' && (F === 'Construção' || F === 'Específica')) {
+      // longão progressivo: os últimos ~20% no ritmo de maratona (vira leve se o atleta acordar cansado)
+      sess.push([dL, sLonProg(lon, Math.max(1, lon * (F === 'Específica' ? 0.25 : 0.15)))]);
     } else {
       const fim =
         F === 'Específica' && (c.obj === '21k' || c.obj === '42k') && !w.rec

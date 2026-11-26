@@ -1852,7 +1852,7 @@ const macDistDe = (txt) => {
   return k <= 7 ? '5' : k <= 15 ? '10' : k <= 30 ? '21' : k <= 45 ? '42' : k <= 60 ? 'u50' : 'u80';
 };
 const cicPor = (id) => CICLOS_CORR.find((x) => x.id === id);
-function planoMacro(ini, niv, provas) {
+function planoMacro(ini, niv, provas, estilo) {
   const segs = [],
     avisos = [],
     semIdx = (iso) => Math.round((inicioSemana(dia(iso)) - ini) / 6048e5);
@@ -1932,10 +1932,12 @@ function planoMacro(ini, niv, provas) {
       return;
     }
     let id = MAC_CIC[p.dist][niv];
+    // estilo do ciclo da prova: o Treinamento Nexos tem a versão de cada ciclo de 5, 10, 21 e 42 km
+    if (estilo === 'nexos' && cicPor(id + '-tn')) id += '-tn';
     let c = cicPor(id);
     const disp = p.w - cur + 1;
-    if (id === '42k-int16' && disp < 16 && disp >= 12) {
-      id = '42k-int12';
+    if (/^42k-int16/.test(id) && disp < 16 && disp >= 12) {
+      id = estilo === 'nexos' && cicPor('42k-int12-tn') ? '42k-int12-tn' : '42k-int12';
       c = cicPor(id);
     }
     let L = c.sem,
@@ -2184,7 +2186,7 @@ async function viewMacro() {
     st.forca = !!(m && faz('musculacao', m));
   };
   const corpo = () => {
-    const pl = planoMacro(inicioSemana(dia(st.ini)), st.niv, st.provas);
+    const pl = planoMacro(inicioSemana(dia(st.ini)), st.niv, st.provas, st.estilo);
     const W = pl.segs.length ? semanasMacro(pl) : [];
     const fimISO = pl.total ? somaDias(isoDia(inicioSemana(dia(st.ini))), 7 * pl.total - 1) : null;
     const dataSem = (w) => isoDia(new Date(inicioSemana(dia(st.ini)).getTime() + w * 6048e5));
@@ -2227,6 +2229,7 @@ async function viewMacro() {
           .join(
             '',
           )}</select>${st.aluno ? `<small class="tiny dim">${st.sug ? `Sugerido pelo último teste do aluno (VDOT ${st.sug.v}). Ajuste se o volume semanal dele for bem diferente.` : 'O aluno ainda não tem teste no perfil de corrida: confira o nível.'}</small>` : ''}</label>
+        <label class="field"><span>Estilo do ciclo da prova</span><select class="input" id="mac-estilo"><option value="" ${st.estilo ? '' : 'selected'}>Padrão (limiar e VO₂)</option><option value="nexos" ${st.estilo === 'nexos' ? 'selected' : ''}>Treinamento Nexos (fecho forte + sublimiar + longão progressivo)</option></select><small class="tiny dim">Dá para trocar de estilo a cada temporada. A base, o volume e o polimento seguem iguais.</small></label>
         <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" id="mac-ini" value="${st.ini}"></label>
         <label class="ck-check"><input type="checkbox" id="mac-forca" ${st.forca ? 'checked' : ''}><span>Montar também a musculação acompanhando a corrida</span></label>
         <div id="mac-ntf" ${st.forca ? '' : 'hidden'}>${escTreinosFHTML()}</div></div>
@@ -2256,6 +2259,10 @@ async function viewMacro() {
     };
     document.getElementById('mac-niv').onchange = (e) => {
       st.niv = e.target.value;
+      res();
+    };
+    document.getElementById('mac-estilo').onchange = (e) => {
+      st.estilo = e.target.value || null;
       res();
     };
     document.getElementById('mac-ini').onchange = (e) => {
@@ -2307,7 +2314,7 @@ async function viewMacro() {
   };
   async function aplicarMacro(b) {
     const ini0 = inicioSemana(dia(st.ini)),
-      pl = planoMacro(ini0, st.niv, st.provas);
+      pl = planoMacro(ini0, st.niv, st.provas, st.estilo);
     if (!pl.segs.length || !st.aluno) return;
     const m = alunos.find((x) => x.user_id === st.aluno),
       perfil = perfilCorrida(m || {});
