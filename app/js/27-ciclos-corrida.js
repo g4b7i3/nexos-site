@@ -1486,6 +1486,15 @@ function saltoTreino(data, km, refs, id) {
   const pct = Math.ceil((km / mx - 1) * 100 - 1e-9);
   return { mx, pct, nivel: pct > 30 ? 'alto' : 'medio', lim: Math.floor(mx * 1.1 * 2) / 2 };
 }
+// "Ok, entendi" do treinador (corrida.salto_ok = { km }): o aluno aguenta até km; até km + 10% não avisa, e acima
+// a conta usa o maior entre o confirmado e o feito nos 30 dias
+function saltoComOk(sa, km, ok) {
+  if (!sa || !ok || !(ok.km > 0)) return sa;
+  if (km <= ok.km * 1.1 || km - ok.km < 0.5) return null;
+  const mx = Math.max(sa.mx, ok.km);
+  const pct = Math.ceil((km / mx - 1) * 100 - 1e-9);
+  return { mx, pct, nivel: pct > 30 ? 'alto' : 'medio', lim: Math.floor(mx * 1.1 * 2) / 2 };
+}
 /* salto:puro:fim */
 
 /* Limite de salto por treino (Frandsen et al. 2025, Br J Sports Med): nenhum treino com mais de 10% acima do mais longo

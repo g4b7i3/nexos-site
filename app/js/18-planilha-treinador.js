@@ -966,7 +966,10 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
       sR = S.cache.saltoRefs;
     const sa =
       sR && sR.alunoId === alunoId && base.data >= hojeISO() && t.tipo !== 'prova' && !temCaminhada(t.estrutura)
-        ? saltoTreino(base.data, resumoEstrutura(t.estrutura, perfil).km, sR.refs, sessao && sessao.id)
+        ? saltoAceito(
+            saltoTreino(base.data, resumoEstrutura(t.estrutura, perfil).km, sR.refs, sessao && sessao.id),
+            resumoEstrutura(t.estrutura, perfil).km,
+          )
         : null;
     if (se) {
       se.hidden = !sa;
@@ -1223,7 +1226,7 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
         const sR = S.cache.saltoRefs;
         const sa =
           sR && sR.alunoId === alunoId && row.data >= hojeISO() && row.tipo !== 'prova' && !temCaminhada(row.estrutura)
-            ? saltoTreino(row.data, row.distancia_km, sR.refs, sessao && sessao.id)
+            ? saltoAceito(saltoTreino(row.data, row.distancia_km, sR.refs, sessao && sessao.id), row.distancia_km)
             : null;
         toast(
           (proximos.length
@@ -1754,7 +1757,43 @@ const temCaminhada = (est) => (est || []).some((x) => x.k === 'ca' || (x.passos 
 function saltoDe(p, perfil, refs, feito) {
   if (!refs || feito || p.data < hojeISO() || semCorrida(p) || p.tipo === 'prova' || temCaminhada(estruturaDe(p)))
     return null;
-  return saltoTreino(p.data, resumoEstrutura(estruturaDe(p), perfil).km, refs, p.id);
+  const km = resumoEstrutura(estruturaDe(p), perfil).km;
+  return saltoAceito(saltoTreino(p.data, km, refs, p.id), km);
+}
+/* "Ok, entendi": o treinador confirmou que o aluno aguenta até tal distância (corrida.salto_ok = { km, em }), por
+   exemplo porque corre mais do que o app registrou. Até esse treino mais 10% o aviso não aparece; acima, a conta
+   continua com o maior entre o confirmado e o feito nos 30 dias. */
+const saltoAceito = (sa, km) => saltoComOk(sa, km, S.cache.saltoRefs && S.cache.saltoRefs.ok);
+function saltoSheet(p, perfil, m, recarregar) {
+  const sR = S.cache.saltoRefs;
+  const sa = sR && saltoDe(p, perfil, sR.refs);
+  if (!sa) return;
+  const km = resumoEstrutura(estruturaDe(p), perfil).km;
+  // vale para todos os treinos planejados dele que estão com o aviso: confirma até o maior deles
+  const avisados = (sR.refs || []).filter((r) => !String(r.id).startsWith('c') && r.dia >= hojeISO());
+  const okKm = Math.max(
+    km,
+    ...avisados.filter((r) => saltoAceito(saltoTreino(r.dia, r.km, sR.refs, r.id), r.km)).map((r) => r.km),
+  );
+  openSheet(`<p class="eyebrow">Aviso de volume</p><div class="h2" style="margin-top:4px">${esc(p.titulo || 'Treino')} · +${sa.pct}%</div>
+    <p class="small" style="margin-top:10px">${esc(saltoTxt(sa))}</p>
+    <p class="small muted" style="margin-top:10px">Se o aluno já corre essa distância, por exemplo em treinos que não entraram no app, confirme. Os avisos dele somem até ${f1(okKm)} km, que é o maior treino com aviso agora. Só volta a avisar se aparecer um treino mais de 10% acima disso.</p>
+    <button class="btn block" id="salto-ok" style="margin-top:14px">Ok, entendi</button>
+    <button class="btn ghost block" id="salto-manter" style="margin-top:8px">Manter o aviso</button>`);
+  document.getElementById('salto-manter').onclick = closeSheet;
+  document.getElementById('salto-ok').onclick = async (e) => {
+    e.target.disabled = true;
+    const corrida = { ...(m.corrida || {}), salto_ok: { km: Math.round(okKm * 10) / 10, em: hojeISO() } };
+    const { error } = await sb.from('nx_membros').update({ corrida }).eq('org_id', S.org.id).eq('user_id', m.user_id);
+    if (error) {
+      e.target.disabled = false;
+      return toast('Não foi possível salvar.', true);
+    }
+    m.corrida = corrida;
+    closeSheet();
+    toast(`Entendido. Sem aviso até ${f1(corrida.salto_ok.km)} km.`);
+    recarregar();
+  };
 }
 const saltoTxt = (sa) =>
   `${sa.pct}% acima do treino mais longo dos últimos 30 dias (${f1(sa.mx)} km). Acima de 10% o risco de lesão aumenta (Frandsen et al., 2025). Para ficar no limite, até ${f1(sa.lim)} km.`;
@@ -1780,7 +1819,7 @@ function cartaoSessao(p, perfil, feito, staff, salto) {
     <div class="ses-t"><b>${esc(p.titulo || nomeTipo(p.tipo))}</b>${!feito && st === 'perdido' ? '<span class="ses-x">!</span>' : ''}</div>
     ${perfilHTML(est, perfil)}
     ${feito ? `<div class="ses-res"><div><small>Distância</small><b>${fmtKm(feito.distancia_m, 1)}</b></div><div><small>Pace</small><b>${fmtPace(paceDe(feito)).replace('/km', '')}<em>/km</em></b></div></div>` : ''}
-    <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km && rs.mostraKm ? f1(rs.km) + ' km' : ''}${rs.seg && rs.mostraSeg ? (rs.km && rs.mostraKm ? ' · ' : '') + fmtDur(rs.seg) : ''}</span>${staff && salto ? `<span class="ses-salto ${salto.nivel}" title="${esc(saltoTxt(salto))}">${icT(I.alerta)}+${salto.pct}% do maior treino</span>` : ''}</div>`;
+    <span class="ses-m">${feito ? 'Previsto ' : ''}${rs.km && rs.mostraKm ? f1(rs.km) + ' km' : ''}${rs.seg && rs.mostraSeg ? (rs.km && rs.mostraKm ? ' · ' : '') + fmtDur(rs.seg) : ''}</span>${staff && salto ? `<span class="ses-salto ${salto.nivel}" data-salto="${p.id}" role="button" title="${esc(saltoTxt(salto))}">${icT(I.alerta)}+${salto.pct}% do maior treino</span>` : ''}</div>`;
 }
 // etiqueta de força (Nexos) no dia da semana de corrida: prevista, feita ou rascunho (só o treinador vê)
 function forcaDiaHTML(fc, k, semana, staff) {
@@ -2106,7 +2145,12 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
   S.cache.garmOn = !!garm || icuEscreve(integ);
   S.cache.relNome = garm ? 'Garmin' : 'relógio';
   const perfil = perfilCorrida(m);
-  if (staff) S.cache.saltoRefs = { alunoId, refs: refsSalto(ativsTodas, [...planoAntes, ...plano], perfil) };
+  if (staff)
+    S.cache.saltoRefs = {
+      alunoId,
+      refs: refsSalto(ativsTodas, [...planoAntes, ...plano], perfil),
+      ok: (m.corrida && m.corrida.salto_ok) || null,
+    };
   const recarregar = () => viewCorridaPainel(alunoId, box, staff, m, subs, true);
   // testes da planilha que o aluno já correu: o treinador confere e confirma as zonas em Ritmos e zonas
   if (staff && st.testesDe !== alunoId) {
@@ -2266,7 +2310,12 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     const distBtn = staff
       ? `<div class="card" style="margin-bottom:12px"><div class="row between" style="gap:10px"><div class="grow" style="min-width:0"><b>Treinos só por distância</b><p class="small muted" style="margin-top:2px">${soDist ? 'Ligado. Todo passo por tempo vira distância pelo pace do aluno ao salvar, inclusive nos ciclos aplicados. O descanso parado e os testes continuam por tempo.' : 'Para quem tem relógio simples ou ruim de seguir por minutos. Converte os treinos de hoje em diante e os próximos.'}</p></div><button class="btn sm ${soDist ? 'ghost' : ''}" id="dist-tg">${soDist ? 'Desligar' : 'Ligar'}</button></div></div>`
       : '';
-    corpo = `${pseBtn}${distBtn}${perfil.pse ? pseCard : ''}${
+    const sOk = m.corrida && m.corrida.salto_ok;
+    const saltoOkHTML =
+      staff && sOk
+        ? `<div class="card" style="margin-bottom:12px"><div class="row between" style="gap:10px"><div class="grow" style="min-width:0"><b>Aviso de volume confirmado</b><p class="small muted" style="margin-top:2px">Em ${fmtDia(sOk.em)} você confirmou que o aluno aguenta até ${f1(sOk.km)} km. Até ${f1(sOk.km * 1.1)} km a planilha não avisa.</p></div><button class="btn ghost sm" id="salto-volta">Voltar a avisar</button></div></div>`
+        : '';
+    corpo = `${pseBtn}${distBtn}${saltoOkHTML}${perfil.pse ? pseCard : ''}${
       perfil.paces || staff
         ? `<div class="card"><div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">${perfil.auto && !perfil.manual ? `Base: ${esc(TESTE_NOME[perfil.auto.tipo] || 'teste de campo')}${perfil.auto.data ? ' · ' + fmtDia(perfil.auto.data) : ''} · ${esc(perfil.auto.resumo || '')}` : perfil.vdot ? `Base: ${String(perfil.teste_km).replace('.', ',')} km em ${fmtDurLongo(perfil.teste_seg)}${perfil.teste_data ? ' · ' + fmtDia(perfil.teste_data) : ''}` : 'Sem teste cadastrado'}</span><span class="row" style="gap:6px">${perfil.manual ? '<span class="tag warn">ajustado pelo treinador</span>' : perfil.auto ? '<span class="tag ok">atualizado pelo teste</span>' : perfil.vdot ? '<span class="tag">automático</span>' : ''}${perfil.vdot ? `<span class="tag acc">VDOT ${f1(perfil.vdot)}</span>` : ''}</span></div>
         ${staff ? '<p class="tiny dim" style="margin-top:8px">Edite o pace de cada zona (minutos:segundos por km) e toque em “Salvar zonas”. É o que o aluno vê nos treinos.</p>' : ''}
@@ -2451,6 +2500,15 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       if (error) return toast('Não foi possível salvar.', true);
       m.corrida = corrida;
       toast(corrida.modo_pse ? 'Modo adaptação ligado: o aluno vê esforço, sem pace.' : 'Modo adaptação desligado.');
+      recarregar();
+    };
+  if (q('#salto-volta'))
+    q('#salto-volta').onclick = async () => {
+      const { salto_ok: _x, ...corrida } = m.corrida || {};
+      const { error } = await sb.from('nx_membros').update({ corrida }).eq('org_id', S.org.id).eq('user_id', alunoId);
+      if (error) return toast('Não foi possível salvar.', true);
+      m.corrida = corrida;
+      toast('Os avisos de volume voltaram.');
       recarregar();
     };
   if (q('#dist-tg')) {
@@ -2706,6 +2764,11 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           toast(er.message, true);
         }
         return recarregar();
+      }
+      const sj = staff && e.target.closest('[data-salto]');
+      if (sj) {
+        const p = plano.find((x) => x.id === sj.dataset.salto);
+        if (p) return saltoSheet(p, perfil, m, recarregar);
       }
       const nv = e.target.closest('[data-novo]'),
         se = e.target.closest('[data-ses]');

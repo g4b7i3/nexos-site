@@ -258,7 +258,7 @@ function abrirComemoracao(x, depois) {
 // principal: na corrida, treino dos últimos 7 dias mais de 10% maior que o mais longo dos 30 dias anteriores (Frandsen et al. 2025, Br J Sports Med,
 // 5.205 corredores: >10% aumentou o risco de lesão; >100% mais que dobrou). A relação aguda:crônica e o aumento de km da semana
 // não tiveram associação clara com lesão nesse estudo (e são questionadas por Impellizzeri et al. 2020); ficam só como monitoramento.
-function calcCarga(corrs, sess, agora = Date.now()) {
+function calcCarga(corrs, sess, agora = Date.now(), ok = null) {
   const it = [
     ...(corrs || []).map((c) => ({
       t: Date.parse(c.data),
@@ -304,6 +304,8 @@ function calcCarga(corrs, sess, agora = Date.now()) {
       const pct = Math.round((x.km / mx - 1) * 100);
       if (pct > 10 && (!salto || pct > salto.pct)) salto = { pct, km: x.km, mx };
     });
+  // o treinador confirmou em "Ok, entendi" que o aluno aguenta até essa distância
+  if (salto && ok && ok.km > 0 && (salto.km <= ok.km * 1.1 || salto.km - ok.km < 0.5)) salto = null;
   const nivel = salto && salto.pct > 100 ? 'alto' : salto || (acwr != null && acwr >= 1.5) ? 'atencao' : null;
   const partes = [];
   if (salto)
@@ -342,7 +344,9 @@ async function buscarCargas(ids) {
     qc = qc.in('aluno_id', ids);
     qs = qs.in('aluno_id', ids);
   }
-  const [cs, ss] = await Promise.all([
+  let qm = sb.from('nx_membros').select('user_id,corrida').eq('org_id', S.org.id).eq('papel', 'aluno');
+  if (ids) qm = qm.in('user_id', ids);
+  const [cs, ss, ms] = await Promise.all([
     qc.limit(3000).then(
       (r) => r.data || [],
       () => [],
@@ -351,12 +355,19 @@ async function buscarCargas(ids) {
       (r) => r.data || [],
       () => [],
     ),
+    qm.then(
+      (r) => r.data || [],
+      () => [],
+    ),
   ]);
+  const okDe = Object.fromEntries(ms.map((m) => [m.user_id, m.corrida && m.corrida.salto_ok]));
   const out = {};
   [...new Set([...cs, ...ss].map((x) => x.aluno_id))].forEach((id) => {
     out[id] = calcCarga(
       cs.filter((c) => c.aluno_id === id),
       ss.filter((s) => s.aluno_id === id),
+      undefined,
+      okDe[id],
     );
   });
   return out;

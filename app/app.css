@@ -5047,3 +5047,4 @@ details.voltas-sec>summary::-webkit-details-marker{display:none}
 .th-del{width:30px;height:30px;opacity:.45;background:none;border-color:transparent}
 .th-del svg{width:16px;height:16px}
 .th-del.conf{opacity:1;border-color:var(--err,#e5534b);color:var(--err,#e5534b)}
+.ses-salto[data-salto]{cursor:pointer}

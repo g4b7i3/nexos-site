@@ -6,7 +6,7 @@ const src = fs.readFileSync(path.join(__dirname, '../../app/js/27-ciclos-corrida
 const ini = src.indexOf('/* salto:puro:inicio */'),
   fim = src.indexOf('/* salto:puro:fim */');
 if (ini < 0 || fim < 0) throw new Error('Bloco do aviso de salto não encontrado (marcadores salto:puro).');
-const { saltoTreino } = new Function(src.slice(ini, fim) + ';return {saltoTreino};')();
+const { saltoTreino, saltoComOk } = new Function(src.slice(ini, fim) + ';return {saltoTreino, saltoComOk};')();
 const erros = [];
 const ok = (c, m) => c || erros.push(m);
 const refs = [
@@ -44,6 +44,17 @@ ok(
   saltoTreino('2027-01-16', 16, [{ id: 'a', dia: '2027-01-09', km: 14.5 }]).pct === 11,
   '10,3% acima aparece como 11%',
 );
+
+// "Ok, entendi": o treinador confirmou que o aluno aguenta 16 km (corre mais do que o app registrou)
+const s16 = saltoTreino('2026-11-16', 16, refs);
+ok(saltoComOk(s16, 16, { km: 16 }) === null, 'confirmado até 16 km: o treino de 16 km não avisa');
+ok(
+  saltoComOk(saltoTreino('2026-11-16', 17.5, refs), 17.5, { km: 16 }) === null,
+  'até 10% acima do confirmado não avisa',
+);
+const s19 = saltoComOk(saltoTreino('2026-11-16', 19, refs), 19, { km: 16 });
+ok(s19 && s19.mx === 16 && s19.pct === 19, 'acima do confirmado volta a avisar, contando a partir dele');
+ok(saltoComOk(s16, 16, null) === s16, 'sem confirmação o aviso continua');
 
 if (erros.length) {
   console.error('Aviso de salto com problema:\n- ' + erros.join('\n- '));
