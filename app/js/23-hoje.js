@@ -1146,6 +1146,28 @@ async function resultadoUltNexos(alunoId, ults) {
     return c && c.modo === 'prova';
   });
   if (!u || !/-tn$/.test(u.ciclo_id) || !u.inicio || !u.fim) return null;
+  // VDOT antes e depois do ciclo pelo histórico de testes: o último até a 1ª semana do ciclo e o último a partir das
+  // 3 semanas finais (o teste ou a prova do fim do ciclo)
+  let vAntes = null,
+    vDepois = null;
+  try {
+    const { data: ts } = await sb
+      .from('nx_testes')
+      .select('data,km,seg,vdot,criado_em')
+      .eq('aluno_id', alunoId)
+      .order('data', { ascending: false })
+      .order('criado_em', { ascending: false });
+    const lista = (ts || []).filter((t) => thVdot(t));
+    const a = lista.find((t) => t.data <= somaDias(u.inicio, 7));
+    const d = lista.find((t) => t.data >= somaDias(u.fim, -21) && (!a || t.data > a.data));
+    if (a && d) {
+      vAntes = thVdot(a);
+      vDepois = thVdot(d);
+    }
+  } catch {
+    /* sem histórico, segue só pela adesão */
+  }
+  const dv = vAntes && vDepois ? vDepois - vAntes : null;
   try {
     const { data: pls } = await sb
       .from('nx_plano_corrida')
@@ -1155,12 +1177,19 @@ async function resultadoUltNexos(alunoId, ults) {
       .lte('data', u.fim < hojeISO() ? u.fim : hojeISO())
       .in('tipo', QUALIDADE_TIPOS);
     const ids = (pls || []).map((p) => p.id);
-    if (!ids.length) return null;
+    if (!ids.length) return dv != null ? { total: 0, feitas: 0, dores: 0, dv, vAntes, vDepois } : null;
     const { data: cs } = await sb.from('nx_corridas').select('plano_id,dor').in('plano_id', ids);
     const feitos = new Set((cs || []).map((c) => c.plano_id));
-    return { total: ids.length, feitas: feitos.size, dores: (cs || []).filter((c) => c.dor).length };
+    return {
+      total: ids.length,
+      feitas: feitos.size,
+      dores: (cs || []).filter((c) => c.dor).length,
+      dv,
+      vAntes,
+      vDepois,
+    };
   } catch {
-    return null;
+    return dv != null ? { total: 0, feitas: 0, dores: 0, dv, vAntes, vDepois } : null;
   }
 }
 async function sugestaoCicloSheet(alunoId) {

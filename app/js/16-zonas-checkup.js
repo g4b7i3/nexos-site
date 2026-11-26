@@ -1593,7 +1593,8 @@ async function ckForm(alunoId, fase, ciclo) {
    Nenhum estilo é comprovadamente melhor que o outro (Rosenblat et al. 2022); o que dá resultado é o aluno conseguir
    cumprir. O Treinamento Nexos tem duas qualidades por semana, então pede base: fora do iniciante, umas 4 corridas por
    semana nas últimas 4 semanas (3,5 em média), uns 20 km por semana e sem dor repetida. Depois de um ciclo Nexos, ele
-   só se repete se o aluno fez pelo menos 70% dos treinos de qualidade e não marcou dor 2 vezes ou mais. */
+   só se repete se o aluno fez pelo menos 70% dos treinos de qualidade e não marcou dor 2 vezes ou mais; e, quando há
+   teste antes e depois do ciclo no histórico, se o VDOT não caiu (queda de 0,5 ou mais volta ao padrão). */
 const QUALIDADE_TIPOS = ['intervalado', 'tiros', 'ritmo', 'fartlek'];
 function estiloDoCiclo(ciclo, { corridas, ultNexos } = {}) {
   if (!ciclo || ciclo.modo !== 'prova') return { ciclo, motivo: '' };
@@ -1610,6 +1611,11 @@ function estiloDoCiclo(ciclo, { corridas, ultNexos } = {}) {
     nexos = (m) => ({ ciclo: tn, motivo: m });
   const ult = ultNexos && ultNexos.total >= 4 ? ultNexos : null;
   const pct = ult ? Math.round((ult.feitas / ult.total) * 100) : 0;
+  const dv = ultNexos && ultNexos.dv != null ? ultNexos.dv : null;
+  if (dv != null && dv <= -0.5)
+    return padrao(
+      `No último Treinamento Nexos o VDOT caiu de ${f1(ultNexos.vAntes)} para ${f1(ultNexos.vDepois)}. Este ciclo volta para o estilo padrão, para mudar o estímulo.`,
+    );
   if (ult && (pct < 70 || ult.dores >= 2))
     return padrao(
       `No último Treinamento Nexos fez ${pct}% dos treinos de qualidade${ult.dores >= 2 ? ` e marcou dor ${ult.dores} vezes` : ''}. Este ciclo volta para o estilo padrão, com menos treino forte, até ele cumprir bem.`,
@@ -1630,9 +1636,9 @@ function estiloDoCiclo(ciclo, { corridas, ultNexos } = {}) {
     return padrao(
       `Estilo padrão. Correu ${km} km por semana nas últimas 4 semanas, e o Treinamento Nexos pede uns 20 km de base.`,
     );
-  if (ult)
+  if (ult || dv != null)
     return nexos(
-      `Treinamento Nexos de novo. Fez ${pct}% das qualidades do último ciclo nesse estilo, sem dor repetida.`,
+      `Treinamento Nexos de novo. ${ult ? `Fez ${pct}% das qualidades do último ciclo nesse estilo, sem dor repetida` : 'Cumpriu o último ciclo nesse estilo'}${dv != null ? `, e o VDOT foi de ${f1(ultNexos.vAntes)} para ${f1(ultNexos.vDepois)}` : ''}.`,
     );
   return nexos(
     `Treinamento Nexos. Corre umas ${Math.round(porSem)} vezes e ${km} km por semana, sem dor repetida, e tem base para duas qualidades por semana (fecho forte e sublimiar).`,

@@ -57,6 +57,27 @@ ok(
   est('21k-int', { corridas: corr(19, 36), ultNexos: { total: 2, feitas: 0, dores: 0 } }) === '21k-int-tn',
   'menos de 4 qualidades planejadas não entram na conta',
 );
+ok(
+  est('21k-int', {
+    corridas: corr(19, 36),
+    ultNexos: { total: 10, feitas: 9, dores: 0, dv: -0.8, vAntes: 45, vDepois: 44.2 },
+  }) === '21k-int',
+  'VDOT caiu 0,8 depois do último Nexos: padrão',
+);
+ok(
+  est('21k-int', {
+    corridas: corr(19, 36),
+    ultNexos: { total: 10, feitas: 9, dores: 0, dv: 1.2, vAntes: 45, vDepois: 46.2 },
+  }) === '21k-int-tn',
+  'VDOT subiu e cumpriu as qualidades: segue no Nexos',
+);
+ok(
+  est('21k-int', {
+    corridas: corr(19, 36),
+    ultNexos: { total: 10, feitas: 5, dores: 0, dv: 1.2, vAntes: 45, vDepois: 46.2 },
+  }) === '21k-int',
+  'VDOT subiu mas fez só 50% das qualidades: padrão',
+);
 ok(est('bl-base-int', { corridas: corr(19, 36) }) === 'bl-base-int', 'ciclo de base não muda de estilo');
 ok(/Treinamento Nexos/.test(estiloDoCiclo(C('21k-int'), { corridas: corr(19, 36) }).motivo), 'motivo explica o estilo');
 

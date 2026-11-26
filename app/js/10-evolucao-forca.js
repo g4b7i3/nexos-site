@@ -240,7 +240,10 @@ async function alunoHistorico(aba) {
   const bindTabs = () => {};
   if (aba === 'atividades') return histAtividades(head);
   if (aba === 'previsoes') {
-    $app.innerHTML = head + '<div id="pv-box" style="margin-top:14px"></div>';
+    $app.innerHTML = head + '<div id="pv-box" style="margin-top:14px"></div><div id="th-box"></div>';
+    thMontar(document.getElementById('th-box'), { alunoId: S.user.id, staff: false, orgId: S.org.id }).catch((e) =>
+      console.error(e),
+    );
     return previsoesCard(document.getElementById('pv-box'), await buscarCorridasPrev(S.user.id), perfilCorrida(S.me), {
       titulo: false,
     });
