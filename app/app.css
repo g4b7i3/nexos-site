@@ -4875,3 +4875,40 @@ html[data-tema="escuro"] .mv-niv.ok{color:#4ade80}html[data-tema="escuro"] .mv-n
 /* orientação do treinador para o calor (sugestão de ritmo aplicada) */
 .sug-calor-box{margin-top:10px;padding:12px 14px;border-radius:14px;background:rgba(255,159,67,.1);border:1px solid rgba(255,159,67,.35)}
 .sug-calor-box b{color:#ffb36b}
+/* taxa de suor */
+.suor-res{margin-bottom:14px;border:1px solid color-mix(in srgb,#2f8fe0 30%,transparent);background:linear-gradient(160deg,color-mix(in srgb,#2f8fe0 11%,transparent),transparent 65%),var(--s1)}
+.suor-t svg,.suor-res b svg{width:15px;height:15px;color:#2f8fe0;vertical-align:-2px}
+.suor-big{display:flex;align-items:baseline;gap:10px;margin:10px 0 2px}
+.suor-big b{font-family:var(--f-h);font-size:2.6rem;line-height:1;letter-spacing:-.02em;color:#2f8fe0}
+.suor-big span{font-weight:700;color:var(--mute)}
+.suor-pct{--sc:var(--ok);margin-top:12px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--sc) 10%,var(--s2))}
+.suor-pct b{color:var(--sc)}
+.suor-pct p{margin-top:6px}
+.suor-escala{position:relative;height:8px;border-radius:99px;background:var(--line);margin:10px 0 16px}
+.suor-escala i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--sc)}
+.suor-escala em{position:absolute;top:10px;transform:translateX(-50%);font-style:normal;font-size:.62rem;font-weight:800;color:var(--mute)}
+.suor-escala em::before{content:'';position:absolute;left:50%;top:-12px;width:2px;height:10px;background:var(--mute);opacity:.5}
+.suor-ok{--sc:var(--ok)}.suor-atencao{--sc:var(--warn)}.suor-alto,.suor-ganhou{--sc:var(--err)}
+em.suor-ok,em.suor-atencao,em.suor-alto,em.suor-ganhou{color:var(--sc);font-style:normal;font-weight:800}
+.suor-plano{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.suor-plano div{background:var(--s2);border-radius:14px;padding:8px 10px}
+.suor-plano span{display:block;font-size:.68rem;color:var(--mute);font-weight:700}
+.suor-plano b{font-family:var(--f-h);font-size:1rem}
+.suor-plano small{display:block;font-size:.66rem;color:var(--mute)}
+.suor-prev{border:1px dashed color-mix(in srgb,#2f8fe0 40%,transparent)}
+.suor-prev.vazio{border-style:dashed}
+.suor-passos{margin:8px 0 0 18px;display:grid;gap:6px;font-size:.86rem}
+.suor-como summary{cursor:pointer;font-weight:800;font-size:.86rem;color:#2f8fe0;margin-top:8px}
+.suor-mini{--sc:var(--ok);display:flex;align-items:baseline;gap:10px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--sc) 10%,var(--s2))}
+.suor-mini b{font-family:var(--f-h);font-size:1.3rem;color:var(--sc)}
+.suor-mini span{font-size:.8rem;font-weight:700;color:var(--mute)}
+.suor-hist div{display:grid;grid-template-columns:3.4em 3em 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:.86rem}
+.suor-hist div:last-child{border-bottom:0}
+.suor-resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.suor-resumo div{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:8px;text-align:center}
+.suor-resumo div.q{border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
+.suor-resumo b{display:block;font-family:var(--f-h);font-size:1.3rem}
+.suor-resumo span{font-size:.62rem;color:var(--mute);font-weight:700;line-height:1.2;display:block}
+.suor-lado{text-align:right;margin-right:4px}
+.suor-lado b{display:block;font-family:var(--f-h);font-size:.95rem}
+.suor-lado em{font-size:.72rem}

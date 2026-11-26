@@ -1436,8 +1436,13 @@ async function staffAluno(alunoId, aba, extra) {
       );
       sd.querySelector('#preencher-ana').onclick = abrirEd;
     }
-    Promise.all([prontStaffHTML(m), aguaStaffHTML(m), dadosSugestoes([m.user_id], 7).catch(() => [])])
-      .then(([hp, ha, sg]) => {
+    Promise.all([
+      prontStaffHTML(m),
+      aguaStaffHTML(m),
+      dadosSugestoes([m.user_id], 7).catch(() => []),
+      suorStaffHTML(m).catch(() => ''),
+    ])
+      .then(([hp, ha, sg, hs]) => {
         const sd = document.getElementById('saude');
         if (!sd) return;
         sd.insertAdjacentHTML(
@@ -1445,9 +1450,11 @@ async function staffAluno(alunoId, aba, extra) {
           `<div id="sug-al">${sg.map((x) => sugCardHTML(x, false)).join('')}</div>` +
             hp +
             ha +
+            hs +
             `<a class="list-item" href="#/antes-depois/${m.user_id}" style="color:inherit;margin-bottom:14px"><span class="ativ-ic">${I.hist}</span><div class="grow"><b>Antes e depois</b><div class="small muted">Primeiro mês contra agora e o seu recado para o aluno</div></div>${I.chev}</a>`,
         );
         bindAguaStaff(m);
+        bindSuorStaff(m);
         bindSugestoes(sd.querySelector('#sug-al'), sg);
       })
       .catch((e) => console.error(e));

@@ -896,6 +896,7 @@ function alunoMais() {
     </div>
     <p class="sec-lbl">Saúde</p><div class="stack" id="mais-saude">
       ${it('#/agua', AGUA_IC, 'Hidratação', 'Sua semana, meta e lembretes')}
+      ${it('#/suor', AGUA_IC, 'Taxa de suor', 'Quanto você perde por hora e quanto beber no calor')}
       ${it('#/prontidao', PRONT_IC, 'Check-in e dores', 'Sono, energia, dor e estresse dos últimos dias')}
       ${it('#/relogio', I.watch, 'Dados do relógio', 'Sono, VFC, frequência de repouso e mais')}
       ${S.me.sexo === 'F' ? `<a class="list-item" id="mais-ciclo" href="#/mulher" style="color:inherit"><span class="ativ-ic" style="color:#e85d75">${FV_IC}</span><div class="grow"><b>Saúde da mulher</b><div class="small muted">Ciclo, energia, assoalho pélvico, ferro e mais</div></div>${I.chev}</a>` : ''}
@@ -966,7 +967,8 @@ async function viewAguaAluno() {
   loading();
   const h = await aguaStaffHTML(S.me, true);
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Saúde</p><h1 class="h1">Hidratação</h1>
-    <div id="agua-box" class="agua-box" style="margin-top:16px"></div><div style="margin-top:14px">${h}</div>`;
+    <div id="agua-box" class="agua-box" style="margin-top:16px"></div><div style="margin-top:14px">${h}</div>
+    <a class="list-item" href="#/suor" style="color:inherit;margin-top:14px"><span class="ativ-ic">${AGUA_IC}</span><div class="grow"><b>Taxa de suor</b><div class="small muted">Quanto você perde por hora de treino e quanto beber no calor</div></div>${I.chev}</a>`;
   montarAgua(document.getElementById('agua-box'), 0).catch((e) => console.error(e));
 }
 async function viewProntAluno(abrir) {

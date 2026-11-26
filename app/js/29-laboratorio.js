@@ -1889,6 +1889,7 @@ function staffMais() {
       ${it('#/semana', SEM_IC, 'Resumo da semana', 'Rascunho pronto da semana de cada aluno para conferir e enviar')}
       ${it('#/minha-voz', VOZ_IC, 'Minha voz', 'Grave as frases que seus alunos ouvem no treino pelo GPS')}
       ${it('#/prontidao-equipe', PRONT_IC, 'Prontidão da equipe', 'Check-in da manhã de todos e alerta de carga')}
+      ${it('#/suor', AGUA_IC, 'Taxa de suor da equipe', 'Quanto cada aluno perde por hora, quem perde mais de 2% e quem bebe demais')}
       ${it('#/corpo3d', C3D_IC, 'Corpo 3D', 'O corpo inteiro em 3D para explicar dores e exercícios aos alunos')}
       ${it('#/fidelizacao', I.user, 'Painel de fidelização', 'Alunos esfriando: treinando menos, longe do app ou com pendências')}
       ${it('#/checkup', I.check, 'Check-up do Corredor', 'Avaliação de entrada e saída: pré-temporada, aluno novo, ciclo de prova')}
