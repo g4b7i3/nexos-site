@@ -973,7 +973,40 @@ function editorTreino({ alunoId, perfil, sessao, data, modelo, aoSalvar, modelos
         : null;
     if (se) {
       se.hidden = !sa;
-      se.innerHTML = sa ? `${icT(I.alerta)}<span>${esc(saltoTxt(sa))}</span>` : '';
+      se.innerHTML = sa
+        ? `${icT(I.alerta)}<div class="grow"><span>${esc(saltoTxt(sa))}</span><div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn sm" id="salto-ok-ed">Ok, entendi</button><span class="tiny dim">Se o aluno já corre essa distância, confirme e o aviso some.</span></div></div>`
+        : '';
+      const bo = se.querySelector('#salto-ok-ed');
+      if (bo)
+        bo.onclick = async () => {
+          bo.disabled = true;
+          // confirma até este treino e até o maior treino planejado dele que já estava com aviso
+          const km = resumoEstrutura(t.estrutura, perfil).km;
+          const futuros = (sR.refs || []).filter((x) => !String(x.id).startsWith('c') && x.dia >= hojeISO());
+          const okKm = Math.max(
+            km,
+            ...futuros.filter((x) => saltoAceito(saltoTreino(x.dia, x.km, sR.refs, x.id), x.km)).map((x) => x.km),
+          );
+          const { data: mm } = await sb
+            .from('nx_membros')
+            .select('corrida')
+            .eq('org_id', S.org.id)
+            .eq('user_id', alunoId)
+            .maybeSingle();
+          const salto_ok = { km: Math.round(okKm * 10) / 10, em: hojeISO() };
+          const { error } = await sb
+            .from('nx_membros')
+            .update({ corrida: { ...((mm && mm.corrida) || {}), salto_ok } })
+            .eq('org_id', S.org.id)
+            .eq('user_id', alunoId);
+          if (error) {
+            bo.disabled = false;
+            return toast('Não foi possível salvar.', true);
+          }
+          sR.ok = salto_ok;
+          toast(`Entendido. Sem aviso até ${f1(salto_ok.km)} km para este aluno.`);
+          desenhar(r);
+        };
     }
   };
   const pega = (cam) => {
