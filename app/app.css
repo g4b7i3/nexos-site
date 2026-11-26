@@ -4962,3 +4962,10 @@ html[data-tema="claro"] .ta-av i{border-color:#fff}
 @keyframes ta-pulsa{50%{opacity:.6}}
 @keyframes ta-onda-mic{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}100%{box-shadow:0 0 0 22px rgba(229,72,77,0)}}
 @media (prefers-reduced-motion:reduce){.ta-novo,.ta-f-ponto,.ta-f-parar,.ta-flut{animation:none}}
+.ta-resp-area{margin-top:10px}
+.ta-resp{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--ink);font-size:.85rem;font-weight:700;cursor:pointer}
+.ta-resp svg{width:16px;height:16px;color:var(--acc)}
+.ta-resp-f .textarea{width:100%;min-height:64px;resize:none;margin-top:8px}
+.ta-rapidas{display:flex;flex-wrap:wrap;gap:6px}
+.ta-resp-ok{display:flex;align-items:flex-start;gap:6px;font-size:.82rem;color:var(--mute);margin-top:4px}
+.ta-resp-ok svg{flex:none;width:15px;height:15px;color:var(--ok);margin-top:2px}

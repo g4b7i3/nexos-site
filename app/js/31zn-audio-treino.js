@@ -17,6 +17,7 @@ const TA_PAUSE =
 const TA_STOP =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>';
 
+const TA_RAPIDAS = ['Entendi, valeu!', 'Bora pro próximo!', 'Fiquei com uma dúvida'];
 const taDur = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** lugar do áudio na tela do treino (fica logo abaixo do botão da Conversa do treino) */
@@ -54,6 +55,14 @@ function taPlayerHTML(a, url, equipe) {
       <button type="button" class="ta-vel" aria-label="Velocidade">1x</button>
     </div>
     ${meu && a.autor_id === S.user.id ? '<button type="button" class="link-btn tiny ta-apagar">Apagar áudio</button>' : ''}
+    ${
+      !S.staff
+        ? `<div class="ta-resp-area"><button type="button" class="ta-resp">${CT_IC}<span>Responder ao treinador</span></button>
+      <form class="ta-resp-f" hidden><div class="ta-rapidas">${TA_RAPIDAS.map((t) => `<button type="button" class="chip">${esc(t)}</button>`).join('')}</div>
+        <textarea class="textarea" rows="2" maxlength="2000" placeholder="Escreva a sua resposta"></textarea>
+        <div class="row" style="gap:8px;margin-top:8px"><button type="button" class="btn ghost sm ta-resp-x">Cancelar</button><button type="submit" class="btn sm grow">Enviar resposta</button></div></form></div>`
+        : ''
+    }
     <audio preload="metadata" ${url ? `src="${esc(url)}"` : ''}></audio>
   </div>`;
 }
@@ -147,6 +156,59 @@ function taBindPlayer(card, a) {
     };
 }
 
+/** o aluno responde ao áudio com uma mensagem: vai para a Conversa do treino e o treinador recebe o aviso */
+function taBindResposta(card, a, box) {
+  const bt = card.querySelector('.ta-resp'),
+    f = card.querySelector('.ta-resp-f');
+  if (!bt || !f) return;
+  const ta = f.querySelector('textarea');
+  bt.onclick = () => {
+    bt.hidden = true;
+    f.hidden = false;
+    setTimeout(() => ta.focus(), 50);
+  };
+  f.querySelector('.ta-resp-x').onclick = () => {
+    f.hidden = true;
+    bt.hidden = false;
+  };
+  f.querySelectorAll('.ta-rapidas .chip').forEach(
+    (c) =>
+      (c.onclick = () => {
+        ta.value = c.textContent === 'Fiquei com uma dúvida' ? 'Fiquei com uma dúvida: ' : c.textContent;
+        ta.focus();
+      }),
+  );
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const texto = ta.value.trim();
+    if (!texto) return toast('Escreva a resposta.', true);
+    const env = f.querySelector('[type=submit]');
+    env.disabled = true;
+    env.textContent = 'Enviando…';
+    const { data, error } = await sb
+      .from('nx_treino_msgs')
+      .insert({
+        org_id: a.org_id || S.org.id,
+        aluno_id: S.user.id,
+        ref: a.ref,
+        titulo: box.dataset.taT || a.titulo || null,
+        texto: `Sobre o seu áudio: ${texto}`,
+      })
+      .select('id')
+      .single();
+    if (error) {
+      env.disabled = false;
+      env.textContent = 'Tentar de novo';
+      return toast('Não foi possível enviar. Verifique a internet.', true);
+    }
+    notificar('treino_msg', data && data.id);
+    f.outerHTML = `<p class="ta-resp-ok">${I.check}<span>Resposta enviada. Seu treinador recebe o aviso e responde na <b>Conversa do treino</b>.</span></p>`;
+    bt.remove();
+    document.querySelectorAll(`[data-ct="${a.ref}"]`).forEach((b) => b.removeAttribute('data-ct-ok'));
+    if (typeof ctContar === 'function') ctContar(document);
+  };
+}
+
 let taCarregando = false;
 async function taCarregar(raiz) {
   const boxes = [...(raiz || document).querySelectorAll('[data-ta]:not([data-ta-ok])')];
@@ -181,7 +243,10 @@ async function taCarregar(raiz) {
       box.hidden = !box.innerHTML;
       meus.forEach((a) => {
         const c = box.querySelector(`[data-ta-id="${a.id}"]`);
-        if (c) taBindPlayer(c, a);
+        if (c) {
+          taBindPlayer(c, a);
+          if (!S.staff) taBindResposta(c, a, box);
+        }
       });
       const g = box.querySelector('.ta-gravar');
       if (g) g.onclick = () => taGravar(box.dataset.ta, box.dataset.taAl, box.dataset.taT);
