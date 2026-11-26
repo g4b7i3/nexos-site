@@ -1027,6 +1027,8 @@ async function alunoHoje() {
       ${extraHoje
         .map((p) => {
           const x = DIA_EXTRA[p.tipo];
+          if (p.tipo === 'alongamento')
+            return `<a class="card wcard dia-forca dia-al tap" href="#/alongamento/${p.id}" style="display:flex;color:inherit"><div class="wletter fo al">${x.ic}</div><div class="grow"><span class="eyebrow">Definido pelo treinador</span><div class="h3" style="margin-top:2px">${esc(p.titulo || 'Sessão de alongamento')}</div><div class="small">${alItens(p).length} alongamentos guiados · cerca de ${alMinutos(alItens(p))} min${p.descricao ? '. ' + esc(p.descricao) : ''}</div><span class="btn sm" style="margin-top:10px;display:inline-flex">Começar a sessão</span></div></a>`;
           const txt =
             p.tipo === 'caminhada'
               ? `${p.duracao_min ? `${p.duracao_min} min de caminhada.` : 'Caminhada.'} ${p.descricao ? esc(p.descricao) : 'Hoje não tem corrida.'}`

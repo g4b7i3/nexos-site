@@ -1624,7 +1624,8 @@ async function polimentoSheet(alunoId, prova, perfil, aoAplicar) {
 /* ---------- calendário da planilha ---------- */
 // dias sem corrida na planilha: day off e dias por conta do aluno (força, bike e caminhada)
 const semCorrida = (p) =>
-  !!p && (p.tipo === 'folga' || p.tipo === 'forca' || p.tipo === 'bike' || p.tipo === 'caminhada');
+  !!p &&
+  (p.tipo === 'folga' || p.tipo === 'forca' || p.tipo === 'bike' || p.tipo === 'caminhada' || p.tipo === 'alongamento');
 const FORCA_IC =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>';
 const OFF_IC =
@@ -1633,8 +1634,20 @@ const BIKE_IC =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9h6l3.5 7.5M12 16.5 9 9M8 6h3M15 9l-1-3h2"/></svg>';
 const CAMINHADA_IC =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2" fill="currentColor" stroke="none"/><path d="M10 21l2-6 2.5 2.5V21M12 15l1-6-3 1.5L8.5 13M13 9l2 3 2.5 1"/></svg>';
-// dias por conta do aluno além da força: bike (minutos opcionais) e caminhada (com minutos)
+const ALONG_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="15.5" cy="4.2" r="2" fill="currentColor" stroke="none"/><path d="M3 20.5h18M6 20.5l5.5-5.5 3-4.5M14.5 10.5l4 3.5M11.5 15l4.5 5.5M14.5 10.5 9.5 8.5 6.5 10"/></svg>';
+// dias por conta do aluno além da força: bike (minutos opcionais) e caminhada (com minutos);
+// alongamento é uma sessão guiada (lista de alongamentos na estrutura), aberta em #/alongamento/<id>
 const DIA_EXTRA = {
+  alongamento: {
+    nome: 'Alongamento',
+    ic: ALONG_IC,
+    cls: 'al',
+    padrao: 'sessão guiada',
+    min: 15,
+    ex: 'Ex.: panturrilha e pernas',
+    expl: 'Sessão guiada de alongamento, sem corrida.',
+  },
   bike: {
     nome: 'Bike',
     ic: BIKE_IC,
@@ -1742,6 +1755,10 @@ function saltoDe(p, perfil, refs, feito) {
 const saltoTxt = (sa) =>
   `${sa.pct}% acima do treino mais longo dos últimos 30 dias (${f1(sa.mx)} km). Acima de 10% o risco de lesão aumenta (Frandsen et al., 2025). Para ficar no limite, até ${f1(sa.lim)} km.`;
 function cartaoSessao(p, perfil, feito, staff, salto) {
+  if (p.tipo === 'alongamento') {
+    const n = alItens(p).length;
+    return `<div class="ses forca-l extra-al ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic al">${ALONG_IC}</span><b>${esc(p.titulo || 'Alongamento')}</b></div><span class="ses-m">${n} alongamentos · ${alMinutos(alItens(p))} min</span></div>`;
+  }
   if (DIA_EXTRA[p.tipo]) {
     const x = DIA_EXTRA[p.tipo];
     return `<div class="ses forca-l extra-${x.cls} ${staff && p.liberado === false ? 'rasc' : ''}" data-ses="${p.id}"><div class="ses-t"><span class="off-ic ${x.cls}">${x.ic}</span><b>${x.nome}</b></div><span class="ses-m">${esc(diaExtraTxt(p))}</span></div>`;
@@ -2653,6 +2670,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
       if (se) {
         const p = plano.find((x) => x.id === se.dataset.ses);
         if (!p) return;
+        if (p.tipo === 'alongamento') return (location.hash = '#/alongamento/' + p.id);
         if (DIA_EXTRA[p.tipo])
           return staff
             ? diaExtraSheet({ tipo: p.tipo, p, alunoId, aoSalvar: recarregar })
@@ -2747,6 +2765,24 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
             const b = e.target.closest('[data-pick]');
             if (!b) return;
             const md = modelos.find((x) => x.id === b.dataset.pick);
+            if (md && md.tipo === 'alongamento') {
+              // sessão de alongamento da biblioteca: entra no dia com a lista de alongamentos
+              const { error } = await sb.from('nx_plano_corrida').insert({
+                org_id: S.org.id,
+                aluno_id: alunoId,
+                data,
+                tipo: 'alongamento',
+                titulo: md.nome,
+                estrutura: md.estrutura,
+                distancia_km: 0,
+                duracao_min: alMinutos(alItens(md)),
+                criado_por: S.user.id,
+              });
+              closeSheet();
+              return error
+                ? toast('Não foi possível adicionar.', true)
+                : (toast(`${md.nome} na planilha.`), recarregar());
+            }
             if (md && DIA_EXTRA[md.tipo]) return diaExtraSheet({ tipo: md.tipo, data, alunoId, aoSalvar: recarregar });
             if (md && semCorrida(md)) {
               const { error } = await sb.from('nx_plano_corrida').insert({
@@ -2816,7 +2852,7 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
           if (el.dataset.mod) {
             const md = modelos.find((x) => x.id === el.dataset.mod);
             if (!md) return;
-            const rs = resumoEstrutura(md.estrutura, perfil);
+            const rs = semCorrida(md) ? { km: 0, seg: 0 } : resumoEstrutura(md.estrutura, perfil);
             const { error } = await sb.from('nx_plano_corrida').insert({
               org_id: S.org.id,
               aluno_id: alunoId,
@@ -2825,7 +2861,12 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
               titulo: md.nome,
               estrutura: md.estrutura,
               distancia_km: Math.round(rs.km * 10) / 10,
-              duracao_min: DIA_EXTRA[md.tipo] ? DIA_EXTRA[md.tipo].min || 0 : Math.round(rs.seg / 60),
+              duracao_min:
+                md.tipo === 'alongamento'
+                  ? alMinutos(alItens(md))
+                  : DIA_EXTRA[md.tipo]
+                    ? DIA_EXTRA[md.tipo].min || 0
+                    : Math.round(rs.seg / 60),
               zona: null,
               criado_por: S.user.id,
             });

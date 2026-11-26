@@ -2,7 +2,7 @@
    Parte 1 de 31: os arquivos de app/js são carregados em ordem pelo index.html e dividem o mesmo escopo. */
 'use strict';
 // versão publicada do código (scripts/versao.sh troca a cada commit; igual à de app/versao.json)
-const NX_BUILD = 'v20261126135029';
+const NX_BUILD = 'v20261126205639';
 
 const SUPABASE_URL = 'https://gbcshtmesawpokuwiaxb.supabase.co';
 const SUPABASE_KEY =
@@ -1210,6 +1210,7 @@ async function router() {
       if (a === 'saude-sistema') return await staffSaudeSistema();
       if (a === 'prontidao-equipe') return await staffProntidao(b);
       if (a === 'suor') return await staffSuorEquipe();
+      if (a === 'alongamento') return await viewAlongamento(b);
       if (a === 'relogios') return await staffRelogios();
       if (a === 'desativados') return await staffDesativados();
       if (a === 'videochamadas') return await staffVideochamadas();
@@ -1294,6 +1295,7 @@ async function router() {
     if (a === 'notificacoes') return await viewNotificacoes();
     if (a === 'dicas') return await viewDicas(b);
     if (a === 'pausa') return await viewPausa(b);
+    if (a === 'alongamento') return await viewAlongamento(b);
     if (a === 'relaxar') return viewRelaxar();
     if (a === 'corpo3d') return viewCorpo3d(b, c, d);
     return await alunoHoje();

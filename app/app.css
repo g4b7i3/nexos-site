@@ -4999,3 +4999,30 @@ details.voltas-sec>summary::-webkit-details-marker{display:none}
 .ta-tr[hidden]{display:none}
 .ta-tr-txt{font-size:.88rem;line-height:1.5;color:var(--ink);white-space:pre-line}
 .ta-tr-x{margin-top:6px}
+/* sessão de alongamento */
+.off-ic.al,.mod-al .off-faixa,.off-faixa.grande.fo.al,.wletter.fo.al{background:linear-gradient(135deg,#7c3aed,#c084fc)}
+.al-feito{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 14px;font-size:.86rem;color:var(--ok)}
+.al-feito svg{width:18px;height:18px;flex:none}
+.al-box{margin-top:16px;padding:14px;overflow:hidden}
+.al-midia .exfig.big,.al-midia .ex-vid video{width:100%;max-height:46vh;border-radius:14px;background:#fff;object-fit:contain}
+.al-midia .ex-vid{margin:0}
+.al-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:12px}
+.al-top b{font-size:1.08rem}
+.al-sub{font-size:.84rem;font-weight:700;color:var(--acc);margin-top:2px}
+.al-seg{font-family:var(--f-d);font-size:3.4rem;font-weight:800;text-align:center;margin-top:8px;line-height:1}
+.al-seg small{font-size:1rem;font-weight:600;color:var(--mute);margin-left:4px}
+.al-seg.vai{color:var(--acc)}
+.al-seg.reps{font-size:2.6rem}
+.al-prep{display:flex;flex-direction:column;align-items:center;margin-top:8px;font-weight:700;color:var(--mute)}
+.al-prep b{font-family:var(--f-d);font-size:2.8rem;color:var(--ink);line-height:1.1}
+.al-ctl{gap:8px;margin-top:12px}
+.al-ctl #al-ant{flex:none;width:52px;padding:0;display:grid;place-items:center}
+.al-ctl #al-ant svg{width:18px;height:18px}
+.al-lista{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+.al-lista li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--s1);border:1px solid var(--line);cursor:pointer}
+.al-lista li b{display:block;font-size:.9rem}.al-lista li small{display:block;font-size:.76rem;color:var(--mute);margin-top:1px}
+.al-n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:.8rem;font-weight:800;background:var(--s3);color:var(--ink)}
+.al-lista li.atual{border-color:var(--acc)}
+.al-lista li.atual .al-n{background:var(--acc);color:#fff}
+.al-lista li.ok{opacity:.6}.al-lista li.ok .al-n{background:var(--ok);color:#fff}
+.al-fim{text-align:center;padding:18px 6px}
