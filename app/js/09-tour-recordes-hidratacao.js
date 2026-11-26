@@ -1495,6 +1495,7 @@ function sessaoCard(s, nome) {
       </div>
       ${s.comentario ? `<p class="small muted" style="margin-top:8px">“${esc(s.comentario)}”</p>` : ''}
       <div style="margin-top:10px">${ctBotaoHTML('sessao:' + s.id, s.aluno_id || S.user.id, s.treino_titulo || 'Treino de força')}</div>
+      ${taHTML('sessao:' + s.id, s.aluno_id || S.user.id, s.treino_titulo || 'Treino de força')}
     </div></div>`;
 }
 

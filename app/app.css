@@ -4912,3 +4912,45 @@ em.suor-ok,em.suor-atencao,em.suor-alto,em.suor-ganhou{color:var(--sc);font-styl
 .suor-lado{text-align:right;margin-right:4px}
 .suor-lado b{display:block;font-family:var(--f-h);font-size:.95rem}
 .suor-lado em{font-size:.72rem}
+/* áudio do treinador no treino */
+.ta-box{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.ta-box[hidden]{display:none}
+.ta-card{position:relative;padding:14px 14px 12px;border-radius:18px;border:1px solid color-mix(in srgb,var(--acc) 30%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--p2) 10%,var(--s1)),var(--s1) 70%);overflow:hidden}
+.ta-card.novo{border-color:var(--acc);box-shadow:0 0 0 3px rgba(var(--p2r),.12)}
+.ta-top{display:flex;align-items:center;gap:10px}
+.ta-top b{display:block;font-size:.95rem}
+.ta-sub{display:block;font-size:.76rem;color:var(--mute);margin-top:1px}
+.ta-av{position:relative;flex:none;width:40px;height:40px}
+.ta-av .foto{width:40px;height:40px;border-radius:50%;object-fit:cover;display:grid;place-items:center;font-size:.8rem;font-weight:800;background:var(--s3);color:var(--ink)}
+.ta-av i{position:absolute;right:-3px;bottom:-3px;width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:var(--p2);color:#fff;border:2px solid var(--s1)}
+.ta-av i svg{width:11px;height:11px}
+.ta-novo{flex:none;padding:3px 9px;border-radius:999px;background:var(--p2);color:#fff;font-size:.7rem;font-weight:800;animation:ta-pulsa 1.6s ease-in-out infinite}
+.ta-ouvido{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:700;color:var(--mute);white-space:nowrap}
+.ta-ouvido.sim{color:var(--ok)}.ta-ouvido svg{width:13px;height:13px}
+.ta-player{display:flex;align-items:center;gap:10px;margin-top:12px}
+.ta-play{flex:none;width:46px;height:46px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--p2),var(--p3));box-shadow:0 6px 16px rgba(var(--p2r),.35);cursor:pointer}
+.ta-play svg{width:20px;height:20px}
+.ta-play:active{transform:scale(.94)}
+.ta-onda{flex:1;min-width:0;height:38px;display:flex;align-items:center;gap:2px;cursor:pointer;touch-action:manipulation}
+.ta-onda i{flex:1;min-width:2px;border-radius:2px;background:color-mix(in srgb,var(--mute) 45%,transparent);transition:background .15s}
+.ta-onda i.on{background:var(--p2)}
+.ta-tempo{flex:none;font-variant-numeric:tabular-nums;font-size:.8rem;font-weight:700;color:var(--mute);min-width:34px;text-align:right}
+.ta-vel{flex:none;min-width:38px;padding:4px 7px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--ink);font-size:.72rem;font-weight:800;cursor:pointer}
+.ta-apagar{margin-top:8px;color:var(--mute)}
+.ta-gravar{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:16px;border:1.5px dashed color-mix(in srgb,var(--acc) 55%,transparent);background:transparent;color:var(--ink);text-align:left;cursor:pointer}
+.ta-gravar>svg{flex:none;width:38px;height:38px;padding:9px;border-radius:50%;background:linear-gradient(135deg,var(--p2),var(--p3));color:#fff}
+.ta-gravar b{display:block;font-size:.92rem}.ta-gravar small{display:block;font-size:.76rem;color:var(--mute);margin-top:1px}
+.ta-rec{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:18px}
+.ta-viz{width:100%;height:70px}
+.ta-relogio{font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums}
+.ta-relogio small{font-size:.9rem;color:var(--mute);font-weight:600}
+.ta-mic{width:84px;height:84px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--p2),var(--p3));box-shadow:0 10px 28px rgba(var(--p2r),.4);cursor:pointer}
+.ta-mic svg{width:34px;height:34px}
+.ta-mic.gravando{background:#e5484d;box-shadow:0 0 0 0 rgba(229,72,77,.5);animation:ta-onda-mic 1.4s ease-out infinite}
+.ta-mic.gravando svg{width:28px;height:28px}
+.ta-rev{margin-top:16px}
+html[data-tema="claro"] .ta-card{background:linear-gradient(135deg,rgba(var(--p2r),.07),#fff 70%)}
+html[data-tema="claro"] .ta-av i{border-color:#fff}
+@keyframes ta-pulsa{50%{opacity:.6}}
+@keyframes ta-onda-mic{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}100%{box-shadow:0 0 0 22px rgba(229,72,77,0)}}
+@media (prefers-reduced-motion:reduce){.ta-novo,.ta-mic.gravando{animation:none}}
