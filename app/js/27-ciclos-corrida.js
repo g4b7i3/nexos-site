@@ -2138,6 +2138,7 @@ async function cicAplicar(c, S2) {
       ${temProva ? '<label class="field"><span>Data da prova (opcional)</span><input class="input" type="date" name="prova"><small class="tiny dim">Com a data da prova, o ciclo termina no domingo da semana da prova.</small></label>' : ''}
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${pre.ini || prox}" required></label>
       <p class="small" id="cic-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
+      <label class="field"><span>Quantas semanas montar agora</span><select class="input" name="nsem"><option value="0">Todas</option>${Array.from({ length: Math.max(0, c.sem - 1) }, (_, i) => `<option value="${i + 1}">${i + 1} semana${i ? 's' : ''}</option>`).join('')}</select><small class="tiny dim" id="cic-nsem-dica">Para montar aos poucos: depois aplique o mesmo ciclo de novo, com a mesma data da prova ou o mesmo início, e o app segue da semana em que parou.</small></label>
       <label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como no ciclo</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label>
       <label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>
       <p class="tiny dim" style="margin:8px 0 12px">Nada é liberado para o aluno. Os treinos já liberados nunca são apagados.</p>
@@ -2173,7 +2174,8 @@ async function cicAplicar(c, S2) {
         el.style.color = ec.pulo ? 'var(--warn)' : '';
         if (pv) f.ini.value = ec.resta > 0 ? ec.iniEf : ini;
         btnTxt.disabled = ec.pulo > 0 && ec.resta <= 0;
-        const n = ec.pulo ? Math.max(0, ec.resta) : c.sem;
+        const tot = ec.pulo ? Math.max(0, ec.resta) : c.sem;
+        const n = +f.nsem.value ? Math.min(+f.nsem.value, tot) : tot;
         btnTxt.textContent = n ? `Montar ${n} semana${n > 1 ? 's' : ''} na planilha` : 'Montar na planilha';
       };
       f.oninput = atual;
@@ -2203,8 +2205,11 @@ async function cicAplicar(c, S2) {
           );
         }
         const hj = hojeISO();
+        // "quantas semanas montar agora": só as N primeiras a partir do início efetivo
+        const nsem = +f.nsem.value || 0;
+        const ate = nsem ? isoDia(new Date(Date.parse(ec.iniEf + 'T12:00:00') + (nsem * 7 - 1) * 864e5)) : '9999';
         const rows = linhasCiclo(c, alunoId, perfil, ini, f.longao.value).filter(
-          (x) => x.data >= ec.iniEf && x.data >= hj,
+          (x) => x.data >= ec.iniEf && x.data >= hj && x.data <= ate,
         );
         try {
           if (f.limpar.checked) {
@@ -2213,7 +2218,8 @@ async function cicAplicar(c, S2) {
               .delete()
               .eq('aluno_id', alunoId)
               .eq('liberado', false)
-              .gte('data', ec.pulo ? hj : isoDia(ini));
+              .gte('data', ec.pulo ? hj : isoDia(ini))
+              .lte('data', ate);
             if (e1) throw e1;
           }
           for (let k = 0; k < rows.length; k += 150) {
@@ -2228,7 +2234,9 @@ async function cicAplicar(c, S2) {
         }
         registrarCiclo(alunoId, 'corrida', c, ec.pulo ? dia(ec.iniEf) : ini, ec.pulo ? ec.resta : c.sem);
         closeSheet(true);
-        toast(`${rows.length} treinos montados para ${firstName(m && m.nome)}. Libere semana a semana.`);
+        toast(
+          `${rows.length} treinos montados para ${firstName(m && m.nome)}${nsem ? ` (${nsem} semana${nsem > 1 ? 's' : ''} do ciclo)` : ''}. Libere semana a semana.`,
+        );
         abrirNaSemana(alunoId, isoDia(ini));
         location.hash = `#/aluno/${alunoId}/corrida`;
       };
