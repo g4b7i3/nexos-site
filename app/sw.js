@@ -3,7 +3,7 @@
 // v5: o código do app vem sempre da internet primeiro (fechar e abrir já atualiza)
 // v6: cache novo (apaga as cópias velhas de quem ficou preso numa versão antiga) e espera mais a internet
 // v7: notificação de videochamada fica na tela, vibra longo e tem o botão Atender
-const CACHE = 'nx-app-v3';
+const CACHE = 'nx-app-v4';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
   for (const k of await caches.keys()) if (k.startsWith('nx-app-') && k !== CACHE) await caches.delete(k);
@@ -18,6 +18,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin || url.pathname.endsWith('/sw.js')) return; // Supabase, Garmin etc. vão direto
+  if (url.pathname.startsWith('/espaco/')) return; // Viagem pelo espaço: imagens pesadas, ficam no cache do navegador
   // página (index.html): tenta a internet por até 3,5 s; se demorar ou faltar, abre a cópia guardada
   if (req.mode === 'navigate') {
     const chave = url.origin + url.pathname;

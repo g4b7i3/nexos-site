@@ -1909,7 +1909,7 @@ function staffMais() {
     <p class="sec-lbl">Entretenimento</p><div class="stack">
       <a class="list-item tv-item" href="#/tv" style="color:inherit"><span class="ativ-ic tv-ic">${TV_IC}</span><div class="grow"><b>TV Nexos</b><div class="small muted">Filmes e documentários de corrida, filmes completos e sala infantil</div></div>${I.chev}</a>
       <a class="list-item" href="#/meditacao" style="color:inherit"><span class="ativ-ic med-ic">${MEDIT_IC}</span><div class="grow"><b>Meditação</b><div class="small muted">Sessões guiadas para acalmar, focar, recuperar e dormir</div></div>${I.chev}</a>
-      <a class="list-item" href="/espaco/" style="color:inherit"><span class="ativ-ic esp-ic">${ESPACO_IC}</span><div class="grow"><b>Viagem pelo espaço</b><div class="small muted">Sistema Solar, Via Láctea e galáxias em 3D · voe de foguete</div></div>${I.chev}</a>
+      <a class="list-item" href="/treinador/espaco/" style="color:inherit"><span class="ativ-ic esp-ic">${ESPACO_IC}</span><div class="grow"><b>Viagem pelo espaço</b><div class="small muted">Sistema Solar, Via Láctea e galáxias em 3D · voe de foguete</div></div>${I.chev}</a>
     </div>
     <p class="sec-lbl">Assessoria</p><div class="stack">
       ${it('#/financeiro', I.money, 'Financeiro', 'Mensalidades, Pix e quem está em dia')}
