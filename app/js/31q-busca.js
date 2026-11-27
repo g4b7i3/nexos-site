@@ -114,9 +114,9 @@ function buscaTelasAluno() {
     ['#/medalhas', 'Medalhas', 'Conquistas dos seus treinos', 'conquista trofeu'],
     ['#/tv', 'TV Nexos', 'Filmes e documentários de corrida', 'filme documentario video assistir'],
     [
-      '#/tv',
+      '/espaco/',
       'Viagem pelo espaço',
-      'Sistema Solar e Via Láctea em 3D, na TV Nexos',
+      'Sistema Solar e Via Láctea em 3D',
       'espaco planetas galaxia via lactea cosmos astronomia',
     ],
     [
@@ -210,7 +210,7 @@ function buscaTelasEquipe() {
     ['#/dicas', 'Dicas da Nexos', 'Textos curtos com base científica para os alunos', 'dica texto'],
     ['#/formularios', 'Formulários', 'Ficha de entrada para mandar no WhatsApp', 'formulario ficha entrada link'],
     ['#/tv', 'TV Nexos', 'Filmes e documentários de corrida', 'filme documentario'],
-    ['#/tv', 'Viagem pelo espaço', 'Sistema Solar e Via Láctea em 3D, na TV Nexos', 'espaco planetas galaxia cosmos'],
+    ['/espaco/', 'Viagem pelo espaço', 'Sistema Solar e Via Láctea em 3D', 'espaco planetas galaxia cosmos'],
     ['#/meditacao', 'Meditação', 'Sessões guiadas', 'respiracao relaxar'],
     ['#/financeiro', 'Financeiro', 'Mensalidades, Pix e quem está em dia', 'mensalidade pix pagamento cobranca'],
     ['#/termos-equipe', 'Termos', 'Termos aceitos pelos alunos, em PDF', 'contrato termo'],

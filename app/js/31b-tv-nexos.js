@@ -3,6 +3,9 @@
    federações, produtoras, distribuidoras de filmes gratuitos e canais oficiais infantis).
    O vídeo toca no player do próprio YouTube (youtube-nocookie) e só carrega quando a pessoa toca.
    A busca usa a função nx-youtube (API oficial do YouTube); sem a chave configurada, a busca não aparece. */
+// ícone da Viagem pelo espaço (Mais, abaixo da Meditação)
+const ESPACO_IC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><ellipse cx="12" cy="12" rx="10" ry="3.6" transform="rotate(-20 12 12)"/></svg>';
 const tvYt = (id, t, canal, d, o = {}) => ({ id, t, canal, d, ...o });
 const TV_EN = { en: true };
 
@@ -269,8 +272,7 @@ async function viewTv(sala) {
       <span class="tv-hero-txt">${hero.aoVivo ? '<span class="tv-selo vivo"><i></i>AO VIVO</span>' : '<span class="tv-selo">EM DESTAQUE</span>'}<b>${esc(hero.t)}</b><small>${esc(hero.canal)}${hero.d ? ' · ' + esc(hero.d) : ''}</small><span class="tv-assistir">${TV_PLAY} Assistir</span></span>
     </button>
     ${infantil ? '' : '<div id="tv-busca"></div>'}
-    ${infantil ? '' : `<a class="tv-kids tv-espaco" href="/espaco/"><img src="/espaco/capa.jpg" alt="" loading="lazy"><span><b>Viagem pelo espaço</b><small>Sistema Solar, Via Láctea e galáxias em 3D · voe de foguete</small></span>${I.chev}</a>`}
-    ${infantil ? '' : `<a class="tv-kids" href="#/tv/infantil"><img src="${tvCapa(TV_INFANTIL[0].itens[0])}" alt="" loading="lazy"><span><b>Infantil</b><small>Desenhos e músicas em português · canal ao vivo</small></span>${I.chev}</a>`}
+        ${infantil ? '' : `<a class="tv-kids" href="#/tv/infantil"><img src="${tvCapa(TV_INFANTIL[0].itens[0])}" alt="" loading="lazy"><span><b>Infantil</b><small>Desenhos e músicas em português · canal ao vivo</small></span>${I.chev}</a>`}
     ${secoes
       .map(
         (s) =>
