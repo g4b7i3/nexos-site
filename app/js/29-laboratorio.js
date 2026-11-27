@@ -2108,6 +2108,7 @@ const AVISO_DESTINOS = [
   ['#/eventos', 'Eventos e provas'],
   ['#/dicas', 'Dicas da Nexos'],
   ['#/tv', 'TV Nexos'],
+  ['#/espaco', 'Viagem pelo espaço'],
   ['#/mais', 'Mais'],
 ];
 // primeiro aviso, aprovado pela equipe: o lançamento da Meditação
