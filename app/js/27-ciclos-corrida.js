@@ -2163,14 +2163,18 @@ async function cicAplicar(c, S2) {
         const el = r.querySelector('#cic-fim');
         el.textContent = ec.pulo
           ? ec.resta > 0
-            ? `Até a prova cabem ${ec.resta} semana${ec.resta > 1 ? 's' : ''} e o ciclo tem ${c.sem}. Ele começa na semana ${ec.pulo + 1} e pula as ${ec.pulo} primeira${ec.pulo > 1 ? 's' : ''}, que são de base. A parte específica e o polimento ficam inteiros. Vai de ${fmtDia(ec.iniEf)} a ${fmtDia(isoDia(fim))}.${ec.resta < cicMinSem(c) ? ' Pouco tempo para este ciclo: confira se a distância da prova é a melhor escolha.' : ' Confira os avisos de volume nas primeiras semanas.'}`
-            : 'Essa data já passou. Escolha uma prova ou um início a partir desta semana.'
+            ? ec.resta < cicMinSem(c)
+              ? `Até a prova ${ec.resta > 1 ? `cabem ${ec.resta} semanas` : 'cabe 1 semana'} e o ciclo tem ${c.sem}. Entram só as últimas semanas do ciclo, com o polimento e a prova, de ${fmtDia(ec.iniEf)} a ${fmtDia(isoDia(fim))}. É pouco tempo para treinar para a prova: confira se a distância é a melhor escolha.`
+              : `Até a prova cabem ${ec.resta} semanas e o ciclo tem ${c.sem}. Ele começa na semana ${ec.pulo + 1} e pula as ${ec.pulo} primeira${ec.pulo > 1 ? 's' : ''}, que são de base. A parte específica e o polimento ficam inteiros. Vai de ${fmtDia(ec.iniEf)} a ${fmtDia(isoDia(fim))}. Confira os avisos de volume nas primeiras semanas.`
+            : pv && pv >= hojeISO()
+              ? 'A prova é nesta semana e o ciclo começaria só na próxima. Para esta semana, monte os treinos à mão ou use o Polimento na planilha do aluno.'
+              : 'Essa data já passou. Escolha uma prova ou um início a partir desta semana.'
           : `Vai de ${fmtDia(ini)} a ${fmtDia(isoDia(fim))}.`;
         el.style.color = ec.pulo ? 'var(--warn)' : '';
         if (pv) f.ini.value = ec.resta > 0 ? ec.iniEf : ini;
         btnTxt.disabled = ec.pulo > 0 && ec.resta <= 0;
-        const n = Math.max(0, ec.resta || c.sem);
-        btnTxt.textContent = `Montar ${n} semana${n > 1 ? 's' : ''} na planilha`;
+        const n = ec.pulo ? Math.max(0, ec.resta) : c.sem;
+        btnTxt.textContent = n ? `Montar ${n} semana${n > 1 ? 's' : ''} na planilha` : 'Montar na planilha';
       };
       f.oninput = atual;
       atual();
@@ -2191,7 +2195,12 @@ async function cicAplicar(c, S2) {
         if (ec.pulo && ec.resta <= 0) {
           b.disabled = false;
           b.textContent = 'Montar na planilha';
-          return toast('Essa data já passou.', true);
+          return toast(
+            f.prova && f.prova.value >= hojeISO()
+              ? 'A prova é nesta semana: não cabe um ciclo.'
+              : 'Essa data já passou.',
+            true,
+          );
         }
         const hj = hojeISO();
         const rows = linhasCiclo(c, alunoId, perfil, ini, f.longao.value).filter(
