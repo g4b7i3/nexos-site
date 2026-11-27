@@ -2403,8 +2403,10 @@ async function viewCorridaPainel(alunoId, box, staff, m, subs, silencioso) {
     : '';
   const sugTeste = staff && sub === 'ritmos' ? '<div id="sug-teste"></div>' : '';
   const thBox = sub === 'ritmos' ? '<div id="th-box"></div>' : '';
+  const rzBox = staff && sub === 'ritmos' ? '<div id="rz-box" style="margin-top:12px"></div>' : '';
   box.innerHTML =
-    (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${avisoTeste}${sugTeste}${corpo}${thBox}</div>`;
+    (SUBS.length > 1 ? subTabs : '') + `<div class="sub-corpo">${avisoTeste}${sugTeste}${corpo}${rzBox}${thBox}</div>`;
+  if (rzBox) rzMontar(box.querySelector('#rz-box'), m).catch((e) => console.error(e));
   if (thBox)
     thMontar(box.querySelector('#th-box'), { alunoId, staff, orgId: m.org_id || S.org.id }).catch((e) =>
       console.error(e),

@@ -726,7 +726,7 @@ async function staffRelogios() {
   const ms = await sb
     .from('nx_membros')
     .select(
-      'user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades,sexo',
+      'user_id,nome,foto_url,ativo,aprovacao,treinador_id,treinador_forca_id,treinador_corrida_id,modalidades,sexo,nascimento,corrida',
     )
     .eq('org_id', S.org.id)
     .eq('papel', 'aluno')
@@ -759,10 +759,15 @@ async function staffRelogios() {
   $app.innerHTML = `<a class="back" href="#/mais">${I.back} Mais</a><p class="eyebrow">Equipe</p><h1 class="h1">Relógios dos alunos</h1>
     <p class="muted" style="margin-top:6px">Quem está com o relógio conectado ao app, por onde (Garmin direto ou Intervals.icu, que atende Coros, Polar, Suunto, Wahoo e Amazfit) e o modelo, que aparece depois da primeira atividade importada.</p>
     <div class="card" style="margin-top:14px"><div class="ck-res cic-res"><div><b>${con.length}</b><span>conectados</span></div><div><b>${err.length}</b><span>com problema</span></div><div><b>${sem.length}</b><span>sem conexão</span></div></div></div>
+    <div id="rz-lista"></div>
     ${grupo('Com problema', err, 'A conexão caiu ou expirou: peça ao aluno para abrir Mais → Conexões e conectar de novo.')}
     ${grupo('Conectados', con, '')}
     ${grupo('Sem relógio conectado', sem, 'As corridas desses alunos só chegam se eles enviarem o arquivo, digitarem ou usarem o GPS do app.')}
     ${!al.length ? '<div class="empty"><div class="h3">Nenhum aluno ainda</div></div>' : ''}`;
+  const rzEl = $app.querySelector('#rz-lista');
+  rzListaHTML(al)
+    .then((h) => rzEl.isConnected && (rzEl.innerHTML = h))
+    .catch((e) => console.error(e));
 }
 
 /* ---------- painel de prontidão da equipe ---------- */
