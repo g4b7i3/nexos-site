@@ -1606,6 +1606,85 @@ function linhasCiclo(c, alunoId, perfil, ini, dL) {
   );
   return rows;
 }
+/* grava os treinos de um ciclo sem duplicar dia. Treino liberado (o treinador apertou Liberar) nunca é sobrescrito
+   sem pedir: por padrão o dia com treino liberado fica como está e o ciclo só preenche os outros. Com trocarLib, os
+   liberados do período são trocados pelos do ciclo (exceto os já feitos, com corrida ligada), saem do relógio e os
+   novos desses dias já entram liberados; o aluno é avisado. limpar: apaga os rascunhos de de até ateLimpar. */
+async function gravarCicloRows(alunoId, rows, { de, ateLimpar = null, limpar = true, trocarLib = false }) {
+  if (!rows.length) return { inseridos: 0, diasPulados: 0, trocados: 0 };
+  const ds = rows.map((r) => r.data).sort();
+  const { data: exist, error: e0 } = await sb
+    .from('nx_plano_corrida')
+    .select('id,data,liberado,garmin_workout_id')
+    .eq('aluno_id', alunoId)
+    .eq('liberado', true)
+    .gte('data', ds[0])
+    .lte('data', ds[ds.length - 1]);
+  if (e0) throw e0;
+  let lib = exist || [];
+  const diasTrocados = new Set();
+  let trocados = 0;
+  if (trocarLib && lib.length) {
+    const { data: cs } = await sb
+      .from('nx_corridas')
+      .select('plano_id')
+      .in(
+        'plano_id',
+        lib.map((p) => p.id),
+      );
+    const feitos = new Set((cs || []).map((c) => c.plano_id));
+    const sai = lib.filter((p) => !feitos.has(p.id));
+    const noRel = sai.filter((p) => p.garmin_workout_id > 0);
+    if (noRel.length)
+      await chamarGarmin({
+        acao: 'remover_treinos',
+        aluno_id: alunoId,
+        itens: noRel.map((p) => ({ plano_id: p.id })),
+      }).catch(() => {});
+    if (sai.length) {
+      const { error } = await sb
+        .from('nx_plano_corrida')
+        .delete()
+        .in(
+          'id',
+          sai.map((p) => p.id),
+        );
+      if (error) throw error;
+    }
+    sai.forEach((p) => diasTrocados.add(p.data));
+    trocados = sai.length;
+    lib = lib.filter((p) => feitos.has(p.id));
+  }
+  if (limpar) {
+    let q = sb.from('nx_plano_corrida').delete().eq('aluno_id', alunoId).eq('liberado', false).gte('data', de);
+    if (ateLimpar) q = q.lte('data', ateLimpar);
+    const { error } = await q;
+    if (error) throw error;
+  }
+  const diasLib = new Set(lib.map((p) => p.data));
+  const novos = rows
+    .filter((r) => !diasLib.has(r.data))
+    .map((r) => (diasTrocados.has(r.data) ? { ...r, liberado: true } : r));
+  for (let k = 0; k < novos.length; k += 150) {
+    const { error } = await sb.from('nx_plano_corrida').insert(novos.slice(k, k + 150));
+    if (error) throw error;
+  }
+  if (trocados) notificarAluno('planilha', alunoId);
+  return { inseridos: novos.length, diasPulados: diasLib.size, trocados };
+}
+const gravadoTxt = (g) =>
+  [
+    g.diasPulados
+      ? `${g.diasPulados} dia${g.diasPulados > 1 ? 's' : ''} com treino já liberado ficaram como estavam`
+      : '',
+    g.trocados
+      ? `${g.trocados} treino${g.trocados > 1 ? 's' : ''} liberado${g.trocados > 1 ? 's' : ''} trocado${g.trocados > 1 ? 's' : ''} (o aluno foi avisado)`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('; ');
+const TROCAR_LIB_HTML = (nome) =>
+  `<label class="ck-check"><input type="checkbox" ${nome}><span>Substituir também os treinos já liberados. Sem marcar, os dias com treino liberado ficam como estão e o ciclo só preenche os outros.</span></label>`;
 // trilha: os ciclos viram uma sequência só, e o limite de 10% vale também na passagem de um ciclo para o outro
 // (sem isso, o primeiro longão do ciclo seguinte podia saltar bem acima do último do anterior; Frandsen et al. 2025)
 function linhasTrilha(cs, alunoId, perfil, ini, dL) {
@@ -1689,7 +1768,7 @@ async function aplicarTrilha(t, cs, forca, tot) {
       <label class="field"><span>Aluno</span><select class="input" name="aluno" required><option value="">Escolha o aluno</option>${alunos.map((m) => `<option value="${m.user_id}" ${preT.aluno === m.user_id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
       <label class="field"><span>Começa na segunda-feira</span><input class="input" type="date" name="ini" value="${prox}" required></label>
       <p class="small" id="trl-fim" style="margin:-4px 0 10px;color:var(--acc)"></p>
-      ${forca ? escTreinosFHTML() : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>'}
+      ${forca ? escTreinosFHTML() : '<label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como nos ciclos</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label><label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>' + TROCAR_LIB_HTML('name="trocarlib"')}
       <button class="btn block" type="submit" style="margin-top:12px">Aplicar ${tot} semanas</button></form>`,
     (r) => {
       const f = r.querySelector('#f-trl');
@@ -1738,19 +1817,12 @@ async function aplicarTrilha(t, cs, forca, tot) {
               registrarCiclo(alunoId, 'corrida', c, ini, cicSem(c), t.id);
               ini.setDate(ini.getDate() + 7 * cicSem(c));
             });
-            if (f.limpar.checked) {
-              const { error: e1 } = await sb
-                .from('nx_plano_corrida')
-                .delete()
-                .eq('aluno_id', alunoId)
-                .eq('liberado', false)
-                .gte('data', isoDia(ini0));
-              if (e1) throw e1;
-            }
-            for (let k = 0; k < rows.length; k += 150) {
-              const { error: e2 } = await sb.from('nx_plano_corrida').insert(rows.slice(k, k + 150));
-              if (e2) throw e2;
-            }
+            const g = await gravarCicloRows(alunoId, rows, {
+              de: isoDia(ini0),
+              limpar: f.limpar.checked,
+              trocarLib: f.trocarlib.checked,
+            });
+            if (gravadoTxt(g)) extraF = (extraF ? extraF + ' ' : '') + gravadoTxt(g) + '.';
           }
         } catch (er) {
           console.error(er);
@@ -2207,6 +2279,7 @@ async function viewMacro() {
         })
         .join('')}</div>
       <label class="ck-check" style="margin-top:14px"><input type="checkbox" id="mac-limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>
+      ${TROCAR_LIB_HTML('id="mac-trocarlib"')}
       <button class="btn block" id="mac-apl" style="margin-top:12px" ${st.aluno ? '' : 'disabled'}>${I.users} ${st.aluno ? `Aplicar as ${pl.total} semanas` : 'Escolha o aluno para aplicar'}</button>
       <p class="tiny dim" style="margin-top:8px">Nada é liberado para o aluno. Os treinos já liberados nunca são apagados. Os ritmos saem do perfil de corrida do aluno.</p>`
           : ''
@@ -2356,20 +2429,16 @@ async function viewMacro() {
     const fim = new Date(ini0);
     fim.setDate(fim.getDate() + 7 * pl.total - 1);
     let extraF = '';
+    let gTxt = '',
+      nIns = 0;
     try {
-      if (document.getElementById('mac-limpar').checked) {
-        const { error: e1 } = await sb
-          .from('nx_plano_corrida')
-          .delete()
-          .eq('aluno_id', st.aluno)
-          .eq('liberado', false)
-          .gte('data', isoDia(ini0));
-        if (e1) throw e1;
-      }
-      for (let k = 0; k < rows.length; k += 150) {
-        const { error: e2 } = await sb.from('nx_plano_corrida').insert(rows.slice(k, k + 150));
-        if (e2) throw e2;
-      }
+      const g = await gravarCicloRows(st.aluno, rows, {
+        de: isoDia(ini0),
+        limpar: document.getElementById('mac-limpar').checked,
+        trocarLib: document.getElementById('mac-trocarlib').checked,
+      });
+      gTxt = gravadoTxt(g);
+      nIns = g.inseridos;
       pl.segs.forEach((s) => {
         const d = new Date(ini0);
         d.setDate(d.getDate() + 7 * s.w0);
@@ -2399,7 +2468,7 @@ async function viewMacro() {
       return toast('Não foi possível montar o macrociclo. Tente de novo.', true);
     }
     toast(
-      `${rows.length} treinos montados para ${firstName(m && m.nome)} em ${pl.total} semanas. Libere semana a semana.${extraF ? ' Força: ' + extraF : ''}`,
+      `${nIns} treinos montados para ${firstName(m && m.nome)} em ${pl.total} semanas.${gTxt ? ' ' + gTxt + '.' : ''} Libere semana a semana.${extraF ? ' Força: ' + extraF : ''}`,
     );
     abrirNaSemana(st.aluno, isoDia(ini0));
     location.hash = `#/aluno/${st.aluno}/corrida`;

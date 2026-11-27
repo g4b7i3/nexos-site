@@ -2141,6 +2141,7 @@ async function cicAplicar(c, S2) {
       <label class="field"><span>Quantas semanas montar agora</span><select class="input" name="nsem"><option value="0">Todas</option>${Array.from({ length: Math.max(0, c.sem - 1) }, (_, i) => `<option value="${i + 1}">${i + 1} semana${i ? 's' : ''}</option>`).join('')}</select><small class="tiny dim" id="cic-nsem-dica">Para montar aos poucos: depois aplique o mesmo ciclo de novo, com a mesma data da prova ou o mesmo início, e o app segue da semana em que parou.</small></label>
       <label class="field"><span>Dia do longão</span><select class="input" name="longao"><option value="pad">Como no ciclo</option><option value="5">Sábado</option><option value="6">Domingo</option></select></label>
       <label class="ck-check"><input type="checkbox" name="limpar" checked><span>Apagar os treinos ainda não liberados a partir dessa data (inclusive os de ciclos aplicados antes)</span></label>
+      ${TROCAR_LIB_HTML('name="trocarlib"')}
       <p class="tiny dim" style="margin:8px 0 12px">Nada é liberado para o aluno. Os treinos já liberados nunca são apagados.</p>
       <button class="btn block" type="submit">Montar ${c.sem} semana${c.sem > 1 ? 's' : ''} na planilha</button></form>`,
     (r) => {
@@ -2211,21 +2212,14 @@ async function cicAplicar(c, S2) {
         const rows = linhasCiclo(c, alunoId, perfil, ini, f.longao.value).filter(
           (x) => x.data >= ec.iniEf && x.data >= hj && x.data <= ate,
         );
+        let g;
         try {
-          if (f.limpar.checked) {
-            const { error: e1 } = await sb
-              .from('nx_plano_corrida')
-              .delete()
-              .eq('aluno_id', alunoId)
-              .eq('liberado', false)
-              .gte('data', ec.pulo ? hj : isoDia(ini))
-              .lte('data', ate);
-            if (e1) throw e1;
-          }
-          for (let k = 0; k < rows.length; k += 150) {
-            const { error: e2 } = await sb.from('nx_plano_corrida').insert(rows.slice(k, k + 150));
-            if (e2) throw e2;
-          }
+          g = await gravarCicloRows(alunoId, rows, {
+            de: ec.pulo ? hj : isoDia(ini),
+            ateLimpar: nsem ? ate : null,
+            limpar: f.limpar.checked,
+            trocarLib: f.trocarlib.checked,
+          });
         } catch (er) {
           console.error(er);
           b.disabled = false;
@@ -2235,7 +2229,7 @@ async function cicAplicar(c, S2) {
         registrarCiclo(alunoId, 'corrida', c, ec.pulo ? dia(ec.iniEf) : ini, ec.pulo ? ec.resta : c.sem);
         closeSheet(true);
         toast(
-          `${rows.length} treinos montados para ${firstName(m && m.nome)}${nsem ? ` (${nsem} semana${nsem > 1 ? 's' : ''} do ciclo)` : ''}. Libere semana a semana.`,
+          `${g.inseridos} treinos montados para ${firstName(m && m.nome)}${nsem ? ` (${nsem} semana${nsem > 1 ? 's' : ''} do ciclo)` : ''}.${gravadoTxt(g) ? ' ' + gravadoTxt(g) + '.' : ''} Libere semana a semana.`,
         );
         abrirNaSemana(alunoId, isoDia(ini));
         location.hash = `#/aluno/${alunoId}/corrida`;
