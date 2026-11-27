@@ -1727,7 +1727,7 @@ function sugerirCicloTeste({ vdot, corridas, prova, alvoFicha, ultNexos }) {
   const sem = cicSem(ciclo);
   if (semProva != null && alvo && alvo !== 'trail' && semProva < sem)
     motivos.push(
-      `O ciclo tem ${sem} semanas e a prova é em ${semProva}: aplique a partir de uma semana mais adiantada, para terminar no dia da prova.`,
+      `O ciclo tem ${sem} semanas e a prova é em ${semProva}. Coloque a data da prova ao aplicar: o app pula as semanas iniciais de base e mantém a parte específica e o polimento.`,
     );
   return { ciclo, niv, motivos, sem };
 }

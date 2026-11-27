@@ -1496,6 +1496,19 @@ function saltoComOk(sa, km, ok) {
   return { mx, pct, nivel: pct > 30 ? 'alto' : 'medio', lim: Math.floor(mx * 1.1 * 2) / 2 };
 }
 /* salto:puro:fim */
+/* ciclo:encaixe:inicio */
+// encaixa o ciclo na data: semanas que começam antes da semana atual são puladas (as do começo, de base), e o fim do
+// ciclo, com a parte específica e o polimento, fica inteiro. ini e semAtual: segundas-feiras (AAAA-MM-DD)
+function encaixeCiclo(ini, sem, semAtual) {
+  const d = (x) => Date.parse(x + 'T12:00:00Z');
+  const antes = Math.round((d(semAtual) - d(ini)) / (7 * 864e5));
+  if (antes <= 0) return { pulo: 0, resta: sem, iniEf: ini };
+  const iniEf = new Date(d(ini) + antes * 7 * 864e5).toISOString().slice(0, 10);
+  return { pulo: antes, resta: sem - antes, iniEf };
+}
+// semanas mínimas para o ciclo fazer sentido: o polimento (3 na maratona, 2 nas outras) e ao menos 3 de treino específico
+const cicMinSem = (c) => (String(c.obj) === '42k' ? 3 : 2) + 3;
+/* ciclo:encaixe:fim */
 
 /* Limite de salto por treino (Frandsen et al. 2025, Br J Sports Med): nenhum treino com mais de 10% acima do mais longo
    dos 30 dias anteriores. Depois de 2 semanas de ciclo, o treino que passar disso é encurtado (menos repetições ou menos km). */
@@ -2132,17 +2145,32 @@ async function cicAplicar(c, S2) {
     (r) => {
       const f = r.querySelector('#f-cic');
       const segunda = (iso) => isoDia(inicioSemana(dia(iso)));
+      // a semana em andamento já está planejada: o ciclo encaixado começa na próxima segunda (ou hoje, se for segunda)
+      const primeiraSegunda = () => (new Date().getDay() === 1 ? isoDia(inicioSemana()) : prox);
+      const btnTxt = f.querySelector('button[type=submit]');
       const atual = () => {
         const pv = f.prova && f.prova.value;
+        // com a prova, o início teórico do ciclo fica guardado e o campo mostra a segunda em que ele começa de fato
         if (pv) {
           const d = inicioSemana(dia(pv));
           d.setDate(d.getDate() - 7 * (c.sem - 1));
-          f.ini.value = isoDia(d);
-        }
-        const ini = segunda(f.ini.value || prox);
+          f.dataset.iniCiclo = isoDia(d);
+        } else delete f.dataset.iniCiclo;
+        const ini = segunda(f.dataset.iniCiclo || f.ini.value || prox);
         const fim = dia(ini);
         fim.setDate(fim.getDate() + 7 * c.sem - 1);
-        r.querySelector('#cic-fim').textContent = `Vai de ${fmtDia(ini)} a ${fmtDia(isoDia(fim))}.`;
+        const ec = encaixeCiclo(ini, c.sem, primeiraSegunda());
+        const el = r.querySelector('#cic-fim');
+        el.textContent = ec.pulo
+          ? ec.resta > 0
+            ? `Até a prova cabem ${ec.resta} semana${ec.resta > 1 ? 's' : ''} e o ciclo tem ${c.sem}. Ele começa na semana ${ec.pulo + 1} e pula as ${ec.pulo} primeira${ec.pulo > 1 ? 's' : ''}, que são de base. A parte específica e o polimento ficam inteiros. Vai de ${fmtDia(ec.iniEf)} a ${fmtDia(isoDia(fim))}.${ec.resta < cicMinSem(c) ? ' Pouco tempo para este ciclo: confira se a distância da prova é a melhor escolha.' : ' Confira os avisos de volume nas primeiras semanas.'}`
+            : 'Essa data já passou. Escolha uma prova ou um início a partir desta semana.'
+          : `Vai de ${fmtDia(ini)} a ${fmtDia(isoDia(fim))}.`;
+        el.style.color = ec.pulo ? 'var(--warn)' : '';
+        if (pv) f.ini.value = ec.resta > 0 ? ec.iniEf : ini;
+        btnTxt.disabled = ec.pulo > 0 && ec.resta <= 0;
+        const n = Math.max(0, ec.resta || c.sem);
+        btnTxt.textContent = `Montar ${n} semana${n > 1 ? 's' : ''} na planilha`;
       };
       f.oninput = atual;
       atual();
@@ -2155,10 +2183,20 @@ async function cicAplicar(c, S2) {
         const b = f.querySelector('button[type=submit]');
         b.disabled = true;
         b.textContent = 'Montando…';
-        const ini = dia(segunda(f.ini.value || prox)),
+        const ini = dia(segunda(f.dataset.iniCiclo || f.ini.value || prox)),
           fim = new Date(ini);
         fim.setDate(fim.getDate() + 7 * c.sem - 1);
-        const rows = linhasCiclo(c, alunoId, perfil, ini, f.longao.value);
+        // prova mais perto do que o ciclo cabe: pula as semanas iniciais (base) e nunca grava treino em data passada
+        const ec = encaixeCiclo(isoDia(ini), c.sem, primeiraSegunda());
+        if (ec.pulo && ec.resta <= 0) {
+          b.disabled = false;
+          b.textContent = 'Montar na planilha';
+          return toast('Essa data já passou.', true);
+        }
+        const hj = hojeISO();
+        const rows = linhasCiclo(c, alunoId, perfil, ini, f.longao.value).filter(
+          (x) => x.data >= ec.iniEf && x.data >= hj,
+        );
         try {
           if (f.limpar.checked) {
             const { error: e1 } = await sb
@@ -2166,7 +2204,7 @@ async function cicAplicar(c, S2) {
               .delete()
               .eq('aluno_id', alunoId)
               .eq('liberado', false)
-              .gte('data', isoDia(ini));
+              .gte('data', ec.pulo ? hj : isoDia(ini));
             if (e1) throw e1;
           }
           for (let k = 0; k < rows.length; k += 150) {
@@ -2179,7 +2217,7 @@ async function cicAplicar(c, S2) {
           b.textContent = 'Tentar de novo';
           return toast('Não foi possível montar o ciclo. Tente de novo.', true);
         }
-        registrarCiclo(alunoId, 'corrida', c, ini, c.sem);
+        registrarCiclo(alunoId, 'corrida', c, ec.pulo ? dia(ec.iniEf) : ini, ec.pulo ? ec.resta : c.sem);
         closeSheet(true);
         toast(`${rows.length} treinos montados para ${firstName(m && m.nome)}. Libere semana a semana.`);
         abrirNaSemana(alunoId, isoDia(ini));
