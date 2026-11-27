@@ -5048,3 +5048,5 @@ details.voltas-sec>summary::-webkit-details-marker{display:none}
 .th-del svg{width:16px;height:16px}
 .th-del.conf{opacity:1;border-color:var(--err,#e5534b);color:var(--err,#e5534b)}
 .ses-salto[data-salto]{cursor:pointer}
+
+.tv-espaco{background:linear-gradient(110deg,#050a1f,#1b2a6b 55%,#5a3fd1);box-shadow:0 14px 30px -18px rgba(90,63,209,.8)}

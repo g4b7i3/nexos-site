@@ -83,3 +83,9 @@
   to = "/"
   status = 404
   force = true
+
+# Viagem pelo espaço (TV Nexos): texturas pesadas que não mudam
+[[headers]]
+  for = "/espaco/tex/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000, stale-while-revalidate=31536000"
