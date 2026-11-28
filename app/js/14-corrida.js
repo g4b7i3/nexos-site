@@ -1346,7 +1346,7 @@ async function desenharCard(cv, c, o) {
   const dataTxt = o.stats.data ? `${fmtDia(c.data)} · ${fmtHora(c.data)}`.toUpperCase() : '';
   const temRota = o.stats.rota && c.rota && c.rota.length > 1;
   // com a localização no alto do card, o conteúdo do post desce um pouco para não encostar nela
-  const yTopo = (v) => v + (o.local && post && o.layout !== 'recibo' ? 64 : 0);
+  const yTopo = (v) => v + (o.local && o.layout !== 'recibo' ? (post ? 118 : 96) : 0);
   const rota = (x, y, w, h, lw = 9, br = false) => temRota && cardRota(ctx, c.rota, x, y, w, h, AC, lw, br);
   const L = o.layout;
   // modelos novos: dados de outras atividades (recorde, mesmo percurso, semana, constância) e tons de apoio
@@ -2001,7 +2001,7 @@ async function desenharCard(cv, c, o) {
     const pc = o.pc || { z: 1, dx: 0, dy: 0 },
       pb = o.pb || { z: 1, dx: 0, dy: 0 };
     const lhC = Math.min(post ? 72 : 92, ((post ? 0.52 : 0.58) * H - 160) / Math.max(1, parc.length));
-    const topoC = (post ? 60 : 90) + (o.local ? 90 : 0), // com localização, o título desce para não encostar nela
+    const topoC = (post ? 60 : 90) + (o.local ? (post ? 130 : 150) : 0), // com localização, o título desce para não encostar nela
       cyC = topoC + (110 + parc.length * lhC) / 2;
     const pxB = post ? 72 : 80,
       yS = H - (post ? 80 : 120) - pxB * 1.4,
@@ -2178,7 +2178,8 @@ async function desenharCard(cv, c, o) {
     const resto = sel.filter((s) => s !== d0).slice(0, 2);
     const yy = cy + R0 + (post ? 90 : 130);
     resto.forEach((s, k) => stat(s, resto.length > 1 ? W / 2 + (k ? 200 : -200) : W / 2, yy, 70, 'center'));
-    logo(W / 2, H - (post ? 130 : 220), 260);
+    // com localização, ela ocupa o lugar da logo embaixo (a medalha já tem o símbolo da Nexos)
+    if (!o.local) logo(W / 2, H - (post ? 130 : 220), 260);
   } else if (L === 'destaque') {
     // um número gigante e o resto pequeno embaixo
     const prim = sel[0],
@@ -3123,38 +3124,174 @@ async function desenharCard(cv, c, o) {
     grade(lista, y + 10, px, 80, W - 80, 3, 'left');
   }
   if (o.local) {
-    // localização escolhida pelo atleta: alfinete + nome do lugar
-    const fl = `700 ${post ? 30 : 34}px ${FB}`,
-      maxW = L === 'recibo' ? W - 200 : W - 70 - 250;
-    let t = String(o.local);
-    while (t.length > 3 && larg(t, fl, 1) > maxW) t = t.slice(0, -2).trimEnd() + '…';
-    const ic = post ? 34 : 38,
-      w = ic + 12 + larg(t, fl, 1);
-    const x0 = L === 'recibo' ? (W - w) / 2 : 70,
-      yb = L === 'recibo' ? H - (post ? 46 : 104) : (post ? 66 : 96) + 42;
-    if (window.Path2D) {
+    // localização escolhida pelo atleta, em dois estilos da Nexos: placa (azul, como placa de rua) ou rota
+    // (cidade grande com um traço de percurso até o alfinete). O texto "Lugar, Cidade - UF" vira lugar, cidade e estado.
+    const lp = locPartes(o.local),
+      ks = post ? (o.locEstilo === 'placa' ? 0.82 : 0.74) : 1,
+      rec = L === 'recibo',
+      maxW = rec ? W - 200 : W - 70 - 260,
+      PIN =
+        'M12 23s-7.5-6.9-7.5-12.6a7.5 7.5 0 0 1 15 0C19.5 16.1 12 23 12 23zm0-9.4a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z';
+    const alfinete = (x, yTop, tam, cor) => {
+      if (!window.Path2D) return;
       ctx.save();
-      ctx.translate(x0, yb - ic * 0.86);
-      ctx.scale(ic / 24, ic / 24);
-      ctx.fillStyle = AC;
+      ctx.translate(x, yTop);
+      ctx.scale(tam / 24, tam / 24);
+      ctx.fillStyle = cor;
+      ctx.fill(new Path2D(PIN), 'evenodd');
+      ctx.restore();
+    };
+    const sombraLeve = () => {
       if (sombra) {
         ctx.shadowColor = 'rgba(0,0,0,.3)';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 3;
       }
-      ctx.fill(
-        new Path2D(
-          'M12 23s-7.5-6.9-7.5-12.6a7.5 7.5 0 0 1 15 0C19.5 16.1 12 23 12 23zm0-9.4a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z',
-        ),
-        'evenodd',
-      );
+    };
+    if (o.locEstilo === 'placa') {
+      const pad = 22 * ks,
+        fL = `700 ${Math.round(23 * ks)}px ${FB}`,
+        fE = `800 ${Math.round(20 * ks)}px ${FB}`;
+      let pc = Math.round(48 * ks);
+      while (pc > 26 && larg(lp.cidade, `800 ${pc}px ${FH}`) > maxW - pad * 2) pc -= 2;
+      const fC = `800 ${pc}px ${FH}`,
+        lug = lp.lugar ? corta(lp.lugar, fL, maxW - pad * 2) : '',
+        est = (lp.estado || lp.uf || '').toUpperCase(),
+        wTxt = Math.max(larg(lp.cidade, fC), lug ? larg(lug, fL) : 0, larg(est, fE, 2) + 120 * ks),
+        w = Math.min(maxW, Math.max(300 * ks, wTxt + pad * 2)),
+        h = pad + (lug ? 30 * ks : 0) + pc * 1.02 + 16 * ks + (est ? 34 * ks : 6 * ks) + pad * 0.7;
+      const x0 = rec ? (W - w) / 2 : 70,
+        y0 = rec ? H - (post ? 30 : 160) - h : post ? 62 : 92;
+      ctx.save();
+      sombraLeve();
+      ret(ctx, x0, y0, w, h, 16 * ks);
+      ctx.fillStyle = '#0b3a8c';
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = 5 * ks;
+      ctx.strokeStyle = '#ffffff';
+      ret(ctx, x0 + 7 * ks, y0 + 7 * ks, w - 14 * ks, h - 14 * ks, 11 * ks);
+      ctx.stroke();
       ctx.restore();
+      let y = y0 + pad;
+      if (lug) {
+        y += 23 * ks;
+        txt(lug, x0 + pad, y, fL, 'rgba(255,255,255,.82)', 'left');
+        y += 7 * ks;
+      }
+      y += pc * 0.92;
+      txt(lp.cidade, x0 + pad, y, fC, '#ffffff', 'left');
+      if (est) {
+        y += 16 * ks;
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.55)';
+        ctx.fillRect(x0 + pad, y, w - pad * 2, 3 * ks);
+        ctx.restore();
+        y += 27 * ks;
+        txt(est, x0 + pad, y, fE, '#ffffff', 'left', 2);
+        // as três faixas da Nexos no canto da placa
+        ctx.save();
+        ctx.fillStyle = '#46d6ff';
+        [0, 1, 2].forEach((k) => {
+          ctx.globalAlpha = 1 - k * 0.32;
+          const bx = x0 + w - pad - 84 * ks + k * 26 * ks,
+            hh = 20 * ks;
+          ctx.beginPath();
+          ctx.moveTo(bx, y);
+          ctx.lineTo(bx + 17 * ks, y);
+          ctx.lineTo(bx + 33 * ks, y - hh);
+          ctx.lineTo(bx + 16 * ks, y - hh);
+          ctx.closePath();
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+    } else {
+      let pc = Math.round(66 * ks);
+      while (pc > 30 && larg(lp.cidade, `800 ${pc}px ${FH}`) > maxW) pc -= 2;
+      const fC = `800 ${pc}px ${FH}`,
+        wc = larg(lp.cidade, fC),
+        fL = `700 ${Math.round(25 * ks)}px ${FB}`,
+        fU = `800 ${Math.round(21 * ks)}px ${FH}`,
+        uf = lp.uf || '',
+        wu = uf ? larg(uf, fU) + 24 * ks : 0,
+        lug = lp.lugar ? corta(lp.lugar, fL, maxW - wu - 14 * ks) : '',
+        wRod = wu + (lug ? (wu ? 14 * ks : 0) + larg(lug, fL) : 0),
+        w = Math.max(wc, 300 * ks, wRod),
+        h = pc * 0.86 + 50 * ks + (uf || lug ? 38 * ks : 0);
+      const x0 = rec ? (W - w) / 2 : 70,
+        y0 = rec ? H - (post ? 30 : 160) - h : post ? 62 : 92;
+      let y = y0 + pc * 0.86;
+      txt(lp.cidade, x0, y, fC, tx, 'left', -1);
+      // traço de percurso saindo de um ponto e terminando no alfinete
+      const ly = y + 26 * ks,
+        lx1 = x0 + 6 * ks,
+        lx2 = x0 + w - 26 * ks;
+      ctx.save();
+      sombraLeve();
+      ctx.strokeStyle = AC;
+      ctx.lineWidth = 6 * ks;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(lx1, ly);
+      const seg = (lx2 - lx1) / 4;
+      for (let k = 0; k < 4; k++) {
+        const xa = lx1 + seg * k;
+        ctx.bezierCurveTo(
+          xa + seg * 0.35,
+          ly + (k % 2 ? 11 : -11) * ks,
+          xa + seg * 0.65,
+          ly + (k % 2 ? -11 : 11) * ks,
+          xa + seg,
+          ly,
+        );
+      }
+      ctx.stroke();
+      ctx.fillStyle = tx;
+      ctx.beginPath();
+      ctx.arc(lx1, ly, 8 * ks, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      alfinete(lx2 - 4 * ks, ly - 30 * ks, 34 * ks, AC);
+      if (uf || lug) {
+        const yr = ly + 22 * ks,
+          hr = 36 * ks;
+        let xr = x0;
+        if (uf) {
+          ctx.save();
+          ret(ctx, xr, yr, wu, hr, 9 * ks);
+          ctx.fillStyle = AC;
+          ctx.fill();
+          ctx.restore();
+          txt(uf, xr + wu / 2, yr + hr * 0.71, fU, branco ? '#081430' : '#ffffff', 'center');
+          xr += wu + 14 * ks;
+        }
+        if (lug) txt(lug, xr, yr + hr * 0.72, fL, tx, 'left');
+      }
     }
-    txt(t, x0 + ic + 12, yb, fl, tx, 'left', 1);
   }
   ctx.restore();
   // as faixas e o selo são da marca: saem junto com a logo quando ela é desligada
   // no card Só o mapa fica só o símbolo da Nexos, sem as faixas
   if (o.parte !== 'baixo' && comLogo && L !== 'mapa') assinatura();
+}
+// "Lugar, Cidade - UF" em partes, para os estilos de localização do card
+function locPartes(t) {
+  let s = String(t || '').trim(),
+    uf = '';
+  const m = s.match(/^(.*?)\s*[-–]\s*([A-Za-z]{2})$/);
+  if (m) {
+    s = m[1].trim();
+    uf = m[2].toUpperCase();
+  }
+  const p = s
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const cidade = p.length ? p[p.length - 1] : s;
+  const lugar = p.slice(0, -1).join(', ');
+  const estado = uf ? Object.keys(UF_BR).find((k) => UF_BR[k] === uf) || '' : '';
+  return { lugar, cidade, uf, estado };
 }
 // localização do card: busca no OpenStreetMap (só quando o atleta pede; nada é enviado sozinho)
 const locCurto = (r) => {
@@ -3647,8 +3784,10 @@ async function abrirCardCorrida(c, plano) {
   }
   try {
     o.local = localStorage.getItem('nx-card-loc-' + c.id) || '';
+    o.locEstilo = localStorage.getItem('nx-card-loc-estilo') === 'placa' ? 'placa' : 'rota';
   } catch {
     o.local = '';
+    o.locEstilo = 'rota';
   }
   // dados de outras atividades para os modelos de recorde, mesmo percurso, semana e constância (no máximo 5 s de espera)
   c._x =
@@ -3997,7 +4136,16 @@ async function abrirCardCorrida(c, plano) {
         '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path fill-rule="evenodd" d="M12 23s-7.5-6.9-7.5-12.6a7.5 7.5 0 0 1 15 0C19.5 16.1 12 23 12 23zm0-9.4a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg>';
       const locUI = (aberto) => {
         if (o.local && !aberto) {
-          locBox.innerHTML = `<div class="loc-on">${PIN}<b class="grow ellip">${esc(o.local)}</b><button type="button" class="link-btn small" data-l="trocar">Trocar</button><button type="button" class="icon-btn sm" data-l="tirar" aria-label="Tirar a localização">✕</button></div>`;
+          locBox.innerHTML = `<div class="loc-on">${PIN}<b class="grow ellip">${esc(o.local)}</b><button type="button" class="link-btn small" data-l="trocar">Trocar</button><button type="button" class="icon-btn sm" data-l="tirar" aria-label="Tirar a localização">✕</button></div>
+          <div class="seg loc-est" role="group" aria-label="Estilo da localização">${[
+            ['rota', 'Rota'],
+            ['placa', 'Placa'],
+          ]
+            .map(
+              ([k, l]) =>
+                `<button type="button" data-l="est-${k}" aria-pressed="${o.locEstilo === k}" class="${o.locEstilo === k ? 'on' : ''}">${l}</button>`,
+            )
+            .join('')}</div>`;
           return;
         }
         if (!aberto) {
@@ -4043,6 +4191,14 @@ async function abrirCardCorrida(c, plano) {
         if (a === 'abrir' || a === 'trocar') return locUI(true);
         if (a === 'fechar') return locUI(false);
         if (a === 'tirar') return usarLoc('');
+        if (a === 'est-rota' || a === 'est-placa') {
+          o.locEstilo = a.slice(4);
+          try {
+            localStorage.setItem('nx-card-loc-estilo', o.locEstilo);
+          } catch {}
+          locUI();
+          return pinta();
+        }
         if (a === 'escrito') {
           const t = locBox.querySelector('#loc-q').value.trim();
           return t ? usarLoc(t) : toast('Escreva o nome do lugar.', true);

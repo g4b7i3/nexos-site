@@ -5056,3 +5056,4 @@ details.voltas-sec>summary::-webkit-details-marker{display:none}
 .rz-nums>div{background:var(--bg2,rgba(127,127,127,.08));border-radius:10px;padding:8px;text-align:center}
 .rz-nums small{display:block;font-size:11px;opacity:.65}
 .rz-nums b{font-size:18px}
+.loc-est{margin-top:8px}
