@@ -3157,7 +3157,7 @@ async function desenharCard(cv, c, o) {
       const fC = `800 ${pc}px ${FH}`,
         lug = lp.lugar ? corta(lp.lugar, fL, maxW - pad * 2) : '',
         est = (lp.estado || lp.uf || '').toUpperCase(),
-        wTxt = Math.max(larg(lp.cidade, fC), lug ? larg(lug, fL) : 0, larg(est, fE, 2) + 120 * ks),
+        wTxt = Math.max(larg(lp.cidade, fC), lug ? larg(lug, fL) : 0, larg(est, fE, 2)),
         w = Math.min(maxW, Math.max(300 * ks, wTxt + pad * 2)),
         h = pad + (lug ? 30 * ks : 0) + pc * 1.02 + 16 * ks + (est ? 34 * ks : 6 * ks) + pad * 0.7;
       const x0 = rec ? (W - w) / 2 : 70,
@@ -3189,22 +3189,6 @@ async function desenharCard(cv, c, o) {
         ctx.restore();
         y += 27 * ks;
         txt(est, x0 + pad, y, fE, '#ffffff', 'left', 2);
-        // as três faixas da Nexos no canto da placa
-        ctx.save();
-        ctx.fillStyle = '#46d6ff';
-        [0, 1, 2].forEach((k) => {
-          ctx.globalAlpha = 1 - k * 0.32;
-          const bx = x0 + w - pad - 84 * ks + k * 26 * ks,
-            hh = 20 * ks;
-          ctx.beginPath();
-          ctx.moveTo(bx, y);
-          ctx.lineTo(bx + 17 * ks, y);
-          ctx.lineTo(bx + 33 * ks, y - hh);
-          ctx.lineTo(bx + 16 * ks, y - hh);
-          ctx.closePath();
-          ctx.fill();
-        });
-        ctx.restore();
       }
     } else {
       let pc = Math.round(66 * ks);
